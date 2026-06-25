@@ -1,0 +1,1 @@
+{"rustc":1562763049001146449,"features":"","declared_features":"","target":0,"profile":0,"path":0,"deps":[[8094297047362239616,"build_script_build",false,15555988553412325659]],"local":[{"RerunIfChanged":{"output":"wasm32v1-none\\debug\\build\\soroban-env-common-713c8840818cb678\\output","paths":["build.rs"]}}],"rustflags":[],"config":0,"compile_kind":0}
