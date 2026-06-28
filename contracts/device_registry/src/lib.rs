@@ -39,6 +39,26 @@ impl DeviceRegistry {
             .publish((symbol_short!("register"), device_hash), wallet);
     }
 
+    pub fn unregister(env: Env, device_hash: BytesN<32>) {
+        let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
+        admin.require_auth();
+
+        if !env
+            .storage()
+            .persistent()
+            .has(&DataKey::DeviceMap(device_hash.clone()))
+        {
+            panic_with_error!(&env, Error::DeviceNotFound);
+        }
+
+        env.storage()
+            .persistent()
+            .remove(&DataKey::DeviceMap(device_hash.clone()));
+
+        env.events()
+            .publish((symbol_short!("revoke"), device_hash), ());
+    }
+
     pub fn get_wallet(env: Env, device_hash: BytesN<32>) -> Address {
         env.storage()
             .persistent()

@@ -11,3 +11,7 @@ soroban-sdk = "25.0.1"
 
 [dev-dependencies]
 soroban-sdk = { version = "25.0.1", features = ["testutils"] }
+
+[[test]]
+name = "integration"
+path = "tests/integration.rs"
