@@ -1,0 +1,7 @@
+[build]
+# Use wasm target for the library build
+target = "wasm32-unknown-unknown"
+
+[test]
+# Use native target for tests
+# This allows testutils to work
