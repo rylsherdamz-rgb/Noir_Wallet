@@ -21,14 +21,16 @@ pub struct DeviceRegistry;
 #[contractimpl]
 impl DeviceRegistry {
     pub fn initialize(env: Env, admin: Address) {
-        if env.storage().instance().has(&DataKey::Admin) {
+        let storage = env.storage().persistent();
+        let admin_exists: Option<Address> = storage.get(&DataKey::Admin);
+        if admin_exists.is_some() {
             panic_with_error!(&env, Error::AlreadyInitialized);
         }
-        env.storage().instance().set(&DataKey::Admin, &admin);
+        storage.set(&DataKey::Admin, &admin);
     }
 
     pub fn register(env: Env, device_hash: BytesN<32>, wallet: Address) {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
+        let admin: Address = env.storage().persistent().get(&DataKey::Admin).unwrap();
         admin.require_auth();
 
         env.storage()
@@ -40,7 +42,7 @@ impl DeviceRegistry {
     }
 
     pub fn unregister(env: Env, device_hash: BytesN<32>) {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
+        let admin: Address = env.storage().persistent().get(&DataKey::Admin).unwrap();
         admin.require_auth();
 
         if !env
