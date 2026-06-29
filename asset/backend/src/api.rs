@@ -34,6 +34,30 @@ pub async fn process_payment(
     let transaction_id = uuid::Uuid::new_v4().to_string();
     let now = Utc::now();
 
+    // Create payment transaction record
+    let payment_tx = crate::models::PaymentTransaction {
+        id: 0,
+        transaction_id: transaction_id.clone(),
+        device_hash: device_hash.clone(),
+        source_wallet: "pending".to_string(),
+        destination_wallet: req.destination_wallet.clone(),
+        amount_stroops: req.amount_stroops as i64,
+        fee_stroops: 200,
+        status: "pending".to_string(),
+        stellar_tx_hash: None,
+        created_at: now,
+        submitted_at: None,
+        confirmed_at: None,
+        error_message: None,
+        fee_channel_used: None,
+    };
+
+    // Store transaction to database
+    state.db.store_payment_transaction(&payment_tx).await?;
+
+    // Update daily spend tracking
+    state.db.increment_daily_spend(&device_hash, req.amount_stroops as i64).await?;
+
     let response = PaymentResponse {
         status: "accepted".to_string(),
         transaction_id: transaction_id.clone(),
@@ -68,7 +92,7 @@ pub async fn get_transaction_status(
     Ok(HttpResponse::Ok().json(response))
 }
 
-pub async fn health_check(state: web::Data<AppState>) -> HttpResponse {
+pub async fn health_check(_state: web::Data<AppState>) -> HttpResponse {
     // TODO: Implement full health check (DB, Stellar RPC, fee channels)
     HttpResponse::Ok().json(serde_json::json!({
         "status": "healthy",

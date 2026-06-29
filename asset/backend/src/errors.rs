@@ -1,9 +1,9 @@
 use actix_web::{error::ResponseError, http::StatusCode, HttpResponse};
 use serde::Serialize;
-use std::fmt;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
+#[allow(dead_code)]
 pub enum PaymentError {
     #[error("Device not found")]
     DeviceNotFound,

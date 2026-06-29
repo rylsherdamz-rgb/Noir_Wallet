@@ -1,5 +1,6 @@
 use crate::errors::{PaymentError, Result};
 
+#[allow(dead_code)]
 pub struct StellarClient {
     rpc_url: String,
     network: String,

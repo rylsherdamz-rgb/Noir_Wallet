@@ -15,6 +15,6 @@ impl TransactionQueue {
         self.tx
             .send(tx)
             .await
-            .map_err(|e| crate::errors::PaymentError::InternalError)
+            .map_err(|_| crate::errors::PaymentError::InternalError)
     }
 }

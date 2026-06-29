@@ -1,5 +1,4 @@
 use sqlx::PgPool;
-use chrono::NaiveDate;
 use crate::errors::{PaymentError, Result};
 use crate::models::{Device, DailySpend, PaymentTransaction};
 

@@ -2,6 +2,7 @@ use crate::errors::{PaymentError, Result};
 use std::env;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct Config {
     pub environment: String,
     pub database_url: String,
@@ -16,6 +17,7 @@ pub struct Config {
 }
 
 impl Config {
+    #[allow(dead_code)]
     pub fn from_env() -> Result<Self> {
         Ok(Config {
             environment: env::var("ENVIRONMENT").unwrap_or_else(|_| "development".to_string()),

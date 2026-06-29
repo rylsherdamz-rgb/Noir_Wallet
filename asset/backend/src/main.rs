@@ -1,7 +1,6 @@
 use actix_web::{web, App, HttpServer};
 use log::info;
 use sqlx::postgres::PgPoolOptions;
-use std::sync::Arc;
 
 mod api;
 mod config;
