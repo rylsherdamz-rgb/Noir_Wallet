@@ -11,6 +11,7 @@ pub mod queue;
 pub mod state;
 pub mod stellar;
 pub mod sync;
+pub mod transaction_builder;
 pub mod validation;
 pub mod workers;
 

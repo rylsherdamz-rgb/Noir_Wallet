@@ -17,6 +17,7 @@ mod queue;
 mod state;
 mod stellar;
 mod sync;
+mod transaction_builder;
 mod validation;
 mod workers;
 
