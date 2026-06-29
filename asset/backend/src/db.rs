@@ -1,7 +1,8 @@
 use sqlx::PgPool;
 use crate::errors::{PaymentError, Result};
-use crate::models::{Device, DailySpend, PaymentTransaction};
+use crate::models::{Device, DailySpend, PaymentTransaction, FeeChannel};
 
+#[derive(Clone)]
 pub struct DeviceRepository {
     pool: PgPool,
 }
@@ -94,5 +95,40 @@ impl DeviceRepository {
         .await
         .map_err(|e| PaymentError::DatabaseError(e.to_string()))?
         .ok_or(PaymentError::DeviceNotFound)
+    }
+
+    pub async fn get_available_fee_channel(&self) -> Result<FeeChannel> {
+        sqlx::query_as::<_, FeeChannel>(
+            "SELECT id, channel_address, balance_stroops, last_balance_check, status, created_at FROM fee_channels WHERE status = 'active' ORDER BY balance_stroops DESC LIMIT 1"
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?
+        .ok_or(PaymentError::DatabaseError("No active fee channels available".to_string()))
+    }
+
+    pub async fn get_channel_by_address(&self, address: &str) -> Result<FeeChannel> {
+        sqlx::query_as::<_, FeeChannel>(
+            "SELECT id, channel_address, balance_stroops, last_balance_check, status, created_at FROM fee_channels WHERE channel_address = $1"
+        )
+        .bind(address)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?
+        .ok_or(PaymentError::DatabaseError("Fee channel not found".to_string()))
+    }
+
+    pub async fn update_channel_balance(&self, address: &str, new_balance: i64) -> Result<()> {
+        sqlx::query(
+            "UPDATE fee_channels SET balance_stroops = $1, last_balance_check = $2 WHERE channel_address = $3"
+        )
+        .bind(new_balance)
+        .bind(chrono::Utc::now())
+        .bind(address)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+
+        Ok(())
     }
 }

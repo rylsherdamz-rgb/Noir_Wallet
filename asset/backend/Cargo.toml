@@ -20,6 +20,10 @@ futures = "0.3"
 anyhow = "1.0"
 dotenv = "0.15"
 hex = "0.4"
+signal-hook = "0.3"
+base64 = "0.21"
+reqwest = { version = "0.11", features = ["json"] }
+stellar_sdk = "0.1"
 
 [dev-dependencies]
 tokio-test = "0.4"
