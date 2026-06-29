@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "contracts/device_registry",
+    "backend",
 ]
 resolver = "2"
 
