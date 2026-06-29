@@ -5,6 +5,7 @@ use std::sync::Arc;
 use tokio::task;
 
 mod api;
+mod channel_selector;
 mod channels;
 mod config;
 mod crypto;
@@ -100,7 +101,11 @@ async fn main() -> std::io::Result<()> {
     // Spawn channel monitor
     let monitor = ChannelMonitor::new(
         channel_manager,
+        db.clone(),
+        stellar_arc.clone(),
         config.channel_balance_check_interval_secs,
+        1_000_000,
+        10_000_000,
     );
     task::spawn(async move {
         monitor.run().await;

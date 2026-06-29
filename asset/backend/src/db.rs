@@ -202,4 +202,54 @@ impl DeviceRepository {
         .await
         .map_err(|e| PaymentError::DatabaseError(e.to_string()))
     }
+
+    pub async fn get_all_active_fee_channels(&self) -> Result<Vec<FeeChannel>> {
+        sqlx::query_as::<_, FeeChannel>(
+            "SELECT id, channel_address, balance_stroops, last_balance_check, status, created_at FROM fee_channels WHERE status = 'active' ORDER BY balance_stroops DESC"
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))
+    }
+
+    pub async fn update_fee_channel_status(&self, address: &str, status: &str) -> Result<()> {
+        sqlx::query(
+            "UPDATE fee_channels SET status = $1, last_balance_check = $2 WHERE channel_address = $3"
+        )
+        .bind(status)
+        .bind(chrono::Utc::now())
+        .bind(address)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+
+        Ok(())
+    }
+
+    pub async fn record_channel_fee_usage(&self, channel_address: &str, fee_stroops: i64) -> Result<()> {
+        sqlx::query(
+            "UPDATE fee_channels SET balance_stroops = balance_stroops - $1, last_balance_check = $2 WHERE channel_address = $3"
+        )
+        .bind(fee_stroops)
+        .bind(chrono::Utc::now())
+        .bind(channel_address)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+
+        Ok(())
+    }
+
+    pub async fn update_transaction_channel(&self, tx_id: &str, channel_address: &str) -> Result<()> {
+        sqlx::query(
+            "UPDATE payment_transactions SET fee_channel_used = $1 WHERE transaction_id = $2"
+        )
+        .bind(channel_address)
+        .bind(tx_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+
+        Ok(())
+    }
 }

@@ -34,6 +34,9 @@ pub enum PaymentError {
     
     #[error("Configuration error: {0}")]
     ConfigError(String),
+
+    #[error("Insufficient funds in fee channels")]
+    InsufficientFunds,
 }
 
 #[derive(Serialize)]
@@ -57,7 +60,7 @@ impl ResponseError for PaymentError {
             | PaymentError::InvalidPayload(_) => {
                 HttpResponse::BadRequest().json(error_response)
             }
-            PaymentError::DeviceNotActive | PaymentError::SpendLimitExceeded => {
+            PaymentError::DeviceNotActive | PaymentError::SpendLimitExceeded | PaymentError::InsufficientFunds => {
                 HttpResponse::Forbidden().json(error_response)
             }
             PaymentError::DatabaseError(_)
@@ -76,7 +79,7 @@ impl ResponseError for PaymentError {
             PaymentError::DeviceNotFound | PaymentError::InvalidPayload(_) => {
                 StatusCode::BAD_REQUEST
             }
-            PaymentError::DeviceNotActive | PaymentError::SpendLimitExceeded => {
+            PaymentError::DeviceNotActive | PaymentError::SpendLimitExceeded | PaymentError::InsufficientFunds => {
                 StatusCode::FORBIDDEN
             }
             _ => StatusCode::INTERNAL_SERVER_ERROR,
@@ -97,6 +100,7 @@ impl PaymentError {
             PaymentError::SubmissionFailed(_) => "SUBMISSION_FAILED".to_string(),
             PaymentError::InternalError => "INTERNAL_ERROR".to_string(),
             PaymentError::ConfigError(_) => "CONFIG_ERROR".to_string(),
+            PaymentError::InsufficientFunds => "INSUFFICIENT_FUNDS".to_string(),
         }
     }
 }

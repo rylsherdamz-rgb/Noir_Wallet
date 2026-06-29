@@ -1,3 +1,4 @@
+use crate::channel_selector::{ChannelSelector, SelectionStrategy};
 use crate::db::DeviceRepository;
 use crate::errors::Result;
 use crate::models::FeeChannel;
@@ -10,6 +11,7 @@ pub struct ChannelManager {
     db: Arc<DeviceRepository>,
     stellar: Arc<StellarClient>,
     min_balance_stroops: i64,
+    selector: Arc<ChannelSelector>,
 }
 
 impl ChannelManager {
@@ -18,11 +20,44 @@ impl ChannelManager {
             db,
             stellar,
             min_balance_stroops,
+            selector: Arc::new(ChannelSelector::new(SelectionStrategy::HighestBalance)),
+        }
+    }
+
+    pub fn with_strategy(
+        db: Arc<DeviceRepository>,
+        stellar: Arc<StellarClient>,
+        min_balance_stroops: i64,
+        strategy: SelectionStrategy,
+    ) -> Self {
+        ChannelManager {
+            db,
+            stellar,
+            min_balance_stroops,
+            selector: Arc::new(ChannelSelector::new(strategy)),
         }
     }
 
     pub async fn select_channel(&self) -> Result<FeeChannel> {
-        self.db.get_available_fee_channel().await
+        let channels = self.db.get_all_active_fee_channels().await?;
+        let selected = self.selector.select_channel(&channels)?;
+        Ok(selected.clone())
+    }
+
+    pub async fn get_channel_for_amount(&self, amount_stroops: i64) -> Result<FeeChannel> {
+        let channels = self.db.get_all_active_fee_channels().await?;
+
+        let suitable_channels: Vec<FeeChannel> = channels
+            .into_iter()
+            .filter(|ch| ch.balance_stroops > amount_stroops + self.min_balance_stroops)
+            .collect();
+
+        if suitable_channels.is_empty() {
+            return Err(crate::errors::PaymentError::InsufficientFunds);
+        }
+
+        let selected = self.selector.select_channel(&suitable_channels)?;
+        Ok(selected.clone())
     }
 
     pub async fn check_and_topup_channel(&self, channel: &FeeChannel) -> Result<()> {
@@ -43,9 +78,8 @@ impl ChannelManager {
         Ok(())
     }
 
-    pub async fn record_fee_usage(&self, channel: &FeeChannel, fee_stroops: i64) -> Result<()> {
-        let new_balance = channel.balance_stroops - fee_stroops;
-        self.db.update_channel_balance(&channel.channel_address, new_balance).await?;
+    pub async fn record_fee_usage(&self, channel_address: &str, fee_stroops: i64) -> Result<()> {
+        self.db.record_channel_fee_usage(channel_address, fee_stroops).await?;
         Ok(())
     }
 
@@ -60,6 +94,25 @@ impl ChannelManager {
             in_sync: (channel.balance_stroops - balance).abs() < 1000,
             last_checked: Utc::now(),
         })
+    }
+
+    pub async fn get_all_channel_statuses(&self) -> Result<Vec<ChannelStatus>> {
+        let channels = self.db.get_all_active_fee_channels().await?;
+        let mut statuses = Vec::new();
+
+        for channel in channels {
+            if let Ok(status) = self.get_channel_status(&channel.channel_address).await {
+                statuses.push(status);
+            }
+        }
+
+        Ok(statuses)
+    }
+
+    pub async fn mark_channel_inactive(&self, channel_address: &str) -> Result<()> {
+        self.db.update_fee_channel_status(channel_address, "inactive").await?;
+        log::warn!("Marked channel {} as inactive", channel_address);
+        Ok(())
     }
 }
 
