@@ -1,0 +1,48 @@
+name: Contracts CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'contracts/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'contracts/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: wasm32-unknown-unknown
+          components: clippy, rustfmt
+
+      - uses: stellar-expert/soroban-cli-action@v1
+        with:
+          version: latest
+
+      - run: cargo build --release --target wasm32-unknown-unknown
+        name: Build Contracts
+
+      - run: cargo test --all
+        name: Run Tests
+
+      - run: cargo clippy --all -- -D warnings
+        name: Clippy
+
+      - run: cargo fmt --all -- --check
+        name: Format Check
