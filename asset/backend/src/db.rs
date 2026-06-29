@@ -131,4 +131,75 @@ impl DeviceRepository {
 
         Ok(())
     }
+
+    pub async fn get_pending_payment_transactions(&self) -> Result<Vec<PaymentTransaction>> {
+        sqlx::query_as::<_, PaymentTransaction>(
+            "SELECT id, transaction_id, device_hash, source_wallet, destination_wallet, amount_stroops, fee_stroops, status, stellar_tx_hash, created_at, submitted_at, confirmed_at, error_message, fee_channel_used FROM payment_transactions WHERE status = 'pending' ORDER BY created_at ASC LIMIT 100"
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))
+    }
+
+    pub async fn update_transaction_status(&self, tx_id: &str, status: &str, error: Option<String>) -> Result<()> {
+        sqlx::query(
+            "UPDATE payment_transactions SET status = $1, error_message = $2 WHERE transaction_id = $3"
+        )
+        .bind(status)
+        .bind(error)
+        .bind(tx_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+
+        Ok(())
+    }
+
+    pub async fn update_transaction_hash(&self, tx_id: &str, hash: &str) -> Result<()> {
+        sqlx::query(
+            "UPDATE payment_transactions SET stellar_tx_hash = $1 WHERE transaction_id = $2"
+        )
+        .bind(hash)
+        .bind(tx_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+
+        Ok(())
+    }
+
+    pub async fn update_transaction_submitted_time(&self, tx_id: &str, time: chrono::DateTime<chrono::Utc>) -> Result<()> {
+        sqlx::query(
+            "UPDATE payment_transactions SET submitted_at = $1 WHERE transaction_id = $2"
+        )
+        .bind(time)
+        .bind(tx_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+
+        Ok(())
+    }
+
+    pub async fn update_transaction_confirmed_time(&self, tx_id: &str, time: chrono::DateTime<chrono::Utc>) -> Result<()> {
+        sqlx::query(
+            "UPDATE payment_transactions SET confirmed_at = $1 WHERE transaction_id = $2"
+        )
+        .bind(time)
+        .bind(tx_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+
+        Ok(())
+    }
+
+    pub async fn get_submitted_payment_transactions(&self) -> Result<Vec<PaymentTransaction>> {
+        sqlx::query_as::<_, PaymentTransaction>(
+            "SELECT id, transaction_id, device_hash, source_wallet, destination_wallet, amount_stroops, fee_stroops, status, stellar_tx_hash, created_at, submitted_at, confirmed_at, error_message, fee_channel_used FROM payment_transactions WHERE status = 'submitted' AND stellar_tx_hash IS NOT NULL ORDER BY submitted_at ASC LIMIT 100"
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))
+    }
 }

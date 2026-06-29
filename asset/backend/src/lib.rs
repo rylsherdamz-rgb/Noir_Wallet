@@ -12,6 +12,7 @@ pub mod state;
 pub mod stellar;
 pub mod sync;
 pub mod transaction_builder;
+pub mod transaction_signer;
 pub mod validation;
 pub mod workers;
 

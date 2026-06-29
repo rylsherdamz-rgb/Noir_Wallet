@@ -18,6 +18,7 @@ mod state;
 mod stellar;
 mod sync;
 mod transaction_builder;
+mod transaction_signer;
 mod validation;
 mod workers;
 

@@ -10,8 +10,8 @@ pub struct StellarClient {
     http_client: Arc<Client>,
     rpc_url: String,
     network: String,
-    master_account: String,
-    master_key: String,
+    pub master_account: String,
+    pub master_key: String,
 }
 
 #[derive(serde::Deserialize, Debug)]

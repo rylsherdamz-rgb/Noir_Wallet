@@ -1,11 +1,11 @@
 use crate::db::DeviceRepository;
 use crate::errors::Result;
 use crate::stellar::StellarClient;
+use chrono::Utc;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 
-#[allow(dead_code)]
 pub struct ConfirmationPoller {
     db: Arc<DeviceRepository>,
     stellar: Arc<StellarClient>,
@@ -35,11 +35,50 @@ impl ConfirmationPoller {
     }
 
     async fn poll_pending_transactions(&self) -> Result<()> {
-        // TODO: Phase 2b - Query pending transactions and poll Stellar
-        // 1. Fetch transactions with status = 'submitted'
-        // 2. For each transaction, call stellar.get_transaction_status(stellar_tx_hash)
-        // 3. Update database with confirmed status and timestamp
-        // 4. On confirmation, mark as 'confirmed' and record settlement
+        let submitted_txs = self.db.get_submitted_payment_transactions().await?;
+
+        for mut tx in submitted_txs {
+            if let Some(ref tx_hash) = tx.stellar_tx_hash {
+                match self.stellar.get_transaction_status(tx_hash).await {
+                    Ok(status) => {
+                        if status == "confirmed" {
+                            self.db
+                                .update_transaction_status(&tx.transaction_id, "confirmed", None)
+                                .await?;
+
+                            self.db
+                                .update_transaction_confirmed_time(&tx.transaction_id, Utc::now())
+                                .await?;
+
+                            log::info!(
+                                "Transaction {} confirmed on Stellar",
+                                tx.transaction_id
+                            );
+                        } else if status == "failed" {
+                            self.db
+                                .update_transaction_status(
+                                    &tx.transaction_id,
+                                    "failed",
+                                    Some("Transaction failed on Stellar".to_string()),
+                                )
+                                .await?;
+
+                            log::warn!(
+                                "Transaction {} failed on Stellar",
+                                tx.transaction_id
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        log::debug!(
+                            "Error checking status for {}: {}",
+                            tx.transaction_id, e
+                        );
+                    }
+                }
+            }
+        }
+
         Ok(())
     }
 }
