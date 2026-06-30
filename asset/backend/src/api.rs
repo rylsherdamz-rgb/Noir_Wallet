@@ -156,30 +156,48 @@ pub async fn get_device_transactions(
 }
 
 pub async fn health_check(state: web::Data<AppState>) -> HttpResponse {
-    let mut health = serde_json::json!({
-        "status": "healthy",
-        "timestamp": Utc::now().to_rfc3339(),
-        "components": {}
-    });
+    let mut degraded = false;
 
-    if let Ok(channels) = state.db.get_all_active_fee_channels().await {
-        health["components"]["fee_channels"] = serde_json::json!({
-            "status": if channels.is_empty() { "warning" } else { "healthy" },
-            "count": channels.len(),
-            "total_balance_stroops": channels.iter().map(|c| c.balance_stroops).sum::<i64>(),
-        });
-        if channels.is_empty() {
-            health["status"] = serde_json::json!("degraded");
+    // DB connectivity ping
+    let db_status = match state.db.ping().await {
+        Ok(_) => serde_json::json!({ "status": "healthy" }),
+        Err(e) => {
+            degraded = true;
+            serde_json::json!({ "status": "error", "message": e.to_string() })
         }
-    } else {
-        health["components"]["fee_channels"] = serde_json::json!({
-            "status": "error",
-            "message": "Failed to fetch channels"
-        });
-        health["status"] = serde_json::json!("degraded");
-    }
+    };
 
-    HttpResponse::Ok().json(health)
+    // Fee channel check
+    let channel_status = match state.db.get_all_active_fee_channels().await {
+        Ok(channels) => {
+            if channels.is_empty() {
+                degraded = true;
+                serde_json::json!({ "status": "warning", "count": 0, "total_balance_stroops": 0 })
+            } else {
+                let total: i64 = channels.iter().map(|c| c.balance_stroops).sum();
+                serde_json::json!({
+                    "status": "healthy",
+                    "count": channels.len(),
+                    "total_balance_stroops": total,
+                })
+            }
+        }
+        Err(e) => {
+            degraded = true;
+            serde_json::json!({ "status": "error", "message": e.to_string() })
+        }
+    };
+
+    let status = if degraded { "degraded" } else { "healthy" };
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "status": status,
+        "timestamp": Utc::now().to_rfc3339(),
+        "components": {
+            "database": db_status,
+            "fee_channels": channel_status,
+        }
+    }))
 }
 
 pub async fn get_metrics(state: web::Data<AppState>) -> HttpResponse {

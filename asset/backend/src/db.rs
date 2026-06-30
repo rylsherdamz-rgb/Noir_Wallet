@@ -12,6 +12,14 @@ impl DeviceRepository {
         DeviceRepository { pool }
     }
 
+    pub async fn ping(&self) -> Result<()> {
+        sqlx::query("SELECT 1")
+            .execute(&self.pool)
+            .await
+            .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+        Ok(())
+    }
+
     pub async fn get_device_by_hash(&self, hash: &str) -> Result<Device> {
         sqlx::query_as::<_, Device>(
             "SELECT id, device_hash, wallet_address, registration_date, status, daily_limit_stroops, last_synced_on_chain FROM devices WHERE device_hash = $1"
