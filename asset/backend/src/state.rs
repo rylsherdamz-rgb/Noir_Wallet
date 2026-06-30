@@ -6,6 +6,7 @@ use crate::stellar::StellarClient;
 use crate::validation::DeviceValidator;
 use crate::fees::FeeChannelManager;
 use crate::metrics::MetricsCollector;
+use crate::rate_limiter::RateLimiter;
 
 pub struct AppState {
     pub db_pool: PgPool,
@@ -15,6 +16,7 @@ pub struct AppState {
     pub fee_manager: Arc<FeeChannelManager>,
     pub metrics: Arc<MetricsCollector>,
     pub tx_cache: TransactionCache,
+    pub rate_limiter: Arc<RateLimiter>,
 }
 
 impl AppState {
@@ -34,6 +36,7 @@ impl AppState {
             fee_manager: Arc::new(FeeChannelManager::new(fee_channels)),
             metrics: Arc::new(MetricsCollector::new()),
             tx_cache: TransactionCache::new(300),
+            rate_limiter: Arc::new(RateLimiter::new(60, 10)),
         }
     }
 }

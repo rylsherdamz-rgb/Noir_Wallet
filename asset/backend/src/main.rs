@@ -16,6 +16,7 @@ mod fees;
 mod metrics;
 mod models;
 mod queue;
+mod rate_limiter;
 mod state;
 mod stellar;
 mod sync;
@@ -133,8 +134,10 @@ async fn main() -> std::io::Result<()> {
             .app_data(app_state.clone())
             .app_data(channel_manager_data.clone())
             .route("/health", web::get().to(api::health_check))
+            .route("/metrics", web::get().to(api::get_metrics))
             .route("/payment", web::post().to(api::process_payment))
             .route("/payment/{transaction_id}", web::get().to(api::get_transaction_status))
+            .route("/device/{device_serial}/transactions", web::get().to(api::get_device_transactions))
             .route("/channels", web::get().to(api::list_fee_channels))
             .route("/channels/{channel_address}", web::get().to(api::get_channel_details))
     })

@@ -1,11 +1,11 @@
 use actix_web::{web, HttpResponse};
 use crate::channels::ChannelManager;
-use crate::errors::Result;
+use crate::errors::{PaymentError, Result};
 use crate::models::{PaymentRequest, PaymentResponse, StatusQueryResponse};
 use crate::state::AppState;
 use crate::crypto::hash_device_serial;
 use chrono::Utc;
-use serde::{Serialize};
+use serde::Serialize;
 use std::sync::Arc;
 
 pub async fn process_payment(
@@ -20,6 +20,27 @@ pub async fn process_payment(
     // Hash device serial
     let device_hash = hash_device_serial(&req.device_serial)?;
 
+    // Idempotency check — return existing result if key already seen
+    if let Ok(Some(existing)) = state.db.get_transaction_by_idempotency_key(&req.idempotency_key).await {
+        state.metrics.record_idempotency_hit();
+        let response = PaymentResponse {
+            status: existing.status,
+            transaction_id: existing.transaction_id,
+            device_hash: existing.device_hash,
+            submitted_at: existing.created_at.to_rfc3339(),
+            stellar_tx_hash: existing.stellar_tx_hash,
+            error: existing.error_message,
+        };
+        return Ok(HttpResponse::Ok().json(response));
+    }
+
+    // Rate limit check (10 requests per 60s per device)
+    if !state.rate_limiter.check_and_record(&device_hash).await {
+        state.metrics.record_rate_limit_rejection();
+        state.metrics.record_payment_rejected("rate_limited");
+        return Err(PaymentError::RateLimited);
+    }
+
     // Validate device is active
     state.validator.validate_device_active(&device_hash).await?;
 
@@ -31,13 +52,12 @@ pub async fn process_payment(
 
     if !within_limit {
         state.metrics.record_payment_rejected("spend_limit_exceeded");
-        return Err(crate::errors::PaymentError::SpendLimitExceeded);
+        return Err(PaymentError::SpendLimitExceeded);
     }
 
     let transaction_id = uuid::Uuid::new_v4().to_string();
     let now = Utc::now();
 
-    // Create payment transaction record
     let payment_tx = crate::models::PaymentTransaction {
         id: 0,
         transaction_id: transaction_id.clone(),
@@ -55,11 +75,10 @@ pub async fn process_payment(
         fee_channel_used: None,
     };
 
-    // Store transaction to database
-    state.db.store_payment_transaction(&payment_tx).await?;
-
-    // Update daily spend tracking
+    state.db.store_payment_transaction_with_key(&payment_tx, &req.idempotency_key).await?;
     state.db.increment_daily_spend(&device_hash, req.amount_stroops as i64).await?;
+
+    state.metrics.record_payment_accepted();
 
     let response = PaymentResponse {
         status: "accepted".to_string(),
@@ -69,8 +88,6 @@ pub async fn process_payment(
         stellar_tx_hash: None,
         error: None,
     };
-
-    state.metrics.record_payment_accepted();
 
     Ok(HttpResponse::Accepted().json(response))
 }
@@ -82,7 +99,6 @@ pub async fn get_transaction_status(
     let tx_id = transaction_id.into_inner();
 
     if let Some(cached) = state.tx_cache.get(&tx_id).await {
-        log::debug!("Cache hit for transaction {}", tx_id);
         return Ok(HttpResponse::Ok().json(StatusQueryResponse {
             status: cached.status,
             transaction_id: cached.transaction_id,
@@ -96,7 +112,11 @@ pub async fn get_transaction_status(
     }
 
     let tx = state.db.get_payment_transaction(&tx_id).await?;
-    state.tx_cache.set(tx_id, tx.clone()).await;
+
+    // Only cache terminal states — pending/submitted may still change
+    if tx.status == "confirmed" || tx.status == "failed" {
+        state.tx_cache.set(tx_id, tx.clone()).await;
+    }
 
     let response = StatusQueryResponse {
         status: tx.status,
@@ -112,6 +132,29 @@ pub async fn get_transaction_status(
     Ok(HttpResponse::Ok().json(response))
 }
 
+pub async fn get_device_transactions(
+    device_serial: web::Path<String>,
+    query: web::Query<PaginationQuery>,
+    state: web::Data<AppState>,
+) -> Result<HttpResponse> {
+    let device_hash = hash_device_serial(&device_serial)?;
+    let limit = query.limit.unwrap_or(20).min(100) as i64;
+    let offset = query.offset.unwrap_or(0) as i64;
+
+    let txs = state.db.get_transactions_by_device(&device_hash, limit, offset).await?;
+
+    let response: Vec<_> = txs.into_iter().map(|tx| serde_json::json!({
+        "transaction_id": tx.transaction_id,
+        "amount_stroops": tx.amount_stroops,
+        "destination": tx.destination_wallet,
+        "status": tx.status,
+        "created_at": tx.created_at.to_rfc3339(),
+        "stellar_tx_hash": tx.stellar_tx_hash,
+    })).collect();
+
+    Ok(HttpResponse::Ok().json(response))
+}
+
 pub async fn health_check(state: web::Data<AppState>) -> HttpResponse {
     let mut health = serde_json::json!({
         "status": "healthy",
@@ -123,24 +166,30 @@ pub async fn health_check(state: web::Data<AppState>) -> HttpResponse {
         health["components"]["fee_channels"] = serde_json::json!({
             "status": if channels.is_empty() { "warning" } else { "healthy" },
             "count": channels.len(),
-            "total_balance": channels.iter().map(|c| c.balance_stroops).sum::<i64>(),
+            "total_balance_stroops": channels.iter().map(|c| c.balance_stroops).sum::<i64>(),
         });
+        if channels.is_empty() {
+            health["status"] = serde_json::json!("degraded");
+        }
     } else {
         health["components"]["fee_channels"] = serde_json::json!({
             "status": "error",
             "message": "Failed to fetch channels"
         });
+        health["status"] = serde_json::json!("degraded");
     }
 
-    let overall_status = if health["components"]["fee_channels"]["status"] == "error" {
-        "degraded"
-    } else {
-        "healthy"
-    };
-
-    health["status"] = serde_json::json!(overall_status);
-
     HttpResponse::Ok().json(health)
+}
+
+pub async fn get_metrics(state: web::Data<AppState>) -> HttpResponse {
+    HttpResponse::Ok().json(state.metrics.snapshot())
+}
+
+#[derive(serde::Deserialize)]
+pub struct PaginationQuery {
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
 }
 
 #[derive(Serialize)]
@@ -152,9 +201,7 @@ pub struct ChannelStatusResponse {
     pub last_checked: String,
 }
 
-pub async fn list_fee_channels(
-    state: web::Data<AppState>,
-) -> Result<HttpResponse> {
+pub async fn list_fee_channels(state: web::Data<AppState>) -> Result<HttpResponse> {
     let channels = state.db.get_all_active_fee_channels().await?;
 
     let response: Vec<_> = channels
@@ -174,9 +221,7 @@ pub async fn get_channel_details(
     channel_manager: web::Data<Arc<ChannelManager>>,
     channel_address: web::Path<String>,
 ) -> Result<HttpResponse> {
-    let status = channel_manager
-        .get_channel_status(&channel_address)
-        .await?;
+    let status = channel_manager.get_channel_status(&channel_address).await?;
 
     let response = ChannelStatusResponse {
         address: status.address,

@@ -1,6 +1,6 @@
 use crate::channels::ChannelManager;
 use crate::db::DeviceRepository;
-use crate::errors::Result;
+use crate::errors::{PaymentError, Result};
 use crate::stellar::StellarClient;
 use crate::transaction_builder::TransactionBuilder;
 use crate::transaction_signer::TransactionSigner;
@@ -8,6 +8,8 @@ use chrono::Utc;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
+
+const MAX_CHANNEL_RETRIES: usize = 3;
 
 pub struct SubmissionProcessor {
     db: Arc<DeviceRepository>,
@@ -70,49 +72,73 @@ impl SubmissionProcessor {
 
     async fn process_transaction(&self, tx: &mut crate::models::PaymentTransaction) -> Result<()> {
         let fee_stroops = tx.fee_stroops;
+        let mut last_error: Option<PaymentError> = None;
 
-        let channel = self.channel_manager
-            .get_channel_for_amount(fee_stroops)
-            .await?;
+        for attempt in 0..MAX_CHANNEL_RETRIES {
+            let channel = match self.channel_manager.get_channel_for_amount(fee_stroops).await {
+                Ok(ch) => ch,
+                Err(e) => {
+                    log::warn!("No suitable channel on attempt {}: {}", attempt + 1, e);
+                    last_error = Some(e);
+                    break;
+                }
+            };
 
-        let sequence = self.stellar.get_account_sequence(&channel.channel_address).await?;
+            let sequence = match self.stellar.get_account_sequence(&channel.channel_address).await {
+                Ok(seq) => seq,
+                Err(e) => {
+                    log::warn!("Failed to get sequence for channel {} on attempt {}: {}", channel.channel_address, attempt + 1, e);
+                    last_error = Some(e);
+                    continue;
+                }
+            };
 
-        let envelope_xdr = self.builder.build_payment_envelope(
-            &channel.channel_address,
-            &tx.destination_wallet,
-            tx.amount_stroops,
-            sequence,
-            None,
-            "",
-        )?;
+            let envelope_xdr = match self.builder.build_payment_envelope(
+                &channel.channel_address,
+                &tx.destination_wallet,
+                tx.amount_stroops,
+                sequence,
+                None,
+                "",
+            ) {
+                Ok(xdr) => xdr,
+                Err(e) => {
+                    last_error = Some(e);
+                    break;
+                }
+            };
 
-        let tx_hash = self.stellar.submit_transaction(&envelope_xdr).await?;
+            match self.stellar.submit_transaction(&envelope_xdr).await {
+                Ok(tx_hash) => {
+                    self.db.update_transaction_status(&tx.transaction_id, "submitted", None).await?;
+                    self.db.update_transaction_hash(&tx.transaction_id, &tx_hash).await?;
+                    self.db.update_transaction_submitted_time(&tx.transaction_id, Utc::now()).await?;
+                    self.db.update_transaction_channel(&tx.transaction_id, &channel.channel_address).await?;
+                    self.channel_manager.record_fee_usage(&channel.channel_address, fee_stroops).await?;
 
-        self.db
-            .update_transaction_status(&tx.transaction_id, "submitted", None)
-            .await?;
+                    if attempt > 0 {
+                        log::info!(
+                            "Submitted transaction {} via fallback channel {} (attempt {}) hash {}",
+                            tx.transaction_id, channel.channel_address, attempt + 1, tx_hash
+                        );
+                    } else {
+                        log::info!(
+                            "Submitted transaction {} via channel {} hash {}",
+                            tx.transaction_id, channel.channel_address, tx_hash
+                        );
+                    }
+                    return Ok(());
+                }
+                Err(e) => {
+                    log::warn!(
+                        "Submission failed for transaction {} on channel {} attempt {}: {}",
+                        tx.transaction_id, channel.channel_address, attempt + 1, e
+                    );
+                    last_error = Some(e);
+                }
+            }
+        }
 
-        self.db
-            .update_transaction_hash(&tx.transaction_id, &tx_hash)
-            .await?;
-
-        self.db
-            .update_transaction_submitted_time(&tx.transaction_id, Utc::now())
-            .await?;
-
-        self.db
-            .update_transaction_channel(&tx.transaction_id, &channel.channel_address)
-            .await?;
-
-        self.channel_manager
-            .record_fee_usage(&channel.channel_address, fee_stroops)
-            .await?;
-
-        log::info!(
-            "Submitted transaction {} via channel {} with hash {}",
-            tx.transaction_id, channel.channel_address, tx_hash
-        );
-
-        Ok(())
+        Err(last_error.unwrap_or(PaymentError::SubmissionFailed("All channels exhausted".to_string())))
     }
 }

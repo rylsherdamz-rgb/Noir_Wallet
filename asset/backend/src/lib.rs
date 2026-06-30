@@ -10,6 +10,7 @@ pub mod fees;
 pub mod metrics;
 pub mod models;
 pub mod queue;
+pub mod rate_limiter;
 pub mod state;
 pub mod stellar;
 pub mod sync;

@@ -37,6 +37,9 @@ pub enum PaymentError {
 
     #[error("Insufficient funds in fee channels")]
     InsufficientFunds,
+
+    #[error("Rate limit exceeded — too many requests")]
+    RateLimited,
 }
 
 #[derive(Serialize)]
@@ -63,6 +66,9 @@ impl ResponseError for PaymentError {
             PaymentError::DeviceNotActive | PaymentError::SpendLimitExceeded | PaymentError::InsufficientFunds => {
                 HttpResponse::Forbidden().json(error_response)
             }
+            PaymentError::RateLimited => {
+                HttpResponse::TooManyRequests().json(error_response)
+            }
             PaymentError::DatabaseError(_)
             | PaymentError::StellarRpcError(_)
             | PaymentError::SequenceNumberConflict
@@ -82,6 +88,7 @@ impl ResponseError for PaymentError {
             PaymentError::DeviceNotActive | PaymentError::SpendLimitExceeded | PaymentError::InsufficientFunds => {
                 StatusCode::FORBIDDEN
             }
+            PaymentError::RateLimited => StatusCode::TOO_MANY_REQUESTS,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -101,6 +108,7 @@ impl PaymentError {
             PaymentError::InternalError => "INTERNAL_ERROR".to_string(),
             PaymentError::ConfigError(_) => "CONFIG_ERROR".to_string(),
             PaymentError::InsufficientFunds => "INSUFFICIENT_FUNDS".to_string(),
+            PaymentError::RateLimited => "RATE_LIMITED".to_string(),
         }
     }
 }

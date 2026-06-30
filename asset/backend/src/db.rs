@@ -252,4 +252,53 @@ impl DeviceRepository {
 
         Ok(())
     }
+
+    pub async fn get_transaction_by_idempotency_key(&self, key: &str) -> Result<Option<PaymentTransaction>> {
+        sqlx::query_as::<_, PaymentTransaction>(
+            "SELECT id, transaction_id, device_hash, source_wallet, destination_wallet, amount_stroops, fee_stroops, status, stellar_tx_hash, created_at, submitted_at, confirmed_at, error_message, fee_channel_used FROM payment_transactions WHERE idempotency_key = $1 LIMIT 1"
+        )
+        .bind(key)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))
+    }
+
+    pub async fn store_payment_transaction_with_key(&self, tx: &PaymentTransaction, idempotency_key: &str) -> Result<()> {
+        sqlx::query(
+            "INSERT INTO payment_transactions (transaction_id, device_hash, source_wallet, destination_wallet, amount_stroops, fee_stroops, status, created_at, fee_channel_used, idempotency_key)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"
+        )
+        .bind(&tx.transaction_id)
+        .bind(&tx.device_hash)
+        .bind(&tx.source_wallet)
+        .bind(&tx.destination_wallet)
+        .bind(tx.amount_stroops)
+        .bind(tx.fee_stroops)
+        .bind(&tx.status)
+        .bind(tx.created_at)
+        .bind(&tx.fee_channel_used)
+        .bind(idempotency_key)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+
+        Ok(())
+    }
+
+    pub async fn get_transactions_by_device(
+        &self,
+        device_hash: &str,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<PaymentTransaction>> {
+        sqlx::query_as::<_, PaymentTransaction>(
+            "SELECT id, transaction_id, device_hash, source_wallet, destination_wallet, amount_stroops, fee_stroops, status, stellar_tx_hash, created_at, submitted_at, confirmed_at, error_message, fee_channel_used FROM payment_transactions WHERE device_hash = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3"
+        )
+        .bind(device_hash)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))
+    }
 }
