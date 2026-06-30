@@ -1,4 +1,5 @@
 pub mod api;
+pub mod cache;
 pub mod channel_selector;
 pub mod channels;
 pub mod config;

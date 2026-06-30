@@ -5,6 +5,7 @@ use std::sync::Arc;
 use tokio::task;
 
 mod api;
+mod cache;
 mod channel_selector;
 mod channels;
 mod config;
@@ -78,6 +79,18 @@ async fn main() -> std::io::Result<()> {
         1_000_000,
     ));
 
+    // Spawn submission processor
+    let submission_processor = workers::SubmissionProcessor::new(
+        db.clone(),
+        stellar_arc.clone(),
+        channel_manager.clone(),
+        config.stellar_network.clone(),
+        config.submission_process_interval_secs,
+    );
+    task::spawn(async move {
+        submission_processor.run().await;
+    });
+
     // Spawn confirmation poller
     let poller = ConfirmationPoller::new(
         db.clone(),
@@ -100,7 +113,7 @@ async fn main() -> std::io::Result<()> {
 
     // Spawn channel monitor
     let monitor = ChannelMonitor::new(
-        channel_manager,
+        channel_manager.clone(),
         db.clone(),
         stellar_arc.clone(),
         config.channel_balance_check_interval_secs,
@@ -111,14 +124,19 @@ async fn main() -> std::io::Result<()> {
         monitor.run().await;
     });
 
+    let channel_manager_data = web::Data::new(channel_manager.clone());
+
     info!("Starting server on {}:{}", config.api_host, config.api_port);
 
     HttpServer::new(move || {
         App::new()
             .app_data(app_state.clone())
+            .app_data(channel_manager_data.clone())
             .route("/health", web::get().to(api::health_check))
             .route("/payment", web::post().to(api::process_payment))
             .route("/payment/{transaction_id}", web::get().to(api::get_transaction_status))
+            .route("/channels", web::get().to(api::list_fee_channels))
+            .route("/channels/{channel_address}", web::get().to(api::get_channel_details))
     })
     .bind(&format!("{}:{}", config.api_host, config.api_port))?
     .run()

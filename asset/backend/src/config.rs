@@ -14,6 +14,7 @@ pub struct Config {
     pub confirmation_poll_interval_secs: u64,
     pub contract_sync_interval_secs: u64,
     pub channel_balance_check_interval_secs: u64,
+    pub submission_process_interval_secs: u64,
 }
 
 impl Config {
@@ -45,6 +46,10 @@ impl Config {
                 .unwrap_or_else(|_| "300".to_string())
                 .parse()
                 .unwrap_or(300),
+            submission_process_interval_secs: env::var("SUBMISSION_PROCESS_INTERVAL_SECS")
+                .unwrap_or_else(|_| "5".to_string())
+                .parse()
+                .unwrap_or(5),
         })
     }
 

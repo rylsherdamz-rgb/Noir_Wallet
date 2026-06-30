@@ -1,5 +1,6 @@
 use sqlx::PgPool;
 use std::sync::Arc;
+use crate::cache::TransactionCache;
 use crate::db::DeviceRepository;
 use crate::stellar::StellarClient;
 use crate::validation::DeviceValidator;
@@ -13,6 +14,7 @@ pub struct AppState {
     pub validator: Arc<DeviceValidator>,
     pub fee_manager: Arc<FeeChannelManager>,
     pub metrics: Arc<MetricsCollector>,
+    pub tx_cache: TransactionCache,
 }
 
 impl AppState {
@@ -31,6 +33,7 @@ impl AppState {
             validator,
             fee_manager: Arc::new(FeeChannelManager::new(fee_channels)),
             metrics: Arc::new(MetricsCollector::new()),
+            tx_cache: TransactionCache::new(300),
         }
     }
 }
