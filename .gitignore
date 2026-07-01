@@ -1,2 +1,61 @@
-/target
-Cargo.lock
+# ---------------------------------------------------------------------------
+# Noir Wallet monorepo — root .gitignore
+# Subprojects (backend/, frontend/) also have their own .gitignore files.
+# This file covers repo-wide artifacts and anything not caught downstream.
+# ---------------------------------------------------------------------------
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# --- Editors / IDEs ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p8
+*.p12
+*.jks
+*.mobileprovision
+
+# --- Logs ---
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+pnpm-debug.*
+
+# --- Rust / Cargo (backend) ---
+target/
+**/target/
+**/*.rs.bk
+*.pdb
+
+# --- Node / JS (frontend) ---
+node_modules/
+**/node_modules/
+*.tsbuildinfo
+
+# --- Expo (frontend) ---
+.expo/
+**/.expo/
+dist/
+web-build/
+expo-env.d.ts
+.metro-health-check*
+
+# --- Generated native folders (frontend) ---
+**/ios/
+**/android/
