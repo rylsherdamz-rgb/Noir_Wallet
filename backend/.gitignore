@@ -1,0 +1,31 @@
+# Rust/Cargo
+target/
+**/target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+.cargo/
+**/.cargo/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+Thumbs.db
+.DS_Store
+*.log
+
+# Dependencies
+node_modules/

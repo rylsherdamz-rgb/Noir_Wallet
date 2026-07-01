@@ -1,0 +1,64 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: noir_postgres
+    environment:
+      POSTGRES_USER: noir_user
+      POSTGRES_PASSWORD: noir_password
+      POSTGRES_DB: noir_wallet_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U noir_user -d noir_wallet_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: noir_backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # ── Required ────────────────────────────────────────────────────────
+      DATABASE_URL: postgresql://noir_user:noir_password@postgres:5432/noir_wallet_dev
+      # ── Stellar ─────────────────────────────────────────────────────────
+      STELLAR_NETWORK: testnet
+      STELLAR_RPC_URL: https://soroban-testnet.stellar.org
+      ENVIRONMENT: development
+      # ── Server ──────────────────────────────────────────────────────────
+      API_HOST: "0.0.0.0"
+      API_PORT: "8080"
+      LOG_LEVEL: debug
+      RUST_LOG: "info,noir_backend=debug"
+      REQUEST_TIMEOUT_SECS: "30"
+      MAX_REQUEST_BODY_BYTES: "65536"
+      # ── Database pool ────────────────────────────────────────────────────
+      DB_MAX_CONNECTIONS: "20"
+      DB_MIN_CONNECTIONS: "2"
+      DB_CONNECT_TIMEOUT_SECS: "10"
+      DB_IDLE_TIMEOUT_SECS: "600"
+      # ── Rate limiting ────────────────────────────────────────────────────
+      RATE_LIMIT_WINDOW_SECS: "60"
+      RATE_LIMIT_MAX_REQUESTS: "10"
+      # ── Fee channels ─────────────────────────────────────────────────────
+      CHANNEL_MIN_BALANCE_STROOPS: "1000000"
+      CHANNEL_TOPUP_TARGET_STROOPS: "10000000"
+      # ── Worker intervals ─────────────────────────────────────────────────
+      SUBMISSION_PROCESS_INTERVAL_SECS: "5"
+      CONFIRMATION_POLL_INTERVAL_SECS: "2"
+      CHANNEL_BALANCE_CHECK_INTERVAL_SECS: "300"
+      CONTRACT_SYNC_INTERVAL_SECS: "3600"
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
