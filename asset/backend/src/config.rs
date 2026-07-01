@@ -42,9 +42,9 @@ impl Config {
             stellar_rpc_url: env::var("STELLAR_RPC_URL")
                 .unwrap_or_else(|_| "https://soroban-testnet.stellar.org".to_string()),
             api_port: env::var("API_PORT")
-                .unwrap_or_else(|_| "8080".to_string())
+                .unwrap_or_else(|_| "8081".to_string())
                 .parse()
-                .unwrap_or(8080),
+                .unwrap_or(8081),
             api_host: env::var("API_HOST").unwrap_or_else(|_| "0.0.0.0".to_string()),
             log_level: env::var("LOG_LEVEL").unwrap_or_else(|_| "info".to_string()),
             confirmation_poll_interval_secs: parse_env("CONFIRMATION_POLL_INTERVAL_SECS", 2),

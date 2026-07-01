@@ -61,7 +61,7 @@ impl DeviceRepository {
             "INSERT INTO daily_spends (device_hash, transaction_date, total_spent_stroops, transaction_count) 
              VALUES ($1, $2, $3, 1)
              ON CONFLICT (device_hash, transaction_date) 
-             DO UPDATE SET total_spent_stroops = total_spent_stroops + $3, transaction_count = transaction_count + 1"
+             DO UPDATE SET total_spent_stroops = daily_spends.total_spent_stroops + $3, transaction_count = daily_spends.transaction_count + 1"
         )
         .bind(hash)
         .bind(today)
