@@ -91,7 +91,7 @@ export function ReadyToTapIndicator({ amount, isActive }: ReadyToTapIndicatorPro
           ))}
         </Animated.View>
         <View style={styles.radarCenter}>
-          <Ionicons name="radio-outline" size={32} color={Colors.accentGreen} />
+          <Ionicons name="radio-outline" size={32} color={Colors.gold} />
         </View>
       </View>
 
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     height: 140,
     borderRadius: 70,
     borderWidth: 2,
-    borderColor: Colors.accentGreen + '30',
+    borderColor: Colors.gold + '30',
   },
   radarRing: {
     position: 'absolute',
@@ -137,16 +137,21 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: Colors.accentGreen,
+    backgroundColor: Colors.gold,
     opacity: 0.6,
   },
   radarCenter: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: Colors.accentGreen + '15',
+    backgroundColor: Colors.gold + '15',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: Colors.gold,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 15,
+    elevation: 10,
   },
   amountLabel: {
     fontSize: FontSize.xxxl,
@@ -155,7 +160,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: FontSize.md,
-    color: Colors.accentGreen,
+    color: Colors.gold,
     fontWeight: FontWeight.medium,
     marginTop: Spacing.sm,
   },

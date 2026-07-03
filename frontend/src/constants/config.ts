@@ -41,6 +41,11 @@ export const AppConfig = {
     apiKey: process.env.EXPO_PUBLIC_PDAX_API_KEY ?? '',
     webhookSecret: process.env.EXPO_PUBLIC_PDAX_WEBHOOK_SECRET ?? '',
   },
+  terminal: {
+    id: process.env.EXPO_PUBLIC_TERMINAL_ID ?? '',
+    apiKey: process.env.EXPO_PUBLIC_TERMINAL_API_KEY ?? '',
+    publicKey: process.env.EXPO_PUBLIC_TERMINAL_PUBLIC_KEY ?? '',
+  },
   limits: {
     defaultDailySpendCents: 500000,
     maxTapAmountCents: 5000000,

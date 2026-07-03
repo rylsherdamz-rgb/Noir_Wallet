@@ -1,21 +1,20 @@
-import { WelcomeScreen } from '@/screens/WelcomeScreen'
 import { useRouter } from 'expo-router'
 import { useAppStore } from '@/store/useAppStore'
+import { WelcomeScreen } from '@/screens/WelcomeScreen'
 
 export default function Onboarding() {
   const router = useRouter()
-  const { setActiveRole, setIsOnboarded, activeRole } = useAppStore()
+  const { isOnboarded } = useAppStore()
+
+  if (isOnboarded) {
+    router.replace('/(tabs)')
+    return null
+  }
 
   return (
     <WelcomeScreen
-      isMerchant={activeRole === 'merchant'}
-      onGetStarted={() => {
-        setIsOnboarded(true)
-        router.replace('/(tabs)')
-      }}
-      onSwitchRole={() =>
-        setActiveRole(activeRole === 'consumer' ? 'merchant' : 'consumer')
-      }
+      onCreateWallet={() => router.push('/seed-phrase')}
+      onImportWallet={() => router.push('/import-wallet')}
     />
   )
 }

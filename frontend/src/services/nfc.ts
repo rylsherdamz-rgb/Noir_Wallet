@@ -1,14 +1,40 @@
-import NfcManager, {
-  NfcTech,
-  Ndef,
-  NfcEvents,
-} from 'react-native-nfc-manager'
 import { NFCTag } from '@/types'
+
+/**
+ * react-native-nfc-manager is a NATIVE module. It is unavailable in Expo Go and
+ * in web builds, where importing/using it throws and blanks the whole app.
+ *
+ * We therefore load it defensively via require() inside a try/catch. When it is
+ * unavailable, every method degrades gracefully (isSupported() → false) so the
+ * UI still boots and simply disables NFC entry points. On a custom dev client /
+ * production build the native module loads normally.
+ */
+let NfcManager: any = null
+let NfcTech: any = null
+let Ndef: any = null
+let NfcEvents: any = null
+
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const mod = require('react-native-nfc-manager')
+  NfcManager = mod.default ?? mod
+  NfcTech = mod.NfcTech
+  Ndef = mod.Ndef
+  NfcEvents = mod.NfcEvents
+} catch {
+  NfcManager = null
+}
 
 class NFCService {
   private initialized = false
 
+  /** True only when the native NFC module is loaded (not Expo Go / web). */
+  get available(): boolean {
+    return !!NfcManager
+  }
+
   async initialize(): Promise<boolean> {
+    if (!NfcManager) return false
     try {
       await NfcManager.start()
       this.initialized = true
@@ -19,6 +45,7 @@ class NFCService {
   }
 
   async isSupported(): Promise<boolean> {
+    if (!NfcManager) return false
     try {
       return await NfcManager.isSupported()
     } catch {
@@ -26,19 +53,19 @@ class NFCService {
     }
   }
 
-  async readTag(timeout = 5000): Promise<NFCTag | null> {
+  async readTag(_timeout = 5000): Promise<NFCTag | null> {
+    if (!NfcManager || !NfcTech) return null
     try {
       await NfcManager.requestTechnology(NfcTech.Ndef, {
-        alertMessage: 'Tap your RFID sticker or NFC card against the back of your phone',
+        alertMessage:
+          'Tap your RFID sticker or NFC card against the back of your phone',
       })
 
       const tag = await NfcManager.getTag()
       if (!tag) return null
 
-      const uid = tag.id ?? ''
-
       return {
-        uid,
+        uid: tag.id ?? '',
         type: tag.type ?? 'unknown',
         isWritable: true,
         maxCapacity: 0,
@@ -52,9 +79,8 @@ class NFCService {
     }
   }
 
-  async writeTag(
-    data: Record<string, string>,
-  ): Promise<boolean> {
+  async writeTag(data: Record<string, string>): Promise<boolean> {
+    if (!NfcManager || !NfcTech || !Ndef) return false
     try {
       await NfcManager.requestTechnology(NfcTech.Ndef, {
         alertMessage: 'Hold your tag against the phone to link it',
@@ -67,9 +93,8 @@ class NFCService {
       ])
 
       if (bytes) {
-        await (NfcManager as any).writeNdefMessage(bytes)
+        await NfcManager.writeNdefMessage(bytes)
       }
-
       return true
     } catch {
       return false
@@ -81,22 +106,24 @@ class NFCService {
   }
 
   registerTagCallback(callback: (tag: NFCTag) => void): () => void {
-    const sub = NfcManager.setEventListener(NfcEvents.DiscoverTag, (tag: any) => {
-      const uid = tag.id ?? ''
+    if (!NfcManager || !NfcEvents) return () => {}
+    NfcManager.setEventListener(NfcEvents.DiscoverTag, (tag: any) => {
       callback({
-        uid,
+        uid: tag.id ?? '',
         type: tag.type ?? 'unknown',
         isWritable: true,
         maxCapacity: 0,
       })
     })
-
     return () => {
-      NfcManager.setEventListener(NfcEvents.DiscoverTag, null)
+      try {
+        NfcManager.setEventListener(NfcEvents.DiscoverTag, null)
+      } catch {}
     }
   }
 
   cleanup() {
+    if (!NfcManager || !NfcEvents) return
     try {
       NfcManager.setEventListener(NfcEvents.DiscoverTag, null)
       NfcManager.unregisterTagEvent()

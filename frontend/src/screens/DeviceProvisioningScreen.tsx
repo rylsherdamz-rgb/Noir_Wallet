@@ -9,41 +9,33 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { LinearGradient } from 'expo-linear-gradient'
 import { useNfc } from '@/hooks/useNfc'
 import { useAppStore } from '@/store/useAppStore'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { NoirLogo } from '@/components/brand/NoirLogo'
 import { Device } from '@/types'
 
-type ProvisioningStep = 'intro' | 'scanning' | 'writing' | 'success' | 'error'
+type Step = 'intro' | 'scanning' | 'writing' | 'success' | 'error'
+
+const LABELS = ['My Wallet Card', 'Daily Carry', 'Home Key', 'Other']
 
 export function DeviceProvisioningScreen() {
-  const { isSupported, isScanning, lastTag, error, scanTag, writeToTag, clearTag } = useNfc()
-  const { addDevice } = useAppStore()
-  const [step, setStep] = useState<ProvisioningStep>('intro')
-  const [deviceLabel, setDeviceLabel] = useState('')
-  const pulseAnim = useState(new Animated.Value(1))[0]
+  const { isSupported, lastTag, error, scanTag, writeToTag, clearTag } = useNfc()
+  const { user, addDevice } = useAppStore()
+  const [step, setStep] = useState<Step>('intro')
+  const [label, setLabel] = useState('')
+  const pulse = useState(new Animated.Value(1))[0]
 
   useEffect(() => {
     if (step === 'scanning') {
-      const pulse = Animated.loop(
+      const anim = Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 0.7,
-            duration: 1000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 1000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
+          Animated.timing(pulse, { toValue: 0.6, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(pulse, { toValue: 1, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
         ]),
       )
-      pulse.start()
-      return () => pulse.stop()
+      anim.start()
+      return () => anim.stop()
     }
   }, [step])
 
@@ -52,17 +44,18 @@ export function DeviceProvisioningScreen() {
     const tag = await scanTag()
     if (tag) {
       setStep('writing')
+      const displayLabel = label || `${user?.displayName || 'My'} Card`
       const written = await writeToTag({
-        walletAddress: 'wallet-address-placeholder',
-        deviceLabel: deviceLabel || 'My RFID Card',
+        walletAddress: user?.stellarPublicKey || 'pending',
+        deviceLabel: displayLabel,
         activationUrl: 'noirwallet://activate',
       })
       if (written) {
         const newDevice: Device = {
           id: Math.random().toString(36).slice(2),
-          userId: 'u1',
+          userId: user?.id || 'local',
           deviceUidHash: tag.uid,
-          label: deviceLabel || 'My RFID Card',
+          label: displayLabel,
           status: 'active',
           dailySpendLimitCents: 500000,
           accumulatedTodayCents: 0,
@@ -79,132 +72,89 @@ export function DeviceProvisioningScreen() {
     }
   }
 
-  const handleReset = () => {
-    setStep('intro')
-    clearTag()
-  }
+  const reset = () => { setStep('intro'); clearTag() }
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        {/* Header */}
-        <Text style={styles.title}>Link Your Device</Text>
-        <Text style={styles.subtitle}>
-          Tap your RFID sticker or NFC card against the back of your phone to link it to your wallet.
-        </Text>
+        <View style={styles.top}>
+          <NoirLogo variant="mark" size={48} />
+          <Text style={styles.title}>Link Your Device</Text>
+          <Text style={styles.subtitle}>
+            Tap your {user?.displayName ? `${user.displayName}'s ` : ''}NFC tag against the back of your phone to link it
+          </Text>
+        </View>
 
-        {/* Animation Area */}
-        <View style={styles.animationArea}>
+        <View style={styles.center}>
           {step === 'intro' && (
-            <View style={styles.phoneIllustration}>
-              <View style={styles.phone}>
-                <Ionicons name="phone-portrait-outline" size={80} color={Colors.mutedWhite} />
-                <View style={styles.nfcAntenna}>
-                  <Ionicons name="radio" size={32} color={Colors.accentGreen} />
+            <View style={styles.illustration}>
+              <View style={styles.phoneWrap}>
+                <Ionicons name="phone-portrait-outline" size={72} color={Colors.mutedWhite} />
+                <View style={styles.antenna}>
+                  <Ionicons name="radio" size={28} color={Colors.gold} />
                 </View>
               </View>
-              <View style={styles.waveLines}>
-                {[1, 2, 3].map((i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.wave,
-                      { width: 40 + i * 30, opacity: 0.5 - i * 0.15 },
-                    ]}
-                  />
-                ))}
-              </View>
-              <View style={styles.card}>
-                <Ionicons name="card-outline" size={40} color={Colors.white} />
+              <Ionicons name="arrow-forward" size={24} color={Colors.mutedWhite} />
+              <View style={styles.cardImg}>
+                <Ionicons name="card-outline" size={36} color={Colors.white} />
               </View>
             </View>
           )}
 
           {step === 'scanning' && (
-            <View style={styles.scanningContainer}>
-              <Animated.View
-                style={[
-                  styles.scanningRing,
-                  { transform: [{ scale: pulseAnim }] },
-                ]}
-              />
-              <View style={styles.scanningCenter}>
-                <Ionicons name="radio" size={48} color={Colors.accentGreen} />
+            <View style={styles.scanWrap}>
+              <Animated.View style={[styles.scanRing, { transform: [{ scale: pulse }] }]} />
+              <View style={styles.scanCenter}>
+                <Ionicons name="radio" size={40} color={Colors.gold} />
               </View>
-              <Text style={styles.scanningText}>Waiting for tag...</Text>
+              <Text style={styles.scanText}>Scanning...</Text>
             </View>
           )}
 
           {step === 'writing' && (
-            <View style={styles.writingContainer}>
-              <Ionicons name="cloud-upload-outline" size={48} color={Colors.accentBlue} />
-              <Text style={styles.writingText}>Linking device to your wallet...</Text>
+            <View style={styles.resultWrap}>
+              <Ionicons name="sync" size={48} color={Colors.gold} />
+              <Text style={styles.resultText}>Linking to {user?.displayName || 'your wallet'}...</Text>
             </View>
           )}
 
           {step === 'success' && (
-            <View style={styles.resultContainer}>
-              <View style={styles.successIcon}>
-                <Ionicons name="checkmark-circle" size={64} color={Colors.accentGreen} />
-              </View>
-              <Text style={styles.successTitle}>Device Linked!</Text>
-              <Text style={styles.successSub}>
-                Your {deviceLabel || 'RFID card'} is now connected to your Noir Wallet.
-              </Text>
+            <View style={styles.resultWrap}>
+              <Ionicons name="checkmark-circle" size={72} color={Colors.success} />
+              <Text style={styles.successTitle}>Linked!</Text>
+              <Text style={styles.successSub}>{label || `${user?.displayName || 'Your'} Card`} is now paired</Text>
             </View>
           )}
 
           {step === 'error' && (
-            <View style={styles.resultContainer}>
-              <Ionicons name="close-circle" size={64} color={Colors.accentRed} />
-              <Text style={[styles.successTitle, { color: Colors.accentRed }]}>
-                {error || 'Link Failed'}
-              </Text>
-              <Text style={styles.successSub}>
-                Make sure your tag is placed correctly against the back of your phone.
-              </Text>
+            <View style={styles.resultWrap}>
+              <Ionicons name="close-circle" size={72} color={Colors.danger} />
+              <Text style={[styles.successTitle, { color: Colors.danger }]}>{error || 'Scan Failed'}</Text>
+              <Text style={styles.successSub}>Hold the tag steady against the back of your phone</Text>
             </View>
           )}
         </View>
 
-        {/* Label Input (Intro only) */}
         {step === 'intro' && (
           <View style={styles.labelSection}>
-            <Text style={styles.labelPrompt}>Give your device a name:</Text>
-            <View style={styles.labelInputRow}>
-              {['My Wallet Card', 'Campus ID', 'Transport Pass', 'Other'].map(
-                (label) => (
-                  <TouchableOpacity
-                    key={label}
-                    style={[
-                      styles.labelChip,
-                      deviceLabel === label && styles.labelChipActive,
-                    ]}
-                    onPress={() => setDeviceLabel(label)}
-                  >
-                    <Text
-                      style={[
-                        styles.labelChipText,
-                        deviceLabel === label && styles.labelChipTextActive,
-                      ]}
-                    >
-                      {label}
-                    </Text>
-                  </TouchableOpacity>
-                ),
-              )}
+            <Text style={styles.labelTitle}>Name this device</Text>
+            <View style={styles.labelRow}>
+              {LABELS.map((l) => (
+                <TouchableOpacity
+                  key={l}
+                  style={[styles.chip, label === l && styles.chipActive]}
+                  onPress={() => setLabel(l)}
+                >
+                  <Text style={[styles.chipText, label === l && styles.chipTextActive]}>{l}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
+            {!isSupported && (
+              <Text style={styles.unsupported}>NFC unavailable on this device</Text>
+            )}
           </View>
         )}
 
-        {/* Status message for unsupported */}
-        {!isSupported && step === 'intro' && (
-          <Text style={styles.unsupported}>
-            NFC is not available on this device. You can still use the app without hardware pairing.
-          </Text>
-        )}
-
-        {/* Action Buttons */}
         <View style={styles.actions}>
           {step === 'intro' && (
             <TouchableOpacity
@@ -213,15 +163,13 @@ export function DeviceProvisioningScreen() {
               disabled={!isSupported}
               activeOpacity={0.8}
             >
-              <Ionicons name="radio" size={22} color={Colors.black} />
+              <Ionicons name="radio" size={20} color={Colors.black} />
               <Text style={styles.primaryBtnText}>Scan My Tag</Text>
             </TouchableOpacity>
           )}
           {(step === 'success' || step === 'error') && (
-            <TouchableOpacity style={styles.primaryBtn} onPress={handleReset} activeOpacity={0.8}>
-              <Text style={styles.primaryBtnText}>
-                {step === 'success' ? 'Done' : 'Try Again'}
-              </Text>
+            <TouchableOpacity style={styles.primaryBtn} onPress={reset} activeOpacity={0.8}>
+              <Text style={styles.primaryBtnText}>{step === 'success' ? 'Done' : 'Try Again'}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -242,56 +190,49 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.xl,
   },
+  top: {
+    alignItems: 'center',
+  },
   title: {
     fontSize: FontSize.xl,
     color: Colors.white,
     fontWeight: FontWeight.bold,
+    marginTop: Spacing.md,
   },
   subtitle: {
     fontSize: FontSize.sm,
     color: Colors.mutedWhite,
+    textAlign: 'center',
     marginTop: Spacing.sm,
     lineHeight: 20,
   },
-  animationArea: {
+  center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 280,
   },
-  phoneIllustration: {
+  illustration: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.lg,
   },
-  phone: {
+  phoneWrap: {
     alignItems: 'center',
     position: 'relative',
   },
-  nfcAntenna: {
+  antenna: {
     position: 'absolute',
-    top: '50%',
-    marginTop: -16,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: Colors.accentGreen + '20',
+    top: '40%',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.gold + '20',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  waveLines: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  wave: {
-    height: 2,
-    backgroundColor: Colors.accentGreen,
-    borderRadius: 1,
-  },
-  card: {
-    width: 60,
-    height: 90,
+  cardImg: {
+    width: 56,
+    height: 84,
     borderRadius: BorderRadius.sm,
     backgroundColor: Colors.lightGrey,
     alignItems: 'center',
@@ -299,75 +240,71 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.borderGrey,
   },
-  scanningContainer: {
+  scanWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 200,
-    height: 200,
+    width: 180,
+    height: 180,
   },
-  scanningRing: {
+  scanRing: {
     position: 'absolute',
-    width: 160,
-    height: 160,
-    borderRadius: 80,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
     borderWidth: 2,
-    borderColor: Colors.accentGreen,
+    borderColor: Colors.gold,
   },
-  scanningCenter: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: Colors.accentGreen + '15',
+  scanCenter: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.gold + '15',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scanningText: {
+  scanText: {
     fontSize: FontSize.sm,
-    color: Colors.accentGreen,
+    color: Colors.gold,
     marginTop: Spacing.md,
     fontWeight: FontWeight.medium,
   },
-  writingContainer: {
+  resultWrap: {
     alignItems: 'center',
   },
-  writingText: {
+  resultText: {
     fontSize: FontSize.md,
-    color: Colors.accentBlue,
+    color: Colors.gold,
     marginTop: Spacing.md,
     fontWeight: FontWeight.medium,
-  },
-  resultContainer: {
-    alignItems: 'center',
-  },
-  successIcon: {
-    marginBottom: Spacing.md,
   },
   successTitle: {
     fontSize: FontSize.xl,
-    color: Colors.accentGreen,
+    color: Colors.success,
     fontWeight: FontWeight.bold,
-    marginBottom: Spacing.sm,
+    marginTop: Spacing.md,
   },
   successSub: {
     fontSize: FontSize.sm,
     color: Colors.mutedWhite,
     textAlign: 'center',
-    lineHeight: 20,
+    marginTop: Spacing.xs,
   },
   labelSection: {
     marginBottom: Spacing.lg,
   },
-  labelPrompt: {
+  labelTitle: {
     fontSize: FontSize.sm,
     color: Colors.mutedWhite,
     marginBottom: Spacing.sm,
+    textAlign: 'center',
   },
-  labelInputRow: {
+  labelRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'center',
     gap: Spacing.sm,
   },
-  labelChip: {
+  chip: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.full,
@@ -375,23 +312,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.borderGrey,
   },
-  labelChipActive: {
-    backgroundColor: Colors.accentGreen + '20',
-    borderColor: Colors.accentGreen,
+  chipActive: {
+    backgroundColor: Colors.gold + '20',
+    borderColor: Colors.gold,
   },
-  labelChipText: {
+  chipText: {
     fontSize: FontSize.sm,
     color: Colors.mutedWhite,
   },
-  labelChipTextActive: {
-    color: Colors.accentGreen,
+  chipTextActive: {
+    color: Colors.gold,
     fontWeight: FontWeight.semibold,
   },
   unsupported: {
-    fontSize: FontSize.sm,
-    color: Colors.accentOrange,
+    fontSize: FontSize.xs,
+    color: Colors.warning,
     textAlign: 'center',
-    marginBottom: Spacing.md,
+    marginTop: Spacing.sm,
   },
   actions: {
     gap: Spacing.md,
@@ -400,10 +337,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.accentGreen,
+    backgroundColor: Colors.gold,
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.md,
     gap: Spacing.sm,
+    minHeight: 52,
   },
   primaryBtnText: {
     color: Colors.black,

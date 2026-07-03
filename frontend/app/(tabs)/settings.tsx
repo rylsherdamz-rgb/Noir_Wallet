@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Switch,
   TouchableOpacity,
   Alert,
 } from 'react-native'
@@ -28,14 +27,10 @@ export default function SettingsScreen() {
   const router = useRouter()
   const {
     user,
-    activeRole,
-    setActiveRole,
     network,
     setNetwork,
     nfcSupported,
     security,
-    setBiometricLockEnabled,
-    setBackgroundLockTimeoutSec,
     reset,
   } = useAppStore()
 
@@ -72,6 +67,17 @@ export default function SettingsScreen() {
         {/* Profile */}
         <SectionHeader title="Profile" />
         <Card style={styles.card}>
+          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/profile')}>
+            <View style={styles.rowLeft}>
+              <Ionicons name="person-outline" size={20} color={Colors.silver} />
+              <View>
+                <Text style={styles.rowLabel}>Profile</Text>
+                <Text style={styles.navHint}>{user?.displayName || 'Tap to set up'}</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
+          </TouchableOpacity>
+          <Divider />
           <Row
             icon="mail-outline"
             label="Email"
@@ -88,51 +94,38 @@ export default function SettingsScreen() {
             }
             mono
           />
-          <Divider />
-          <Row
-            icon="shield-checkmark-outline"
-            label="KYC level"
-            value={user ? `Level ${user.kycLevel}` : '—'}
-          />
         </Card>
 
         {/* Security */}
         <SectionHeader title="Security" />
         <Card style={styles.card}>
-          <View style={styles.toggleRow}>
+          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/settings/security')}>
             <View style={styles.rowLeft}>
-              <Ionicons name="finger-print-outline" size={20} color={Colors.silver} />
-              <Text style={styles.rowLabel}>Biometric app lock</Text>
+              <Ionicons name="shield-checkmark-outline" size={20} color={Colors.silver} />
+              <View>
+                <Text style={styles.rowLabel}>Security Settings</Text>
+                <Text style={styles.navHint}>
+                  {security.biometricLockEnabled ? 'Biometric + Auto-lock' : 'Tap to configure'}
+                </Text>
+              </View>
             </View>
-            <Switch
-              value={security.biometricLockEnabled}
-              onValueChange={setBiometricLockEnabled}
-              trackColor={{ false: Colors.lightGrey, true: Colors.goldDim }}
-              thumbColor={security.biometricLockEnabled ? Colors.gold : Colors.mutedWhite}
-              accessibilityLabel="Toggle biometric app lock"
-            />
-          </View>
-          <Divider />
-          <Text style={styles.subLabel}>Auto-lock in background</Text>
-          <View style={styles.chips}>
-            {TIMEOUT_OPTIONS.map((opt) => {
-              const active = security.backgroundLockTimeoutSec === opt.sec
-              return (
-                <TouchableOpacity
-                  key={opt.sec}
-                  style={[styles.chip, active && styles.chipActive]}
-                  onPress={() => setBackgroundLockTimeoutSec(opt.sec)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Auto-lock ${opt.label}`}
-                  accessibilityState={{ selected: active }}
-                >
-                  <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                    {opt.label}
-                  </Text>
-                </TouchableOpacity>
-              )
-            })}
-          </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
+          </TouchableOpacity>
+        </Card>
+
+        {/* Notifications */}
+        <SectionHeader title="Notifications" />
+        <Card style={styles.card}>
+          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/settings/notifications')}>
+            <View style={styles.rowLeft}>
+              <Ionicons name="notifications-outline" size={20} color={Colors.silver} />
+              <View>
+                <Text style={styles.rowLabel}>Notifications</Text>
+                <Text style={styles.navHint}>View notification history and preferences</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
+          </TouchableOpacity>
         </Card>
 
         {/* Network */}
@@ -174,35 +167,6 @@ export default function SettingsScreen() {
             value={nfcSupported ? 'Available' : 'Unavailable'}
             valueColor={nfcSupported ? Colors.success : Colors.danger}
           />
-        </Card>
-
-        {/* Role */}
-        <SectionHeader title="Mode" />
-        <Card style={styles.card}>
-          <View style={styles.chips}>
-            {(['consumer', 'merchant'] as const).map((role) => {
-              const active = activeRole === role
-              return (
-                <TouchableOpacity
-                  key={role}
-                  style={[styles.chip, styles.chipWide, active && styles.chipActive]}
-                  onPress={() => setActiveRole(role)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Switch to ${role} mode`}
-                  accessibilityState={{ selected: active }}
-                >
-                  <Ionicons
-                    name={role === 'merchant' ? 'storefront-outline' : 'wallet-outline'}
-                    size={16}
-                    color={active ? Colors.black : Colors.silver}
-                  />
-                  <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                    {role === 'merchant' ? 'Merchant' : 'Consumer'}
-                  </Text>
-                </TouchableOpacity>
-              )
-            })}
-          </View>
         </Card>
 
         {/* About / danger */}
@@ -298,6 +262,17 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   mono: { fontFamily: 'monospace' },
+  navRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.md,
+  },
+  navHint: {
+    fontSize: FontSize.xs,
+    color: Colors.mutedWhite,
+    marginTop: 2,
+  },
   subLabel: {
     fontSize: FontSize.sm,
     color: Colors.mutedWhite,

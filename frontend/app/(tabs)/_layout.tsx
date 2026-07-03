@@ -1,12 +1,8 @@
 import { Tabs } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { useAppStore } from '@/store/useAppStore'
 import { Colors, FontSize } from '@/constants/theme'
 
 export default function TabLayout() {
-  const activeRole = useAppStore((s) => s.activeRole)
-  const isMerchant = activeRole === 'merchant'
-
   return (
     <Tabs
       screenOptions={{
@@ -26,26 +22,27 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: isMerchant ? 'Terminal' : 'Wallet',
+          title: 'Wallet',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons
-              name={isMerchant ? 'radio-outline' : 'wallet-outline'}
-              size={size}
-              color={color}
-            />
+            <Ionicons name="wallet-outline" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="pos"
         options={{
-          title: isMerchant ? 'Sales' : 'Pay',
+          title: 'Pay',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons
-              name={isMerchant ? 'bar-chart-outline' : 'radio-outline'}
-              size={size}
-              color={color}
-            />
+            <Ionicons name="radio-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="blockchain"
+        options={{
+          title: 'Blockchain',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="cube-outline" size={size} color={color} />
           ),
         }}
       />

@@ -13,14 +13,16 @@ interface AssetRowProps {
 function AssetRow({ icon, label, amount, value, color }: AssetRowProps) {
   return (
     <View style={styles.assetRow}>
-      <View style={[styles.assetIcon, { backgroundColor: color + '20' }]}>
+      <View style={[styles.assetIcon, { backgroundColor: color + '15' }]}>
         <Ionicons name={icon} size={20} color={color} />
       </View>
       <View style={styles.assetInfo}>
         <Text style={styles.assetLabel}>{label}</Text>
-        <Text style={[styles.assetAmount, { color }]}>{amount}</Text>
+        <Text style={[styles.assetAmount, { color: Colors.white }]}>{amount}</Text>
       </View>
-      <Text style={styles.assetValue}>{value}</Text>
+      <View style={styles.assetValueWrap}>
+        <Text style={styles.assetValue}>{value}</Text>
+      </View>
     </View>
   )
 }
@@ -38,7 +40,7 @@ export function BalanceCard({ phpBalance, usdcBalance, xlmBalance }: BalanceCard
   return (
     <View style={styles.container}>
       <View style={styles.totalSection}>
-        <Text style={styles.totalLabel}>Total Balance</Text>
+        <Text style={styles.totalLabel}>Portfolio Value</Text>
         <Text style={styles.totalAmount}>
           ₱{totalPhp.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
         </Text>
@@ -47,27 +49,29 @@ export function BalanceCard({ phpBalance, usdcBalance, xlmBalance }: BalanceCard
 
       <View style={styles.divider} />
 
-      <AssetRow
-        icon="wallet-outline"
-        label="PHP"
-        amount={`₱${phpBalance.toFixed(2)}`}
-        value="Local Currency"
-        color={Colors.accentGreen}
-      />
-      <AssetRow
-        icon="logo-usd"
-        label="USDC"
-        amount={`${usdcBalance.toFixed(2)} USDC`}
-        value={`₱${(usdcBalance * 58).toFixed(2)}`}
-        color={Colors.accentBlue}
-      />
-      <AssetRow
-        icon="planet-outline"
-        label="XLM"
-        amount={`${xlmBalance.toFixed(4)} XLM`}
-        value={`₱${(xlmBalance * 15).toFixed(2)}`}
-        color={Colors.accentOrange}
-      />
+      <View style={styles.assetList}>
+        <AssetRow
+          icon="cash-outline"
+          label="PHP"
+          amount={`₱${phpBalance.toFixed(2)}`}
+          value="Fiat"
+          color={Colors.gold}
+        />
+        <AssetRow
+          icon="logo-usd"
+          label="USDC"
+          amount={`${usdcBalance.toFixed(2)} USDC`}
+          value={`₱${(usdcBalance * 58).toFixed(2)}`}
+          color={Colors.silver}
+        />
+        <AssetRow
+          icon="planet-outline"
+          label="XLM"
+          amount={`${xlmBalance.toFixed(4)} XLM`}
+          value={`₱${(xlmBalance * 15).toFixed(2)}`}
+          color={Colors.goldDim}
+        />
+      </View>
     </View>
   )
 }
@@ -85,53 +89,62 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
   },
   totalLabel: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.xs,
     color: Colors.mutedWhite,
     fontWeight: FontWeight.medium,
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 2,
   },
   totalAmount: {
-    fontSize: FontSize.xxxl,
-    color: Colors.white,
+    fontSize: FontSize.hero,
+    color: Colors.cream,
     fontWeight: FontWeight.heavy,
     marginTop: Spacing.xs,
   },
   totalSub: {
     fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
+    color: Colors.gold,
     marginTop: Spacing.xs,
+    fontWeight: FontWeight.medium,
   },
   divider: {
     height: 1,
     backgroundColor: Colors.borderGrey,
-    marginVertical: Spacing.md,
+    marginVertical: Spacing.lg,
+  },
+  assetList: {
+    gap: Spacing.md,
   },
   assetRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
   },
   assetIcon: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: BorderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.borderGrey,
   },
   assetInfo: {
     flex: 1,
     marginLeft: Spacing.md,
   },
   assetLabel: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.xs,
     color: Colors.mutedWhite,
     fontWeight: FontWeight.medium,
+    textTransform: 'uppercase',
   },
   assetAmount: {
-    fontSize: FontSize.lg,
+    fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
     marginTop: 2,
+  },
+  assetValueWrap: {
+    alignItems: 'flex-end',
   },
   assetValue: {
     fontSize: FontSize.sm,

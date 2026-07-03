@@ -5,7 +5,6 @@ import {
   Transaction,
   Balance,
   MerchantSettings,
-  UserRole,
   StellarNetwork,
   SecuritySettings,
 } from '@/types'
@@ -18,7 +17,6 @@ interface AppState {
   merchantSettings: MerchantSettings | null
   isOnboarded: boolean
   isWalletCreated: boolean
-  activeRole: UserRole
   isScanning: boolean
   nfcSupported: boolean
 
@@ -40,7 +38,6 @@ interface AppState {
   setMerchantSettings: (settings: MerchantSettings | null) => void
   setIsOnboarded: (val: boolean) => void
   setIsWalletCreated: (val: boolean) => void
-  setActiveRole: (role: UserRole) => void
   setIsScanning: (val: boolean) => void
   setNfcSupported: (val: boolean) => void
   setNetwork: (network: StellarNetwork) => void
@@ -57,7 +54,6 @@ const initialState = {
   merchantSettings: null as MerchantSettings | null,
   isOnboarded: false,
   isWalletCreated: false,
-  activeRole: 'consumer' as UserRole,
   isScanning: false,
   nfcSupported: false,
   network: 'testnet' as StellarNetwork,
@@ -90,7 +86,6 @@ export const useAppStore = create<AppState>((set) => ({
   setMerchantSettings: (merchantSettings) => set({ merchantSettings }),
   setIsOnboarded: (isOnboarded) => set({ isOnboarded }),
   setIsWalletCreated: (isWalletCreated) => set({ isWalletCreated }),
-  setActiveRole: (activeRole) => set({ activeRole }),
   setIsScanning: (isScanning) => set({ isScanning }),
   setNfcSupported: (nfcSupported) => set({ nfcSupported }),
   setNetwork: (network) => set({ network }),

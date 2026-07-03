@@ -2,9 +2,14 @@ export type UserRole = 'consumer' | 'merchant'
 
 export type StellarNetwork = 'testnet' | 'mainnet'
 
+export type ToastType = 'success' | 'error' | 'info' | 'warning'
+
+export type TxFilter = 'all' | 'pending' | 'confirmed' | 'failed'
+
+export type AssetCode = 'USDC' | 'XLM' | 'PHP'
+
 export interface SecuritySettings {
   biometricLockEnabled: boolean
-  /** Auto-lock after this many seconds in the background. */
   backgroundLockTimeoutSec: number
 }
 
@@ -15,6 +20,8 @@ export interface User {
   stellarPublicKey: string
   kycLevel: number
   role: UserRole
+  displayName: string
+  avatarUrl?: string
 }
 
 export interface Device {
@@ -37,7 +44,7 @@ export interface Transaction {
   userId: string
   deviceId: string
   amountCents: number
-  assetCode: 'USDC' | 'XLM' | 'PHP'
+  assetCode: AssetCode
   status: 'pending' | 'confirmed' | 'failed'
   errorMessage: string | null
   createdAt: string
@@ -62,4 +69,57 @@ export interface NFCTag {
   type: string
   isWritable: boolean
   maxCapacity: number
+}
+
+export interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant'
+  text: string
+  timestamp: number
+  isTyping?: boolean
+}
+
+export interface SmartTip {
+  id: string
+  title: string
+  description: string
+  icon: string
+  action?: { label: string; route: string }
+  dismissible: boolean
+}
+
+export interface Notification {
+  id: string
+  title: string
+  body: string
+  type: 'transaction' | 'security' | 'system' | 'promo'
+  read: boolean
+  createdAt: string
+  data?: Record<string, string>
+}
+
+export interface ToastMessage {
+  id: string
+  type: ToastType
+  title: string
+  message?: string
+  duration?: number
+}
+
+export interface X402Agent {
+  publicKey: string
+  privateKeyEncrypted?: string
+  balanceStroops: number
+  spendingBudgetStroops: number
+  totalSpentStroops: number
+  isActive: boolean
+  createdAt: string
+}
+
+export interface Registration {
+  deviceUid: string
+  stellarPublicKey: string
+  agentPublicKey: string
+  deviceLabel: string
+  createdAt: string
 }

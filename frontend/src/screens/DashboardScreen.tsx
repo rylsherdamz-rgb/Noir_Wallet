@@ -9,9 +9,11 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
+import { useRouter } from 'expo-router'
 import { useAppStore } from '@/store/useAppStore'
 import { BalanceCard } from '@/components/BalanceCard'
 import { TransactionItem } from '@/components/TransactionItem'
+
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { Transaction } from '@/types'
 
@@ -58,7 +60,8 @@ const MOCK_TRANSACTIONS: Transaction[] = [
 ]
 
 export function DashboardScreen() {
-  const { user, balance, devices, setActiveRole } = useAppStore()
+  const router = useRouter()
+  const { user, balance, devices } = useAppStore()
   const [refreshing, setRefreshing] = useState(false)
 
   const onRefresh = useCallback(async () => {
@@ -76,7 +79,7 @@ export function DashboardScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={Colors.accentGreen}
+            tintColor={Colors.gold}
           />
         }
       >
@@ -93,15 +96,8 @@ export function DashboardScreen() {
             </Text>
           </View>
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.iconBtn}>
-              <Ionicons name="notifications-outline" size={22} color={Colors.white} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.roleBadge}
-              onPress={() => setActiveRole('merchant')}
-            >
-              <Ionicons name="swap-horizontal" size={14} color={Colors.accentGreen} />
-              <Text style={styles.roleBadgeText}>Switch</Text>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/profile')}>
+              <Ionicons name="person-outline" size={22} color={Colors.white} />
             </TouchableOpacity>
           </View>
         </View>
@@ -116,42 +112,55 @@ export function DashboardScreen() {
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
-          <ActionButton icon="add-circle-outline" label="Cash In" color={Colors.accentBlue} />
-          <ActionButton icon="remove-circle-outline" label="Cash Out" color={Colors.accentOrange} />
-          <ActionButton icon="radio-outline" label="Link Device" color={Colors.accentGreen} />
-          <ActionButton icon="scan-outline" label="Pay" color={Colors.accentGreen} />
+          <ActionButton icon="arrow-up-outline" label="Send" color={Colors.gold} onPress={() => router.push('/send')} />
+          <ActionButton icon="arrow-down-outline" label="Receive" color={Colors.gold} onPress={() => router.push('/receive')} />
+          <ActionButton icon="radio-outline" label="Link Device" color={Colors.gold} onPress={() => router.push('/(tabs)/devices')} />
+          <ActionButton icon="receipt-outline" label="History" color={Colors.silver} onPress={() => router.push('/transactions')} />
         </View>
 
-        {/* Linked Devices */}
-        {devices.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Linked Devices</Text>
-            {devices.map((device) => (
-              <View key={device.id} style={styles.deviceRow}>
-                <View style={styles.deviceIcon}>
-                  <Ionicons
-                    name={device.status === 'active' ? 'radio-outline' : 'lock-closed-outline'}
-                    size={20}
-                    color={device.status === 'active' ? Colors.accentGreen : Colors.accentRed}
-                  />
-                </View>
-                <View style={styles.deviceInfo}>
-                  <Text style={styles.deviceLabel}>{device.label}</Text>
-                  <Text style={styles.deviceStatus}>{device.status}</Text>
-                </View>
-                <Text style={styles.deviceLimit}>
-                  ₱{((device.dailySpendLimitCents - device.accumulatedTodayCents) / 100).toFixed(0)} left
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Recent Transactions */}
+        {/* Wallet List (Linked Devices as Hardware Wallets) */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Transactions</Text>
-            <TouchableOpacity>
+            <Text style={styles.sectionTitle}>My Wallets</Text>
+            <TouchableOpacity onPress={() => {}}>
+              <Text style={styles.seeAll}>Manage</Text>
+            </TouchableOpacity>
+          </View>
+
+          {devices.length === 0 ? (
+            <TouchableOpacity style={styles.emptyWalletCard}>
+              <Ionicons name="add-outline" size={32} color={Colors.gold} />
+              <Text style={styles.emptyWalletText}>Link your first NFC wallet</Text>
+            </TouchableOpacity>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.walletScroll}>
+              {devices.map((device) => (
+                <View key={device.id} style={styles.walletCard}>
+                  <View style={styles.walletCardHeader}>
+                    <Ionicons name="radio" size={24} color={Colors.gold} />
+                    <View style={[styles.statusDot, { backgroundColor: device.status === 'active' ? Colors.success : Colors.danger }]} />
+                  </View>
+                  <Text style={styles.walletLabelText}>{device.label}</Text>
+                  <View style={styles.walletBalanceWrap}>
+                    <Text style={styles.walletRemainingLabel}>Daily Remaining</Text>
+                    <Text style={styles.walletRemainingValue}>
+                      ₱{((device.dailySpendLimitCents - device.accumulatedTodayCents) / 100).toFixed(0)}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+              <TouchableOpacity style={styles.addWalletCard}>
+                <Ionicons name="add" size={24} color={Colors.mutedWhite} />
+              </TouchableOpacity>
+            </ScrollView>
+          )}
+        </View>
+
+        {/* Recent Activity */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recent Activity</Text>
+            <TouchableOpacity onPress={() => router.push('/transactions')}>
               <Text style={styles.seeAll}>See All</Text>
             </TouchableOpacity>
           </View>
@@ -168,13 +177,15 @@ function ActionButton({
   icon,
   label,
   color,
+  onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap
   label: string
   color: string
+  onPress: () => void
 }) {
   return (
-    <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7}>
+    <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7} onPress={onPress}>
       <View style={[styles.actionIcon, { backgroundColor: color + '20' }]}>
         <Ionicons name={icon} size={22} color={color} />
       </View>
@@ -231,14 +242,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.accentGreen + '15',
+    backgroundColor: Colors.gold + '15',
     borderWidth: 1,
-    borderColor: Colors.accentGreen + '30',
+    borderColor: Colors.gold + '30',
     gap: 4,
   },
   roleBadgeText: {
     fontSize: FontSize.xs,
-    color: Colors.accentGreen,
+    color: Colors.gold,
     fontWeight: FontWeight.semibold,
   },
   quickActions: {
@@ -281,9 +292,77 @@ const styles = StyleSheet.create({
   },
   seeAll: {
     fontSize: FontSize.sm,
-    color: Colors.accentGreen,
+    color: Colors.gold,
     fontWeight: FontWeight.medium,
     marginBottom: Spacing.sm,
+  },
+  walletScroll: {
+    marginHorizontal: -Spacing.md,
+    paddingHorizontal: Spacing.md,
+  },
+  walletCard: {
+    width: 160,
+    backgroundColor: Colors.cardBg,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginRight: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.borderGrey,
+  },
+  walletCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.lg,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  walletLabelText: {
+    fontSize: FontSize.md,
+    color: Colors.white,
+    fontWeight: FontWeight.bold,
+  },
+  walletBalanceWrap: {
+    marginTop: Spacing.sm,
+  },
+  walletRemainingLabel: {
+    fontSize: FontSize.xs,
+    color: Colors.mutedWhite,
+  },
+  walletRemainingValue: {
+    fontSize: FontSize.lg,
+    color: Colors.gold,
+    fontWeight: FontWeight.bold,
+  },
+  addWalletCard: {
+    width: 60,
+    height: 120,
+    backgroundColor: Colors.black,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Colors.borderGrey,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyWalletCard: {
+    backgroundColor: Colors.cardBg,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Colors.gold + '40',
+  },
+  emptyWalletText: {
+    color: Colors.gold,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.medium,
+    marginTop: Spacing.sm,
   },
   deviceRow: {
     flexDirection: 'row',
@@ -292,6 +371,8 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderRadius: BorderRadius.md,
     marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.borderGrey,
   },
   deviceIcon: {
     width: 40,
@@ -318,7 +399,7 @@ const styles = StyleSheet.create({
   },
   deviceLimit: {
     fontSize: FontSize.sm,
-    color: Colors.accentGreen,
+    color: Colors.gold,
     fontWeight: FontWeight.semibold,
   },
 })

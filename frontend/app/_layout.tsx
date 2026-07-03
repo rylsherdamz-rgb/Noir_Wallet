@@ -1,3 +1,33 @@
+if (typeof global.Event === 'undefined') {
+  class EventPolyfill {
+    constructor(public type: string, public opts: any = {}) {
+      this.bubbles = opts.bubbles ?? false
+      this.cancelable = opts.cancelable ?? false
+    }
+    bubbles = false
+    cancelable = false
+    preventDefault() {}
+    stopPropagation() {}
+  }
+  ;(global as any).Event = EventPolyfill as any
+}
+if (typeof (global as any).EventTarget === 'undefined') {
+  class EventTargetPolyfill {
+    private listeners: Record<string, Function[]> = {}
+    addEventListener(type: string, cb: Function) {
+      if (!this.listeners[type]) this.listeners[type] = []
+      this.listeners[type].push(cb)
+    }
+    removeEventListener(type: string, cb: Function) {
+      this.listeners[type] = (this.listeners[type] || []).filter((l) => l !== cb)
+    }
+    dispatchEvent(event: any) {
+      (this.listeners[event.type] || []).forEach((cb) => cb(event))
+    }
+  }
+  ;(global as any).EventTarget = EventTargetPolyfill as any
+}
+
 import { useEffect, useState } from 'react'
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
@@ -32,6 +62,16 @@ export default function RootLayout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="send" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="receive" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="transactions" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="transaction/[id]" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="profile" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="seed-phrase" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="seed-verify" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="import-wallet" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings/security" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings/notifications" options={{ animation: 'slide_from_right' }} />
       </Stack>
     </GestureHandlerRootView>
   )

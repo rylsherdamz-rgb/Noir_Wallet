@@ -1,4 +1,4 @@
-import { Config } from '@/constants/config'
+import { Config, AppConfig } from '@/constants/config'
 import { Device, Transaction, MerchantSettings, Balance } from '@/types'
 
 class ApiService {
@@ -79,14 +79,27 @@ class ApiService {
     merchantPublicKey: string
     amountCents: number
     assetCode: string
+    terminalId?: string
+    nonce?: string
   }) {
-    return this.request<{ status: string; message: string }>(
+    return this.request<{ status: string; message: string; txHash?: string }>(
       '/payments/initiate',
       {
         method: 'POST',
-        body: JSON.stringify(params),
+        body: JSON.stringify({
+          ...params,
+          terminalId: params.terminalId || AppConfig.terminal.id,
+        }),
       },
     )
+  }
+
+  /** Batch process offline transactions when connectivity is restored */
+  async batchPayments(payments: any[]) {
+    return this.request<{ processed: number }>('/payments/batch', {
+      method: 'POST',
+      body: JSON.stringify({ payments }),
+    })
   }
 
   async getTransactions() {

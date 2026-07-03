@@ -1,201 +1,68 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet, Image } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
-import { NoirLogo } from '@/components/brand/NoirLogo'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { GhostButton } from '@/components/GhostButton'
-import { UserRole } from '@/types'
 
 interface WelcomeScreenProps {
-  onGetStarted: () => void
-  onSwitchRole: () => void
-  onImport?: () => void
-  isMerchant?: boolean
+  onCreateWallet: () => void
+  onImportWallet: () => void
 }
 
-const VALUE_PROPS: { icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
-  { icon: 'eye-off-outline', label: 'Invisible' },
-  { icon: 'shield-checkmark-outline', label: 'Trusted' },
-  { icon: 'link-outline', label: 'Connected' },
-  { icon: 'flash-outline', label: 'Effortless' },
-]
+const LOGO = require('../../assets/logo.jpg')
 
-export function WelcomeScreen({
-  onGetStarted,
-  onSwitchRole,
-  onImport,
-  isMerchant,
-}: WelcomeScreenProps) {
-  const role: UserRole = isMerchant ? 'merchant' : 'consumer'
-
+export function WelcomeScreen({ onCreateWallet, onImportWallet }: WelcomeScreenProps) {
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient
-        colors={[Colors.black, Colors.surfaceBg]}
-        style={StyleSheet.absoluteFill}
-      />
-
+      <LinearGradient colors={[Colors.black, Colors.surfaceBg]} style={StyleSheet.absoluteFill} />
       <View style={styles.content}>
-        {/* Brand lockup */}
         <View style={styles.hero}>
-          <NoirLogo variant="lockup" size={96} />
+          <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+          <Text style={styles.brand}>NOIR</Text>
+          <Text style={styles.tagline}>Tap into Trust</Text>
         </View>
 
-        {/* Value props */}
-        <View style={styles.valueProps}>
-          {VALUE_PROPS.map((v) => (
-            <View key={v.label} style={styles.valueProp}>
-              <View style={styles.valueIcon}>
-                <Ionicons name={v.icon} size={22} color={Colors.gold} />
-              </View>
-              <Text style={styles.valueLabel}>{v.label}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Role segmented control */}
-        <View style={styles.segmentWrap}>
-          <Text style={styles.segmentHint}>I am using Noir as a</Text>
-          <View style={styles.segment} accessibilityRole="tablist">
-            <SegmentButton
-              label="Consumer"
-              active={role === 'consumer'}
-              onPress={() => {
-                if (role !== 'consumer') onSwitchRole()
-              }}
-            />
-            <SegmentButton
-              label="Merchant"
-              active={role === 'merchant'}
-              onPress={() => {
-                if (role !== 'merchant') onSwitchRole()
-              }}
-            />
+        <View style={styles.bottom}>
+          <View style={styles.features}>
+            <Feature icon="radio-outline" label="Register NFC Card" />
+            <Feature icon="sparkles" label="x402 Agent Payments" />
+            <Feature icon="cube-outline" label="Stellar Blockchain" />
           </View>
-        </View>
 
-        {/* Actions */}
-        <View style={styles.actions}>
-          <PrimaryButton
-            label="Create Wallet"
-            icon="add-circle-outline"
-            onPress={onGetStarted}
-          />
-          <GhostButton
-            label="I already have a wallet"
-            onPress={onImport ?? onGetStarted}
-          />
+          <View style={styles.actions}>
+            <PrimaryButton label="Register My Card" onPress={onCreateWallet} icon="radio-outline" />
+            <GhostButton label="I already have a wallet" onPress={onImportWallet} />
+          </View>
         </View>
       </View>
     </SafeAreaView>
   )
 }
 
-function SegmentButton({
-  label,
-  active,
-  onPress,
-}: {
-  label: string
-  active: boolean
-  onPress: () => void
-}) {
+function Feature({ icon, label }: { icon: keyof typeof import('@expo/vector-icons').Ionicons.glyphMap; label: string }) {
+  const { Ionicons } = require('@expo/vector-icons') as typeof import('@expo/vector-icons')
   return (
-    <TouchableOpacity
-      style={[styles.segmentBtn, active && styles.segmentBtnActive]}
-      onPress={onPress}
-      activeOpacity={0.8}
-      accessibilityRole="tab"
-      accessibilityState={{ selected: active }}
-      accessibilityLabel={`${label} mode`}
-    >
-      <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
-        {label}
-      </Text>
-    </TouchableOpacity>
+    <View style={styles.featureRow}>
+      <View style={styles.featureIcon}>
+        <Ionicons name={icon} size={20} color={Colors.gold} />
+      </View>
+      <Text style={styles.featureLabel}>{label}</Text>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.black,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: Spacing.lg,
-    justifyContent: 'space-between',
-    paddingTop: Spacing.xxl,
-    paddingBottom: Spacing.xl,
-  },
-  hero: {
-    alignItems: 'center',
-    marginTop: Spacing.xxl,
-  },
-  valueProps: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginVertical: Spacing.xl,
-  },
-  valueProp: {
-    alignItems: 'center',
-    width: '22%',
-  },
-  valueIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.gold + '15',
-    borderWidth: 1,
-    borderColor: Colors.gold + '33',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.sm,
-  },
-  valueLabel: {
-    fontSize: FontSize.xs,
-    color: Colors.silver,
-    fontWeight: FontWeight.medium,
-  },
-  segmentWrap: {
-    marginBottom: Spacing.lg,
-  },
-  segmentHint: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    textAlign: 'center',
-    marginBottom: Spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  segment: {
-    flexDirection: 'row',
-    backgroundColor: Colors.midGrey,
-    borderRadius: BorderRadius.full,
-    padding: 4,
-  },
-  segmentBtn: {
-    flex: 1,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
-  },
-  segmentBtnActive: {
-    backgroundColor: Colors.gold,
-  },
-  segmentText: {
-    fontSize: FontSize.sm,
-    color: Colors.silver,
-    fontWeight: FontWeight.semibold,
-  },
-  segmentTextActive: {
-    color: Colors.black,
-  },
-  actions: {
-    gap: Spacing.md,
-  },
+  container: { flex: 1, backgroundColor: Colors.black },
+  content: { flex: 1, paddingHorizontal: Spacing.lg, justifyContent: 'space-between', paddingTop: Spacing.xxl * 2, paddingBottom: Spacing.xl },
+  hero: { alignItems: 'center' },
+  logo: { width: 120, height: 120, borderRadius: 60 },
+  brand: { fontSize: FontSize.xxxl, fontWeight: FontWeight.heavy, color: Colors.cream, letterSpacing: 8, marginTop: Spacing.md },
+  tagline: { fontSize: FontSize.sm, color: Colors.gold, letterSpacing: 4, marginTop: Spacing.sm, textTransform: 'uppercase' },
+  bottom: { gap: Spacing.xl },
+  features: { gap: Spacing.md },
+  featureRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  featureIcon: { width: 44, height: 44, borderRadius: BorderRadius.full, backgroundColor: Colors.gold + '15', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.gold + '25' },
+  featureLabel: { fontSize: FontSize.md, color: Colors.silver, fontWeight: FontWeight.medium },
+  actions: { gap: Spacing.md },
 })
