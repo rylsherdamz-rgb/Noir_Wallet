@@ -6,18 +6,35 @@ export const Colors = {
   borderGrey: '#3A3A3A',
   white: '#FFFFFF',
   offWhite: '#F5F5F5',
-  mutedWhite: '#AAAAAA',
-  accentGreen: '#00FF66',
-  accentGreenDim: '#00CC52',
-  accentRed: '#FF3B30',
+  mutedWhite: '#A9A9A9',
+
+  // --- NOIR brand palette (§2.2) ---
+  // Gold is the single hero accent (replaces the old neon green).
+  gold: '#C6A15B',
+  goldDim: '#A98A43',
+  cream: '#EDE4D0',
+  silver: '#CECCD0',
+
+  // Semantic status colors — reserved strictly for transaction status.
+  success: '#3ED598',
+  warning: '#F0B429',
+  danger: '#FF5A5F',
+
+  // Surfaces
+  surfaceBg: '#0A0A0A',
+  cardBg: '#141414',
+
+  // --- Legacy keys kept so nothing breaks. Prefer the NOIR tokens above. ---
+  // `accentGreen` used to be the primary accent; it now aliases `gold`.
+  accentGreen: '#C6A15B',
+  accentGreenDim: '#A98A43',
+  accentRed: '#FF5A5F',
   accentRedDim: '#CC2F26',
   accentBlue: '#007AFF',
   accentBlueDim: '#0062CC',
-  accentYellow: '#FFD60A',
+  accentYellow: '#F0B429',
   accentOrange: '#FF9500',
   overlay: 'rgba(0,0,0,0.6)',
-  cardBg: '#1A1A1A',
-  surfaceBg: '#0D0D0D',
 }
 
 export const Spacing = {

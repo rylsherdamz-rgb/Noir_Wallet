@@ -1,5 +1,13 @@
 export type UserRole = 'consumer' | 'merchant'
 
+export type StellarNetwork = 'testnet' | 'mainnet'
+
+export interface SecuritySettings {
+  biometricLockEnabled: boolean
+  /** Auto-lock after this many seconds in the background. */
+  backgroundLockTimeoutSec: number
+}
+
 export interface User {
   id: string
   email: string

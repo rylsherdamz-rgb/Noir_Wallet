@@ -1,89 +1,120 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { NoirLogo } from '@/components/brand/NoirLogo'
+import { PrimaryButton } from '@/components/PrimaryButton'
+import { GhostButton } from '@/components/GhostButton'
+import { UserRole } from '@/types'
 
 interface WelcomeScreenProps {
   onGetStarted: () => void
   onSwitchRole: () => void
+  onImport?: () => void
   isMerchant?: boolean
 }
 
-export function WelcomeScreen({ onGetStarted, onSwitchRole, isMerchant }: WelcomeScreenProps) {
+const VALUE_PROPS: { icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
+  { icon: 'eye-off-outline', label: 'Invisible' },
+  { icon: 'shield-checkmark-outline', label: 'Trusted' },
+  { icon: 'link-outline', label: 'Connected' },
+  { icon: 'flash-outline', label: 'Effortless' },
+]
+
+export function WelcomeScreen({
+  onGetStarted,
+  onSwitchRole,
+  onImport,
+  isMerchant,
+}: WelcomeScreenProps) {
+  const role: UserRole = isMerchant ? 'merchant' : 'consumer'
+
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={[Colors.black, Colors.darkGrey]}
+        colors={[Colors.black, Colors.surfaceBg]}
         style={StyleSheet.absoluteFill}
       />
 
       <View style={styles.content}>
+        {/* Brand lockup */}
         <View style={styles.hero}>
-          <View style={styles.logoWrap}>
-            <Ionicons name="wallet-outline" size={48} color={Colors.accentGreen} />
+          <NoirLogo variant="lockup" size={96} />
+        </View>
+
+        {/* Value props */}
+        <View style={styles.valueProps}>
+          {VALUE_PROPS.map((v) => (
+            <View key={v.label} style={styles.valueProp}>
+              <View style={styles.valueIcon}>
+                <Ionicons name={v.icon} size={22} color={Colors.gold} />
+              </View>
+              <Text style={styles.valueLabel}>{v.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Role segmented control */}
+        <View style={styles.segmentWrap}>
+          <Text style={styles.segmentHint}>I am using Noir as a</Text>
+          <View style={styles.segment} accessibilityRole="tablist">
+            <SegmentButton
+              label="Consumer"
+              active={role === 'consumer'}
+              onPress={() => {
+                if (role !== 'consumer') onSwitchRole()
+              }}
+            />
+            <SegmentButton
+              label="Merchant"
+              active={role === 'merchant'}
+              onPress={() => {
+                if (role !== 'merchant') onSwitchRole()
+              }}
+            />
           </View>
-          <Text style={styles.title}>Noir Wallet</Text>
-          <Text style={styles.subtitle}>
-            {isMerchant
-              ? 'Accept contactless payments with a single tap'
-              : 'Tap any RFID card or sticker to pay instantly'}
-          </Text>
         </View>
 
-        <View style={styles.features}>
-          <FeatureRow
-            icon="radio-outline"
-            title="Tap to Pay"
-            description="No app opens, no confirmations. Just tap and go."
-          />
-          <FeatureRow
-            icon="planet-outline"
-            title="Stellar Powered"
-            description="Fast, low-cost transactions on the Stellar network."
-          />
-          <FeatureRow
-            icon="cash-outline"
-            title="PDAX Fiat Bridge"
-            description="Cash in and out in Philippine Pesos."
-          />
-          <FeatureRow
-            icon="hardware-chip-outline"
-            title="x402 Protocol"
-            description="Hardware-backed payments with zero UI interaction."
-          />
-        </View>
-
+        {/* Actions */}
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.primaryBtn} onPress={onGetStarted} activeOpacity={0.8}>
-            <Text style={styles.primaryBtnText}>
-              {isMerchant ? 'Start Accepting Payments' : 'Create Your Wallet'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.switchBtn} onPress={onSwitchRole} activeOpacity={0.7}>
-            <Ionicons name="swap-horizontal-outline" size={18} color={Colors.mutedWhite} />
-            <Text style={styles.switchBtnText}>
-              Switch to {isMerchant ? 'Consumer' : 'Merchant'} Mode
-            </Text>
-          </TouchableOpacity>
+          <PrimaryButton
+            label="Create Wallet"
+            icon="add-circle-outline"
+            onPress={onGetStarted}
+          />
+          <GhostButton
+            label="I already have a wallet"
+            onPress={onImport ?? onGetStarted}
+          />
         </View>
       </View>
     </SafeAreaView>
   )
 }
 
-function FeatureRow({ icon, title, description }: { icon: keyof typeof Ionicons.glyphMap; title: string; description: string }) {
+function SegmentButton({
+  label,
+  active,
+  onPress,
+}: {
+  label: string
+  active: boolean
+  onPress: () => void
+}) {
   return (
-    <View style={styles.featureRow}>
-      <View style={styles.featureIcon}>
-        <Ionicons name={icon} size={22} color={Colors.accentGreen} />
-      </View>
-      <View style={styles.featureText}>
-        <Text style={styles.featureTitle}>{title}</Text>
-        <Text style={styles.featureDesc}>{description}</Text>
-      </View>
-    </View>
+    <TouchableOpacity
+      style={[styles.segmentBtn, active && styles.segmentBtnActive]}
+      onPress={onPress}
+      activeOpacity={0.8}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={`${label} mode`}
+    >
+      <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+        {label}
+      </Text>
+    </TouchableOpacity>
   )
 }
 
@@ -103,82 +134,68 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: Spacing.xxl,
   },
-  logoWrap: {
-    width: 88,
-    height: 88,
-    borderRadius: BorderRadius.xl,
-    backgroundColor: Colors.accentGreen + '15',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.md,
-  },
-  title: {
-    fontSize: FontSize.xxxl,
-    color: Colors.white,
-    fontWeight: FontWeight.heavy,
-    letterSpacing: 1,
-  },
-  subtitle: {
-    fontSize: FontSize.md,
-    color: Colors.mutedWhite,
-    textAlign: 'center',
-    marginTop: Spacing.sm,
-    lineHeight: 22,
-  },
-  features: {
+  valueProps: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginVertical: Spacing.xl,
   },
-  featureRow: {
-    flexDirection: 'row',
+  valueProp: {
     alignItems: 'center',
-    marginBottom: Spacing.lg,
+    width: '22%',
   },
-  featureIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.accentGreen + '10',
+  valueIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.gold + '15',
+    borderWidth: 1,
+    borderColor: Colors.gold + '33',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: Spacing.sm,
   },
-  featureText: {
+  valueLabel: {
+    fontSize: FontSize.xs,
+    color: Colors.silver,
+    fontWeight: FontWeight.medium,
+  },
+  segmentWrap: {
+    marginBottom: Spacing.lg,
+  },
+  segmentHint: {
+    fontSize: FontSize.xs,
+    color: Colors.mutedWhite,
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  segment: {
+    flexDirection: 'row',
+    backgroundColor: Colors.midGrey,
+    borderRadius: BorderRadius.full,
+    padding: 4,
+  },
+  segmentBtn: {
     flex: 1,
-    marginLeft: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
   },
-  featureTitle: {
-    fontSize: FontSize.md,
-    color: Colors.white,
+  segmentBtnActive: {
+    backgroundColor: Colors.gold,
+  },
+  segmentText: {
+    fontSize: FontSize.sm,
+    color: Colors.silver,
     fontWeight: FontWeight.semibold,
   },
-  featureDesc: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    marginTop: 2,
+  segmentTextActive: {
+    color: Colors.black,
   },
   actions: {
     gap: Spacing.md,
-  },
-  primaryBtn: {
-    backgroundColor: Colors.accentGreen,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    alignItems: 'center',
-  },
-  primaryBtnText: {
-    color: Colors.black,
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-  },
-  switchBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.md,
-    gap: Spacing.sm,
-  },
-  switchBtnText: {
-    color: Colors.mutedWhite,
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.medium,
   },
 })
