@@ -18,7 +18,7 @@ export default function TabLayout() {
           paddingTop: 4,
           height: 60,
         },
-        tabBarActiveTintColor: Colors.accentGreen,
+        tabBarActiveTintColor: Colors.gold,
         tabBarInactiveTintColor: Colors.mutedWhite,
         tabBarLabelStyle: { fontSize: FontSize.xs, marginBottom: 4 },
       }}
@@ -55,6 +55,15 @@ export default function TabLayout() {
           title: 'Devices',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="hardware-chip-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" size={size} color={color} />
           ),
         }}
       />
