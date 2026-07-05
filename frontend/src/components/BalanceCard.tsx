@@ -52,7 +52,7 @@ export function BalanceCard({ phpBalance, usdcBalance, xlmBalance }: BalanceCard
         <Text style={styles.totalAmount}>
           ₱{totalPhp.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
         </Text>
-        <Text style={styles.totalSub}>≈ ${(totalPhp / rates.usdToPhp).toFixed(2)} USD</Text>
+        <Text style={styles.totalSub}>{totalPhp > 0 ? `$${(totalPhp / rates.usdToPhp).toFixed(2)} USD` : ''}</Text>
       </View>
 
       <View style={styles.divider} />
@@ -68,14 +68,14 @@ export function BalanceCard({ phpBalance, usdcBalance, xlmBalance }: BalanceCard
         <AssetRow
           icon="logo-usd"
           label="USDC"
-          amount={`${usdcBalance.toFixed(2)} USDC`}
+          amount={`${usdcBalance.toFixed(2)}`}
           value={`₱${(usdcBalance * rates.usdToPhp).toFixed(2)}`}
           color={Colors.silver}
         />
         <AssetRow
           icon="planet-outline"
           label="XLM"
-          amount={`${xlmBalance.toFixed(4)} XLM`}
+          amount={`${xlmBalance.toFixed(4)}`}
           value={`₱${(xlmBalance * rates.usdToPhp * rates.xlmToUsd).toFixed(2)}`}
           color={Colors.goldDim}
         />
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   totalAmount: {
-    fontSize: FontSize.hero,
+    fontSize: FontSize.xxl,
     color: Colors.cream,
     fontWeight: FontWeight.heavy,
     marginTop: Spacing.xs,
@@ -114,6 +114,7 @@ const styles = StyleSheet.create({
     color: Colors.gold,
     marginTop: Spacing.xs,
     fontWeight: FontWeight.medium,
+    minHeight: 18,
   },
   divider: {
     height: 1,
@@ -126,11 +127,12 @@ const styles = StyleSheet.create({
   assetRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: Spacing.xs,
   },
   assetIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: BorderRadius.md,
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -147,9 +149,9 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   assetAmount: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-    marginTop: 2,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+    marginTop: 1,
   },
   assetValueWrap: {
     alignItems: 'flex-end',

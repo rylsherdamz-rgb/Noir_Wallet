@@ -74,7 +74,7 @@ export function DashboardScreen() {
         <View style={styles.quickActions}>
           <ActionButton icon="arrow-up-outline" label="Send" onPress={() => router.push('/send')} />
           <ActionButton icon="arrow-down-outline" label="Receive" onPress={() => router.push('/receive')} />
-          <ActionButton icon="radio-outline" label="Link Device" onPress={() => router.push('/(tabs)/devices')} />
+          <ActionButton icon="radio-outline" label="Link" onPress={() => router.push('/(tabs)/devices')} />
           <ActionButton icon="receipt-outline" label="History" onPress={() => router.push('/transactions')} />
         </View>
 
