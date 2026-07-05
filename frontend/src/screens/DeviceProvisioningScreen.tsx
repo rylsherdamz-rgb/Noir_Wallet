@@ -88,10 +88,12 @@ export function DeviceProvisioningScreen() {
         <View style={styles.center}>
           {step === 'intro' && (
             <View style={styles.illustration}>
-              <View style={styles.phoneWrap}>
-                <Ionicons name="phone-portrait-outline" size={48} color={Colors.mutedWhite} />
+              <View style={styles.phoneBody}>
+                <View style={styles.phoneScreen}>
+                  <View style={styles.phoneNotch} />
+                </View>
                 <View style={styles.antenna}>
-                  <Ionicons name="radio" size={22} color={Colors.gold} />
+                  <Ionicons name="radio" size={20} color={Colors.gold} />
                 </View>
               </View>
               <Ionicons name="arrow-forward" size={18} color={Colors.mutedWhite} />
@@ -217,23 +219,44 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     flexShrink: 1,
   },
-  phoneWrap: {
-    width: 48,
-    height: 64,
-    alignItems: 'center',
-    justifyContent: 'center',
+  phoneBody: {
+    width: 52,
+    height: 80,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: Colors.mutedWhite,
+    backgroundColor: Colors.black,
     position: 'relative',
+    alignItems: 'center',
+    paddingTop: 10,
+    overflow: 'visible',
+  },
+  phoneScreen: {
+    width: 40,
+    height: 56,
+    borderRadius: 6,
+    backgroundColor: Colors.darkGrey,
+    alignItems: 'center',
+    paddingTop: 6,
+  },
+  phoneNotch: {
+    width: 16,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.midGrey,
   },
   antenna: {
     position: 'absolute',
-    top: 8,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    top: -6,
+    right: -8,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: Colors.gold + '20',
+    borderWidth: 1.5,
+    borderColor: Colors.gold + '30',
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'center',
   },
   cardImg: {
     width: 44,
