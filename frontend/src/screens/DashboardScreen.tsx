@@ -7,7 +7,10 @@ import { useAppStore } from '@/store/useAppStore'
 import { BalanceCard } from '@/components/BalanceCard'
 import { TransactionItem } from '@/components/TransactionItem'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { TestnetFaucetBanner } from '@/components/TestnetFaucetBanner'
 import { apiService } from '@/services/api'
+import { stellarService } from '@/services/stellar'
+import { fxRateService } from '@/services/fxRates'
 
 export function DashboardScreen() {
   const router = useRouter()
@@ -17,17 +20,26 @@ export function DashboardScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
     try {
-      const [txRes, balanceRes] = await Promise.all([
-        apiService.getTransactions(),
-        user?.stellarPublicKey ? apiService.getBalance() : Promise.resolve(null),
-      ])
+      const txRes = await apiService.getTransactions()
       if (txRes?.transactions) setTransactions(txRes.transactions)
-      if (balanceRes?.balance) setBalance(balanceRes.balance)
     } catch {
-      // Store retains last known data
-    } finally {
-      setRefreshing(false)
+      // backend unavailable
     }
+    if (user?.stellarPublicKey) {
+      try {
+        const onChain = await stellarService.getBalance(user.stellarPublicKey)
+        const rates = await fxRateService.getRates()
+        setBalance({
+          xlm: onChain.xlm,
+          usdc: onChain.usdc,
+          php: onChain.usdc * rates.usdToPhp,
+          localTokens: {},
+        })
+      } catch {
+        // horizon unavailable
+      }
+    }
+    setRefreshing(false)
   }, [setTransactions, setBalance, user?.stellarPublicKey])
 
   return (
@@ -51,6 +63,7 @@ export function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
+        <TestnetFaucetBanner />
         <BalanceCard
           phpBalance={balance.php}
           usdcBalance={balance.usdc}

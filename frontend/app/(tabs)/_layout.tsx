@@ -42,15 +42,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="blockchain"
-        options={{
-          title: 'Blockchain',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cube-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="devices"
         options={{
           title: 'Devices',
