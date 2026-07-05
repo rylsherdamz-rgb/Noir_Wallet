@@ -1,5 +1,5 @@
-import { MerchantPosScreen } from '@/screens/MerchantPosScreen'
+import { AgentListScreen } from '@/screens/AgentListScreen'
 
-export default function PosScreen() {
-  return <MerchantPosScreen />
+export default function AgentsTab() {
+  return <AgentListScreen />
 }

@@ -35,9 +35,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="pos"
         options={{
-          title: 'Pay',
+          title: 'Agents',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="radio-outline" size={size} color={color} />
+            <Ionicons name="flash-outline" size={size} color={color} />
           ),
         }}
       />

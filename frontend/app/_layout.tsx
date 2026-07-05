@@ -176,6 +176,7 @@ export default function RootLayout() {
         <Stack.Screen name="import-wallet" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="settings/security" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="settings/notifications" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="agent/[id]" options={{ animation: 'slide_from_right' }} />
       </Stack>
     </GestureHandlerRootView>
   )

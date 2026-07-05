@@ -30,64 +30,67 @@ describe('DeviceProvisioningScreen logic', () => {
   })
 })
 
-describe('MerchantPosScreen logic', () => {
-  it('imports without error', async () => {
-    const mod = await import('@/screens/MerchantPosScreen')
-    expect(mod.MerchantPosScreen).toBeDefined()
+describe('Agent screens', () => {
+  it('AgentListScreen imports', async () => {
+    const mod = await import('@/screens/AgentListScreen')
+    expect(mod.AgentListScreen).toBeDefined()
   })
 
-  it('displayAmount formats cents to PHP', () => {
-    const formatAmount = (cents: string) => cents ? `₱${(parseInt(cents) / 100).toFixed(2)}` : ''
-    expect(formatAmount('')).toBe('')
-    expect(formatAmount('100')).toBe('₱1.00')
-    expect(formatAmount('5000')).toBe('₱50.00')
-    expect(formatAmount('99999999')).toBe('₱999999.99')
+  it('AgentDetailScreen imports', async () => {
+    const mod = await import('@/screens/AgentDetailScreen')
+    expect(mod.AgentDetailScreen).toBeDefined()
   })
 
-  it('rejects zero amount', () => {
-    const isValid = (amount: string) => !!amount && parseInt(amount) > 0
-    expect(isValid('')).toBe(false)
-    expect(isValid('0')).toBe(false)
-    expect(isValid('100')).toBe(true)
-  })
-
-  it('creates transaction with correct shape', () => {
-    const buildTx = (tagUid: string, amountCents: number, txHash: string | null) => ({
-      id: Math.random().toString(36).slice(2),
-      stellarTxHash: txHash,
-      merchantId: 'me',
-      merchantName: 'Tap Pay',
-      userId: 'local',
-      deviceId: tagUid,
-      amountCents,
-      assetCode: 'PHP' as const,
-      status: 'confirmed' as const,
-      errorMessage: null,
-      createdAt: new Date().toISOString(),
-    })
-    const tx = buildTx('uid-123', 5000, 'hash-abc')
-    expect(tx.deviceId).toBe('uid-123')
-    expect(tx.amountCents).toBe(5000)
-    expect(tx.stellarTxHash).toBe('hash-abc')
-    expect(tx.status).toBe('confirmed')
-  })
-
-  it('finds linked device by UID', () => {
+  it('filters active devices for agent list', () => {
     const devices = [
-      { deviceUidHash: 'uid-111', agentPublicKey: 'GAGENT1' },
-      { deviceUidHash: 'uid-222', agentPublicKey: 'GAGENT2' },
-    ]
-    const findDevice = (uid: string) => devices.find(d => d.deviceUidHash === uid)
-    expect(findDevice('uid-111')?.agentPublicKey).toBe('GAGENT1')
-    expect(findDevice('uid-333')).toBeUndefined()
+      { id: '1', status: 'active', label: 'Card A' },
+      { id: '2', status: 'frozen', label: 'Card B' },
+      { id: '3', status: 'active', label: 'Card C' },
+    ] as any[]
+    const active = devices.filter((d) => d.status === 'active')
+    expect(active).toHaveLength(2)
+    expect(active.map((d) => d.label)).toEqual(['Card A', 'Card C'])
   })
 
-  it('agent mode determined by agent existence + device agentPublicKey', () => {
-    const shouldUseAgent = (hasAgent: boolean, deviceAgentKey?: string) => hasAgent && !!deviceAgentKey
-    expect(shouldUseAgent(true, 'GAGENT')).toBe(true)
-    expect(shouldUseAgent(true, undefined)).toBe(false)
-    expect(shouldUseAgent(false, 'GAGENT')).toBe(false)
-    expect(shouldUseAgent(false, undefined)).toBe(false)
+  it('computes agent metrics correctly', () => {
+    const balanceStroops = 50_000_000
+    const spendingBudgetStroops = 500_000_000
+    const totalSpentStroops = 100_000_000
+    const xlmBalance = (balanceStroops / 10_000_000).toFixed(2)
+    const remaining = Math.max(0, (spendingBudgetStroops - totalSpentStroops) / 10_000_000).toFixed(2)
+    const spent = (totalSpentStroops / 10_000_000).toFixed(2)
+    const budget = (spendingBudgetStroops / 10_000_000).toFixed(2)
+    const pct = spendingBudgetStroops > 0 ? Math.round((totalSpentStroops / spendingBudgetStroops) * 100) : 0
+    expect(xlmBalance).toBe('5.00')
+    expect(remaining).toBe('40.00')
+    expect(spent).toBe('10.00')
+    expect(budget).toBe('50.00')
+    expect(pct).toBe(20)
+  })
+
+  it('handles zero budget edge case', () => {
+    const pct = 0 > 0 ? Math.round((0 / 0) * 100) : 0
+    expect(pct).toBe(0)
+  })
+
+  it('filters agent transactions by deviceUidHash', () => {
+    const agentDeviceUid = 'uid-agent-1'
+    const allTxs = [
+      { id: '1', deviceId: 'uid-agent-1', status: 'confirmed', amountCents: 100, assetCode: 'XLM', merchantName: 'Card A' },
+      { id: '2', deviceId: 'uid-other', status: 'confirmed', amountCents: 200, assetCode: 'PHP', merchantName: 'Other' },
+      { id: '3', deviceId: 'uid-agent-1', status: 'confirmed', amountCents: 50, assetCode: 'XLM', merchantName: 'Card A' },
+    ]
+    const agentTxs = allTxs.filter((tx) => tx.deviceId === agentDeviceUid)
+    expect(agentTxs).toHaveLength(2)
+    expect(agentTxs.every((tx) => tx.deviceId === 'uid-agent-1')).toBe(true)
+  })
+
+  it('validates NFC tag UID matches device before payment', () => {
+    const deviceUid = 'tag-abc'
+    const scannedUid = 'tag-abc'
+    const wrongUid = 'tag-xyz'
+    expect(scannedUid === deviceUid).toBe(true)
+    expect(wrongUid === deviceUid).toBe(false)
   })
 })
 

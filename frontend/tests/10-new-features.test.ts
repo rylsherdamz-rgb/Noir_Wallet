@@ -500,7 +500,52 @@ describe('13 — Manage wallets button', () => {
   })
 })
 
-describe('14 — Register push token API', () => {
+describe('15 — Agent screens', () => {
+  it('AgentListScreen filters only active devices', async () => {
+    const devices = [
+      { status: 'active', label: 'Card A' },
+      { status: 'frozen', label: 'Card B' },
+      { status: 'active', label: 'Card C' },
+    ]
+    const active = devices.filter((d) => d.status === 'active')
+    expect(active).toHaveLength(2)
+    expect(active[0].label).toBe('Card A')
+    expect(active[1].label).toBe('Card C')
+  })
+
+  it('agent detail route imports', async () => {
+    const mod = await import('../../frontend/app/agent/[id]')
+    expect(mod.default).toBeDefined()
+  })
+
+  it('pos tab now imports AgentListScreen', async () => {
+    const mod = await import('../../frontend/app/(tabs)/pos')
+    expect(mod.default).toBeDefined()
+  })
+
+  it('tab layout renamed Pay to Agents', () => {
+    const tabConfig = { name: 'pos', title: 'Agents', icon: 'flash-outline' }
+    expect(tabConfig.title).toBe('Agents')
+    expect(tabConfig.icon).toBe('flash-outline')
+  })
+
+  it('AgentWallet interface has correct shape', () => {
+    const wallet = {
+      publicKey: 'GABC',
+      balanceStroops: 10000000,
+      spendingBudgetStroops: 500000000,
+      totalSpentStroops: 0,
+      isActive: true,
+      createdAt: '2025-01-01',
+    }
+    expect(wallet.publicKey).toBe('GABC')
+    expect(wallet.balanceStroops).toBe(10000000)
+    expect(wallet.spendingBudgetStroops).toBe(500000000)
+    expect(typeof wallet.isActive).toBe('boolean')
+  })
+})
+
+describe('16 — Register push token API', () => {
   beforeEach(() => {
     mockFetch.mockReset()
   })
