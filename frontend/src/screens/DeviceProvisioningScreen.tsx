@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  TextInput,
   Animated,
   Easing,
 } from 'react-native'
@@ -17,13 +18,16 @@ import { Device } from '@/types'
 
 type Step = 'intro' | 'scanning' | 'writing' | 'success' | 'error'
 
-const LABELS = ['My Wallet Card', 'Daily Carry', 'Home Key', 'Other']
+const LABELS = ['My Wallet Card', 'Daily Carry', 'Home Key']
+const OTHER = 'Other'
 
 export function DeviceProvisioningScreen() {
   const { isSupported, lastTag, error, scanTag, writeToTag, clearTag } = useNfc()
   const { user, addDevice } = useAppStore()
   const [step, setStep] = useState<Step>('intro')
   const [label, setLabel] = useState('')
+  const [customName, setCustomName] = useState('')
+  const inputRef = useRef<TextInput>(null)
   const pulse = useState(new Animated.Value(1))[0]
 
   useEffect(() => {
@@ -44,7 +48,9 @@ export function DeviceProvisioningScreen() {
     const tag = await scanTag()
     if (tag) {
       setStep('writing')
-      const displayLabel = label || `${user?.displayName || 'My'} Card`
+      const displayLabel = label === OTHER && customName.trim()
+        ? customName.trim()
+        : label || `${user?.displayName || 'My'} Card`
       const written = await writeToTag({
         walletAddress: user?.stellarPublicKey || 'pending',
         deviceLabel: displayLabel,
@@ -145,12 +151,30 @@ export function DeviceProvisioningScreen() {
                 <TouchableOpacity
                   key={l}
                   style={[styles.chip, label === l && styles.chipActive]}
-                  onPress={() => setLabel(l)}
+                  onPress={() => { setLabel(l); setCustomName('') }}
                 >
                   <Text style={[styles.chipText, label === l && styles.chipTextActive]}>{l}</Text>
                 </TouchableOpacity>
               ))}
+              <TouchableOpacity
+                style={[styles.chip, label === OTHER && styles.chipActive]}
+                onPress={() => { setLabel(OTHER); setCustomName(''); inputRef.current?.focus() }}
+              >
+                <Ionicons name="pencil-outline" size={13} color={label === OTHER ? Colors.gold : Colors.mutedWhite} />
+                <Text style={[styles.chipText, label === OTHER && styles.chipTextActive, { marginLeft: 4 }]}>Other</Text>
+              </TouchableOpacity>
             </View>
+            {label === OTHER && (
+              <TextInput
+                ref={inputRef}
+                style={styles.customInput}
+                placeholder="Enter custom name..."
+                placeholderTextColor={Colors.mutedWhite}
+                value={customName}
+                onChangeText={setCustomName}
+                maxLength={32}
+              />
+            )}
             {!isSupported && (
               <Text style={styles.unsupported}>NFC unavailable on this device</Text>
             )}
@@ -334,6 +358,8 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.full,
@@ -352,6 +378,18 @@ const styles = StyleSheet.create({
   chipTextActive: {
     color: Colors.gold,
     fontWeight: FontWeight.semibold,
+  },
+  customInput: {
+    marginTop: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.lightGrey,
+    borderWidth: 1,
+    borderColor: Colors.gold + '50',
+    color: Colors.white,
+    fontSize: FontSize.md,
+    textAlign: 'center',
   },
   unsupported: {
     fontSize: FontSize.xs,
