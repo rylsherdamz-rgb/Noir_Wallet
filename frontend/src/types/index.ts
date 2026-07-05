@@ -29,6 +29,7 @@ export interface Device {
   userId: string
   deviceUidHash: string
   label: string
+  agentPublicKey?: string
   status: 'active' | 'frozen' | 'lost' | 'deactivated'
   dailySpendLimitCents: number
   accumulatedTodayCents: number

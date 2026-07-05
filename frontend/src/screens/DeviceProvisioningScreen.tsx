@@ -14,6 +14,7 @@ import { useNfc } from '@/hooks/useNfc'
 import { useAppStore } from '@/store/useAppStore'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { NoirLogo } from '@/components/brand/NoirLogo'
+import { x402 } from '@/domain/x402'
 import { Device } from '@/types'
 
 type Step = 'intro' | 'scanning' | 'writing' | 'success' | 'error'
@@ -27,6 +28,7 @@ export function DeviceProvisioningScreen() {
   const [step, setStep] = useState<Step>('intro')
   const [label, setLabel] = useState('')
   const [customName, setCustomName] = useState('')
+  const [agentCreated, setAgentCreated] = useState(false)
   const inputRef = useRef<TextInput>(null)
   const pulse = useState(new Animated.Value(1))[0]
 
@@ -51,9 +53,22 @@ export function DeviceProvisioningScreen() {
       const displayLabel = label === OTHER && customName.trim()
         ? customName.trim()
         : label || `${user?.displayName || 'My'} Card`
+
+      let agentPubKey = ''
+      const hasAgent = await x402.hasAgent()
+      if (!hasAgent) {
+        const agent = await x402.createAgent()
+        agentPubKey = agent.publicKey
+        setAgentCreated(true)
+      } else {
+        const agent = await x402.getAgent()
+        agentPubKey = agent?.publicKey || ''
+      }
+
       const written = await writeToTag({
         walletAddress: user?.stellarPublicKey || 'pending',
         deviceLabel: displayLabel,
+        agentPublicKey: agentPubKey,
         activationUrl: 'noirwallet://activate',
       })
       if (written) {
@@ -62,6 +77,7 @@ export function DeviceProvisioningScreen() {
           userId: user?.id || 'local',
           deviceUidHash: tag.uid,
           label: displayLabel,
+          agentPublicKey: agentPubKey,
           status: 'active',
           dailySpendLimitCents: 500000,
           accumulatedTodayCents: 0,
@@ -131,6 +147,12 @@ export function DeviceProvisioningScreen() {
               <Ionicons name="checkmark-circle" size={72} color={Colors.success} />
               <Text style={styles.successTitle}>Linked!</Text>
               <Text style={styles.successSub}>{label || `${user?.displayName || 'Your'} Card`} is now paired</Text>
+              {agentCreated && (
+                <View style={styles.agentBadge}>
+                  <Ionicons name="flash-outline" size={14} color={Colors.gold} />
+                  <Text style={styles.agentBadgeText}>x402 agent ready — tap to pay without signing</Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -378,6 +400,23 @@ const styles = StyleSheet.create({
   chipTextActive: {
     color: Colors.gold,
     fontWeight: FontWeight.semibold,
+  },
+  agentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginTop: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.gold + '15',
+    borderWidth: 1,
+    borderColor: Colors.gold + '25',
+  },
+  agentBadgeText: {
+    fontSize: FontSize.xs,
+    color: Colors.gold,
+    fontWeight: FontWeight.medium,
   },
   customInput: {
     marginTop: Spacing.sm,

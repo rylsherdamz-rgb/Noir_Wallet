@@ -11,16 +11,18 @@ import * as Haptics from 'expo-haptics'
 import { useAppStore } from '@/store/useAppStore'
 import { apiService } from '@/services/api'
 import { nfcService } from '@/services/nfc'
+import { x402 } from '@/domain/x402'
 import { NumericKeypad } from '@/components/NumericKeypad'
 import { ReadyToTapIndicator } from '@/components/ReadyToTapIndicator'
 import { NoirLogo } from '@/components/brand/NoirLogo'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 
 export function MerchantPosScreen() {
-  const { transactions, addTransaction, user } = useAppStore()
+  const { transactions, addTransaction, user, devices } = useAppStore()
   const [amount, setAmount] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [lastResult, setLastResult] = useState<'success' | 'failed' | null>(null)
+  const [agentMode, setAgentMode] = useState(false)
 
   const displayAmount = amount ? `₱${(parseInt(amount) / 100).toFixed(2)}` : ''
 
@@ -33,20 +35,39 @@ export function MerchantPosScreen() {
       const tag = await nfcService.readTag()
       if (!tag) { setIsProcessing(false); return }
 
-      const res = await apiService.initiatePayment({
-        rawDeviceUid: tag.uid,
-        merchantPublicKey: user?.stellarPublicKey || '',
-        amountCents: parseInt(amount),
-        assetCode: 'PHP',
-      })
+      const linkedDevice = devices.find((d) => d.deviceUidHash === tag.uid)
+      const hasAgent = await x402.hasAgent()
+      let txHash: string | null = null
 
-      if (res.status === 'accepted' || res.status === 'confirmed') {
+      if (hasAgent && linkedDevice?.agentPublicKey) {
+        setAgentMode(true)
+        const result = await x402.payWithAgent({
+          destination: user?.stellarPublicKey || '',
+          amount: (parseInt(amount) / 100).toFixed(2),
+        })
+        if ('error' in result) throw new Error(result.error)
+        txHash = result.hash
+      } else {
+        const res = await apiService.initiatePayment({
+          rawDeviceUid: tag.uid,
+          merchantPublicKey: user?.stellarPublicKey || '',
+          amountCents: parseInt(amount),
+          assetCode: 'PHP',
+        })
+        if (res.status === 'accepted' || res.status === 'confirmed') {
+          txHash = res.txHash || null
+        } else {
+          throw new Error(res.message)
+        }
+      }
+
+      if (txHash) {
         setLastResult('success')
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
         setAmount('')
         addTransaction({
           id: Math.random().toString(36).slice(2),
-          stellarTxHash: res.txHash || null,
+          stellarTxHash: txHash,
           merchantId: 'me',
           merchantName: 'Tap Pay',
           userId: user?.id || 'local',
@@ -57,17 +78,16 @@ export function MerchantPosScreen() {
           errorMessage: null,
           createdAt: new Date().toISOString(),
         })
-      } else {
-        throw new Error(res.message)
       }
     } catch (err: any) {
       setLastResult('failed')
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
     } finally {
       setIsProcessing(false)
+      setAgentMode(false)
       setTimeout(() => setLastResult(null), 3000)
     }
-  }, [amount, user, addTransaction])
+  }, [amount, user, addTransaction, devices])
 
   const recentTxs = transactions.slice(0, 5)
 
@@ -99,7 +119,7 @@ export function MerchantPosScreen() {
               color={amount && !isProcessing ? Colors.black : Colors.mutedWhite}
             />
             <Text style={[styles.tapBtnText, amount && !isProcessing && { color: Colors.black }]}>
-              {isProcessing ? 'Processing...' : 'Tap NFC Tag'}
+              {isProcessing && agentMode ? 'Agent Signing...' : isProcessing ? 'Processing...' : 'Tap NFC Tag'}
             </Text>
           </TouchableOpacity>
 
