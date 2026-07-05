@@ -7,11 +7,11 @@ import { useAppStore } from '@/store/useAppStore'
 import { x402 } from '@/domain/x402'
 import type { AgentWallet } from '@/domain/x402'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
-import { EmptyState } from '@/components/EmptyState'
+import { Button } from '@/components/Button'
 
 export function AgentListScreen() {
   const router = useRouter()
-  const { devices, user } = useAppStore()
+  const { devices } = useAppStore()
   const [agent, setAgent] = useState<AgentWallet | null>(null)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -36,72 +36,104 @@ export function AgentListScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.gold} />}
       >
         <Text style={styles.screenTitle}>Agents</Text>
-        <Text style={styles.screenSub}>Agents are autonomous wallets linked to your NFC devices for tap-and-go payments.</Text>
+        <Text style={styles.screenSub}>Autonomous wallets linked to your NFC devices for tap-and-go payments.</Text>
 
         {devices.length === 0 ? (
-          <EmptyState
-            icon="radio-outline"
-            title="No Agents Yet"
-            description="Link an NFC device first to create its payment agent."
-            action={{ label: 'Link a Device', onPress: () => router.push('/(tabs)/devices') }}
-          />
+          <View style={styles.emptySection}>
+            <View style={styles.emptyIcon}>
+              <Ionicons name="flash-outline" size={48} color={Colors.gold} />
+            </View>
+            <Text style={styles.emptyTitle}>No Agents Yet</Text>
+            <Text style={styles.emptyDesc}>
+              Link an NFC device to create its payment agent. Agents handle payments automatically when you tap.
+            </Text>
+            <View style={styles.emptySteps}>
+              <View style={styles.stepRow}>
+                <View style={styles.stepDot} />
+                <Text style={styles.stepText}>Provision an NFC tag as your wallet key</Text>
+              </View>
+              <View style={styles.stepRow}>
+                <View style={styles.stepDot} />
+                <Text style={styles.stepText}>An x402 agent wallet is created for that device</Text>
+              </View>
+              <View style={styles.stepRow}>
+                <View style={styles.stepDot} />
+                <Text style={styles.stepText}>Tap to pay — agent signs automatically</Text>
+              </View>
+            </View>
+            <Button
+              label="Link a Device"
+              icon="radio-outline"
+              onPress={() => router.push('/(tabs)/devices')}
+            />
+          </View>
         ) : (
-          devices.filter((d) => d.status === 'active').map((device) => {
-            const xlmBalance = agent ? (agent.balanceStroops / 10_000_000).toFixed(2) : '—'
-            const remaining = agent ? ((agent.spendingBudgetStroops - agent.totalSpentStroops) / 10_000_000).toFixed(2) : '—'
-            const spent = agent ? (agent.totalSpentStroops / 10_000_000).toFixed(2) : '—'
-            const pct = agent && agent.spendingBudgetStroops > 0
-              ? Math.round((agent.totalSpentStroops / agent.spendingBudgetStroops) * 100)
-              : 0
+          <>
+            {devices.filter((d) => d.status === 'active').map((device) => {
+              const xlmBalance = agent ? (agent.balanceStroops / 10_000_000).toFixed(2) : '—'
+              const remaining = agent ? ((agent.spendingBudgetStroops - agent.totalSpentStroops) / 10_000_000).toFixed(2) : '—'
+              const spent = agent ? (agent.totalSpentStroops / 10_000_000).toFixed(2) : '—'
+              const pct = agent && agent.spendingBudgetStroops > 0
+                ? Math.round((agent.totalSpentStroops / agent.spendingBudgetStroops) * 100)
+                : 0
 
-            return (
-              <TouchableOpacity
-                key={device.id}
-                style={styles.agentCard}
-                onPress={() => router.push(`/agent/${device.id}`)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.cardTop}>
-                  <View style={styles.cardHeader}>
-                    <View style={styles.cardIcon}>
-                      <Ionicons name="flash-outline" size={22} color={Colors.gold} />
+              return (
+                <TouchableOpacity
+                  key={device.id}
+                  style={styles.agentCard}
+                  onPress={() => router.push(`/agent/${device.id}`)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.cardTop}>
+                    <View style={styles.cardHeader}>
+                      <View style={styles.cardIcon}>
+                        <Ionicons name="flash-outline" size={22} color={Colors.gold} />
+                      </View>
+                      <View style={styles.cardTitleArea}>
+                        <Text style={styles.cardTitle}>{device.label}</Text>
+                        <Text style={styles.cardSub}>
+                          {device.agentPublicKey
+                            ? `${device.agentPublicKey.slice(0, 8)}...${device.agentPublicKey.slice(-6)}`
+                            : 'No agent'}
+                        </Text>
+                      </View>
                     </View>
-                    <View style={styles.cardTitleArea}>
-                      <Text style={styles.cardTitle}>{device.label}</Text>
-                      <Text style={styles.cardSub}>
-                        {device.agentPublicKey
-                          ? `${device.agentPublicKey.slice(0, 8)}...${device.agentPublicKey.slice(-6)}`
-                          : 'No agent'}
+                    <View style={[styles.statusBadge, { backgroundColor: device.status === 'active' ? Colors.success + '20' : Colors.danger + '20' }]}>
+                      <Text style={[styles.statusText, { color: device.status === 'active' ? Colors.success : Colors.danger }]}>
+                        {device.status}
                       </Text>
                     </View>
                   </View>
-                  <View style={[styles.statusBadge, { backgroundColor: device.status === 'active' ? Colors.success + '20' : Colors.danger + '20' }]}>
-                    <Text style={[styles.statusText, { color: device.status === 'active' ? Colors.success : Colors.danger }]}>
-                      {device.status}
-                    </Text>
-                  </View>
-                </View>
 
-                <View style={styles.balanceRow}>
-                  <View style={styles.balanceItem}>
-                    <Text style={styles.balanceLabel}>Balance</Text>
-                    <Text style={styles.balanceValue}>{xlmBalance} XLM</Text>
+                  <View style={styles.balanceRow}>
+                    <View style={styles.balanceItem}>
+                      <Text style={styles.balanceLabel}>Balance</Text>
+                      <Text style={styles.balanceValue}>{xlmBalance} XLM</Text>
+                    </View>
+                    <View style={styles.balanceItem}>
+                      <Text style={styles.balanceLabel}>Remaining</Text>
+                      <Text style={styles.balanceValueGold}>{remaining} XLM</Text>
+                    </View>
                   </View>
-                  <View style={styles.balanceItem}>
-                    <Text style={styles.balanceLabel}>Remaining</Text>
-                    <Text style={styles.balanceValueGold}>{remaining} XLM</Text>
-                  </View>
-                </View>
 
-                <View style={styles.progressWrap}>
-                  <View style={styles.progressBg}>
-                    <View style={[styles.progressFill, { width: `${Math.min(pct, 100)}%` }]} />
+                  <View style={styles.progressWrap}>
+                    <View style={styles.progressBg}>
+                      <View style={[styles.progressFill, { width: `${Math.min(pct, 100)}%` }]} />
+                    </View>
+                    <Text style={styles.progressLabel}>{spent} XLM spent of {agent ? (agent.spendingBudgetStroops / 10_000_000).toFixed(2) : '—'} XLM budget</Text>
                   </View>
-                  <Text style={styles.progressLabel}>{spent} XLM spent of {agent ? (agent.spendingBudgetStroops / 10_000_000).toFixed(2) : '—'} XLM budget</Text>
-                </View>
-              </TouchableOpacity>
-            )
-          })
+                </TouchableOpacity>
+              )
+            })}
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => router.push('/(tabs)/devices')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="add" size={22} color={Colors.gold} />
+              <Text style={styles.addBtnLabel}>Link Another Device</Text>
+            </TouchableOpacity>
+          </>
         )}
 
         {!agent && devices.length > 0 && (
@@ -118,13 +150,25 @@ const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
   screenTitle: { fontSize: FontSize.xxl, color: Colors.cream, fontWeight: FontWeight.heavy, paddingVertical: Spacing.md },
   screenSub: { fontSize: FontSize.sm, color: Colors.mutedWhite, marginBottom: Spacing.lg, lineHeight: 20 },
+
+  // Empty state
+  emptySection: { alignItems: 'center', paddingTop: Spacing.xxl, paddingHorizontal: Spacing.md },
+  emptyIcon: {
+    width: 88, height: 88, borderRadius: 44,
+    backgroundColor: Colors.gold + '12', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: Colors.gold + '20', marginBottom: Spacing.lg,
+  },
+  emptyTitle: { fontSize: FontSize.xl, color: Colors.white, fontWeight: FontWeight.bold, marginBottom: Spacing.sm },
+  emptyDesc: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', lineHeight: 20, marginBottom: Spacing.lg },
+  emptySteps: { width: '100%', gap: Spacing.md, marginBottom: Spacing.xl },
+  stepRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  stepDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.gold },
+  stepText: { flex: 1, fontSize: FontSize.sm, color: Colors.offWhite, lineHeight: 20 },
+
+  // Agent cards
   agentCard: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
+    backgroundColor: Colors.cardBg, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: Colors.borderGrey,
+    padding: Spacing.md, marginBottom: Spacing.md,
   },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.md },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, flex: 1 },
@@ -148,4 +192,12 @@ const styles = StyleSheet.create({
   progressFill: { height: 4, borderRadius: 2, backgroundColor: Colors.gold },
   progressLabel: { fontSize: FontSize.xs, color: Colors.mutedWhite },
   loadingText: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', paddingVertical: Spacing.xl },
+
+  // Add button
+  addBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
+    paddingVertical: Spacing.md, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.borderGrey,
+    borderStyle: 'dashed', marginTop: Spacing.sm,
+  },
+  addBtnLabel: { fontSize: FontSize.md, color: Colors.gold, fontWeight: FontWeight.semibold },
 })
