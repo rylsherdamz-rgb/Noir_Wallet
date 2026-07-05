@@ -23,14 +23,26 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.noirwallet.app",
-      "permissions": [
-        "NFC"
-      ]
+      "permissions": ["NFC"],
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "extra": {
+      "eas": {
+        "projectId": "75bdc3c7-0561-4dc4-b9f9-058ca3bf94d2"
+      }
+    },
+    "owner": "3x656",
     "plugins": [
+      "expo-router",
+      "expo-audio",
+      "expo-asset",
+      "expo-font",
+      "expo-secure-store",
+      "expo-splash-screen",
+      "expo-status-bar",
       [
         "expo-build-properties",
         {
@@ -42,12 +54,6 @@
           }
         }
       ]
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "75bdc3c7-0561-4dc4-b9f9-058ca3bf94d2"
-      }
-    },
-    "owner": "3x656"
+    ]
   }
 }

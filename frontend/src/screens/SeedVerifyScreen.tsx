@@ -1,15 +1,24 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { NoirLogo } from '@/components/brand/NoirLogo'
-import { PrimaryButton } from '@/components/PrimaryButton'
+import { Button } from '@/components/Button'
 
 interface SeedVerifyScreenProps {
   phrase: string[]
   onComplete: () => void
   onBack: () => void
+}
+
+function shuffle(arr: string[]): string[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
 }
 
 export function SeedVerifyScreen({ phrase, onComplete, onBack }: SeedVerifyScreenProps) {
@@ -22,28 +31,36 @@ export function SeedVerifyScreen({ phrase, onComplete, onBack }: SeedVerifyScree
   const [shuffledWords, setShuffledWords] = useState<string[]>([])
 
   useEffect(() => {
-    const all = [...phrase]
     const extra = ['abandon', 'ability', 'able', 'about', 'above', 'absent',
       'absorb', 'abstract', 'absurd', 'abuse', 'access', 'accident',
       'account', 'accuse', 'achieve', 'acid', 'acoustic', 'acquire',
       'across', 'act', 'action', 'actor', 'actress', 'actual',
     ]
-    const pool = [...all]
+    const pool = [...phrase]
     while (pool.length < 20) {
       const pick = extra[Math.floor(Math.random() * extra.length)]
       if (!pool.includes(pick)) pool.push(pick)
     }
-    setShuffledWords(pool.sort(() => Math.random() - 0.5))
+    setShuffledWords(shuffle(pool))
   }, [phrase])
 
-  const selectWord = (idx: number, word: string) => {
+  const handleWordPress = useCallback((word: string) => {
+    setAnswers((prev) => {
+      const usedValues = Object.values(prev)
+      if (usedValues.includes(word)) return prev
+      const slot = indices.find((i) => !prev[i])
+      if (slot === undefined) return prev
+      return { ...prev, [slot]: word }
+    })
+  }, [indices])
+
+  const removeAnswer = useCallback((idx: number) => {
     setAnswers((prev) => {
       const next = { ...prev }
-      if (next[idx] === word) delete next[idx]
-      else next[idx] = word
+      delete next[idx]
       return next
     })
-  }
+  }, [])
 
   const allAnswered = indices.every((i) => answers[i])
   const isCorrect = indices.every((i) => answers[i] === phrase[i])
@@ -67,7 +84,7 @@ export function SeedVerifyScreen({ phrase, onComplete, onBack }: SeedVerifyScree
                 {answers[idx] || '______'}
               </Text>
               {answers[idx] && (
-                <TouchableOpacity onPress={() => selectWord(idx, answers[idx])}>
+                <TouchableOpacity onPress={() => removeAnswer(idx)}>
                   <Ionicons name="close-circle" size={18} color={Colors.danger} />
                 </TouchableOpacity>
               )}
@@ -76,16 +93,13 @@ export function SeedVerifyScreen({ phrase, onComplete, onBack }: SeedVerifyScree
         </View>
 
         <View style={styles.wordPool}>
-          {shuffledWords.map((word) => {
+          {shuffledWords.map((word, i) => {
             const used = Object.values(answers).includes(word)
             return (
               <TouchableOpacity
-                key={word}
+                key={`${word}-${i}`}
                 style={[styles.wordChip, used && styles.wordChipUsed]}
-                onPress={() => {
-                  const slot = indices.find((i) => !answers[i])
-                  if (slot && !used) selectWord(slot, word)
-                }}
+                onPress={() => !used && handleWordPress(word)}
                 disabled={used}
               >
                 <Text style={[styles.wordChipText, used && styles.wordChipTextUsed]}>{word}</Text>
@@ -94,7 +108,7 @@ export function SeedVerifyScreen({ phrase, onComplete, onBack }: SeedVerifyScree
           })}
         </View>
 
-        <PrimaryButton
+        <Button
           label={isCorrect ? 'Complete Verification' : 'Verify'}
           onPress={allAnswered && isCorrect ? onComplete : undefined}
           disabled={!allAnswered || !isCorrect}

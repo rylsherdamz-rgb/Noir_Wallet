@@ -1,3 +1,12 @@
+import '../global.css'
+import 'react-native-get-random-values'
+import 'expo-crypto'
+import { Buffer } from 'buffer'
+
+if (typeof global.Buffer === 'undefined') {
+  ;(global as any).Buffer = Buffer
+}
+
 if (typeof global.Event === 'undefined') {
   class EventPolyfill {
     constructor(public type: string, public opts: any = {}) {
