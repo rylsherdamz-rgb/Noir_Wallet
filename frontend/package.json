@@ -6,7 +6,10 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
@@ -60,9 +63,13 @@
     }
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react-native": "^14.0.1",
     "@types/bip39": "^2.4.2",
     "@types/react": "~19.2.2",
-    "typescript": "~6.0.3"
+    "jsdom": "^29.1.1",
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.9"
   },
   "private": true
 }
