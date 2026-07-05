@@ -1,0 +1,22 @@
+[package]
+name = "device-registry"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+soroban-sdk = "25.0.1"
+
+[dev-dependencies]
+soroban-sdk = { version = "25.0.1", features = ["testutils"] }
+serde_json = "1.0"
+rand = "0.8"
+
+[profile.release]
+overflow-checks = true
+
+[[test]]
+name = "integration"
+path = "tests/integration.rs"

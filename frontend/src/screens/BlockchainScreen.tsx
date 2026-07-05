@@ -12,17 +12,18 @@ import { Ionicons } from '@expo/vector-icons'
 import * as Clipboard from 'expo-clipboard'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { NoirLogo } from '@/components/brand/NoirLogo'
-import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Toast } from '@/components/Toast'
 import { useAppStore } from '@/store/useAppStore'
 import { AppConfig } from '@/constants/config'
 import { apiService } from '@/services/api'
 import { stellarService } from '@/services/stellar'
+import { fxRateService } from '@/services/fxRates'
 
 export function BlockchainScreen() {
   const { user, balance, network, setNetwork, transactions, setTransactions, setBalance } = useAppStore()
   const [refreshing, setRefreshing] = useState(false)
+  const [funding, setFunding] = useState(false)
   const [toast, setToast] = useState<{ visible: boolean; type: 'success' | 'info'; title: string; message?: string }>({
     visible: false, type: 'success', title: '',
   })
@@ -31,23 +32,29 @@ export function BlockchainScreen() {
   const contractAddr = AppConfig.stellar.deviceRegistryContract || 'Not deployed'
   const recentTx = transactions.slice(0, 3)
 
+  const refreshBalances = useCallback(async () => {
+    if (!user?.stellarPublicKey) return
+    const onChain = await stellarService.getBalance(user.stellarPublicKey)
+    const rates = await fxRateService.getRates()
+    setBalance({
+      xlm: onChain.xlm,
+      usdc: onChain.usdc,
+      php: onChain.usdc * rates.usdToPhp,
+      localTokens: {},
+    })
+  }, [user?.stellarPublicKey, setBalance])
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
     try {
-      const [txRes, balanceRes] = await Promise.all([
-        apiService.getTransactions(),
-        apiService.getBalance(),
-      ])
+      const txRes = await apiService.getTransactions()
       if (txRes?.transactions) setTransactions(txRes.transactions)
-      if (balanceRes?.balance) setBalance(balanceRes.balance)
     } catch {
-      // Store retains last known data
-    } finally {
-      setRefreshing(false)
+      // backend unavailable
     }
-  }, [setTransactions, setBalance])
-
-  const [funding, setFunding] = useState(false)
+    await refreshBalances()
+    setRefreshing(false)
+  }, [refreshBalances, setTransactions])
 
   const copyAddr = async (addr: string) => {
     await Clipboard.setStringAsync(addr)
@@ -58,14 +65,14 @@ export function BlockchainScreen() {
     if (!user?.stellarPublicKey) return
     setFunding(true)
     const success = await stellarService.fundTestnetAccount(user.stellarPublicKey)
-    setFunding(false)
     if (success) {
       setToast({ visible: true, type: 'success', title: 'Funded!', message: '10,000 XLM sent to your wallet' })
-      onRefresh()
+      await refreshBalances()
     } else {
       setToast({ visible: true, type: 'info', title: 'Failed', message: 'Friendbot request failed. Are you on testnet?' })
     }
-  }, [user?.stellarPublicKey, onRefresh])
+    setFunding(false)
+  }, [user?.stellarPublicKey, refreshBalances])
 
   return (
     <SafeAreaView style={styles.container}>
@@ -86,8 +93,8 @@ export function BlockchainScreen() {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.gold} />}
       >
-        {/* Main Wallet */}
-        <Text style={styles.sectionTitle}>Main Wallet</Text>
+        {/* Wallet */}
+        <Text style={styles.sectionTitle}>Wallet</Text>
         <Card style={styles.card}>
           <View style={styles.walletHeader}>
             <View style={styles.walletIcon}>
@@ -104,16 +111,12 @@ export function BlockchainScreen() {
 
           <View style={styles.balances}>
             <View style={styles.balanceRow}>
-              <Text style={styles.balanceLabel}>USDC</Text>
-              <Text style={styles.balanceValue}>{balance.usdc.toLocaleString()}</Text>
-            </View>
-            <View style={styles.balanceRow}>
               <Text style={styles.balanceLabel}>XLM</Text>
-              <Text style={styles.balanceValue}>{balance.xlm.toLocaleString()}</Text>
+              <Text style={styles.balanceValue}>{balance.xlm.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</Text>
             </View>
             <View style={styles.balanceRow}>
-              <Text style={styles.balanceLabel}>PHP</Text>
-              <Text style={styles.balanceValue}>₱{balance.php.toLocaleString()}</Text>
+              <Text style={styles.balanceLabel}>USDC</Text>
+              <Text style={styles.balanceValue}>{balance.usdc.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
             </View>
           </View>
 
@@ -128,34 +131,6 @@ export function BlockchainScreen() {
               <Text style={styles.fundBtnLabel}>{funding ? 'Funding...' : 'Fund with Testnet XLM'}</Text>
             </TouchableOpacity>
           )}
-        </Card>
-
-        {/* x402 Agent Wallet */}
-        <Text style={styles.sectionTitle}>x402 Agent Wallet</Text>
-        <Card style={[styles.card, styles.agentCard]}>
-          <View style={styles.walletHeader}>
-            <View style={[styles.walletIcon, { backgroundColor: Colors.gold + '20' }]}>
-              <Ionicons name="sparkles" size={22} color={Colors.gold} />
-            </View>
-            <View style={styles.walletInfo}>
-              <Text style={styles.walletLabel}>Stellar Address</Text>
-              <TouchableOpacity onPress={() => copyAddr(pubKey)} style={styles.addrRow}>
-                <Text style={styles.addrText} numberOfLines={1}>{pubKey}</Text>
-                <Ionicons name="copy-outline" size={14} color={Colors.gold} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.agentActions}>
-            <TouchableOpacity style={styles.agentBtn} activeOpacity={0.7}>
-              <Ionicons name="add-circle-outline" size={18} color={Colors.gold} />
-              <Text style={styles.agentBtnLabel}>Fund</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.agentBtn} activeOpacity={0.7}>
-              <Ionicons name="settings-outline" size={18} color={Colors.gold} />
-              <Text style={styles.agentBtnLabel}>Settings</Text>
-            </TouchableOpacity>
-          </View>
         </Card>
 
         {/* Smart Contract */}
@@ -175,7 +150,7 @@ export function BlockchainScreen() {
           </View>
         </Card>
 
-        {/* Recent On-Chain Activity */}
+        {/* Recent Activity */}
         <Text style={styles.sectionTitle}>Recent Activity</Text>
         <Card style={styles.card}>
           {recentTx.length === 0 ? (
@@ -231,15 +206,6 @@ const styles = StyleSheet.create({
   balanceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.sm, borderTopWidth: 1, borderTopColor: Colors.borderGrey },
   balanceLabel: { fontSize: FontSize.sm, color: Colors.mutedWhite, fontWeight: FontWeight.medium },
   balanceValue: { fontSize: FontSize.md, color: Colors.white, fontWeight: FontWeight.bold },
-  agentCard: { borderColor: Colors.gold + '40' },
-  agentStats: { flexDirection: 'row', paddingVertical: Spacing.md, borderTopWidth: 1, borderTopColor: Colors.borderGrey, marginTop: Spacing.sm },
-  stat: { flex: 1, alignItems: 'center' },
-  statValue: { fontSize: FontSize.md, color: Colors.gold, fontWeight: FontWeight.bold },
-  statLabel: { fontSize: FontSize.xs, color: Colors.mutedWhite, marginTop: 2 },
-  statDivider: { width: 1, backgroundColor: Colors.borderGrey },
-  agentActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: Colors.borderGrey },
-  agentBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, paddingVertical: Spacing.sm, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.gold + '30', backgroundColor: Colors.gold + '08' },
-  agentBtnLabel: { fontSize: FontSize.sm, color: Colors.gold, fontWeight: FontWeight.semibold },
   contractRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   contractInfo: { flex: 1 },
   contractLabel: { fontSize: FontSize.sm, color: Colors.white, fontWeight: FontWeight.medium },

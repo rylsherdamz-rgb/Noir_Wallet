@@ -56,7 +56,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.heavy,
     paddingVertical: Spacing.md,
   },
-  card: { marginBottom: Spacing.lg, paddingVertical: Spacing.sm },
+  card: { marginBottom: Spacing.lg },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

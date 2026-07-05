@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -6,16 +6,7 @@ import { useRouter } from 'expo-router'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { EmptyState } from '@/components/EmptyState'
 import { Notification } from '@/types'
-
-const MOCK_NOTIFICATIONS: Notification[] = [
-  { id: '1', title: 'Payment Confirmed', body: '₱45.00 paid to 7-Eleven — confirmed on Stellar.', type: 'transaction', read: false, createdAt: new Date().toISOString() },
-  { id: '2', title: 'Device Linked', body: 'New NFC device "My Wallet Tag" has been linked to your account.', type: 'system', read: false, createdAt: new Date(Date.now() - 3600000).toISOString() },
-  { id: '3', title: 'Daily Limit Warning', body: 'You\'ve used 85% of your daily spend limit on device "Daily Carry".', type: 'security', read: true, createdAt: new Date(Date.now() - 7200000).toISOString() },
-  { id: '4', title: 'Network Update', body: 'Stellar Testnet upgrade scheduled for July 5, 2026. No downtime expected.', type: 'system', read: true, createdAt: new Date(Date.now() - 14400000).toISOString() },
-  { id: '5', title: 'Welcome to Noir Wallet!', body: 'Your wallet is ready. Link an NFC device to start tap-to-pay.', type: 'promo', read: true, createdAt: new Date(Date.now() - 86400000).toISOString() },
-  { id: '6', title: 'Payment Failed', body: '₱58.00 payment to Starbucks failed — insufficient balance.', type: 'transaction', read: false, createdAt: new Date(Date.now() - 18000000).toISOString() },
-  { id: '7', title: 'Security Alert', body: 'New login from unknown device. If this wasn\'t you, secure your account.', type: 'security', read: false, createdAt: new Date(Date.now() - 86400000 * 2).toISOString() },
-]
+import { apiService } from '@/services/api'
 
 const TYPE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   transaction: 'swap-horizontal',
@@ -33,7 +24,22 @@ const TYPE_COLORS: Record<string, string> = {
 
 export function NotificationsScreen() {
   const router = useRouter()
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS)
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetch() {
+      try {
+        const res = await apiService.getNotifications()
+        if (res?.notifications) setNotifications(res.notifications)
+      } catch {
+        // backend unavailable — empty state
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetch()
+  }, [])
 
   const unreadCount = notifications.filter((n) => !n.read).length
 
@@ -68,35 +74,37 @@ export function NotificationsScreen() {
         )}
       </View>
 
-      <FlatList
-        data={notifications}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[styles.notifRow, !item.read && styles.notifUnread]}
-            onPress={() => markRead(item.id)}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.notifIcon, { backgroundColor: TYPE_COLORS[item.type] + '15' }]}>
-              <Ionicons name={TYPE_ICONS[item.type]} size={20} color={TYPE_COLORS[item.type]} />
-            </View>
-            <View style={styles.notifContent}>
-              <View style={styles.notifHeader}>
-                <Text style={styles.notifTitle}>{item.title}</Text>
-                {!item.read && <View style={styles.unreadDot} />}
+      {loading ? null : (
+        <FlatList
+          data={notifications}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[styles.notifRow, !item.read && styles.notifUnread]}
+              onPress={() => markRead(item.id)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.notifIcon, { backgroundColor: TYPE_COLORS[item.type] + '15' }]}>
+                <Ionicons name={TYPE_ICONS[item.type]} size={20} color={TYPE_COLORS[item.type]} />
               </View>
-              <Text style={styles.notifBody} numberOfLines={2}>{item.body}</Text>
-              <Text style={styles.notifTime}>
-                {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        )}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <EmptyState icon="notifications-off-outline" title="No Notifications" description="You're all caught up!" />
-        }
-      />
+              <View style={styles.notifContent}>
+                <View style={styles.notifHeader}>
+                  <Text style={styles.notifTitle}>{item.title}</Text>
+                  {!item.read && <View style={styles.unreadDot} />}
+                </View>
+                <Text style={styles.notifBody} numberOfLines={2}>{item.body}</Text>
+                <Text style={styles.notifTime}>
+                  {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <EmptyState icon="notifications-off-outline" title="No Notifications" description="You're all caught up!" />
+          }
+        />
+      )}
     </SafeAreaView>
   )
 }

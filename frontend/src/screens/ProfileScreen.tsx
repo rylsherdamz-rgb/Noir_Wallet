@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { Button } from '@/components/Button'
 import { Avatar } from '@/components/Avatar'
+import { Card } from '@/components/Card'
 import { Toast } from '@/components/Toast'
 import { useAppStore } from '@/store/useAppStore'
 
@@ -54,9 +55,9 @@ export function ProfileScreen() {
           </Text>
         </View>
 
-        <View style={styles.infoCard}>
+        <Card>
           {editing ? (
-            <>
+            <View style={styles.editContent}>
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Display Name</Text>
                 <TextInput
@@ -80,16 +81,19 @@ export function ProfileScreen() {
                 />
               </View>
               <Button label="Save Changes" onPress={handleSave} />
-            </>
+            </View>
           ) : (
             <>
               <ProfileRow icon="person-outline" label="Display Name" value={user?.displayName || 'Not set'} />
+              <View style={styles.divider} />
               <ProfileRow icon="mail-outline" label="Email" value={user?.email || 'Not set'} />
+              <View style={styles.divider} />
               <ProfileRow icon="phone-portrait-outline" label="Phone" value={user?.phoneNumber || 'Not set'} />
+              <View style={styles.divider} />
               <ProfileRow icon="key-outline" label="Stellar Key" value={`${user?.stellarPublicKey?.slice(0, 8) || 'No'}...`} mono />
             </>
           )}
-        </View>
+        </Card>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Verification</Text>
@@ -210,12 +214,7 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
     marginTop: Spacing.xs,
   },
-  infoCard: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    padding: Spacing.md,
+  editContent: {
     gap: Spacing.md,
   },
   profileRow: {
@@ -240,6 +239,11 @@ const styles = StyleSheet.create({
   profileMono: {
     fontFamily: 'monospace',
     fontSize: FontSize.sm,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.borderGrey,
+    marginVertical: Spacing.xs,
   },
   inputGroup: {
     gap: Spacing.xs,

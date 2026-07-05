@@ -54,6 +54,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     async function init() {
+      await useAppStore.persist.rehydrate()
       const nfcOk = await nfcService.isSupported()
       setNfcSupported(nfcOk)
       setReady(true)

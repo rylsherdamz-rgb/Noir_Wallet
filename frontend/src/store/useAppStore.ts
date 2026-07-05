@@ -1,4 +1,6 @@
 import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import * as SecureStore from 'expo-secure-store'
 import {
   User,
   Device,
@@ -20,7 +22,6 @@ interface AppState {
   isScanning: boolean
   nfcSupported: boolean
 
-  // Settings
   network: StellarNetwork
   security: SecuritySettings
   balanceStale: boolean
@@ -64,34 +65,54 @@ const initialState = {
   balanceStale: false,
 }
 
-export const useAppStore = create<AppState>((set) => ({
-  ...initialState,
+export const useAppStore = create<AppState>()(
+  persist(
+    (set) => ({
+      ...initialState,
 
-  setUser: (user) => set({ user }),
-  setDevices: (devices) => set({ devices }),
-  addDevice: (device) => set((s) => ({ devices: [...s.devices, device] })),
-  updateDevice: (id, updates) =>
-    set((s) => ({
-      devices: s.devices.map((d) => (d.id === id ? { ...d, ...updates } : d)),
-    })),
-  removeDevice: (id) =>
-    set((s) => ({ devices: s.devices.filter((d) => d.id !== id) })),
-  setTransactions: (transactions) => set({ transactions }),
-  addTransaction: (transaction) =>
-    set((s) => ({ transactions: [transaction, ...s.transactions] })),
-  setBalance: (balance) => set({ balance }),
-  updateBalance: (updates) =>
-    set((s) => ({ balance: { ...s.balance, ...updates } })),
-  setBalanceStale: (balanceStale) => set({ balanceStale }),
-  setMerchantSettings: (merchantSettings) => set({ merchantSettings }),
-  setIsOnboarded: (isOnboarded) => set({ isOnboarded }),
-  setIsWalletCreated: (isWalletCreated) => set({ isWalletCreated }),
-  setIsScanning: (isScanning) => set({ isScanning }),
-  setNfcSupported: (nfcSupported) => set({ nfcSupported }),
-  setNetwork: (network) => set({ network }),
-  setBiometricLockEnabled: (val) =>
-    set((s) => ({ security: { ...s.security, biometricLockEnabled: val } })),
-  setBackgroundLockTimeoutSec: (sec) =>
-    set((s) => ({ security: { ...s.security, backgroundLockTimeoutSec: sec } })),
-  reset: () => set(initialState),
-}))
+      setUser: (user) => set({ user }),
+      setDevices: (devices) => set({ devices }),
+      addDevice: (device) => set((s) => ({ devices: [...s.devices, device] })),
+      updateDevice: (id, updates) =>
+        set((s) => ({
+          devices: s.devices.map((d) => (d.id === id ? { ...d, ...updates } : d)),
+        })),
+      removeDevice: (id) =>
+        set((s) => ({ devices: s.devices.filter((d) => d.id !== id) })),
+      setTransactions: (transactions) => set({ transactions }),
+      addTransaction: (transaction) =>
+        set((s) => ({ transactions: [transaction, ...s.transactions] })),
+      setBalance: (balance) => set({ balance }),
+      updateBalance: (updates) =>
+        set((s) => ({ balance: { ...s.balance, ...updates } })),
+      setBalanceStale: (balanceStale) => set({ balanceStale }),
+      setMerchantSettings: (merchantSettings) => set({ merchantSettings }),
+      setIsOnboarded: (isOnboarded) => set({ isOnboarded }),
+      setIsWalletCreated: (isWalletCreated) => set({ isWalletCreated }),
+      setIsScanning: (isScanning) => set({ isScanning }),
+      setNfcSupported: (nfcSupported) => set({ nfcSupported }),
+      setNetwork: (network) => set({ network }),
+      setBiometricLockEnabled: (val) =>
+        set((s) => ({ security: { ...s.security, biometricLockEnabled: val } })),
+      setBackgroundLockTimeoutSec: (sec) =>
+        set((s) => ({ security: { ...s.security, backgroundLockTimeoutSec: sec } })),
+      reset: () => set(initialState),
+    }),
+    {
+      name: 'noir-wallet',
+      storage: createJSONStorage(() => ({
+        getItem: (name) => SecureStore.getItemAsync(name),
+        setItem: (name, value) => SecureStore.setItemAsync(name, value),
+        removeItem: (name) => SecureStore.deleteItemAsync(name),
+      })),
+      partialize: (state) => ({
+        user: state.user,
+        devices: state.devices,
+        isOnboarded: state.isOnboarded,
+        isWalletCreated: state.isWalletCreated,
+        network: state.network,
+        security: state.security,
+      }) as unknown as AppState,
+    },
+  ),
+)

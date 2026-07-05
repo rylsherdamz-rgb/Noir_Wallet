@@ -1,5 +1,5 @@
 import { Config, AppConfig } from '@/constants/config'
-import { Device, Transaction, MerchantSettings, Balance } from '@/types'
+import { Device, Transaction, MerchantSettings, Balance, Notification } from '@/types'
 
 class ApiService {
   private baseUrl: string
@@ -121,6 +121,11 @@ class ApiService {
       method: 'PUT',
       body: JSON.stringify(settings),
     })
+  }
+
+  // Notifications
+  async getNotifications() {
+    return this.request<{ notifications: Notification[] }>('/notifications')
   }
 
   // PDAX
