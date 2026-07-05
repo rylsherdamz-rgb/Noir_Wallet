@@ -247,8 +247,6 @@ const styles = StyleSheet.create({
   },
   antenna: {
     position: 'absolute',
-    top: -6,
-    right: -8,
     width: 38,
     height: 38,
     borderRadius: 19,
@@ -257,6 +255,9 @@ const styles = StyleSheet.create({
     borderColor: Colors.gold + '30',
     alignItems: 'center',
     justifyContent: 'center',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -19 }, { translateY: -19 }],
   },
   cardImg: {
     width: 56,
