@@ -3,7 +3,6 @@
 **x402 — Contactless payments powered by Stellar. No app opens. No confirmation. Just tap and go.**
 
 **Live preview:** *Coming soon*
-**Promo video:** [`promo/`](promo/) — [Render instructions](promo/README.md)
 
 ## Project Description
 
@@ -134,18 +133,6 @@ cargo test
 cd frontend
 npm test
 ```
-
-### Promo Video
-
-A Remotion-based promotional video is available in [`promo/`](promo/).
-
-```bash
-cd promo
-npm run voiceover   # Generate ElevenLabs voiceover (Alice, female)
-npm run render      # Render the MP4
-```
-
-See the [promo README](promo/README.md) for full details.
 
 ## Screenshots
 
