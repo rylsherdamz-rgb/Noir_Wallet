@@ -218,18 +218,22 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   phoneWrap: {
+    width: 48,
+    height: 64,
     alignItems: 'center',
+    justifyContent: 'center',
     position: 'relative',
   },
   antenna: {
     position: 'absolute',
-    top: '35%',
+    top: 8,
     width: 44,
     height: 44,
     borderRadius: 22,
     backgroundColor: Colors.gold + '20',
     alignItems: 'center',
     justifyContent: 'center',
+    alignSelf: 'center',
   },
   cardImg: {
     width: 44,
