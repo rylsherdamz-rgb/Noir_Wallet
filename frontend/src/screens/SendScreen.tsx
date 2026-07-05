@@ -18,17 +18,13 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Avatar } from '@/components/Avatar'
 import { SmartTip } from '@/components/SmartTip'
 import { useAppStore } from '@/store/useAppStore'
+import { walletService } from '@/services/wallet'
+import { stellarService } from '@/services/stellar'
 import { AssetCode } from '@/types'
-
-const RECENT_ADDRESSES = [
-  { label: '7-Eleven', address: 'G7X3...Q9L2', uri: null },
-  { label: 'Angkas', address: 'GB5F...M4K8', uri: null },
-  { label: 'Jollibee', address: 'GA2D...R7P1', uri: null },
-]
 
 export function SendScreen() {
   const router = useRouter()
-  const { balance } = useAppStore()
+  const { balance, devices } = useAppStore()
   const [amount, setAmount] = useState('')
   const [recipient, setRecipient] = useState('')
   const [asset, setAsset] = useState<AssetCode>('USDC')
@@ -70,7 +66,19 @@ export function SendScreen() {
     setSending(true)
     setError(null)
     try {
-      await new Promise((r) => setTimeout(r, 2000))
+      const keys = await walletService.loadKeys()
+      if (!keys?.stellarSecret) {
+        throw new Error('Wallet not initialized')
+      }
+      const result = await stellarService.submitPayment({
+        sourceSecret: keys.stellarSecret,
+        destination: recipient,
+        amount: amount,
+        assetCode: asset === 'PHP' ? 'USDC' : asset,
+      })
+      if ('error' in result) {
+        throw new Error(result.error)
+      }
       setShowConfirm(false)
       router.back()
     } catch (e: any) {
@@ -164,22 +172,26 @@ export function SendScreen() {
             variant="tip"
           />
 
-          <Text style={styles.sectionLabel}>Recent</Text>
-          {RECENT_ADDRESSES.map((item, i) => (
-            <TouchableOpacity
-              key={i}
-              style={styles.recipientRow}
-              onPress={() => handleSelectRecipient(item.address)}
-              activeOpacity={0.7}
-            >
-              <Avatar name={item.label} size={44} variant="merchant" />
-              <View style={styles.recipientInfo}>
-                <Text style={styles.recipientName}>{item.label}</Text>
-                <Text style={styles.recipientAddress}>{item.address}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
-            </TouchableOpacity>
-          ))}
+          <Text style={styles.sectionLabel}>Saved Devices</Text>
+          {devices.length === 0 ? (
+            <Text style={styles.noDevices}>No linked devices. Link one in the Devices tab.</Text>
+          ) : (
+            devices.map((device) => (
+              <TouchableOpacity
+                key={device.id}
+                style={styles.recipientRow}
+                onPress={() => handleSelectRecipient(device.deviceUidHash)}
+                activeOpacity={0.7}
+              >
+                <Avatar name={device.label} size={44} variant="merchant" />
+                <View style={styles.recipientInfo}>
+                  <Text style={styles.recipientName}>{device.label}</Text>
+                  <Text style={styles.recipientAddress}>{device.deviceUidHash.slice(0, 12)}...</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
+              </TouchableOpacity>
+            ))
+          )}
         </ScrollView>
 
         <View style={styles.bottomActions}>
@@ -352,6 +364,7 @@ const styles = StyleSheet.create({
     paddingLeft: Spacing.md,
     marginBottom: Spacing.md,
   },
+  noDevices: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', paddingVertical: Spacing.lg },
   addressInput: {
     flex: 1,
     height: 52,

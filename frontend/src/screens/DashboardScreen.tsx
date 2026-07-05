@@ -7,24 +7,28 @@ import { useAppStore } from '@/store/useAppStore'
 import { BalanceCard } from '@/components/BalanceCard'
 import { TransactionItem } from '@/components/TransactionItem'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
-import { Transaction } from '@/types'
-
-const MOCK_TRANSACTIONS: Transaction[] = [
-  { id: '1', stellarTxHash: 'a1b2c3d4e5f6g7h8i9j0', merchantId: 'm1', merchantName: '7-Eleven', userId: 'u1', deviceId: 'd1', amountCents: 4500, assetCode: 'USDC', status: 'confirmed', errorMessage: null, createdAt: new Date().toISOString() },
-  { id: '2', stellarTxHash: 'b2c3d4e5f6g7h8i9j0k1', merchantId: 'm2', merchantName: 'Angkas', userId: 'u1', deviceId: 'd1', amountCents: 15000, assetCode: 'PHP', status: 'confirmed', errorMessage: null, createdAt: new Date(Date.now() - 3600000).toISOString() },
-  { id: '3', stellarTxHash: null, merchantId: 'm3', merchantName: 'Jollibee', userId: 'u1', deviceId: 'd2', amountCents: 8900, assetCode: 'USDC', status: 'pending', errorMessage: null, createdAt: new Date(Date.now() - 600000).toISOString() },
-]
+import { apiService } from '@/services/api'
 
 export function DashboardScreen() {
   const router = useRouter()
-  const { user, balance, devices } = useAppStore()
+  const { user, balance, devices, transactions, setTransactions, setBalance } = useAppStore()
   const [refreshing, setRefreshing] = useState(false)
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
-    await new Promise((r) => setTimeout(r, 1500))
-    setRefreshing(false)
-  }, [])
+    try {
+      const [txRes, balanceRes] = await Promise.all([
+        apiService.getTransactions(),
+        user?.stellarPublicKey ? apiService.getBalance() : Promise.resolve(null),
+      ])
+      if (txRes?.transactions) setTransactions(txRes.transactions)
+      if (balanceRes?.balance) setBalance(balanceRes.balance)
+    } catch {
+      // Store retains last known data
+    } finally {
+      setRefreshing(false)
+    }
+  }, [setTransactions, setBalance, user?.stellarPublicKey])
 
   return (
     <SafeAreaView style={styles.container}>
@@ -100,7 +104,7 @@ export function DashboardScreen() {
               <Text style={styles.seeAll}>See All</Text>
             </TouchableOpacity>
           </View>
-          {MOCK_TRANSACTIONS.map((tx) => (
+          {transactions.slice(0, 5).map((tx) => (
             <TransactionItem key={tx.id} transaction={tx} />
           ))}
         </View>

@@ -7,49 +7,55 @@ import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants
 import { StatusPill } from '@/components/StatusPill'
 import { Toast } from '@/components/Toast'
 import { Avatar } from '@/components/Avatar'
-import { Transaction } from '@/types'
+import { useAppStore } from '@/store/useAppStore'
 import { useState } from 'react'
-
-const MOCK_TX: Transaction = {
-  id: '1',
-  stellarTxHash: 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6',
-  merchantId: 'm1',
-  merchantName: '7-Eleven',
-  userId: 'u1',
-  deviceId: 'd1',
-  amountCents: 4500,
-  assetCode: 'USDC',
-  status: 'confirmed',
-  errorMessage: null,
-  createdAt: new Date().toISOString(),
-}
 
 export function TransactionDetailScreen() {
   const router = useRouter()
   const { id } = useLocalSearchParams<{ id: string }>()
+  const { transactions } = useAppStore()
   const [toast, setToast] = useState<{ visible: boolean; type: 'success' | 'info'; title: string; message?: string }>({
     visible: false,
     type: 'success',
     title: '',
   })
 
-  const tx = MOCK_TX
-  const formattedAmount = (tx.amountCents / 100).toFixed(2)
-  const date = new Date(tx.createdAt)
+  const tx = transactions.find((t) => t.id === id) ?? null
+  const formattedAmount = tx ? (tx.amountCents / 100).toFixed(2) : '0.00'
+  const date = tx ? new Date(tx.createdAt) : new Date()
   const formattedDate = date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
   const formattedTime = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
 
   const copyHash = async () => {
-    if (tx.stellarTxHash) {
+    if (tx?.stellarTxHash) {
       await Clipboard.setStringAsync(tx.stellarTxHash)
       setToast({ visible: true, type: 'success', title: 'Hash Copied', message: 'Transaction hash copied to clipboard' })
     }
   }
 
   const shareTx = async () => {
+    if (!tx) return
     await Share.share({
       message: `Noir Wallet Transaction\nAmount: ${formattedAmount} ${tx.assetCode}\nMerchant: ${tx.merchantName}\nStatus: ${tx.status}\nHash: ${tx.stellarTxHash || 'N/A'}`,
     })
+  }
+
+  if (!tx) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="arrow-back" size={24} color={Colors.white} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Transaction Details</Text>
+          <View style={{ width: 22 }} />
+        </View>
+        <View style={styles.notFound}>
+          <Ionicons name="alert-circle-outline" size={48} color={Colors.mutedWhite} />
+          <Text style={styles.notFoundText}>Transaction not found</Text>
+        </View>
+      </SafeAreaView>
+    )
   }
 
   return (
@@ -164,6 +170,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.black,
+  },
+  notFound: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.md,
+  },
+  notFoundText: {
+    fontSize: FontSize.md,
+    color: Colors.mutedWhite,
   },
   header: {
     flexDirection: 'row',

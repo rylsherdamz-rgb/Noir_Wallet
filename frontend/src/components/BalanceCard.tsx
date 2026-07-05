@@ -1,6 +1,8 @@
 import { View, Text, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { useState, useEffect } from 'react'
+import { fxRateService } from '@/services/fxRates'
 
 interface AssetRowProps {
   icon: keyof typeof Ionicons.glyphMap
@@ -35,7 +37,13 @@ interface BalanceCardProps {
 }
 
 export function BalanceCard({ phpBalance, usdcBalance, xlmBalance }: BalanceCardProps) {
-  const totalPhp = phpBalance + usdcBalance * 58 + xlmBalance * 15
+  const [rates, setRates] = useState({ usdToPhp: 58, xlmToUsd: 0.12 })
+
+  useEffect(() => {
+    fxRateService.getRates().then(setRates)
+  }, [])
+
+  const totalPhp = phpBalance + usdcBalance * rates.usdToPhp + xlmBalance * rates.usdToPhp * rates.xlmToUsd
 
   return (
     <View style={styles.container}>
@@ -44,7 +52,7 @@ export function BalanceCard({ phpBalance, usdcBalance, xlmBalance }: BalanceCard
         <Text style={styles.totalAmount}>
           ₱{totalPhp.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
         </Text>
-        <Text style={styles.totalSub}>≈ ${(totalPhp / 58).toFixed(2)} USD</Text>
+        <Text style={styles.totalSub}>≈ ${(totalPhp / rates.usdToPhp).toFixed(2)} USD</Text>
       </View>
 
       <View style={styles.divider} />
@@ -61,14 +69,14 @@ export function BalanceCard({ phpBalance, usdcBalance, xlmBalance }: BalanceCard
           icon="logo-usd"
           label="USDC"
           amount={`${usdcBalance.toFixed(2)} USDC`}
-          value={`₱${(usdcBalance * 58).toFixed(2)}`}
+          value={`₱${(usdcBalance * rates.usdToPhp).toFixed(2)}`}
           color={Colors.silver}
         />
         <AssetRow
           icon="planet-outline"
           label="XLM"
           amount={`${xlmBalance.toFixed(4)} XLM`}
-          value={`₱${(xlmBalance * 15).toFixed(2)}`}
+          value={`₱${(xlmBalance * rates.usdToPhp * rates.xlmToUsd).toFixed(2)}`}
           color={Colors.goldDim}
         />
       </View>

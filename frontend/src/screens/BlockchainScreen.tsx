@@ -16,22 +16,35 @@ import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { Toast } from '@/components/Toast'
 import { useAppStore } from '@/store/useAppStore'
+import { AppConfig } from '@/constants/config'
+import { apiService } from '@/services/api'
 
 export function BlockchainScreen() {
-  const { user, balance, network, setNetwork } = useAppStore()
+  const { user, balance, network, setNetwork, transactions, setTransactions, setBalance } = useAppStore()
   const [refreshing, setRefreshing] = useState(false)
   const [toast, setToast] = useState<{ visible: boolean; type: 'success' | 'info'; title: string; message?: string }>({
     visible: false, type: 'success', title: '',
   })
 
   const pubKey = user?.stellarPublicKey || 'G...'
-  const agentKey = user ? `A${user.stellarPublicKey.slice(1, 8)}...${user.stellarPublicKey.slice(-4)}` : 'A...'
+  const contractAddr = AppConfig.stellar.deviceRegistryContract || 'Not deployed'
+  const recentTx = transactions.slice(0, 3)
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
-    await new Promise((r) => setTimeout(r, 1500))
-    setRefreshing(false)
-  }, [])
+    try {
+      const [txRes, balanceRes] = await Promise.all([
+        apiService.getTransactions(),
+        apiService.getBalance(),
+      ])
+      if (txRes?.transactions) setTransactions(txRes.transactions)
+      if (balanceRes?.balance) setBalance(balanceRes.balance)
+    } catch {
+      // Store retains last known data
+    } finally {
+      setRefreshing(false)
+    }
+  }, [setTransactions, setBalance])
 
   const copyAddr = async (addr: string) => {
     await Clipboard.setStringAsync(addr)
@@ -97,39 +110,22 @@ export function BlockchainScreen() {
               <Ionicons name="sparkles" size={22} color={Colors.gold} />
             </View>
             <View style={styles.walletInfo}>
-              <Text style={styles.walletLabel}>Agent Public Key</Text>
-              <TouchableOpacity onPress={() => copyAddr(agentKey)} style={styles.addrRow}>
-                <Text style={styles.addrText} numberOfLines={1}>{agentKey}</Text>
+              <Text style={styles.walletLabel}>Stellar Address</Text>
+              <TouchableOpacity onPress={() => copyAddr(pubKey)} style={styles.addrRow}>
+                <Text style={styles.addrText} numberOfLines={1}>{pubKey}</Text>
                 <Ionicons name="copy-outline" size={14} color={Colors.gold} />
               </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.agentStats}>
-            <View style={styles.stat}>
-              <Text style={styles.statValue}>₱500</Text>
-              <Text style={styles.statLabel}>Budget</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.stat}>
-              <Text style={styles.statValue}>₱0</Text>
-              <Text style={styles.statLabel}>Spent Today</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.stat}>
-              <Text style={styles.statValue}>0</Text>
-              <Text style={styles.statLabel}>Taps</Text>
             </View>
           </View>
 
           <View style={styles.agentActions}>
             <TouchableOpacity style={styles.agentBtn} activeOpacity={0.7}>
               <Ionicons name="add-circle-outline" size={18} color={Colors.gold} />
-              <Text style={styles.agentBtnLabel}>Fund Agent</Text>
+              <Text style={styles.agentBtnLabel}>Fund</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.agentBtn} activeOpacity={0.7}>
               <Ionicons name="settings-outline" size={18} color={Colors.gold} />
-              <Text style={styles.agentBtnLabel}>Budget</Text>
+              <Text style={styles.agentBtnLabel}>Settings</Text>
             </TouchableOpacity>
           </View>
         </Card>
@@ -141,7 +137,7 @@ export function BlockchainScreen() {
             <Ionicons name="code-slash-outline" size={20} color={Colors.mutedWhite} />
             <View style={styles.contractInfo}>
               <Text style={styles.contractLabel}>DeviceRegistry</Text>
-              <Text style={styles.contractAddr}>CC2EB...AQIEC</Text>
+              <Text style={styles.contractAddr}>{contractAddr.slice(0, 8)}...{contractAddr.slice(-8)}</Text>
             </View>
             <Ionicons name="open-outline" size={18} color={Colors.mutedWhite} />
           </View>
@@ -152,20 +148,24 @@ export function BlockchainScreen() {
         </Card>
 
         {/* Recent On-Chain Activity */}
-        <Text style={styles.sectionTitle}>On-Chain Activity</Text>
+        <Text style={styles.sectionTitle}>Recent Activity</Text>
         <Card style={styles.card}>
-          {[1, 2, 3].map((i) => (
-            <View key={i} style={styles.txRow}>
-              <View style={styles.txIcon}>
-                <Ionicons name="swap-horizontal" size={18} color={Colors.gold} />
+          {recentTx.length === 0 ? (
+            <Text style={styles.emptyTx}>No recent transactions</Text>
+          ) : (
+            recentTx.map((tx) => (
+              <View key={tx.id} style={styles.txRow}>
+                <View style={styles.txIcon}>
+                  <Ionicons name="swap-horizontal" size={18} color={Colors.gold} />
+                </View>
+                <View style={styles.txInfo}>
+                  <Text style={styles.txType}>{tx.merchantName}</Text>
+                  <Text style={styles.txTime}>{new Date(tx.createdAt).toLocaleDateString()}</Text>
+                </View>
+                <Text style={styles.txAmount}>-{(tx.amountCents / 100).toFixed(2)} {tx.assetCode}</Text>
               </View>
-              <View style={styles.txInfo}>
-                <Text style={styles.txType}>Payment</Text>
-                <Text style={styles.txTime}>{i * 5} min ago</Text>
-              </View>
-              <Text style={styles.txAmount}>-₱{(i * 45).toFixed(0)}</Text>
-            </View>
-          ))}
+            ))
+          )}
           <TouchableOpacity style={styles.viewAll}>
             <Text style={styles.viewAllText}>View All Transactions</Text>
             <Ionicons name="chevron-forward" size={16} color={Colors.gold} />
@@ -227,4 +227,5 @@ const styles = StyleSheet.create({
   txAmount: { fontSize: FontSize.md, color: Colors.white, fontWeight: FontWeight.bold },
   viewAll: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, paddingVertical: Spacing.md },
   viewAllText: { fontSize: FontSize.sm, color: Colors.gold, fontWeight: FontWeight.medium },
+  emptyTx: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', paddingVertical: Spacing.lg },
 })
