@@ -2,12 +2,12 @@ name: Frontend CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, frontend]
     paths:
       - 'frontend/**'
       - '.github/workflows/frontend-ci.yml'
   pull_request:
-    branches: [main]
+    branches: [main, frontend]
     paths:
       - 'frontend/**'
 
@@ -61,9 +61,8 @@ jobs:
 
       - run: npm ci
 
-      - run: npx expo export --platform web --output-dir dist
-        name: Expo Export (Web)
-        continue-on-error: false
+      - run: npm test
+        name: Vitest
 
   build-android:
     name: Build Android (EAS)

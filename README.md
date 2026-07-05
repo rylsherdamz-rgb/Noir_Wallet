@@ -1,14 +1,48 @@
 # Noir Wallet
 
-x402 — Contactless payments powered by Stellar.
+**x402 — Contactless payments powered by Stellar. No app opens. No confirmation. Just tap and go.**
 
-Tap any RFID sticker, NFC card, or wearable device to pay instantly. No app opens. No confirmation needed. Just tap and go.
+**Live preview:** *Coming soon*
+**Promo video:** [`promo/`](promo/) — [Render instructions](promo/README.md)
 
-## x402 Protocol
+## Project Description
 
 Noir Wallet implements the **x402 protocol** — a zero-interaction payment flow where the wallet is debited immediately upon hardware tap. The user never unlocks their phone, opens an app, or confirms a transaction. The payment terminal reads the device UID, resolves the linked Stellar wallet, and executes the transfer in under 2 seconds.
 
-This makes it suitable for high-throughput environments: transit turnstiles, campus canteens, event gates, and retail checkout.
+Built for high-throughput environments: transit turnstiles, campus canteens, event gates, and retail checkout.
+
+## Project Vision
+
+A world where:
+- Your wallet is your identity — linked to an RFID sticker, NFC card, or wearable
+- Payments happen without friction — no app, no confirmation, no delay
+- Settlement is instant — powered by Stellar consensus
+- Merchants settle in their preferred currency — via the PDAX fiat bridge
+
+## Key Features
+
+- **Zero-Interaction Payments**: Tap any RFID sticker, NFC card, or wearable to pay instantly
+- **x402 Protocol**: Wallet debited on hardware tap — no unlock, no app, no confirmation
+- **Stellar-Powered**: Fast, low-cost settlement via the Stellar network
+- **Soroban Smart Contracts**: `device_registry` for hardware-to-wallet mapping
+- **PDAX Fiat Bridge**: Optional PHP cash-out via PDAX integration
+- **Custom Agents**: Per-device agent wallets with independent balances
+- **NFC Provisioning**: Link new devices directly from the app
+- **Dark Theme**: Premium noir aesthetic with gold accents
+- **Cross-Platform**: React Native Expo app for iOS and Android
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Blockchain | Stellar (testnet / mainnet) |
+| Smart Contracts | Soroban (Rust) |
+| Frontend | React Native, Expo 57, TypeScript |
+| Styling | NativeWind, Tailwind CSS |
+| State | Zustand |
+| NFC | react-native-nfc-manager |
+| Wallet SDK | @stellar/stellar-sdk |
+| Testing | Vitest |
 
 ## Architecture
 
@@ -28,35 +62,45 @@ Stellar Network  ──>  Merchant Settlement
 PDAX Fiat Bridge (PHP Cash-out)
 ```
 
-## Repo Structure
+### Smart Contracts
+
+| Contract | Description | Location |
+|----------|-------------|----------|
+| **device_registry** | Maps hardware device UIDs to Stellar wallet addresses | `frontend/contracts/device_registry/` |
+
+### Frontend Architecture
 
 ```
-├── frontend/          React Native Expo app (consumer + merchant)
-│   ├── src/
-│   │   ├── screens/       Welcome, Dashboard, POS, Device Link
-│   │   ├── components/    BalanceCard, NumericKeypad, ReadyToTap
-│   │   ├── services/      NFC, Stellar SDK, API client
-│   │   ├── store/         Zustand state
-│   │   ├── hooks/         useNfc
-│   │   └── navigation/    Tab + Stack navigators
-│   ├── App.tsx
-│   └── app.json
-├── contracts/         Soroban smart contracts (Rust)
-├── Cargo.toml         Rust workspace
-└── backendtodo.md     Backend integration notes
+frontend/
+├── app/              Expo Router pages (tabs, onboarding, settings)
+├── src/
+│   ├── screens/      Welcome, Dashboard, POS, Device Link, Agents
+│   ├── components/   BalanceCard, NumericKeypad, ReadyToTap, etc.
+│   ├── services/     NFC, Stellar SDK, API client, wallet
+│   ├── store/        Zustand state management
+│   ├── hooks/        useNfc, custom hooks
+│   └── constants/    Theme (black/gold), config
+└── contracts/        Soroban device registry smart contract
 ```
 
-## Frontend Quickstart
+## Getting Started
+
+### Prerequisites
+- Node.js 20+
+- Expo CLI (`npm install -g expo-cli`)
+- iOS Simulator (macOS) or Android Emulator
+- Stellar testnet wallet (Freighter extension or custom)
+
+### Setup
 
 ```bash
-cd frontend
+# Clone and install
+git clone https://github.com/rylsherdamz-rgb/Noir_Wallet.git
+cd Noir_Wallet/frontend
 npm install
-npx expo start
 ```
 
-Scan the QR code with Expo Go, or press `a` for Android / `i` for iOS simulator.
-
-## Environment
+### Environment
 
 Copy `.env.example` to `.env` and configure:
 
@@ -67,12 +111,45 @@ Copy `.env.example` to `.env` and configure:
 | `EXPO_PUBLIC_ISSUER_ADDRESS` | Asset issuer address |
 | `EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT` | Soroban contract ID |
 
-## Stellar Integration
+### Run Development Server
 
-- **Network**: Stellar (testnet / mainnet)
-- **Assets**: XLM, USDC, custom issuer assets
-- **Smart Contracts**: Soroban `device_registry` for hardware-to-wallet mapping
-- **Settlement**: Near-instant via Stellar consensus + optional PDAX fiat conversion
+```bash
+cd frontend
+npx expo start
+```
+
+Scan the QR code with Expo Go, or press `a` for Android / `i` for iOS simulator.
+
+### Smart Contract Development
+
+```bash
+cd frontend/contracts/device_registry
+cargo build --release --target wasm32-unknown-unknown
+cargo test
+```
+
+### Run Tests
+
+```bash
+cd frontend
+npm test
+```
+
+### Promo Video
+
+A Remotion-based promotional video is available in [`promo/`](promo/).
+
+```bash
+cd promo
+npm run voiceover   # Generate ElevenLabs voiceover (Alice, female)
+npm run render      # Render the MP4
+```
+
+See the [promo README](promo/README.md) for full details.
+
+## Screenshots
+
+*Screenshots coming soon.*
 
 ## License
 
