@@ -18,6 +18,7 @@ import { Toast } from '@/components/Toast'
 import { useAppStore } from '@/store/useAppStore'
 import { AppConfig } from '@/constants/config'
 import { apiService } from '@/services/api'
+import { stellarService } from '@/services/stellar'
 
 export function BlockchainScreen() {
   const { user, balance, network, setNetwork, transactions, setTransactions, setBalance } = useAppStore()
@@ -46,10 +47,25 @@ export function BlockchainScreen() {
     }
   }, [setTransactions, setBalance])
 
+  const [funding, setFunding] = useState(false)
+
   const copyAddr = async (addr: string) => {
     await Clipboard.setStringAsync(addr)
     setToast({ visible: true, type: 'success', title: 'Copied', message: 'Address copied to clipboard' })
   }
+
+  const handleFund = useCallback(async () => {
+    if (!user?.stellarPublicKey) return
+    setFunding(true)
+    const success = await stellarService.fundTestnetAccount(user.stellarPublicKey)
+    setFunding(false)
+    if (success) {
+      setToast({ visible: true, type: 'success', title: 'Funded!', message: '10,000 XLM sent to your wallet' })
+      onRefresh()
+    } else {
+      setToast({ visible: true, type: 'info', title: 'Failed', message: 'Friendbot request failed. Are you on testnet?' })
+    }
+  }, [user?.stellarPublicKey, onRefresh])
 
   return (
     <SafeAreaView style={styles.container}>
@@ -100,6 +116,18 @@ export function BlockchainScreen() {
               <Text style={styles.balanceValue}>₱{balance.php.toLocaleString()}</Text>
             </View>
           </View>
+
+          {network === 'testnet' && (
+            <TouchableOpacity
+              style={styles.fundBtn}
+              onPress={handleFund}
+              disabled={funding}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="water-outline" size={18} color={Colors.black} />
+              <Text style={styles.fundBtnLabel}>{funding ? 'Funding...' : 'Fund with Testnet XLM'}</Text>
+            </TouchableOpacity>
+          )}
         </Card>
 
         {/* x402 Agent Wallet */}
@@ -228,4 +256,10 @@ const styles = StyleSheet.create({
   viewAll: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, paddingVertical: Spacing.md },
   viewAllText: { fontSize: FontSize.sm, color: Colors.gold, fontWeight: FontWeight.medium },
   emptyTx: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', paddingVertical: Spacing.lg },
+  fundBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
+    marginTop: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.md,
+    backgroundColor: Colors.gold, minHeight: 44,
+  },
+  fundBtnLabel: { fontSize: FontSize.sm, color: Colors.black, fontWeight: FontWeight.bold },
 })
