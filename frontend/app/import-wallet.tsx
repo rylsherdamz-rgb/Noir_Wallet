@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router'
 import { ImportWalletScreen } from '@/screens/ImportWalletScreen'
 import { useAppStore } from '@/store/useAppStore'
 import { WalletKeys } from '@/services/wallet'
+import { stellarService } from '@/services/stellar'
 
 export default function ImportWalletRoute() {
   const router = useRouter()
@@ -18,6 +19,7 @@ export default function ImportWalletRoute() {
       displayName: 'My Wallet',
     })
     setIsOnboarded(true)
+    stellarService.fundTestnetAccount(keys.stellarPublic)
     router.replace('/(tabs)')
   }
 

@@ -27,15 +27,28 @@ class StellarService {
   }
 
   async fundTestnetAccount(publicKey: string): Promise<boolean> {
-    try {
-      const response = await fetch(
-        `https://friendbot.stellar.org?addr=${publicKey}`,
-      )
-      const json = await response.json()
-      return !!json.hash
-    } catch {
-      return false
+    const urls = [
+      `https://friendbot.stellar.org?addr=${publicKey}`,
+      `https://horizon-testnet.stellar.org/friendbot?addr=${publicKey}`,
+    ]
+    for (const url of urls) {
+      try {
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 10000)
+        const response = await fetch(url, { signal: controller.signal })
+        clearTimeout(timer)
+        const text = await response.text()
+        if (response.ok) {
+          const json = JSON.parse(text)
+          return !!json.hash
+        }
+        const json = JSON.parse(text)
+        if (json.detail?.includes('already funded')) return true
+      } catch {
+        continue
+      }
     }
+    return false
   }
 
   async getBalance(publicKey: string): Promise<{

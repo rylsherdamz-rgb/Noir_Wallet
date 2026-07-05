@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router'
 import { SeedPhraseScreen } from '@/screens/SeedPhraseScreen'
 import { useAppStore } from '@/store/useAppStore'
 import { WalletKeys } from '@/services/wallet'
+import { stellarService } from '@/services/stellar'
 
 export default function SeedPhraseRoute() {
   const router = useRouter()
@@ -17,6 +18,7 @@ export default function SeedPhraseRoute() {
       role: 'consumer',
       displayName: 'My Wallet',
     })
+    stellarService.fundTestnetAccount(keys.stellarPublic)
     router.replace('/seed-verify')
   }
 
