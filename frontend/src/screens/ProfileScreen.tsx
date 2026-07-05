@@ -117,7 +117,7 @@ export function ProfileScreen() {
                 />
               ))}
             </View>
-            <TouchableOpacity style={styles.kycAction}>
+            <TouchableOpacity style={styles.kycAction} onPress={() => showToast('KYC Upgrade', 'KYC verification flow coming soon. Please check back later.')}>
               <Text style={styles.kycActionLabel}>
                 {kycLevel < 3 ? 'Upgrade KYC for higher limits' : 'Verification complete'}
               </Text>

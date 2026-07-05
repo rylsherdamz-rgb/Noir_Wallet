@@ -13,7 +13,7 @@ class ApiService {
     this.token = token
   }
 
-  private async request<T>(
+  async request<T>(
     path: string,
     options: RequestInit = {},
   ): Promise<T> {
@@ -126,6 +126,14 @@ class ApiService {
   // Notifications
   async getNotifications() {
     return this.request<{ notifications: Notification[] }>('/notifications')
+  }
+
+  // Push Notifications
+  async registerPushToken(token: string) {
+    return this.request<{ ok: boolean }>('/notifications/register', {
+      method: 'POST',
+      body: JSON.stringify({ token, platform: 'expo' }),
+    })
   }
 
   // PDAX

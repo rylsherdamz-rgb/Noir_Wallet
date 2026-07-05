@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, Linking } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter, useLocalSearchParams } from 'expo-router'
@@ -13,7 +13,7 @@ import { useState } from 'react'
 export function TransactionDetailScreen() {
   const router = useRouter()
   const { id } = useLocalSearchParams<{ id: string }>()
-  const { transactions } = useAppStore()
+  const { transactions, network } = useAppStore()
   const [toast, setToast] = useState<{ visible: boolean; type: 'success' | 'info'; title: string; message?: string }>({
     visible: false,
     type: 'success',
@@ -31,6 +31,16 @@ export function TransactionDetailScreen() {
       await Clipboard.setStringAsync(tx.stellarTxHash)
       setToast({ visible: true, type: 'success', title: 'Hash Copied', message: 'Transaction hash copied to clipboard' })
     }
+  }
+
+  const explorerUrl = tx?.stellarTxHash
+    ? network === 'testnet'
+      ? `https://stellar.expert/explorer/testnet/tx/${tx.stellarTxHash}`
+      : `https://stellar.expert/explorer/public/tx/${tx.stellarTxHash}`
+    : null
+
+  const openExplorer = () => {
+    if (explorerUrl) Linking.openURL(explorerUrl)
   }
 
   const shareTx = async () => {
@@ -112,8 +122,8 @@ export function TransactionDetailScreen() {
             <Ionicons name="share-outline" size={18} color={Colors.gold} />
             <Text style={styles.actionLabel}>Share Receipt</Text>
           </TouchableOpacity>
-          {tx.stellarTxHash && (
-            <TouchableOpacity style={styles.actionRow} onPress={copyHash} activeOpacity={0.7}>
+          {tx.stellarTxHash && explorerUrl && (
+            <TouchableOpacity style={styles.actionRow} onPress={openExplorer} activeOpacity={0.7}>
               <Ionicons name="open-outline" size={18} color={Colors.gold} />
               <Text style={styles.actionLabel}>View on Stellar Explorer</Text>
             </TouchableOpacity>

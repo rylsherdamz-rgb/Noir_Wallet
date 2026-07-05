@@ -9,7 +9,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { useRouter } from 'expo-router'
+import { useRouter, useGlobalSearchParams } from 'expo-router'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { Button } from '@/components/Button'
 import { NumericKeypad } from '@/components/NumericKeypad'
@@ -24,9 +24,10 @@ import { AssetCode } from '@/types'
 
 export function SendScreen() {
   const router = useRouter()
+  const params = useGlobalSearchParams()
   const { balance, devices } = useAppStore()
   const [amount, setAmount] = useState('')
-  const [recipient, setRecipient] = useState('')
+  const [recipient, setRecipient] = useState((params?.scannedAddress as string) || '')
   const [asset, setAsset] = useState<AssetCode>('USDC')
   const [note, setNote] = useState('')
   const [step, setStep] = useState<'amount' | 'recipient' | 'review'>('amount')
@@ -161,7 +162,7 @@ export function SendScreen() {
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <TouchableOpacity style={styles.scanBtn}>
+            <TouchableOpacity style={styles.scanBtn} onPress={() => router.push('/scan-qr')}>
               <Ionicons name="qr-code-outline" size={20} color={Colors.gold} />
             </TouchableOpacity>
           </View>

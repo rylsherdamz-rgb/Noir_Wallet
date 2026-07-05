@@ -81,7 +81,7 @@ export function DashboardScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>My Wallets</Text>
-            <TouchableOpacity onPress={() => {}}>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/devices')}>
               <Text style={styles.seeAll}>Manage</Text>
             </TouchableOpacity>
           </View>

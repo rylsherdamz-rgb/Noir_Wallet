@@ -9,12 +9,14 @@ import {
   MerchantSettings,
   StellarNetwork,
   SecuritySettings,
+  QueuedPayment,
 } from '@/types'
 
 interface AppState {
   user: User | null
   devices: Device[]
   transactions: Transaction[]
+  pendingPayments: QueuedPayment[]
   balance: Balance
   merchantSettings: MerchantSettings | null
   isOnboarded: boolean
@@ -44,6 +46,9 @@ interface AppState {
   setNetwork: (network: StellarNetwork) => void
   setBiometricLockEnabled: (val: boolean) => void
   setBackgroundLockTimeoutSec: (sec: number) => void
+  addPendingPayment: (payment: QueuedPayment) => void
+  removePendingPayment: (id: string) => void
+  clearPendingPayments: () => void
   reset: () => void
 }
 
@@ -51,6 +56,7 @@ const initialState = {
   user: null,
   devices: [] as Device[],
   transactions: [] as Transaction[],
+  pendingPayments: [] as QueuedPayment[],
   balance: { php: 0, usdc: 0, xlm: 0, localTokens: {} } as Balance,
   merchantSettings: null as MerchantSettings | null,
   isOnboarded: false,
@@ -96,6 +102,11 @@ export const useAppStore = create<AppState>()(
         set((s) => ({ security: { ...s.security, biometricLockEnabled: val } })),
       setBackgroundLockTimeoutSec: (sec) =>
         set((s) => ({ security: { ...s.security, backgroundLockTimeoutSec: sec } })),
+      addPendingPayment: (payment) =>
+        set((s) => ({ pendingPayments: [...s.pendingPayments, payment] })),
+      removePendingPayment: (id) =>
+        set((s) => ({ pendingPayments: s.pendingPayments.filter((p) => p.id !== id) })),
+      clearPendingPayments: () => set({ pendingPayments: [] }),
       reset: () => set(initialState),
     }),
     {
@@ -108,6 +119,7 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         user: state.user,
         devices: state.devices,
+        pendingPayments: state.pendingPayments,
         isOnboarded: state.isOnboarded,
         isWalletCreated: state.isWalletCreated,
         network: state.network,

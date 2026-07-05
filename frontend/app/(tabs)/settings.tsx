@@ -15,6 +15,8 @@ import { Card } from '@/components/Card'
 import { SectionHeader } from '@/components/SectionHeader'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { StellarNetwork } from '@/types'
+import { walletService } from '@/services/wallet'
+import { x402 } from '@/domain/x402'
 
 const TIMEOUT_OPTIONS: { label: string; sec: number }[] = [
   { label: 'Immediately', sec: 0 },
@@ -45,8 +47,10 @@ export default function SettingsScreen() {
         {
           text: 'Reset',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
             setBusy(true)
+            await walletService.clearKeys()
+            await x402.clearAgent()
             reset()
             router.replace('/onboarding')
           },
@@ -167,6 +171,21 @@ export default function SettingsScreen() {
             value={nfcSupported ? 'Available' : 'Unavailable'}
             valueColor={nfcSupported ? Colors.success : Colors.danger}
           />
+        </Card>
+
+        {/* Fiat */}
+        <SectionHeader title="Banking" />
+        <Card style={styles.card}>
+          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/fiat')}>
+            <View style={styles.rowLeft}>
+              <Ionicons name="wallet-outline" size={20} color={Colors.silver} />
+              <View>
+                <Text style={styles.rowLabel}>Cash In / Cash Out</Text>
+                <Text style={styles.navHint}>Deposit or withdraw PHP via PDAX</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
+          </TouchableOpacity>
         </Card>
 
         {/* About / danger */}

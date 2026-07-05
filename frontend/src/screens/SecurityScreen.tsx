@@ -6,7 +6,11 @@ import { useRouter } from 'expo-router'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { Button } from '@/components/Button'
 import { Toast } from '@/components/Toast'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { useAppStore } from '@/store/useAppStore'
+import { walletService } from '@/services/wallet'
+import { x402 } from '@/domain/x402'
+import { apiService } from '@/services/api'
 
 const TIMEOUT_OPTIONS = [30, 60, 120, 300]
 
@@ -16,15 +20,36 @@ export function SecurityScreen() {
     security,
     setBiometricLockEnabled,
     setBackgroundLockTimeoutSec,
+    reset,
   } = useAppStore()
   const [toast, setToast] = useState<{ visible: boolean; type: 'success' | 'info'; title: string; message?: string }>({
     visible: false,
     type: 'success',
     title: '',
   })
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
-  const showToast = (title: string, message?: string) => {
-    setToast({ visible: true, type: 'success', title, message })
+  const showToast = (title: string, message?: string, type: 'success' | 'info' | 'error' = 'success') => {
+    setToast({ visible: true, type, title, message })
+  }
+
+  const handleShowRecoveryPhrase = async () => {
+    const keys = await walletService.loadKeys()
+    if (!keys?.mnemonic) {
+      showToast('Not Available', 'No recovery phrase found on this device', 'error')
+      return
+    }
+    showToast('Recovery Phrase', keys.mnemonic, 'info')
+  }
+
+  const handleShowPrivateKey = async () => {
+    const keys = await walletService.loadKeys()
+    if (!keys?.stellarSecret) {
+      showToast('Not Available', 'No private key found on this device', 'error')
+      return
+    }
+    showToast('Private Key', keys.stellarSecret, 'info')
   }
 
   return (
@@ -107,7 +132,7 @@ export function SecurityScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Passphrase & Keys</Text>
           <View style={styles.card}>
-            <TouchableOpacity style={styles.settingRow}>
+            <TouchableOpacity style={styles.settingRow} onPress={handleShowRecoveryPhrase}>
               <View style={styles.settingInfo}>
                 <Ionicons name="key-outline" size={20} color={Colors.white} />
                 <View style={styles.settingText}>
@@ -120,7 +145,7 @@ export function SecurityScreen() {
 
             <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.settingRow}>
+            <TouchableOpacity style={styles.settingRow} onPress={handleShowPrivateKey}>
               <View style={styles.settingInfo}>
                 <Ionicons name="eye-off-outline" size={20} color={Colors.white} />
                 <View style={styles.settingText}>
@@ -166,7 +191,7 @@ export function SecurityScreen() {
           <Text style={styles.dangerTitle}>Danger Zone</Text>
           <TouchableOpacity
             style={styles.deleteBtn}
-            onPress={() => showToast('Feature coming soon', 'Account deletion is not yet available')}
+            onPress={() => setShowDeleteConfirm(true)}
           >
             <Ionicons name="trash-outline" size={20} color={Colors.danger} />
             <Text style={styles.deleteLabel}>Delete Account</Text>
@@ -180,6 +205,30 @@ export function SecurityScreen() {
         title={toast.title}
         message={toast.message}
         onDismiss={() => setToast((prev) => ({ ...prev, visible: false }))}
+      />
+
+      <ConfirmDialog
+        visible={showDeleteConfirm}
+        title="Delete Account"
+        message="This permanently deletes your account and all associated data. Make sure your recovery phrase is backed up. This action cannot be undone."
+        confirmLabel={deleting ? 'Deleting...' : 'Delete Forever'}
+        confirmDestructive
+        icon="trash-outline"
+        onConfirm={async () => {
+          setDeleting(true)
+          try {
+            await apiService.request('/auth/account', { method: 'DELETE' })
+          } catch {}
+          await walletService.clearKeys()
+          await x402.clearAgent()
+          reset()
+          router.replace('/onboarding')
+        }}
+        onCancel={() => {
+          setShowDeleteConfirm(false)
+          setDeleting(false)
+        }}
+        loading={deleting}
       />
     </SafeAreaView>
   )

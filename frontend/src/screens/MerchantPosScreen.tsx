@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { useAppStore } from '@/store/useAppStore'
 import { apiService } from '@/services/api'
+import { QueuedPayment } from '@/types'
 import { nfcService } from '@/services/nfc'
 import { x402 } from '@/domain/x402'
 import { NumericKeypad } from '@/components/NumericKeypad'
@@ -18,7 +19,7 @@ import { NoirLogo } from '@/components/brand/NoirLogo'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 
 export function MerchantPosScreen() {
-  const { transactions, addTransaction, user, devices } = useAppStore()
+  const { transactions, addTransaction, user, devices, addPendingPayment } = useAppStore()
   const [amount, setAmount] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [lastResult, setLastResult] = useState<'success' | 'failed' | null>(null)
@@ -82,6 +83,21 @@ export function MerchantPosScreen() {
     } catch (err: any) {
       setLastResult('failed')
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      // Queue payment for offline retry
+      if (amount && parseInt(amount) > 0) {
+        const queued: QueuedPayment = {
+          id: Math.random().toString(36).slice(2),
+          rawDeviceUid: tag?.uid || 'unknown',
+          merchantPublicKey: user?.stellarPublicKey || '',
+          amountCents: parseInt(amount),
+          assetCode: 'PHP',
+          terminalId: undefined,
+          nonce: Math.random().toString(36).slice(2, 10),
+          createdAt: new Date().toISOString(),
+          retryCount: 0,
+        }
+        addPendingPayment(queued)
+      }
     } finally {
       setIsProcessing(false)
       setAgentMode(false)

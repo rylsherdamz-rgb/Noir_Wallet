@@ -124,3 +124,15 @@ export interface Registration {
   deviceLabel: string
   createdAt: string
 }
+
+export interface QueuedPayment {
+  id: string
+  rawDeviceUid: string
+  merchantPublicKey: string
+  amountCents: number
+  assetCode: AssetCode
+  terminalId?: string
+  nonce?: string
+  createdAt: string
+  retryCount: number
+}
