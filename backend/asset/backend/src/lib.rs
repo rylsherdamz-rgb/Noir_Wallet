@@ -9,6 +9,7 @@ pub mod errors;
 pub mod fees;
 pub mod metrics;
 pub mod models;
+pub mod pdax;
 pub mod queue;
 pub mod rate_limiter;
 pub mod state;

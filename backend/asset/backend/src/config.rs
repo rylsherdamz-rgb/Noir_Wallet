@@ -29,6 +29,13 @@ pub struct Config {
     // Channel defaults
     pub channel_min_balance_stroops: i64,
     pub channel_topup_target_stroops: i64,
+    // PDAX (TSK-203)
+    pub pdax_environment: String,
+    pub pdax_base_url_production: String,
+    pub pdax_base_url_stage: String,
+    pub pdax_base_url_uat: String,
+    pub pdax_username: String,
+    pub pdax_password: String,
 }
 
 impl Config {
@@ -61,7 +68,24 @@ impl Config {
             max_request_body_bytes: parse_env("MAX_REQUEST_BODY_BYTES", 65536),
             channel_min_balance_stroops: parse_env("CHANNEL_MIN_BALANCE_STROOPS", 1_000_000),
             channel_topup_target_stroops: parse_env("CHANNEL_TOPUP_TARGET_STROOPS", 10_000_000),
+            pdax_environment: env::var("PDAX_ENVIRONMENT").unwrap_or_else(|_| "uat".to_string()),
+            pdax_base_url_production: env::var("PDAX_API_BASE_URL_PRODUCTION")
+                .unwrap_or_else(|_| "https://services.pdax.ph/api/pdax-api".to_string()),
+            pdax_base_url_stage: env::var("PDAX_API_BASE_URL_STAGE")
+                .unwrap_or_else(|_| "https://stage.services.sandbox.pdax.ph/api/pdax-api".to_string()),
+            pdax_base_url_uat: env::var("PDAX_API_BASE_URL_UAT")
+                .unwrap_or_else(|_| "https://uat.services.sandbox.pdax.ph/api/pdax-api".to_string()),
+            pdax_username: env::var("PDAX_USERNAME").unwrap_or_default(),
+            pdax_password: env::var("PDAX_PASSWORD").unwrap_or_default(),
         })
+    }
+
+    pub fn pdax_base_url(&self) -> &str {
+        match self.pdax_environment.as_str() {
+            "production" => &self.pdax_base_url_production,
+            "stage" => &self.pdax_base_url_stage,
+            _ => &self.pdax_base_url_uat,
+        }
     }
 
     pub fn validate(&self) -> Result<()> {
