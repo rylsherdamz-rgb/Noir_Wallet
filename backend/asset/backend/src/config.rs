@@ -36,6 +36,15 @@ pub struct Config {
     pub pdax_base_url_uat: String,
     pub pdax_username: String,
     pub pdax_password: String,
+    pub pdax_api_key: String,
+    pub pdax_api_secret: String,
+    pub pdax_webhook_secret: String,
+    // PDAX session cache (written by examples/pdax_login.rs and
+    // examples/pdax_refresh_token.rs, since the access token expires every
+    // 600 seconds and re-logging in every 10 minutes isn't the intended flow).
+    pub pdax_access_token: String,
+    pub pdax_refresh_token: String,
+    pub pdax_token_expires_at: String,
 }
 
 impl Config {
@@ -77,6 +86,12 @@ impl Config {
                 .unwrap_or_else(|_| "https://uat.services.sandbox.pdax.ph/api/pdax-api".to_string()),
             pdax_username: env::var("PDAX_USERNAME").unwrap_or_default(),
             pdax_password: env::var("PDAX_PASSWORD").unwrap_or_default(),
+            pdax_api_key: env::var("PDAX_API_KEY").unwrap_or_default(),
+            pdax_api_secret: env::var("PDAX_API_SECRET").unwrap_or_default(),
+            pdax_webhook_secret: env::var("PDAX_WEBHOOK_SECRET").unwrap_or_default(),
+            pdax_access_token: env::var("PDAX_ACCESS_TOKEN").unwrap_or_default(),
+            pdax_refresh_token: env::var("PDAX_REFRESH_TOKEN").unwrap_or_default(),
+            pdax_token_expires_at: env::var("PDAX_TOKEN_EXPIRES_AT").unwrap_or_default(),
         })
     }
 
