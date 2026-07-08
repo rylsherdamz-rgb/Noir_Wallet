@@ -6,13 +6,22 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "cache": {
+        "disabled": true
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "cache": {
+        "disabled": true
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "cache": {
+        "disabled": true
+      }
     }
   },
   "submit": {
