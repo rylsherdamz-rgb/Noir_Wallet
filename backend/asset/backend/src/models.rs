@@ -49,6 +49,46 @@ pub struct FeeChannel {
     pub created_at: DateTime<Utc>,
 }
 
+// NOTE: `config_encrypted` / `entropy_seed_encrypted` are deliberately not
+// fields on these structs, mirroring FeeChannel's exclusion of
+// `private_key_encrypted` — encrypted at-rest columns are only ever
+// touched via raw queries in db.rs, never through a Serialize-able model.
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct Merchant {
+    pub id: i64,
+    pub merchant_uuid: String,
+    pub business_name: String,
+    pub settlement_wallet: String,
+    pub status: String,
+    pub config_key_version: i32,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct AppUser {
+    pub id: i64,
+    pub user_uuid: String,
+    pub wallet_address: String,
+    pub identity_hash: String,
+    pub seed_key_version: i32,
+    pub status: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct TransactionNotification {
+    pub id: i64,
+    pub device_hash: String,
+    pub payment_transaction_id: Option<i64>,
+    pub status: String,
+    pub amount_stroops: i64,
+    pub payload: serde_json::Value,
+    pub created_at: DateTime<Utc>,
+    pub expires_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaymentRequest {
     pub device_serial: String,

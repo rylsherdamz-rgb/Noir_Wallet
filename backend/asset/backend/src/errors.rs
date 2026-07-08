@@ -43,6 +43,9 @@ pub enum PaymentError {
 
     #[error("Rate limit exceeded — too many requests")]
     RateLimited,
+
+    #[error("Encryption error: {0}")]
+    EncryptionError(String),
 }
 
 #[derive(Serialize)]
@@ -78,7 +81,8 @@ impl ResponseError for PaymentError {
             | PaymentError::SequenceNumberConflict
             | PaymentError::SubmissionFailed(_)
             | PaymentError::InternalError
-            | PaymentError::ConfigError(_) => {
+            | PaymentError::ConfigError(_)
+            | PaymentError::EncryptionError(_) => {
                 HttpResponse::InternalServerError().json(error_response)
             }
         }
@@ -114,6 +118,7 @@ impl PaymentError {
             PaymentError::ConfigError(_) => "CONFIG_ERROR".to_string(),
             PaymentError::InsufficientFunds => "INSUFFICIENT_FUNDS".to_string(),
             PaymentError::RateLimited => "RATE_LIMITED".to_string(),
+            PaymentError::EncryptionError(_) => "ENCRYPTION_ERROR".to_string(),
         }
     }
 }

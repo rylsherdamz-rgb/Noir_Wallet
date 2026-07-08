@@ -15,6 +15,7 @@ pub struct Config {
     pub contract_sync_interval_secs: u64,
     pub channel_balance_check_interval_secs: u64,
     pub submission_process_interval_secs: u64,
+    pub notification_prune_interval_secs: u64,
     // DB pool
     pub db_max_connections: u32,
     pub db_min_connections: u32,
@@ -67,6 +68,7 @@ impl Config {
             contract_sync_interval_secs: parse_env("CONTRACT_SYNC_INTERVAL_SECS", 3600),
             channel_balance_check_interval_secs: parse_env("CHANNEL_BALANCE_CHECK_INTERVAL_SECS", 300),
             submission_process_interval_secs: parse_env("SUBMISSION_PROCESS_INTERVAL_SECS", 5),
+            notification_prune_interval_secs: parse_env("NOTIFICATION_PRUNE_INTERVAL_SECS", 30),
             db_max_connections: parse_env("DB_MAX_CONNECTIONS", 20),
             db_min_connections: parse_env("DB_MIN_CONNECTIONS", 2),
             db_connect_timeout_secs: parse_env("DB_CONNECT_TIMEOUT_SECS", 10),
