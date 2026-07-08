@@ -1,65 +1,83 @@
-import {
-  AbsoluteFill,
-  useCurrentFrame,
-  interpolate,
-  useVideoConfig,
-  Easing,
-} from "remotion";
+import React from "react";
+import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
+import { Colors, withAlpha } from "../theme";
+import { SceneShell } from "./SceneShell";
+import { CatLogo } from "../components/CatLogo";
 
+const ease = Easing.bezier(0.16, 1, 0.3, 1);
+
+// Scene 6 — "Noir Wallet. Tap the future."
 export const Outro: React.FC = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
 
-  const opacity = interpolate(frame, [0, fps * 0.5], [0, 1], {
+  const logoScale = interpolate(frame, [0, 24], [0.7, 1], {
     extrapolateRight: "clamp",
-    easing: Easing.bezier(0.16, 1, 0.3, 1),
+    easing: ease,
   });
-
-  const scale = interpolate(frame, [0, fps * 0.8], [0.8, 1], {
+  const logoOpacity = interpolate(frame, [0, 16], [0, 1], { extrapolateRight: "clamp" });
+  const brandOpacity = interpolate(frame, [12, 30], [0, 1], { extrapolateRight: "clamp" });
+  const brandY = interpolate(frame, [12, 34], [20, 0], {
     extrapolateRight: "clamp",
-    easing: Easing.bezier(0.16, 1, 0.3, 1),
+    easing: ease,
   });
-
-  const subOpacity = interpolate(frame, [fps * 0.4, fps * 0.9], [0, 1], {
-    extrapolateRight: "clamp",
-    easing: Easing.bezier(0.16, 1, 0.3, 1),
-  });
+  const subOpacity = interpolate(frame, [26, 46], [0, 1], { extrapolateRight: "clamp" });
+  const glow = interpolate(frame % 120, [0, 60, 120], [0.35, 0.7, 0.35]);
 
   return (
-    <AbsoluteFill className="bg-black items-center justify-center">
-      <div
-        style={{
-          opacity,
-          scale: String(scale),
-        }}
-      >
-        <h1
+    <SceneShell>
+      <AbsoluteFill style={{ alignItems: "center", justifyContent: "center" }}>
+        <div
           style={{
-            fontFamily: "Georgia, serif",
-            fontSize: 72,
-            fontWeight: 700,
-            color: "#C6A15B",
-            letterSpacing: "0.05em",
-            margin: 0,
+            position: "absolute",
+            width: 260,
+            height: 260,
+            borderRadius: 130,
+            background: Colors.gold,
+            filter: "blur(90px)",
+            opacity: glow * 0.4,
+          }}
+        />
+        <div style={{ opacity: logoOpacity, transform: `scale(${logoScale})` }}>
+          <CatLogo size={120} />
+        </div>
+        <div
+          style={{
+            fontSize: 80,
+            fontWeight: 800,
+            color: Colors.cream,
+            letterSpacing: 18,
+            marginTop: 30,
+            opacity: brandOpacity,
+            transform: `translateY(${brandY}px)`,
+            textShadow: `0 2px 16px ${withAlpha(Colors.gold, "50")}`,
           }}
         >
-          Noir Wallet
-        </h1>
-      </div>
-      <div style={{ opacity: subOpacity, marginTop: 24 }}>
-        <p
+          NOIR
+        </div>
+        <div
           style={{
-            fontFamily: "system-ui, sans-serif",
-            fontSize: 28,
-            color: "#EDE4D0",
-            letterSpacing: "0.15em",
+            fontSize: 24,
+            color: Colors.gold,
+            letterSpacing: 10,
             textTransform: "uppercase",
-            margin: 0,
+            fontWeight: 500,
+            marginTop: 18,
+            opacity: brandOpacity,
           }}
         >
-          Tap the Future
-        </p>
-      </div>
-    </AbsoluteFill>
+          Tap Into Trust
+        </div>
+        <div
+          style={{
+            fontSize: 22,
+            color: Colors.mutedWhite,
+            marginTop: 28,
+            opacity: subOpacity,
+          }}
+        >
+          Tap the future.
+        </div>
+      </AbsoluteFill>
+    </SceneShell>
   );
 };

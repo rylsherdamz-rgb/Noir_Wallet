@@ -1,107 +1,93 @@
-import {
-  AbsoluteFill,
-  useCurrentFrame,
-  interpolate,
-  useVideoConfig,
-  Easing,
-} from "remotion";
+import React from "react";
+import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
+import { Colors, withAlpha, FONT_MONO } from "../theme";
+import { SceneShell, Eyebrow, usePhoneEntrance } from "./SceneShell";
+import { PhoneFrame } from "../components/PhoneFrame";
+import { AgentsApp } from "../app-screens/AgentsApp";
 
+const ease = Easing.bezier(0.16, 1, 0.3, 1);
+
+// Scene 3 — "The x402 protocol debits your wallet instantly the moment you tap."
+// Shows the real Agents screen: autonomous agent wallets with spend budgets.
 export const X402: React.FC = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const phone = usePhoneEntrance("right");
 
-  const opacity = interpolate(frame, [0, fps * 0.5], [0, 1], {
+  const titleOpacity = interpolate(frame, [0, 18], [0, 1], { extrapolateRight: "clamp" });
+  const titleY = interpolate(frame, [0, 24], [20, 0], {
     extrapolateRight: "clamp",
-    easing: Easing.bezier(0.16, 1, 0.3, 1),
+    easing: ease,
   });
-
-  const protocolY = interpolate(frame, [0, fps * 0.5], [30, 0], {
-    extrapolateRight: "clamp",
-    easing: Easing.bezier(0.16, 1, 0.3, 1),
-  });
-
-  const lineOpacity = interpolate(frame, [fps * 0.5, fps * 1.0], [0, 1], {
-    extrapolateRight: "clamp",
-    easing: Easing.bezier(0.16, 1, 0.3, 1),
-  });
-
-  const pulse = interpolate(frame, [0, fps * 2], [1, 1.05], {
-    extrapolateRight: "clamp",
-    extrapolateLeft: "clamp",
-    easing: Easing.bezier(0.16, 1, 0.3, 1),
-  });
+  const badgeOpacity = interpolate(frame, [30, 46], [0, 1], { extrapolateRight: "clamp" });
 
   return (
-    <AbsoluteFill className="bg-black items-center justify-center">
-      <div
+    <SceneShell>
+      <AbsoluteFill
         style={{
-          opacity,
-          translate: `0px ${protocolY}px`,
-        }}
-      >
-        <h2
-          style={{
-            fontFamily: "monospace",
-            fontSize: 48,
-            fontWeight: 700,
-            color: "#C6A15B",
-            margin: 0,
-            textAlign: "center",
-            scale: String(pulse),
-          }}
-        >
-          x402 Protocol
-        </h2>
-      </div>
-      <div
-        style={{
-          opacity: lineOpacity,
-          marginTop: 32,
-          maxWidth: 600,
-          textAlign: "center",
-        }}
-      >
-        <p
-          style={{
-            fontFamily: "system-ui, sans-serif",
-            fontSize: 22,
-            color: "#EDE4D0",
-            lineHeight: 1.6,
-            margin: 0,
-          }}
-        >
-          Hardware tap triggers instant wallet debit.
-          <br />
-          No unlock. No app. No confirmation.
-        </p>
-      </div>
-      <div
-        style={{
-          opacity: lineOpacity,
-          marginTop: 40,
-          display: "flex",
-          gap: 16,
+          flexDirection: "row",
           alignItems: "center",
+          justifyContent: "center",
+          gap: 90,
         }}
       >
-        <div
-          style={{
-            width: 12,
-            height: 12,
-            borderRadius: "50%",
-            backgroundColor: "#3ED598",
-          }}
-        />
-        <span
-          style={{
-            fontFamily: "monospace",
-            fontSize: 18,
-            color: "#3ED598",
-          }}
-        >
-          {"< 2 seconds"}
-        </span>
-      </div>
-    </AbsoluteFill>
+        {/* Copy */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 20, width: 460 }}>
+          <Eyebrow>The x402 Protocol</Eyebrow>
+          <div
+            style={{
+              fontSize: 50,
+              fontWeight: 800,
+              color: Colors.cream,
+              lineHeight: 1.1,
+              opacity: titleOpacity,
+              transform: `translateY(${titleY}px)`,
+            }}
+          >
+            Agents that pay the instant you tap.
+          </div>
+          <div style={{ fontSize: 20, color: Colors.mutedWhite, lineHeight: 1.5, opacity: titleOpacity }}>
+            Each device gets its own x402 agent wallet with a spending budget. It
+            signs automatically — no unlock, no app, no confirmation.
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              marginTop: 8,
+              opacity: badgeOpacity,
+            }}
+          >
+            <div style={{ width: 12, height: 12, borderRadius: 6, background: Colors.success }} />
+            <span
+              style={{
+                fontFamily: FONT_MONO,
+                fontSize: 20,
+                color: Colors.success,
+                fontWeight: 600,
+              }}
+            >
+              settled in &lt; 2 seconds
+            </span>
+          </div>
+        </div>
+
+        {/* Real app — Agents */}
+        <div style={{ ...phone, position: "relative" }}>
+          <div
+            style={{
+              position: "absolute",
+              inset: -30,
+              borderRadius: 60,
+              background: withAlpha(Colors.gold, "10"),
+              filter: "blur(40px)",
+            }}
+          />
+          <PhoneFrame height={600}>
+            <AgentsApp />
+          </PhoneFrame>
+        </div>
+      </AbsoluteFill>
+    </SceneShell>
   );
 };

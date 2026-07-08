@@ -1,87 +1,97 @@
-import {
-  AbsoluteFill,
-  useCurrentFrame,
-  interpolate,
-  useVideoConfig,
-  Easing,
-} from "remotion";
+import React from "react";
+import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
+import { Colors, withAlpha } from "../theme";
+import { SceneShell, Eyebrow, usePhoneEntrance } from "./SceneShell";
+import { PhoneFrame } from "../components/PhoneFrame";
+import { BlockchainApp } from "../app-screens/BlockchainApp";
+import { Icon } from "../components/Icon";
 
-const nodes = [
-  { label: "RFID / NFC Tag", x: 15, y: 60 },
-  { label: "POS Terminal", x: 38, y: 60 },
-  { label: "Payment Gateway", x: 58, y: 60 },
-  { label: "Stellar Network", x: 78, y: 60 },
+const ease = Easing.bezier(0.16, 1, 0.3, 1);
+
+const steps = [
+  { icon: "radio" as const, title: "Tap NFC tag", sub: "Sticker, card, or wearable" },
+  { icon: "cube" as const, title: "Terminal reads UID", sub: "Hardware device identity" },
+  { icon: "code" as const, title: "device_registry resolves", sub: "Soroban maps UID → wallet" },
+  { icon: "planet" as const, title: "Stellar settles", sub: "Transfer in under 2 seconds" },
 ];
 
+// Scene 4 — RFID → terminal reads UID → resolves Stellar wallet → executes transfer.
+// Real Blockchain screen shows the on-chain wallet + device_registry contract.
 export const Architecture: React.FC = () => {
   const frame = useCurrentFrame();
-  const { fps, width, height } = useVideoConfig();
+  const phone = usePhoneEntrance("right");
 
   return (
-    <AbsoluteFill className="bg-black items-center justify-center">
-      <p
+    <SceneShell>
+      <AbsoluteFill
         style={{
-          fontFamily: "system-ui, sans-serif",
-          fontSize: 20,
-          color: "#A9A9A9",
-          letterSpacing: "0.15em",
-          textTransform: "uppercase",
-          margin: 0,
-          marginBottom: 48,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 80,
         }}
       >
-        How It Works
-      </p>
-      <svg viewBox={`0 0 ${width} ${height * 0.6}`} style={{ width: "80%", height: "auto" }}>
-        {nodes.map((node, i) => {
-          const nodeOpacity = interpolate(
-            frame,
-            [i * fps * 0.3, i * fps * 0.3 + fps * 0.3],
-            [0, 1],
-            { extrapolateRight: "clamp", easing: Easing.bezier(0.16, 1, 0.3, 1) },
-          );
+        {/* Flow steps */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, width: 440 }}>
+          <div style={{ marginBottom: 12 }}>
+            <Eyebrow>How It Works</Eyebrow>
+          </div>
+          {steps.map((s, i) => {
+            const delay = 8 + i * 12;
+            const opacity = interpolate(frame, [delay, delay + 16], [0, 1], {
+              extrapolateRight: "clamp",
+            });
+            const x = interpolate(frame, [delay, delay + 20], [-24, 0], {
+              extrapolateRight: "clamp",
+              easing: ease,
+            });
+            return (
+              <div key={s.title} style={{ opacity, transform: `translateX(${x}px)` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+                  <div
+                    style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: 26,
+                      background: withAlpha(Colors.gold, "15"),
+                      border: `1px solid ${withAlpha(Colors.gold, "25")}`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Icon name={s.icon} size={24} color={Colors.gold} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 26, color: Colors.cream, fontWeight: 700 }}>{s.title}</div>
+                    <div style={{ fontSize: 15, color: Colors.mutedWhite }}>{s.sub}</div>
+                  </div>
+                </div>
+                {i < steps.length - 1 && (
+                  <div
+                    style={{
+                      width: 2,
+                      height: 18,
+                      background: withAlpha(Colors.gold, "30"),
+                      marginLeft: 25,
+                      marginTop: 4,
+                      marginBottom: 4,
+                    }}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
 
-          const x = (node.x / 100) * (width * 0.8);
-          const y = (node.y / 100) * (height * 0.6);
-
-          return (
-            <g key={node.label} opacity={nodeOpacity}>
-              <rect
-                x={x - 70}
-                y={y - 20}
-                width={140}
-                height={40}
-                rx={8}
-                fill="#141414"
-                stroke="#C6A15B"
-                strokeWidth={1}
-              />
-              <text
-                x={x}
-                y={y + 5}
-                textAnchor="middle"
-                fill="#EDE4D0"
-                fontFamily="system-ui, sans-serif"
-                fontSize={12}
-              >
-                {node.label}
-              </text>
-              {i < nodes.length - 1 && (
-                <line
-                  x1={x + 70}
-                  y1={y}
-                  x2={(nodes[i + 1].x / 100) * (width * 0.8) - 70}
-                  y2={(nodes[i + 1].y / 100) * (height * 0.6)}
-                  stroke="#C6A15B"
-                  strokeWidth={1.5}
-                  strokeDasharray="4 4"
-                  opacity={nodeOpacity}
-                />
-              )}
-            </g>
-          );
-        })}
-      </svg>
-    </AbsoluteFill>
+        {/* Real app — Blockchain */}
+        <div style={phone}>
+          <PhoneFrame height={600}>
+            <BlockchainApp />
+          </PhoneFrame>
+        </div>
+      </AbsoluteFill>
+    </SceneShell>
   );
 };
