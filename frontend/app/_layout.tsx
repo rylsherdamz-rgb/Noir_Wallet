@@ -42,6 +42,7 @@ import { Stack, useRouter } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { StyleSheet, AppState, Linking, Alert } from 'react-native'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 import * as SplashScreen from 'expo-splash-screen'
 import * as Notifications from 'expo-notifications'
 import { nfcService } from '@/services/nfc'
@@ -158,6 +159,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
         <Stack.Screen name="index" />
@@ -178,6 +180,7 @@ export default function RootLayout() {
         <Stack.Screen name="settings/notifications" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="agent/[id]" options={{ animation: 'slide_from_right' }} />
       </Stack>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   )
 }

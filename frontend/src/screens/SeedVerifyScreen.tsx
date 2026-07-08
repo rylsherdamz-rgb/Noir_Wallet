@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
@@ -71,7 +71,11 @@ export function SeedVerifyScreen({ phrase, onComplete, onBack }: SeedVerifyScree
         <Ionicons name="arrow-back" size={24} color={Colors.white} />
       </TouchableOpacity>
 
-      <View style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <NoirLogo variant="mark" size={40} />
         <Text style={styles.title}>Verify Your Phrase</Text>
         <Text style={styles.subtitle}>Select the correct word for each position</Text>
@@ -108,24 +112,25 @@ export function SeedVerifyScreen({ phrase, onComplete, onBack }: SeedVerifyScree
           })}
         </View>
 
-        <Button
-          label={isCorrect ? 'Complete Verification' : 'Verify'}
-          onPress={allAnswered && isCorrect ? onComplete : undefined}
-          disabled={!allAnswered || !isCorrect}
-        />
-
         {allAnswered && !isCorrect && (
           <Text style={styles.errorText}>Some words are incorrect. Try again.</Text>
         )}
-      </View>
+
+        <Button
+          label={isCorrect ? 'Complete Verification' : 'Confirm'}
+          onPress={allAnswered && isCorrect ? onComplete : undefined}
+          disabled={!allAnswered || !isCorrect}
+        />
+      </ScrollView>
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.black, paddingTop: Spacing.md },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginLeft: Spacing.md },
-  content: { flex: 1, padding: Spacing.lg },
+  container: { flex: 1, backgroundColor: Colors.black },
+  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginLeft: Spacing.md, marginTop: Spacing.sm },
+  scrollContent: { padding: Spacing.lg, paddingBottom: Spacing.xxl },
+
   title: { fontSize: FontSize.xl, color: Colors.white, fontWeight: FontWeight.bold, textAlign: 'center', marginTop: Spacing.md },
   subtitle: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', marginTop: Spacing.xs },
   prompts: { gap: Spacing.sm, marginVertical: Spacing.xl },
@@ -139,5 +144,5 @@ const styles = StyleSheet.create({
   wordChipUsed: { opacity: 0.3, backgroundColor: Colors.midGrey },
   wordChipText: { fontSize: FontSize.sm, color: Colors.white, fontWeight: FontWeight.medium },
   wordChipTextUsed: { color: Colors.mutedWhite },
-  errorText: { fontSize: FontSize.sm, color: Colors.danger, textAlign: 'center', marginTop: Spacing.sm },
+  errorText: { fontSize: FontSize.sm, color: Colors.danger, textAlign: 'center', marginBottom: Spacing.md },
 })

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { View, Text, StyleSheet, Animated, ScrollView, useWindowDimensions } from 'react-native'
+import { View, Text, StyleSheet, Animated, ScrollView } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
@@ -18,14 +18,7 @@ const features = [
   { icon: 'cube-outline' as const, label: 'Stellar Blockchain', desc: 'Fast, low-cost global payments on the Stellar network' },
 ]
 
-const SCALE_BREAKPOINT = 360
-
 export function WelcomeScreen({ onCreateWallet, onImportWallet }: WelcomeScreenProps) {
-  const { width, height } = useWindowDimensions()
-  const isSmall = width < SCALE_BREAKPOINT
-  const scale = Math.min(width / 430, 1.15)
-  const logoSize = Math.round(80 * Math.min(scale, 1))
-
   const fadeIn = useRef(new Animated.Value(0)).current
   const scaleIn = useRef(new Animated.Value(0.85)).current
   const slideUp = useRef(new Animated.Value(30)).current
@@ -55,14 +48,7 @@ export function WelcomeScreen({ onCreateWallet, onImportWallet }: WelcomeScreenP
         locations={[0.5, 1]}
         style={StyleSheet.absoluteFill}
       />
-      <LinearGradient
-        colors={[Colors.gold + '00', Colors.gold + '08', Colors.gold + '00']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[StyleSheet.absoluteFill, { opacity: 0.5 }]}
-      />
-
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView edges={['top', 'bottom']} style={styles.safe}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -71,18 +57,18 @@ export function WelcomeScreen({ onCreateWallet, onImportWallet }: WelcomeScreenP
         >
           <Animated.View style={[styles.content, { opacity: fadeIn }]}>
             <Animated.View style={[styles.hero, { transform: [{ scale: scaleIn }] }]}>
-              <Animated.View style={[styles.glowRing, { opacity: glowOpacity, width: logoSize * 1.75, height: logoSize * 1.75, borderRadius: logoSize * 1.75 / 2, left: width / 2 - logoSize * 1.75 / 2 }]} />
-              <View style={[styles.logoWrap, { width: logoSize + 40, height: logoSize + 40, borderRadius: (logoSize + 40) / 2 }]}>
-                <NoirLogo variant="mark" size={logoSize} />
+              <Animated.View style={[styles.glowRing, { opacity: glowOpacity }]} />
+              <View style={styles.logoWrap}>
+                <NoirLogo variant="mark" size={72} />
               </View>
-              <Text style={[styles.brand, isSmall && styles.brandSmall]}>NOIR</Text>
+              <Text style={styles.brand}>NOIR</Text>
               <Text style={styles.tagline}>TAP INTO TRUST</Text>
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
                 <View style={styles.dividerDot} />
                 <View style={styles.dividerLine} />
               </View>
-              <Text style={[styles.subtitle, isSmall && styles.subtitleSmall]}>
+              <Text style={styles.subtitle}>
                 The first NFC-powered wallet on Stellar. Tap your card. Pay with agents. Own your assets.
               </Text>
             </Animated.View>
@@ -91,11 +77,11 @@ export function WelcomeScreen({ onCreateWallet, onImportWallet }: WelcomeScreenP
               {features.map((f, i) => (
                 <View key={i} style={styles.featureRow}>
                   <View style={styles.featureIcon}>
-                    <Ionicons name={f.icon} size={isSmall ? 18 : 20} color={Colors.gold} />
+                    <Ionicons name={f.icon} size={20} color={Colors.gold} />
                   </View>
                   <View style={styles.featureText}>
-                    <Text style={[styles.featureLabel, isSmall && styles.featureLabelSmall]}>{f.label}</Text>
-                    <Text style={[styles.featureDesc, isSmall && styles.featureDescSmall]}>{f.desc}</Text>
+                    <Text style={styles.featureLabel}>{f.label}</Text>
+                    <Text style={styles.featureDesc}>{f.desc}</Text>
                   </View>
                 </View>
               ))}
@@ -122,10 +108,12 @@ const styles = StyleSheet.create({
   hero: { alignItems: 'center', position: 'relative' },
   glowRing: {
     position: 'absolute',
-    top: -10,
+    top: -10, alignSelf: 'center',
+    width: 120, height: 120, borderRadius: 60,
     backgroundColor: Colors.gold,
   },
   logoWrap: {
+    width: 110, height: 110, borderRadius: 55,
     backgroundColor: Colors.gold + '10',
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: Colors.gold + '20',
@@ -140,7 +128,6 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,
   },
-  brandSmall: { fontSize: FontSize.xxl, letterSpacing: 8 },
   tagline: {
     fontSize: FontSize.xs,
     color: Colors.gold,
@@ -160,7 +147,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     paddingHorizontal: Spacing.md,
   },
-  subtitleSmall: { fontSize: FontSize.xs, lineHeight: 18, paddingHorizontal: 0 },
 
   features: { gap: Spacing.md },
   featureRow: {
@@ -175,9 +161,7 @@ const styles = StyleSheet.create({
   },
   featureText: { flex: 1 },
   featureLabel: { fontSize: FontSize.md, color: Colors.cream, fontWeight: FontWeight.semibold },
-  featureLabelSmall: { fontSize: FontSize.sm },
   featureDesc: { fontSize: FontSize.xs, color: Colors.mutedWhite, marginTop: 2 },
-  featureDescSmall: { fontSize: 11 },
 
   actions: { gap: Spacing.md },
 })
