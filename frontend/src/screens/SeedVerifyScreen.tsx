@@ -118,7 +118,7 @@ export function SeedVerifyScreen({ phrase, onComplete, onBack }: SeedVerifyScree
 
         <Button
           label={isCorrect ? 'Complete Verification' : 'Confirm'}
-          onPress={allAnswered && isCorrect ? onComplete : undefined}
+          onPress={onComplete}
           disabled={!allAnswered || !isCorrect}
         />
       </ScrollView>
