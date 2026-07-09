@@ -1,6 +1,6 @@
 use sqlx::PgPool;
 use crate::errors::{PaymentError, Result};
-use crate::models::{Device, DailySpend, PaymentTransaction, FeeChannel};
+use crate::models::{Device, DailySpend, PaymentTransaction, FeeChannel, Merchant, AppUser, TransactionNotification};
 
 #[derive(Clone)]
 pub struct DeviceRepository {
@@ -308,5 +308,145 @@ impl DeviceRepository {
         .fetch_all(&self.pool)
         .await
         .map_err(|e| PaymentError::DatabaseError(e.to_string()))
+    }
+
+    // ── Merchant queries ──────────────────────────────────────────────────
+    // `config_encrypted` is bound as raw bytes here and never selected back
+    // into the Merchant model — decrypt it explicitly via crypto::decrypt_at_rest
+    // when a caller actually needs the plaintext config.
+
+    pub async fn create_merchant(
+        &self,
+        merchant_uuid: &str,
+        business_name: &str,
+        settlement_wallet: &str,
+        config_encrypted: Option<&[u8]>,
+        config_key_version: i32,
+    ) -> Result<i64> {
+        let row: (i64,) = sqlx::query_as(
+            "INSERT INTO merchants (merchant_uuid, business_name, settlement_wallet, config_encrypted, config_key_version)
+             VALUES ($1, $2, $3, $4, $5) RETURNING id"
+        )
+        .bind(merchant_uuid)
+        .bind(business_name)
+        .bind(settlement_wallet)
+        .bind(config_encrypted)
+        .bind(config_key_version)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+
+        Ok(row.0)
+    }
+
+    pub async fn get_merchant_by_uuid(&self, merchant_uuid: &str) -> Result<Merchant> {
+        sqlx::query_as::<_, Merchant>(
+            "SELECT id, merchant_uuid, business_name, settlement_wallet, status, config_key_version, created_at, updated_at
+             FROM merchants WHERE merchant_uuid = $1"
+        )
+        .bind(merchant_uuid)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?
+        .ok_or(PaymentError::DatabaseError("Merchant not found".to_string()))
+    }
+
+    // ── App user queries ─────────────────────────────────────────────────
+    // `entropy_seed_encrypted` is bound as raw bytes here and never selected
+    // back into the AppUser model, matching the merchant config pattern above.
+
+    pub async fn create_app_user(
+        &self,
+        user_uuid: &str,
+        wallet_address: &str,
+        identity_hash: &str,
+        entropy_seed_encrypted: &[u8],
+        seed_key_version: i32,
+    ) -> Result<i64> {
+        let row: (i64,) = sqlx::query_as(
+            "INSERT INTO app_users (user_uuid, wallet_address, identity_hash, entropy_seed_encrypted, seed_key_version)
+             VALUES ($1, $2, $3, $4, $5) RETURNING id"
+        )
+        .bind(user_uuid)
+        .bind(wallet_address)
+        .bind(identity_hash)
+        .bind(entropy_seed_encrypted)
+        .bind(seed_key_version)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+
+        Ok(row.0)
+    }
+
+    pub async fn get_app_user_by_wallet(&self, wallet_address: &str) -> Result<AppUser> {
+        sqlx::query_as::<_, AppUser>(
+            "SELECT id, user_uuid, wallet_address, identity_hash, seed_key_version, status, created_at
+             FROM app_users WHERE wallet_address = $1"
+        )
+        .bind(wallet_address)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?
+        .ok_or(PaymentError::DatabaseError("App user not found".to_string()))
+    }
+
+    // ── Transaction notification (ephemeral UI cache) queries ───────────
+    // Distinct from payment_transactions (the permanent audit log): these
+    // rows exist only to power real-time client notifications and are
+    // pruned continuously by workers::NotificationPruner.
+
+    pub async fn insert_transaction_notification(
+        &self,
+        device_hash: &str,
+        payment_transaction_id: Option<i64>,
+        status: &str,
+        amount_stroops: i64,
+        payload: serde_json::Value,
+        ttl_secs: i64,
+    ) -> Result<()> {
+        sqlx::query(
+            "INSERT INTO transaction_notifications (device_hash, payment_transaction_id, status, amount_stroops, payload, expires_at)
+             VALUES ($1, $2, $3, $4, $5, NOW() + make_interval(secs => $6))"
+        )
+        .bind(device_hash)
+        .bind(payment_transaction_id)
+        .bind(status)
+        .bind(amount_stroops)
+        .bind(payload)
+        .bind(ttl_secs as f64)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+
+        Ok(())
+    }
+
+    pub async fn get_active_notifications_for_device(
+        &self,
+        device_hash: &str,
+        limit: i64,
+    ) -> Result<Vec<TransactionNotification>> {
+        sqlx::query_as::<_, TransactionNotification>(
+            "SELECT id, device_hash, payment_transaction_id, status, amount_stroops, payload, created_at, expires_at
+             FROM transaction_notifications
+             WHERE device_hash = $1 AND expires_at > NOW()
+             ORDER BY created_at DESC
+             LIMIT $2"
+        )
+        .bind(device_hash)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))
+    }
+
+    pub async fn prune_expired_notifications(&self) -> Result<u64> {
+        let result = sqlx::query("DELETE FROM transaction_notifications WHERE expires_at < NOW()")
+            .execute(&self.pool)
+            .await
+            .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+
+        Ok(result.rows_affected())
     }
 }

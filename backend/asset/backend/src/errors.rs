@@ -22,6 +22,9 @@ pub enum PaymentError {
     
     #[error("Stellar RPC error: {0}")]
     StellarRpcError(String),
+
+    #[error("PDAX API error: {0}")]
+    PdaxApiError(String),
     
     #[error("Transaction sequence number conflict")]
     SequenceNumberConflict,
@@ -40,6 +43,9 @@ pub enum PaymentError {
 
     #[error("Rate limit exceeded — too many requests")]
     RateLimited,
+
+    #[error("Encryption error: {0}")]
+    EncryptionError(String),
 }
 
 #[derive(Serialize)]
@@ -71,10 +77,12 @@ impl ResponseError for PaymentError {
             }
             PaymentError::DatabaseError(_)
             | PaymentError::StellarRpcError(_)
+            | PaymentError::PdaxApiError(_)
             | PaymentError::SequenceNumberConflict
             | PaymentError::SubmissionFailed(_)
             | PaymentError::InternalError
-            | PaymentError::ConfigError(_) => {
+            | PaymentError::ConfigError(_)
+            | PaymentError::EncryptionError(_) => {
                 HttpResponse::InternalServerError().json(error_response)
             }
         }
@@ -103,12 +111,14 @@ impl PaymentError {
             PaymentError::InvalidPayload(_) => "INVALID_PAYLOAD".to_string(),
             PaymentError::DatabaseError(_) => "DATABASE_ERROR".to_string(),
             PaymentError::StellarRpcError(_) => "STELLAR_RPC_ERROR".to_string(),
+            PaymentError::PdaxApiError(_) => "PDAX_API_ERROR".to_string(),
             PaymentError::SequenceNumberConflict => "SEQUENCE_CONFLICT".to_string(),
             PaymentError::SubmissionFailed(_) => "SUBMISSION_FAILED".to_string(),
             PaymentError::InternalError => "INTERNAL_ERROR".to_string(),
             PaymentError::ConfigError(_) => "CONFIG_ERROR".to_string(),
             PaymentError::InsufficientFunds => "INSUFFICIENT_FUNDS".to_string(),
             PaymentError::RateLimited => "RATE_LIMITED".to_string(),
+            PaymentError::EncryptionError(_) => "ENCRYPTION_ERROR".to_string(),
         }
     }
 }
