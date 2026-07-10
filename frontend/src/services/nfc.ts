@@ -141,6 +141,16 @@ class NFCService {
       } catch {}
     }
   }
+
+  async cleanup(): Promise<void> {
+    if (!NfcManager) return
+    try {
+      await NfcManager.cancelTechnologyRequest()
+      NfcManager.setEventListener('NfcManagerDiscoverTag', null)
+      NfcManager.setEventListener('NfcManagerSessionClosed', null)
+    } catch {}
+    this.initialized = false
+  }
 }
 
 export const nfcService = new NFCService()
