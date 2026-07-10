@@ -30,7 +30,7 @@ use config::Config;
 use db::DeviceRepository;
 use channels::ChannelManager;
 use state::AppState;
-use workers::{ConfirmationPoller, ContractSyncWorker, ChannelMonitor};
+use workers::{ConfirmationPoller, ContractSyncWorker, ChannelMonitor, NotificationPruner};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -122,6 +122,10 @@ async fn main() -> std::io::Result<()> {
         topup,
     );
     task::spawn(async move { monitor.run().await });
+
+    // Spawn notification pruner (keeps the ephemeral UI notification cache ephemeral)
+    let pruner = NotificationPruner::new(db.clone(), config.notification_prune_interval_secs);
+    task::spawn(async move { pruner.run().await });
 
     let channel_manager_data = web::Data::new(channel_manager.clone());
     let max_body = config.max_request_body_bytes;

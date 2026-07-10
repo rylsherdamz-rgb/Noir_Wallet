@@ -310,3 +310,162 @@ async fn test_active_channels_ordered_by_balance() {
     // Cleanup
     sqlx::query("DELETE FROM fee_channels WHERE channel_address IN ($1, $2)").bind(addr1).bind(addr2).execute(&pool).await.ok();
 }
+
+// ── Merchant / app user tests (TSK-204) ──────────────────────────────────
+
+#[tokio::test]
+async fn test_create_and_fetch_merchant() {
+    let pool = test_pool().await;
+    let repo = noir_backend::db::DeviceRepository::new(pool.clone());
+    let merchant_uuid = uuid::Uuid::new_v4().to_string();
+    let wallet = format!("GMERCH{}", uuid::Uuid::new_v4().simple());
+
+    let id = repo
+        .create_merchant(&merchant_uuid, "Test Merchant Co", &wallet, None, 1)
+        .await
+        .expect("Failed to create merchant");
+    assert!(id > 0);
+
+    let merchant = repo
+        .get_merchant_by_uuid(&merchant_uuid)
+        .await
+        .expect("Failed to fetch merchant");
+    assert_eq!(merchant.business_name, "Test Merchant Co");
+    assert_eq!(merchant.settlement_wallet, wallet);
+    assert_eq!(merchant.status, "active");
+
+    // Cleanup
+    sqlx::query("DELETE FROM merchants WHERE merchant_uuid = $1").bind(&merchant_uuid).execute(&pool).await.ok();
+}
+
+#[tokio::test]
+async fn test_create_and_fetch_app_user() {
+    let pool = test_pool().await;
+    let repo = noir_backend::db::DeviceRepository::new(pool.clone());
+    let user_uuid = uuid::Uuid::new_v4().to_string();
+    let wallet = format!("GUSER{}", uuid::Uuid::new_v4().simple());
+    let identity_hash = format!("{}{}", uuid::Uuid::new_v4().simple(), uuid::Uuid::new_v4().simple());
+
+    let id = repo
+        .create_app_user(&user_uuid, &wallet, &identity_hash, b"dummy-encrypted-seed", 1)
+        .await
+        .expect("Failed to create app user");
+    assert!(id > 0);
+
+    let user = repo
+        .get_app_user_by_wallet(&wallet)
+        .await
+        .expect("Failed to fetch app user");
+    assert_eq!(user.user_uuid, user_uuid);
+    assert_eq!(user.status, "active");
+
+    // Cleanup
+    sqlx::query("DELETE FROM app_users WHERE user_uuid = $1").bind(&user_uuid).execute(&pool).await.ok();
+}
+
+// ── Transaction notification (ephemeral UI cache) tests ─────────────────
+
+#[tokio::test]
+async fn test_notification_lifecycle_active_then_pruned() {
+    let pool = test_pool().await;
+    let repo = noir_backend::db::DeviceRepository::new(pool.clone());
+    let hash = "test_device_notif_001";
+    let wallet = "GABC5555555555555555555555555555555555555555555555555555";
+
+    insert_device(&pool, hash, wallet).await;
+
+    // Long-lived notification: should show up as active.
+    repo.insert_transaction_notification(
+        hash,
+        None,
+        "confirmed",
+        1_000_000,
+        serde_json::json!({"message": "payment confirmed"}),
+        300,
+    )
+    .await
+    .expect("Failed to insert notification");
+
+    let active = repo
+        .get_active_notifications_for_device(hash, 10)
+        .await
+        .expect("Failed to fetch active notifications");
+    assert_eq!(active.len(), 1);
+    assert_eq!(active[0].status, "confirmed");
+
+    // Already-expired notification: must not appear as active, and must be
+    // removed by the pruning sweep.
+    repo.insert_transaction_notification(
+        hash,
+        None,
+        "confirmed",
+        1_000_000,
+        serde_json::json!({"message": "stale"}),
+        -1,
+    )
+    .await
+    .expect("Failed to insert expired notification");
+
+    let active_after = repo
+        .get_active_notifications_for_device(hash, 10)
+        .await
+        .expect("Failed to fetch active notifications");
+    assert_eq!(active_after.len(), 1, "expired row must not count as active");
+
+    let pruned = repo.prune_expired_notifications().await.expect("Prune failed");
+    assert!(pruned >= 1);
+
+    let remaining: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM transaction_notifications WHERE device_hash = $1"
+    )
+    .bind(hash)
+    .fetch_one(&pool)
+    .await
+    .expect("Count query failed");
+    assert_eq!(remaining.0, 1, "only the still-active row should remain after pruning");
+
+    // Cleanup
+    sqlx::query("DELETE FROM transaction_notifications WHERE device_hash = $1").bind(hash).execute(&pool).await.ok();
+    sqlx::query("DELETE FROM devices WHERE device_hash = $1").bind(hash).execute(&pool).await.ok();
+}
+
+// ── Device hash index optimization tests ─────────────────────────────────
+//
+// These assert against pg_indexes rather than an EXPLAIN plan shape: on a
+// near-empty test database the planner will happily seq-scan a tiny devices
+// table regardless of which indexes exist, so a plan-shape assertion would
+// be flaky. What we actually need to guarantee is that the migration left
+// the schema in the intended state — no redundant index alongside the
+// UNIQUE constraint, and the new covering index present with the expected
+// definition.
+
+#[tokio::test]
+async fn test_duplicate_device_hash_index_removed() {
+    let pool = test_pool().await;
+
+    let exists: (bool,) = sqlx::query_as(
+        "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_devices_device_hash')"
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("pg_indexes query failed");
+
+    assert!(!exists.0, "idx_devices_device_hash should have been dropped as redundant with the UNIQUE constraint");
+}
+
+#[tokio::test]
+async fn test_covering_index_present_on_device_hash() {
+    let pool = test_pool().await;
+
+    let row: Option<(String,)> = sqlx::query_as(
+        "SELECT indexdef FROM pg_indexes WHERE indexname = 'idx_devices_hash_covering'"
+    )
+    .fetch_optional(&pool)
+    .await
+    .expect("pg_indexes query failed");
+
+    let indexdef = row.expect("idx_devices_hash_covering should exist").0;
+    assert!(indexdef.contains("device_hash"));
+    assert!(indexdef.contains("INCLUDE"));
+    assert!(indexdef.to_lowercase().contains("where"), "covering index should be partial (status = 'active')");
+}
