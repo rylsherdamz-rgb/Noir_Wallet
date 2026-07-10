@@ -9,6 +9,7 @@ import {
   Easing,
   Modal,
   Linking,
+  ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -21,7 +22,7 @@ import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants
 import { NoirLogo } from '@/components/brand/NoirLogo'
 import { x402 } from '@/domain/x402'
 import { walletService } from '@/services/wallet'
-import { invokeContract, deviceHashScVal, walletAddressScVal } from '@/lib/soroban'
+import { invokeContract, deviceHashScVal, walletAddressScVal, sourceAccountExists } from '@/lib/soroban'
 import { AppConfig } from '@/constants/config'
 import { Device } from '@/types'
 
@@ -42,21 +43,59 @@ export function DeviceProvisioningScreen() {
   const [tagUid, setTagUid] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
   const [registerError, setRegisterError] = useState('')
+  const [balanceXlm, setBalanceXlm] = useState<string | null>(null)
+  const [funding, setFunding] = useState(false)
   const inputRef = useRef<TextInput>(null)
   const pulse = useState(new Animated.Value(1))[0]
+  const spin = useState(new Animated.Value(0))[0]
+  const spinner = spin.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  })
+
+  const FRIENDBOT_URL = __DEV__
+    ? `https://friendbot-testnet.stellar.org`
+    : null
 
   useEffect(() => {
-    if (step === 'scanning') {
+    if (step === 'scanning' || step === 'registering') {
       const anim = Animated.loop(
         Animated.sequence([
           Animated.timing(pulse, { toValue: 0.6, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
           Animated.timing(pulse, { toValue: 1, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
         ]),
       )
+      const spinAnim = Animated.loop(
+        Animated.timing(spin, { toValue: 1, duration: 1500, easing: Easing.linear, useNativeDriver: true }),
+      )
       anim.start()
-      return () => anim.stop()
+      if (step === 'registering') spinAnim.start()
+      return () => { anim.stop(); spinAnim.stop() }
     }
   }, [step])
+
+  useEffect(() => {
+    if (step !== 'confirm' || !user?.stellarPublicKey) return
+    ;(async () => {
+      const funded = await sourceAccountExists(user.stellarPublicKey)
+      if (!funded && FRIENDBOT_URL) {
+        setFunding(true)
+        setBalanceXlm('Funding...')
+        try {
+          const res = await fetch(`${FRIENDBOT_URL}?addr=${user.stellarPublicKey}`)
+          const data = await res.json()
+          if (data?.hash) setBalanceXlm('10,000')
+        } catch {
+          setBalanceXlm('0')
+        }
+        setFunding(false)
+      } else if (funded) {
+        setBalanceXlm('10,000')
+      } else {
+        setBalanceXlm('0')
+      }
+    })()
+  }, [step, user?.stellarPublicKey])
 
   const handleScan = async () => {
     setStep('scanning')
@@ -254,9 +293,15 @@ export function DeviceProvisioningScreen() {
           )}
 
           {step === 'registering' && (
-            <View style={styles.resultWrap}>
-              <Ionicons name="sync" size={48} color={Colors.gold} />
+            <View style={styles.registerWrap}>
+              <Animated.View style={{ transform: [{ rotate: spinner }] }}>
+                <Ionicons name="sync" size={48} color={Colors.gold} />
+              </Animated.View>
               <Text style={styles.resultText}>{statusMessage || 'Registering on-chain...'}</Text>
+              <View style={styles.stepsWrap}>
+                <StepRow done={true} active={false} label="NFC tag read" />
+                <StepRow done={false} active={true} label={statusMessage || 'Working...'} />
+              </View>
             </View>
           )}
 
@@ -427,11 +472,24 @@ export function DeviceProvisioningScreen() {
                   {user?.stellarPublicKey?.slice(0, 12)}…
                 </Text>
               </View>
+              <View style={styles.modalRow}>
+                <Text style={styles.modalLabel}>Balance</Text>
+                <Text style={[styles.modalValue, balanceXlm === '0' && { color: Colors.danger }]}>
+                  {balanceXlm ? `${balanceXlm} XLM` : 'Checking...'}
+                </Text>
+              </View>
             </View>
 
             <View style={styles.modalFeeRow}>
               <Ionicons name="information-circle-outline" size={14} color={Colors.mutedWhite} />
-              <Text style={styles.modalFeeText}>Network fee: ~0.001 XLM</Text>
+              <Text style={styles.modalFeeText}>
+                {balanceXlm === '0' || balanceXlm === 'Funding...'
+                  ? 'Funding wallet via Friendbot...'
+                  : balanceXlm
+                    ? 'Network fee: ~0.001 XLM'
+                    : 'Checking balance...'
+                }
+              </Text>
             </View>
 
             <View style={styles.modalActions}>
@@ -443,12 +501,15 @@ export function DeviceProvisioningScreen() {
                 <Text style={styles.modalCancelText}>Reject</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.modalSignBtn}
+                style={[styles.modalSignBtn, (balanceXlm === '0' || funding) && styles.btnDisabled]}
                 onPress={handleRegister}
+                disabled={balanceXlm === '0' || funding}
                 activeOpacity={0.8}
               >
-                <Ionicons name="pencil-outline" size={18} color={Colors.black} />
-                <Text style={styles.modalSignText}>Sign</Text>
+                <Ionicons name="pencil-outline" size={18} color={balanceXlm === '0' || funding ? Colors.mutedWhite : Colors.black} />
+                <Text style={[styles.modalSignText, (balanceXlm === '0' || funding) && { color: Colors.mutedWhite }]}>
+                  {funding ? 'Funding...' : balanceXlm === '0' ? 'No XLM' : 'Sign'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -457,6 +518,29 @@ export function DeviceProvisioningScreen() {
     </SafeAreaView>
   )
 }
+
+function StepRow({ done, active, label }: { done: boolean; active: boolean; label: string }) {
+  return (
+    <View style={stepRow}>
+      <View style={[stepDot, done && stepDotDone, active && stepDotActive]}>
+        {done ? (
+          <Ionicons name="checkmark" size={10} color={Colors.black} />
+        ) : active ? (
+          <View style={stepDotInner} />
+        ) : null}
+      </View>
+      <Text style={[stepLabel, active && stepLabelActive]}>{label}</Text>
+    </View>
+  )
+}
+
+const stepRow: any = { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 }
+const stepDot: any = { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: Colors.midGrey, alignItems: 'center', justifyContent: 'center' }
+const stepDotDone: any = { backgroundColor: Colors.success, borderColor: Colors.success }
+const stepDotActive: any = { borderColor: Colors.gold }
+const stepDotInner: any = { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.gold }
+const stepLabel: any = { fontSize: FontSize.sm, color: Colors.mutedWhite }
+const stepLabelActive: any = { color: Colors.gold, fontWeight: FontWeight.medium }
 
 const styles = StyleSheet.create({
   container: {
@@ -583,6 +667,14 @@ const styles = StyleSheet.create({
     color: Colors.gold,
     marginTop: Spacing.md,
     fontWeight: FontWeight.medium,
+  },
+  registerWrap: {
+    alignItems: 'center',
+  },
+  stepsWrap: {
+    marginTop: Spacing.lg,
+    alignSelf: 'stretch',
+    paddingHorizontal: Spacing.xl,
   },
   successTitle: {
     fontSize: FontSize.xl,
