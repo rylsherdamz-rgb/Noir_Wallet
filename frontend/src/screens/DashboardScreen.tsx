@@ -11,7 +11,7 @@ import { DesignTokens, colorWithOpacity } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { TestnetFaucetBanner } from '@/components/TestnetFaucetBanner'
 import { apiService } from '@/services/api'
-import { stellarService } from '@/services/stellar'
+import { stellarService } from '@/services/stellar-service'
 import { fxRateService } from '@/services/fxRates'
 
 type NetworkType = 'mainnet' | 'testnet'

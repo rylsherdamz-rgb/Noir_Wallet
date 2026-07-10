@@ -17,7 +17,7 @@ import { Toast } from '@/components/Toast'
 import { useAppStore } from '@/store/useAppStore'
 import { AppConfig } from '@/constants/config'
 import { apiService } from '@/services/api'
-import { stellarService } from '@/services/stellar'
+import { stellarService } from '@/services/stellar-service'
 import { fxRateService } from '@/services/fxRates'
 
 export function BlockchainScreen() {
@@ -64,7 +64,7 @@ export function BlockchainScreen() {
   const handleFund = useCallback(async () => {
     if (!user?.stellarPublicKey) return
     setFunding(true)
-    const success = await stellarService.fundTestnetAccount(user.stellarPublicKey)
+    const success = await stellarService.fundAccount(user.stellarPublicKey)
     if (success) {
       setToast({ visible: true, type: 'success', title: 'Funded!', message: '10,000 XLM sent to your wallet' })
       await refreshBalances()

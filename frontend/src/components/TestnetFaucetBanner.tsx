@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { useAppStore } from '@/store/useAppStore'
-import { stellarService } from '@/services/stellar'
+import { stellarService } from '@/services/stellar-service'
 import { fxRateService } from '@/services/fxRates'
 
 export function TestnetFaucetBanner() {
@@ -18,7 +18,7 @@ export function TestnetFaucetBanner() {
   const handleFund = async () => {
     if (!user?.stellarPublicKey) return
     setFunding(true)
-    const success = await stellarService.fundTestnetAccount(user.stellarPublicKey)
+    const success = await stellarService.fundAccount(user.stellarPublicKey)
     if (success) {
       const onChain = await stellarService.getBalance(user.stellarPublicKey)
       const rates = await fxRateService.getRates()

@@ -13,7 +13,6 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { Keypair } from '@stellar/stellar-sdk'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { Buffer } from 'buffer'
 import { useNfc } from '@/hooks/useNfc'
@@ -22,7 +21,7 @@ import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants
 import { NoirLogo } from '@/components/brand/NoirLogo'
 import { x402 } from '@/domain/x402'
 import { walletService } from '@/services/wallet'
-import { invokeContract, deviceHashScVal, walletAddressScVal, sourceAccountExists } from '@/lib/soroban'
+import { stellarService } from '@/services/stellar-service'
 import { AppConfig } from '@/constants/config'
 import { Device } from '@/types'
 
@@ -77,22 +76,20 @@ export function DeviceProvisioningScreen() {
   useEffect(() => {
     if (step !== 'confirm' || !user?.stellarPublicKey) return
     ;(async () => {
-      const funded = await sourceAccountExists(user.stellarPublicKey)
-      if (!funded && FRIENDBOT_URL) {
+      const funded = await stellarService.accountExists(user.stellarPublicKey)
+      if (!funded) {
         setFunding(true)
         setBalanceXlm('Funding...')
-        try {
-          const res = await fetch(`${FRIENDBOT_URL}?addr=${user.stellarPublicKey}`)
-          const data = await res.json()
-          if (data?.hash) setBalanceXlm('10,000')
-        } catch {
+        const ok = await stellarService.fundAccount(user.stellarPublicKey)
+        if (ok) {
+          await stellarService.waitForAccount(user.stellarPublicKey)
+          setBalanceXlm('10,000')
+        } else {
           setBalanceXlm('0')
         }
         setFunding(false)
-      } else if (funded) {
-        setBalanceXlm('10,000')
       } else {
-        setBalanceXlm('0')
+        setBalanceXlm('10,000')
       }
     })()
   }, [step, user?.stellarPublicKey])
@@ -145,24 +142,19 @@ export function DeviceProvisioningScreen() {
         setStatusMessage('Loading wallet keys...')
         const keys = await walletService.loadKeys()
         if (keys?.stellarSecret) {
-          const keypair = Keypair.fromSecret(keys.stellarSecret)
-
           setStatusMessage('Hashing device UID...')
           const hash = sha256(new TextEncoder().encode(tagUid))
           const hashHex = Buffer.from(hash.buffer, hash.byteOffset, hash.byteLength).toString('hex')
 
-          const args = [
-            deviceHashScVal(hashHex),
-            walletAddressScVal(keys.stellarPublic),
-          ]
-
           setStatusMessage('Submitting to Stellar...')
-          await invokeContract({
+          await stellarService.invokeContract({
             contractId,
             method: 'register',
-            args,
-            source: keys.stellarPublic,
-            signer: keypair,
+            args: [
+              stellarService.deviceHashScVal(hashHex),
+              stellarService.walletAddressScVal(keys.stellarPublic),
+            ],
+            signerSecret: keys.stellarSecret,
           })
 
           setStatusMessage('Confirmed on-chain!')

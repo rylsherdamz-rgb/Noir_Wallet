@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { readContract, sourceAccountExists, deviceHashScVal } from '@/lib/soroban'
+import { stellarService } from '@/services/stellar-service'
 import { AppConfig } from '@/constants/config'
 import { useAppStore } from '@/store/useAppStore'
 
@@ -25,7 +25,7 @@ export function useProfile() {
     ;(async () => {
       setState({ loading: true, error: null, walletExists: false })
       try {
-        const exists = await sourceAccountExists(user.stellarPublicKey)
+        const exists = await stellarService.accountExists(user.stellarPublicKey)
         if (cancelled) return
         setState({ loading: false, error: null, walletExists: exists })
       } catch (err: any) {
@@ -49,10 +49,10 @@ export function useProfile() {
         return null
       }
       try {
-        const result = await readContract({
+        const result = await stellarService.readContract({
           contractId: AppConfig.stellar.deviceRegistryContract,
           method: 'get_wallet',
-          args: [deviceHashScVal(deviceHash)],
+          args: [stellarService.deviceHashScVal(deviceHash)],
           source: user.stellarPublicKey,
         })
         return result.toString()

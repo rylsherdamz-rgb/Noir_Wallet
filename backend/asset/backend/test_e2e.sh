@@ -80,6 +80,10 @@ BEGIN
 
     INSERT INTO fee_channels (channel_address, private_key_encrypted, balance_stroops, status)
     VALUES ('GACWMI576Q5IUHLS75LEYEF3NQWRQAGOC74NYGSZ3LSEM3P5YZHYZZAG', '\x1234'::bytea, 50000000, 'active');
+
+    -- Second device for /payments/initiate test (unique serial, different hash → no rate limit collision)
+    INSERT INTO devices (device_hash, wallet_address, status, daily_limit_stroops)
+    VALUES (encode(sha256('SN-INITIATE-UNIQUE-999'::bytea), 'hex'), 'GBQKFPHDMZNXWVXQFBFWWWQSDK3HYEHUVA7YHXC7QKCYJF5MZBWPPQTA', 'active', 1000000000);
 END $$;
 SEEDSQL
 pass "Seed test data"
@@ -224,12 +228,12 @@ fi
 echo ""
 echo "── Step 4: Test frontend API endpoints ───────────────────────────"
 
-# 4a. POST /payments/initiate
+# 4a. POST /payments/initiate (unique device serial to avoid rate limit from burst test)
 echo "  Testing POST /payments/initiate..."
 FP_RESP=$(curl -s -X POST "http://${BASE_URL}/payments/initiate" \
     -H "Content-Type: application/json" \
     -d "{
-        \"raw_device_uid\": \"${TEST_DEVICE_SERIAL}\",
+        \"raw_device_uid\": \"SN-INITIATE-UNIQUE-999\",
         \"merchant_public_key\": \"GBQKFPHDMZNXWVXQFBFWWWQSDK3HYEHUVA7YHXC7QKCYJF5MZBWPPQTA\",
         \"amount_cents\": 5000,
         \"asset_code\": \"USDC\"
@@ -302,4 +306,19 @@ PCI_RESP=$(curl -s -X POST "http://${BASE_URL}/pdax/cash-in" \
     -d '{"amount_cents":100000}')
 PCI_REF=$(echo "$PCI_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('reference',''))" 2>/dev/null || echo "")
 if [ -n "$PCI_REF" ]; then
-    pass "POST /pdax/cash-in → ref: ${PCI_REF:0:12                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+    pass "POST /pdax/cash-in ref: OK"
+else
+    fail "POST /pdax/cash-in: $PCI_RESP"
+fi
+
+# 4h. POST /pdax/cash-out
+echo "  Testing POST /pdax/cash-out..."
+PCO_RESP=$(curl -s -X POST "http://${BASE_URL}/pdax/cash-out" \
+    -H "Content-Type: application/json" \
+    -d '{"amount_cents":50000}')
+PCO_REF=$(echo "$PCO_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('reference',''))" 2>/dev/null || echo "")
+if [ -n "$PCO_REF" ]; then
+    pass "POST /pdax/cash-out ref: OK"
+else
+    fail "POST /pdax/cash-out: $PCO_RESP"
+fi                                                                                                                                                                                                                                                                                                                                          
