@@ -73,34 +73,39 @@ class NFCService {
   }
 
   async readTag(timeoutMs = 5000): Promise<NFCTag | null> {
-    if (!NfcManager || !NfcTech) return null
-    const timer = setTimeout(() => {
-      NfcManager.cancelTechnologyRequest().catch(() => {})
-    }, timeoutMs)
-    try {
-      const techs = [NfcTech.Ndef, NfcTech.NfcA, NfcTech.IsoDep]
-      await NfcManager.requestTechnology(techs, {
-        alertMessage:
-          'Tap your RFID sticker or NFC card against the back of your phone',
+    if (!NfcManager || !NfcEvents) return null
+
+    return new Promise((resolve) => {
+      const timer = setTimeout(async () => {
+        NfcManager.setEventListener(NfcEvents.DiscoverTag, null)
+        await NfcManager.unregisterTagEvent().catch(() => {})
+        resolve(null)
+      }, timeoutMs)
+
+      NfcManager.setEventListener(NfcEvents.DiscoverTag, async (tag: any) => {
+        clearTimeout(timer)
+        NfcManager.setEventListener(NfcEvents.DiscoverTag, null)
+        await NfcManager.unregisterTagEvent().catch(() => {})
+        const uid = typeof tag?.id === 'string' ? tag.id : tag?.id ? String(tag.id) : ''
+        if (!uid) { resolve(null); return }
+        resolve({
+          uid,
+          type: tag.type ?? 'unknown',
+          isWritable: true,
+          maxCapacity: tag.maxSize ?? 0,
+        })
       })
 
-      const tag = await NfcManager.getTag()
-      if (!tag?.id) return null
-
-      return {
-        uid: typeof tag.id === 'string' ? tag.id : String(tag.id),
-        type: tag.type ?? 'unknown',
-        isWritable: true,
-        maxCapacity: tag.maxSize ?? 0,
-      }
-    } catch {
-      return null
-    } finally {
-      clearTimeout(timer)
-      try {
-        await NfcManager.cancelTechnologyRequest()
-      } catch {}
-    }
+      NfcManager.registerTagEvent({
+        alertMessage: 'Tap your tag against the back of your phone',
+        invalidateAfterFirstRead: true,
+        isReaderModeEnabled: true,
+      }).catch(() => {
+        clearTimeout(timer)
+        NfcManager.setEventListener(NfcEvents.DiscoverTag, null)
+        resolve(null)
+      })
+    })
   }
 
   async writeTag(data: Record<string, string>): Promise<boolean> {
