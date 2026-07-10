@@ -65,7 +65,7 @@ PDAX Fiat Bridge (PHP Cash-out)
 
 | Contract | Description | Location |
 |----------|-------------|----------|
-| **device_registry** | Maps hardware device UIDs to Stellar wallet addresses | `frontend/contracts/device_registry/` |
+| **device_registry** | Maps hardware device UIDs to Stellar wallet addresses | `backend/contracts/device_registry/` |
 
 ### Frontend Architecture
 
@@ -79,7 +79,7 @@ frontend/
 │   ├── store/        Zustand state management
 │   ├── hooks/        useNfc, custom hooks
 │   └── constants/    Theme (black/gold), config
-└── contracts/        Soroban device registry smart contract
+
 ```
 
 ## Getting Started
@@ -122,7 +122,7 @@ Scan the QR code with Expo Go, or press `a` for Android / `i` for iOS simulator.
 ### Smart Contract Development
 
 ```bash
-cd frontend/contracts/device_registry
+cd backend/contracts/device_registry
 cargo build --release --target wasm32-unknown-unknown
 cargo test
 ```

@@ -2,17 +2,17 @@ name: Contracts CI
 
 on:
   push:
-    branches: [main, develop, frontend]
+    branches: [main, develop, backend]
     paths:
-      - 'frontend/contracts/**'
-      - 'frontend/contracts/*/Cargo.toml'
-      - 'frontend/contracts/*/Cargo.lock'
+      - 'backend/contracts/**'
+      - 'backend/contracts/*/Cargo.toml'
+      - 'backend/contracts/*/Cargo.lock'
   pull_request:
-    branches: [main, frontend]
+    branches: [main, backend]
     paths:
-      - 'frontend/contracts/**'
-      - 'frontend/contracts/*/Cargo.toml'
-      - 'frontend/contracts/*/Cargo.lock'
+      - 'backend/contracts/**'
+      - 'backend/contracts/*/Cargo.toml'
+      - 'backend/contracts/*/Cargo.lock'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: frontend/contracts/device_registry
+        working-directory: backend/contracts/device_registry
 
     steps:
       - uses: actions/checkout@v4
