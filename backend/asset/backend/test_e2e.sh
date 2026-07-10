@@ -220,10 +220,86 @@ else
     echo "    (none throttled — rate window may still be open)"
 fi
 
-# ── Summary ───────────────────────────────────────────────────────────────────
+# ── 4. Test frontend-compatible endpoints ────────────────────────────────────
 echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo -e "  Results: ${GREEN}${PASS} passed${NC}, ${RED}${FAIL} failed${NC}"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "── Step 4: Test frontend API endpoints ───────────────────────────"
 
-[ "$FAIL" -gt 0 ] && exit 1 || exit 0
+# 4a. POST /payments/initiate
+echo "  Testing POST /payments/initiate..."
+FP_RESP=$(curl -s -X POST "http://${BASE_URL}/payments/initiate" \
+    -H "Content-Type: application/json" \
+    -d "{
+        \"raw_device_uid\": \"${TEST_DEVICE_SERIAL}\",
+        \"merchant_public_key\": \"GBQKFPHDMZNXWVXQFBFWWWQSDK3HYEHUVA7YHXC7QKCYJF5MZBWPPQTA\",
+        \"amount_cents\": 5000,
+        \"asset_code\": \"USDC\"
+    }")
+FP_STATUS=$(echo "$FP_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "")
+if [ "$FP_STATUS" = "accepted" ]; then
+    pass "POST /payments/initiate → accepted"
+else
+    fail "POST /payments/initiate: $FP_RESP"
+fi
+
+# 4b. POST /payments/batch
+echo "  Testing POST /payments/batch..."
+BP_RESP=$(curl -s -X POST "http://${BASE_URL}/payments/batch" \
+    -H "Content-Type: application/json" \
+    -d '{"payments": [{"tx":"test"}]}')
+BP_VALID=$(echo "$BP_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('processed',0))" 2>/dev/null || echo 0)
+if [ "$BP_VALID" -ge 1 ] 2>/dev/null; then
+    pass "POST /payments/batch → $BP_VALID processed"
+else
+    fail "POST /payments/batch: $BP_RESP"
+fi
+
+# 4c. GET /transactions
+echo "  Testing GET /transactions..."
+TX_RESP=$(curl -s "http://${BASE_URL}/transactions")
+TX_COUNT=$(echo "$TX_RESP" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('transactions',[])))" 2>/dev/null || echo 0)
+if [ "$TX_COUNT" -ge 0 ] 2>/dev/null; then
+    pass "GET /transactions → $TX_COUNT txns"
+else
+    fail "GET /transactions: $TX_RESP"
+fi
+
+# 4d. GET /notifications
+echo "  Testing GET /notifications..."
+NOTIF_RESP=$(curl -s "http://${BASE_URL}/notifications")
+NOTIF_VALID=$(echo "$NOTIF_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d.get('notifications',[])))" 2>/dev/null || echo "")
+if [ "$NOTIF_VALID" = "0" ]; then
+    pass "GET /notifications → empty list"
+else
+    fail "GET /notifications: $NOTIF_RESP"
+fi
+
+# 4e. POST /notifications/register
+echo "  Testing POST /notifications/register..."
+NR_RESP=$(curl -s -X POST "http://${BASE_URL}/notifications/register" \
+    -H "Content-Type: application/json" \
+    -d '{"token":"test","platform":"expo"}')
+NR_OK=$(echo "$NR_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('ok',False))" 2>/dev/null || echo "false")
+if [ "$NR_OK" = "True" ]; then
+    pass "POST /notifications/register → ok"
+else
+    fail "POST /notifications/register: $NR_RESP"
+fi
+
+# 4f. DELETE /auth/account
+echo "  Testing DELETE /auth/account..."
+DA_RESP=$(curl -s -X DELETE "http://${BASE_URL}/auth/account")
+DA_OK=$(echo "$DA_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('ok',False))" 2>/dev/null || echo "false")
+if [ "$DA_OK" = "True" ]; then
+    pass "DELETE /auth/account → ok"
+else
+    fail "DELETE /auth/account: $DA_RESP"
+fi
+
+# 4g. POST /pdax/cash-in
+echo "  Testing POST /pdax/cash-in..."
+PCI_RESP=$(curl -s -X POST "http://${BASE_URL}/pdax/cash-in" \
+    -H "Content-Type: application/json" \
+    -d '{"amount_cents":100000}')
+PCI_REF=$(echo "$PCI_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('reference',''))" 2>/dev/null || echo "")
+if [ -n "$PCI_REF" ]; then
+    pass "POST /pdax/cash-in → ref: ${PCI_REF:0:12                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 

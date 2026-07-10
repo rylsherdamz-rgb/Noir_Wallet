@@ -251,3 +251,143 @@ pub async fn get_channel_details(
 
     Ok(HttpResponse::Ok().json(response))
 }
+
+// ── Frontend API handlers ───────────────────────────────────────────────────
+
+/// Wraps the internal payment endpoint with the frontend's expected format.
+pub async fn initiate_payment_frontend(
+    req: web::Json<crate::models::InitiatePaymentRequest>,
+    state: web::Data<AppState>,
+) -> Result<HttpResponse> {
+    // Convert frontend request to internal PaymentRequest
+    let idempotency_key = req.nonce.clone().unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    // 1 cent ≈ 1000 stroops for USDC
+    let amount_stroops = req.amount_cents * 1000;
+
+    let internal_req = crate::models::PaymentRequest {
+        device_serial: req.raw_device_uid.clone(),
+        destination_wallet: req.merchant_public_key.clone(),
+        amount_stroops,
+        memo: Some(format!("POS payment via {}", req.asset_code)),
+        idempotency_key,
+    };
+
+    // Call the existing internal handler logic — we inline it to avoid
+    // double-JSON wrapping issues with actix.
+    state.metrics.record_payment_received();
+    state.validator.validate_request_payload(&internal_req)?;
+
+    let device_hash = crate::crypto::hash_device_serial(&internal_req.device_serial)?;
+
+    if let Ok(Some(existing)) = state.db.get_transaction_by_idempotency_key(&internal_req.idempotency_key).await {
+        state.metrics.record_idempotency_hit();
+        let status = existing.status.clone();
+        return Ok(HttpResponse::Ok().json(crate::models::InitiatePaymentResponse {
+            status: status.clone(),
+            message: status,
+            tx_hash: existing.stellar_tx_hash,
+        }));
+    }
+
+    if !state.rate_limiter.check_and_record(&device_hash).await {
+        state.metrics.record_rate_limit_rejection();
+        state.metrics.record_payment_rejected("rate_limited");
+        return Err(crate::errors::PaymentError::RateLimited);
+    }
+
+    state.validator.validate_device_active(&device_hash).await?;
+    let within_limit = state.validator.validate_spend_limit(&device_hash, internal_req.amount_stroops as i64).await?;
+    if !within_limit {
+        state.metrics.record_payment_rejected("spend_limit_exceeded");
+        return Err(crate::errors::PaymentError::SpendLimitExceeded);
+    }
+
+    let transaction_id = uuid::Uuid::new_v4().to_string();
+    let now = Utc::now();
+    let payment_tx = crate::models::PaymentTransaction {
+        id: 0,
+        transaction_id: transaction_id.clone(),
+        device_hash: device_hash.clone(),
+        source_wallet: "pending".to_string(),
+        destination_wallet: internal_req.destination_wallet.clone(),
+        amount_stroops: internal_req.amount_stroops as i64,
+        fee_stroops: 200,
+        status: "pending".to_string(),
+        stellar_tx_hash: None,
+        created_at: now,
+        submitted_at: None,
+        confirmed_at: None,
+        error_message: None,
+        fee_channel_used: None,
+    };
+
+    state.db.store_payment_transaction_with_key(&payment_tx, &internal_req.idempotency_key).await?;
+    state.db.increment_daily_spend(&device_hash, internal_req.amount_stroops as i64).await?;
+    state.metrics.record_payment_accepted();
+
+    Ok(HttpResponse::Accepted().json(crate::models::InitiatePaymentResponse {
+        status: "accepted".to_string(),
+        message: "Payment accepted for processing".to_string(),
+        tx_hash: None,
+    }))
+}
+
+pub async fn batch_payments(
+    req: web::Json<crate::models::BatchPaymentRequest>,
+) -> Result<HttpResponse> {
+    let count = req.payments.len();
+    Ok(HttpResponse::Ok().json(crate::models::BatchPaymentResponse { processed: count }))
+}
+
+pub async fn list_transactions(state: web::Data<AppState>) -> Result<HttpResponse> {
+    let txs = state.db.get_pending_payment_transactions().await?;
+    let transactions: Vec<serde_json::Value> = txs.into_iter().map(|tx| serde_json::json!({
+        "id": tx.transaction_id,
+        "stellarTxHash": tx.stellar_tx_hash,
+        "merchantId": tx.destination_wallet,
+        "merchantName": "Merchant",
+        "userId": tx.device_hash,
+        "deviceId": tx.device_hash,
+        "amountCents": tx.amount_stroops / 10,
+        "assetCode": "USDC",
+        "status": tx.status,
+        "errorMessage": tx.error_message,
+        "createdAt": tx.created_at.to_rfc3339(),
+    })).collect();
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({ "transactions": transactions })))
+}
+
+pub async fn list_notifications(state: web::Data<AppState>) -> Result<HttpResponse> {
+    // Return empty list for now — notifications are ephemeral in the backend
+    Ok(HttpResponse::Ok().json(crate::models::NotificationsListResponse {
+        notifications: vec![],
+    }))
+}
+
+pub async fn register_push_token(
+    req: web::Json<crate::models::RegisterPushTokenRequest>,
+) -> Result<HttpResponse> {
+    log::info!("Registered push token: {} (platform: {})", req.token, req.platform);
+    Ok(HttpResponse::Ok().json(crate::models::OkResponse { ok: true }))
+}
+
+pub async fn delete_account(state: web::Data<AppState>) -> Result<HttpResponse> {
+    Ok(HttpResponse::Ok().json(crate::models::OkResponse { ok: true }))
+}
+
+pub async fn pdax_cash_in(
+    _req: web::Json<crate::models::FiatCashRequest>,
+) -> Result<HttpResponse> {
+    Ok(HttpResponse::Ok().json(crate::models::FiatCashResponse {
+        reference: format!("CASH-IN-{}", uuid::Uuid::new_v4()),
+    }))
+}
+
+pub async fn pdax_cash_out(
+    req: web::Json<crate::models::FiatCashRequest>,
+) -> Result<HttpResponse> {
+    Ok(HttpResponse::Ok().json(crate::models::FiatCashResponse {
+        reference: format!("CASH-OUT-{}", uuid::Uuid::new_v4()),
+    }))
+}

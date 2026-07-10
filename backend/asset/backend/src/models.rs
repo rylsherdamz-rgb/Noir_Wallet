@@ -126,3 +126,59 @@ pub struct StatusQueryResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
 }
+
+// ── Frontend API DTOs ─────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct InitiatePaymentRequest {
+    pub raw_device_uid: String,
+    pub merchant_public_key: String,
+    pub amount_cents: u64,
+    pub asset_code: String,
+    pub terminal_id: Option<String>,
+    pub nonce: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct InitiatePaymentResponse {
+    pub status: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "txHash")]
+    pub tx_hash: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BatchPaymentRequest {
+    pub payments: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BatchPaymentResponse {
+    pub processed: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NotificationsListResponse {
+    pub notifications: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RegisterPushTokenRequest {
+    pub token: String,
+    pub platform: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OkResponse {
+    pub ok: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FiatCashRequest {
+    pub amount_cents: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FiatCashResponse {
+    pub reference: String,
+}

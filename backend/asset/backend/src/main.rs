@@ -145,6 +145,15 @@ async fn main() -> std::io::Result<()> {
             .route("/device/{device_serial}/transactions", web::get().to(api::get_device_transactions))
             .route("/channels", web::get().to(api::list_fee_channels))
             .route("/channels/{channel_address}", web::get().to(api::get_channel_details))
+            // Frontend API endpoints
+            .route("/payments/initiate", web::post().to(api::initiate_payment_frontend))
+            .route("/payments/batch", web::post().to(api::batch_payments))
+            .route("/transactions", web::get().to(api::list_transactions))
+            .route("/notifications", web::get().to(api::list_notifications))
+            .route("/notifications/register", web::post().to(api::register_push_token))
+            .route("/auth/account", web::delete().to(api::delete_account))
+            .route("/pdax/cash-in", web::post().to(api::pdax_cash_in))
+            .route("/pdax/cash-out", web::post().to(api::pdax_cash_out))
     })
     .bind(&bind_addr)?
     .shutdown_timeout(30) // seconds to drain in-flight requests on SIGTERM
