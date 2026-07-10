@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: backend/asset/backend
+        working-directory: backend/asset
 
     steps:
       - uses: actions/checkout@v4
@@ -35,13 +35,13 @@ jobs:
         with:
           components: clippy, rustfmt
 
-      - run: cargo build --release --locked
+      - run: cargo build --release --locked -p noir-backend
         name: Build
 
-      - run: cargo test
+      - run: cargo test -p noir-backend
         name: Run Tests
 
-      - run: cargo clippy -- -D warnings
+      - run: cargo clippy -p noir-backend -- -D warnings
         name: Clippy
 
       - run: cargo fmt -- --check
@@ -86,7 +86,7 @@ jobs:
       - id: build
         uses: docker/build-push-action@v6
         with:
-          context: backend/asset/backend
+          context: backend/asset
           file: backend/asset/backend/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
