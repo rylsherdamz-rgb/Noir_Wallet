@@ -18,10 +18,13 @@ const ENV = {
 }
 
 const getEnvVars = () => {
-  if (process.env.EXPO_PUBLIC_STELLAR_NETWORK === 'mainnet') return ENV.prod
-  if (process.env.EXPO_PUBLIC_STELLAR_NETWORK === 'testnet') return ENV.dev
-  if (__DEV__) return ENV.dev
-  return ENV.prod
+  const env = process.env.EXPO_PUBLIC_STELLAR_NETWORK === 'mainnet' ? ENV.prod
+    : process.env.EXPO_PUBLIC_STELLAR_NETWORK === 'testnet' ? ENV.dev
+    : __DEV__ ? ENV.dev : ENV.prod
+  return {
+    ...env,
+    apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || env.apiBaseUrl,
+  }
 }
 
 export const Config = getEnvVars()
