@@ -59,3 +59,6 @@ expo-env.d.ts
 # --- Generated native folders (frontend) ---
 **/ios/
 **/android/
+
+# --- Promotion / marketing demo video (local only, not tracked) ---
+promotion/

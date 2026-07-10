@@ -4,6 +4,25 @@
 
 **Live preview:** *Coming soon*
 
+## Demo
+
+<div align="center">
+
+https://github.com/rylsherdamz-rgb/Noir_Wallet/raw/main/assets/noir-demo.mp4
+
+<video src="https://github.com/rylsherdamz-rgb/Noir_Wallet/raw/main/assets/noir-demo.mp4" poster="assets/noir-demo-poster.jpg" controls muted width="820">
+  Your browser can't play this video.
+  <a href="https://github.com/rylsherdamz-rgb/Noir_Wallet/raw/main/assets/noir-demo.mp4">Download / watch the demo (MP4)</a>.
+</video>
+
+<a href="https://github.com/rylsherdamz-rgb/Noir_Wallet/raw/main/assets/noir-demo.mp4">
+  <img src="assets/noir-demo-poster.jpg" alt="Noir Wallet — product demo (click to play)" width="820">
+</a>
+
+<em>▶ A 95-second, Google-style product walkthrough — narrated voiceover, the x402 tap-to-pay flow, per-device agent wallets, and the full mobile app. Built with Remotion.</em>
+
+</div>
+
 ## Project Description
 
 Noir Wallet implements the **x402 protocol** — a zero-interaction payment flow where the wallet is debited immediately upon hardware tap. The user never unlocks their phone, opens an app, or confirms a transaction. The payment terminal reads the device UID, resolves the linked Stellar wallet, and executes the transfer in under 2 seconds.
