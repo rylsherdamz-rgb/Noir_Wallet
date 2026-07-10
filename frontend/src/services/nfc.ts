@@ -72,26 +72,31 @@ class NFCService {
     }
   }
 
-  async readTag(_timeout = 5000): Promise<NFCTag | null> {
+  async readTag(timeoutMs = 5000): Promise<NFCTag | null> {
     if (!NfcManager || !NfcTech) return null
+    const timer = setTimeout(() => {
+      NfcManager.cancelTechnologyRequest().catch(() => {})
+    }, timeoutMs)
     try {
-      await NfcManager.requestTechnology(NfcTech.Ndef, {
+      const techs = [NfcTech.Ndef, NfcTech.NfcA, NfcTech.IsoDep]
+      await NfcManager.requestTechnology(techs, {
         alertMessage:
           'Tap your RFID sticker or NFC card against the back of your phone',
       })
 
       const tag = await NfcManager.getTag()
-      if (!tag) return null
+      if (!tag?.id) return null
 
       return {
-        uid: tag.id ?? '',
+        uid: typeof tag.id === 'string' ? tag.id : String(tag.id),
         type: tag.type ?? 'unknown',
         isWritable: true,
-        maxCapacity: 0,
+        maxCapacity: tag.maxSize ?? 0,
       }
     } catch {
       return null
     } finally {
+      clearTimeout(timer)
       try {
         await NfcManager.cancelTechnologyRequest()
       } catch {}

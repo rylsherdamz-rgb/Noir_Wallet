@@ -8,6 +8,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { Buffer } from 'buffer'
 import { useAppStore } from '@/store/useAppStore'
 import { apiService } from '@/services/api'
 import { NFCTag, QueuedPayment } from '@/types'
@@ -16,29 +18,36 @@ import { x402 } from '@/domain/x402'
 import { NumericKeypad } from '@/components/NumericKeypad'
 import { ReadyToTapIndicator } from '@/components/ReadyToTapIndicator'
 import { NoirLogo } from '@/components/brand/NoirLogo'
+import { DesignTokens } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 
 export function MerchantPosScreen() {
   const { transactions, addTransaction, user, devices, addPendingPayment } = useAppStore()
   const [amount, setAmount] = useState('')
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [lastResult, setLastResult] = useState<'success' | 'failed' | null>(null)
+  const [paymentState, setPaymentState] = useState<'idle' | 'active' | 'processing' | 'success' | 'error'>('idle')
   const [agentMode, setAgentMode] = useState(false)
 
   const displayAmount = amount ? `₱${(parseInt(amount) / 100).toFixed(2)}` : ''
+  const isActive = amount !== '' && parseInt(amount) > 0
 
   const handleTap = useCallback(async () => {
     if (!amount || parseInt(amount) === 0) return
-    setIsProcessing(true)
-    setLastResult(null)
+    
+    setPaymentState('processing')
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
 
     let tag: NFCTag | null = null
     try {
       tag = await nfcService.readTag()
-      if (!tag) { setIsProcessing(false); return }
+      if (!tag) {
+        setPaymentState('idle')
+        return
+      }
       const scanned = tag
 
-      const linkedDevice = devices.find((d) => d.deviceUidHash === scanned.uid)
+      const hash = sha256(new TextEncoder().encode(scanned.uid))
+      const scannedHash = Buffer.from(hash.buffer, hash.byteOffset, hash.byteLength).toString('hex')
+      const linkedDevice = devices.find((d) => d.deviceUidHash === scannedHash)
       const hasAgent = await x402.hasAgent()
       let txHash: string | null = null
 
@@ -65,9 +74,7 @@ export function MerchantPosScreen() {
       }
 
       if (txHash) {
-        setLastResult('success')
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-        setAmount('')
+        setPaymentState('success')
         addTransaction({
           id: Math.random().toString(36).slice(2),
           stellarTxHash: txHash,
@@ -81,10 +88,17 @@ export function MerchantPosScreen() {
           errorMessage: null,
           createdAt: new Date().toISOString(),
         })
+
+        // Reset after showing success
+        setTimeout(() => {
+          setAmount('')
+          setPaymentState('idle')
+          setAgentMode(false)
+        }, 2000)
       }
     } catch (err: any) {
-      setLastResult('failed')
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      setPaymentState('error')
+      
       // Queue payment for offline retry
       if (amount && parseInt(amount) > 0) {
         const queued: QueuedPayment = {
@@ -100,71 +114,99 @@ export function MerchantPosScreen() {
         }
         addPendingPayment(queued)
       }
-    } finally {
-      setIsProcessing(false)
-      setAgentMode(false)
-      setTimeout(() => setLastResult(null), 3000)
+
+      // Reset error state after delay
+      setTimeout(() => {
+        setPaymentState('idle')
+        setAgentMode(false)
+      }, 3000)
     }
-  }, [amount, user, addTransaction, devices])
+  }, [amount, user, addTransaction, devices, addPendingPayment])
 
   const recentTxs = transactions.slice(0, 5)
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.content}>
+        {/* Header */}
         <View style={styles.header}>
           <NoirLogo variant="mark" size={28} />
-          <Text style={styles.headerTitle}>Tap to Pay</Text>
+          <Text style={styles.headerTitle} accessibilityRole="header">
+            Tap to Pay
+          </Text>
           <View style={{ width: 28 }} />
         </View>
 
+        {/* Tap Section */}
         <View style={styles.tapSection}>
-          <ReadyToTapIndicator amount={displayAmount} isActive={!!amount && !isProcessing} />
+          <ReadyToTapIndicator
+            amount={displayAmount}
+            isActive={isActive}
+            state={paymentState}
+            testID="merchant-pos-indicator"
+          />
 
           <TouchableOpacity
             style={[
               styles.tapBtn,
-              (!amount || isProcessing) && styles.tapBtnDisabled,
-              amount && !isProcessing && styles.tapBtnActive,
+              !isActive && styles.tapBtnDisabled,
+              isActive && paymentState === 'idle' && styles.tapBtnActive,
             ]}
             onPress={handleTap}
-            disabled={!amount || isProcessing}
+            disabled={!isActive || paymentState === 'processing'}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={
+              paymentState === 'processing'
+                ? agentMode
+                  ? 'Agent signing transaction'
+                  : 'Processing payment'
+                : isActive
+                ? 'Tap NFC tag to process payment'
+                : 'Enter an amount first'
+            }
+            accessibilityState={{ disabled: !isActive || paymentState === 'processing' }}
           >
             <Ionicons
-              name={isProcessing ? 'sync' : 'radio'}
-              size={24}
-              color={amount && !isProcessing ? Colors.black : Colors.mutedWhite}
+              name={paymentState === 'processing' ? 'sync' : 'radio'}
+              size={DesignTokens.iconSize.md}
+              color={isActive && paymentState !== 'processing' ? Colors.black : Colors.mutedWhite}
             />
-            <Text style={[styles.tapBtnText, amount && !isProcessing && { color: Colors.black }]}>
-              {isProcessing && agentMode ? 'Agent Signing...' : isProcessing ? 'Processing...' : 'Tap NFC Tag'}
+            <Text
+              style={[
+                styles.tapBtnText,
+                isActive && paymentState !== 'processing' && { color: Colors.black },
+              ]}
+            >
+              {paymentState === 'processing'
+                ? agentMode
+                  ? 'Agent Signing...'
+                  : 'Processing...'
+                : 'Tap NFC Tag'}
             </Text>
           </TouchableOpacity>
-
-          {lastResult === 'success' && (
-            <View style={styles.resultRow}>
-              <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
-              <Text style={styles.resultSuccess}>Payment Sent</Text>
-            </View>
-          )}
-          {lastResult === 'failed' && (
-            <View style={styles.resultRow}>
-              <Ionicons name="close-circle" size={20} color={Colors.danger} />
-              <Text style={styles.resultFailed}>Payment Failed</Text>
-            </View>
-          )}
         </View>
 
+        {/* Keypad Section */}
         <View style={styles.keypadSection}>
           <NumericKeypad value={amount} onChangeValue={setAmount} maxDigits={8} />
         </View>
 
+        {/* Recent Transactions */}
         {recentTxs.length > 0 && (
           <View style={styles.recentSection}>
-            <Text style={styles.recentTitle}>Recent</Text>
+            <Text style={styles.recentTitle} accessibilityRole="header">
+              Recent
+            </Text>
             {recentTxs.map((tx) => (
-              <View key={tx.id} style={styles.recentRow}>
-                <Text style={styles.recentName}>{tx.merchantName}</Text>
+              <View
+                key={tx.id}
+                style={styles.recentRow}
+                accessibilityLabel={`${tx.merchantName}, ${(tx.amountCents / 100).toFixed(2)} pesos`}
+              >
+                <Text style={styles.recentName} numberOfLines={1}>
+                  {tx.merchantName}
+                </Text>
                 <Text style={styles.recentAmount}>₱{(tx.amountCents / 100).toFixed(2)}</Text>
               </View>
             ))}
@@ -178,7 +220,7 @@ export function MerchantPosScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.black,
+    backgroundColor: Colors.surfaceBg,
   },
   content: {
     flex: 1,
@@ -189,75 +231,66 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.lg,
   },
   headerTitle: {
-    fontSize: FontSize.lg,
+    fontSize: FontSize.xl,
     color: Colors.white,
     fontWeight: FontWeight.bold,
   },
   tapSection: {
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
+    flex: 1,
+    justifyContent: 'center',
   },
   tapBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.cardBg,
     paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.lg,
     borderRadius: BorderRadius.full,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: Colors.borderGrey,
     gap: Spacing.sm,
-    marginTop: Spacing.md,
+    marginTop: Spacing.xl,
+    minHeight: DesignTokens.touchTarget.comfortable,
+    ...DesignTokens.shadows.card,
   },
   tapBtnActive: {
     backgroundColor: Colors.gold,
     borderColor: Colors.gold,
+    ...DesignTokens.shadows.goldGlow,
   },
   tapBtnDisabled: {
-    opacity: 0.5,
+    opacity: DesignTokens.opacity.strong,
   },
   tapBtnText: {
     fontSize: FontSize.lg,
     color: Colors.mutedWhite,
     fontWeight: FontWeight.bold,
   },
-  resultRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: Spacing.md,
-    gap: Spacing.sm,
-  },
-  resultSuccess: {
-    fontSize: FontSize.md,
-    color: Colors.success,
-    fontWeight: FontWeight.semibold,
-  },
-  resultFailed: {
-    fontSize: FontSize.md,
-    color: Colors.danger,
-    fontWeight: FontWeight.semibold,
-  },
   keypadSection: {
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   recentSection: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.lg,
+    maxHeight: 200,
   },
   recentTitle: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.xs,
     color: Colors.mutedWhite,
     fontWeight: FontWeight.medium,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: DesignTokens.typography.letterSpacing.wider,
   },
   recentRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: Colors.borderGrey,
@@ -265,6 +298,8 @@ const styles = StyleSheet.create({
   recentName: {
     fontSize: FontSize.sm,
     color: Colors.white,
+    flex: 1,
+    marginRight: Spacing.md,
   },
   recentAmount: {
     fontSize: FontSize.sm,

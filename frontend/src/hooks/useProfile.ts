@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { readContract, sourceAccountExists } from '@/lib/soroban'
+import { readContract, sourceAccountExists, deviceHashScVal } from '@/lib/soroban'
 import { AppConfig } from '@/constants/config'
 import { useAppStore } from '@/store/useAppStore'
 
@@ -52,9 +52,7 @@ export function useProfile() {
         const result = await readContract({
           contractId: AppConfig.stellar.deviceRegistryContract,
           method: 'get_wallet',
-          args: [
-            // TODO: convert deviceHash to xdr.ScVal
-          ],
+          args: [deviceHashScVal(deviceHash)],
           source: user.stellarPublicKey,
         })
         return result.toString()

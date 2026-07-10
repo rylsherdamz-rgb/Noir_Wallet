@@ -29,8 +29,7 @@ impl DeviceRegistry {
     }
 
     pub fn register(env: Env, device_hash: BytesN<32>, wallet: Address) {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
-        admin.require_auth();
+        wallet.require_auth();
 
         env.storage()
             .persistent()

@@ -24,6 +24,7 @@ A world where:
 - **x402 Protocol**: Wallet debited on hardware tap — no unlock, no app, no confirmation
 - **Stellar-Powered**: Fast, low-cost settlement via the Stellar network
 - **Soroban Smart Contracts**: `device_registry` for hardware-to-wallet mapping
+- **Wallet-Authorized Registration**: Device owners sign their own registration via `wallet.require_auth()`
 - **PDAX Fiat Bridge**: Optional PHP cash-out via PDAX integration
 - **Custom Agents**: Per-device agent wallets with independent balances
 - **NFC Provisioning**: Link new devices directly from the app
@@ -40,8 +41,9 @@ A world where:
 | Styling | NativeWind, Tailwind CSS |
 | State | Zustand |
 | NFC | react-native-nfc-manager |
-| Wallet SDK | @stellar/stellar-sdk |
+| Wallet SDK | @stellar/stellar-sdk v16 |
 | Testing | Vitest |
+| Contract Dev | soroban-cli, Rust nightly |
 
 ## Architecture
 
@@ -49,23 +51,35 @@ A world where:
 RFID / NFC Tag
     |
     v
-POS Terminal / NFC Phone (Reader)
+Mobile App / POS Terminal
     |
-    v
-IoT Payment Gateway API  ──>  device_registry (Soroban)
-    |                              |
-    v                              v
-Stellar Network  ──>  Merchant Settlement
-    |
-    v
-PDAX Fiat Bridge (PHP Cash-out)
+    ├── NFC read → SHA-256 hash device UID
+    ├── x402 Agent (per-device signing key)
+    └── Soroban Contract (device_registry)
+           |
+           v
+    Stellar Network  ──>  Merchant Settlement
+           |
+           v
+    PDAX Fiat Bridge (PHP Cash-out)
 ```
 
 ### Smart Contracts
 
-| Contract | Description | Location |
-|----------|-------------|----------|
-| **device_registry** | Maps hardware device UIDs to Stellar wallet addresses | `backend/contracts/device_registry/` |
+| Contract | Description | Auth | Location |
+|----------|-------------|------|----------|
+| **device_registry** | Maps hardware device hashes to Stellar wallet addresses | `wallet.require_auth()` | `backend/asset/contracts/device_registry/` |
+
+**Testnet Contract ID:** `CC2EBXO3BGFSFCM3DKYI4VFT7DYFFEK7YAGIGFFNLSPFRJ2QKITAQIEC`
+
+### Contract Methods
+
+| Method | Args | Description |
+|--------|------|-------------|
+| `initialize` | `admin: Address` | Set contract admin (called once) |
+| `register` | `device_hash: BytesN<32>, wallet: Address` | Register a device to a wallet |
+| `unregister` | `device_hash: BytesN<32>` | Remove a device (admin only) |
+| `get_wallet` | `device_hash: BytesN<32>` | Look up wallet by device hash |
 
 ### Frontend Architecture
 
@@ -77,7 +91,9 @@ frontend/
 │   ├── components/   BalanceCard, NumericKeypad, ReadyToTap, etc.
 │   ├── services/     NFC, Stellar SDK, API client, wallet
 │   ├── store/        Zustand state management
-│   ├── hooks/        useNfc, custom hooks
+│   ├── hooks/        useNfc, useProfile, custom hooks
+│   ├── lib/          soroban.ts (readContract, invokeContract, helpers)
+│   ├── domain/       x402 agent logic
 │   └── constants/    Theme (black/gold), config
 
 ```
@@ -85,10 +101,11 @@ frontend/
 ## Getting Started
 
 ### Prerequisites
-- Node.js 20+
+- Node.js 26+
 - Expo CLI (`npm install -g expo-cli`)
-- iOS Simulator (macOS) or Android Emulator
+- iOS Simulator (macOS) or Android Emulator / device
 - Stellar testnet wallet (Freighter extension or custom)
+- Rust toolchain (for contract development)
 
 ### Setup
 
@@ -103,12 +120,14 @@ npm install
 
 Copy `.env.example` to `.env` and configure:
 
-| Variable | Description |
-|----------|-------------|
-| `EXPO_PUBLIC_STELLAR_MASTER_KEY_ID` | Stellar master key ID |
-| `EXPO_PUBLIC_CHANNEL_SECRET_KEY` | Fee channel secret |
-| `EXPO_PUBLIC_ISSUER_ADDRESS` | Asset issuer address |
-| `EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT` | Soroban contract ID |
+| Variable | Description | Current Value |
+|----------|-------------|---------------|
+| `EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT` | Soroban device registry contract ID | `CC2EBXO3BGFSFCM3DKYI4VFT7DYFFEK7YAGIGFFNLSPFRJ2QKITAQIEC` |
+| `EXPO_PUBLIC_STELLAR_MASTER_KEY_ID` | Stellar master key ID | (configure per deployment) |
+| `EXPO_PUBLIC_CHANNEL_SECRET_KEY` | Fee channel secret | (configure per deployment) |
+| `EXPO_PUBLIC_ISSUER_ADDRESS` | Asset issuer address | (configure per deployment) |
+| `EXPO_PUBLIC_PDAX_API_KEY` | PDAX sandbox/prod API key | (optional) |
+| `EXPO_PUBLIC_TERMINAL_ID` | x402 Terminal ID | (optional) |
 
 ### Run Development Server
 
@@ -122,9 +141,18 @@ Scan the QR code with Expo Go, or press `a` for Android / `i` for iOS simulator.
 ### Smart Contract Development
 
 ```bash
-cd backend/contracts/device_registry
+cd backend/asset/contracts/device_registry
+
+# Build WASM
 cargo build --release --target wasm32-unknown-unknown
-cargo test
+
+# Run unit tests (requires Stellar test environment)
+cargo test --package device-registry
+
+# Deploy with soroban-cli
+soroban contract deploy \
+  --wasm target/wasm32-unknown-unknown/release/device_registry.wasm \
+  --network testnet
 ```
 
 ### Run Tests
@@ -133,6 +161,15 @@ cargo test
 cd frontend
 npm test
 ```
+
+## Device Provisioning Flow
+
+1. Open the app and tap **Link Device**
+2. Hold your NFC tag against the phone
+3. App reads the tag UID and writes wallet info to the tag
+4. A **signature prompt** appears with transaction details
+5. Tap **Sign** — the app SHA-256 hashes your tag UID, calls `device_registry.register()` on Soroban, and polls for confirmation
+6. Device is linked and registered on-chain
 
 ## Screenshots
 

@@ -2,10 +2,13 @@ import {
   rpc,
   xdr,
   Account,
+  Address,
   Contract,
+  Keypair,
   TransactionBuilder,
   BASE_FEE,
 } from '@stellar/stellar-sdk'
+import { Buffer } from 'buffer'
 import { Config } from '@/constants/config'
 
 let _server: rpc.Server | null = null
@@ -63,4 +66,61 @@ export async function sourceAccountExists(
   } catch {
     return false
   }
+}
+
+export interface InvokeContractParams {
+  contractId: string
+  method: string
+  args?: xdr.ScVal[]
+  source: string
+  signer: Keypair
+}
+
+export async function invokeContract(
+  params: InvokeContractParams,
+): Promise<string> {
+  const server = getServer()
+  const account = await server.getAccount(params.source)
+
+  const contract = new Contract(params.contractId)
+
+  const tx = new TransactionBuilder(account, {
+    fee: BASE_FEE,
+    networkPassphrase: Config.networkPassphrase,
+  })
+    .addOperation(contract.call(params.method, ...(params.args ?? [])))
+    .setTimeout(30)
+    .build()
+
+  const prepared = await server.prepareTransaction(tx)
+  prepared.sign(params.signer)
+
+  const sendResult = await server.sendTransaction(prepared)
+  if (sendResult.status === 'ERROR') {
+    throw new Error(`Send error: network rejected transaction`)
+  }
+
+  const hash = sendResult.hash
+  let attempts = 0
+  while (attempts < 60) {
+    const result = await server.getTransaction(hash)
+    if (result.status === 'SUCCESS') {
+      return hash
+    }
+    if (result.status === 'FAILED') {
+      throw new Error('Transaction failed')
+    }
+    await new Promise((r) => setTimeout(r, 1000))
+    attempts++
+  }
+
+  throw new Error('Transaction timeout after 60s')
+}
+
+export function deviceHashScVal(sha256Hex: string): xdr.ScVal {
+  return xdr.ScVal.scvBytes(Buffer.from(sha256Hex, 'hex'))
+}
+
+export function walletAddressScVal(stellarPublicKey: string): xdr.ScVal {
+  return Address.fromString(stellarPublicKey).toScVal()
 }
