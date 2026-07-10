@@ -6,7 +6,7 @@ describe('Theme Constants', () => {
     const required = ['black', 'darkGrey', 'gold', 'goldDim', 'cream', 'mutedWhite', 'white', 'cardBg', 'borderGrey', 'success', 'danger', 'warning']
     for (const key of required) {
       expect(Colors).toHaveProperty(key)
-      expect(typeof Colors[key]).toBe('string')
+      expect(typeof (Colors as Record<string, string>)[key]).toBe('string')
     }
   })
 

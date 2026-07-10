@@ -9,7 +9,7 @@ import { x402 } from '@/domain/x402'
 import type { AgentWallet } from '@/domain/x402'
 import { nfcService } from '@/services/nfc'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
-import { StatusPill } from '@/components/StatusPill'
+import { StatusPill, TxStatus } from '@/components/StatusPill'
 import { Toast } from '@/components/Toast'
 
 export function AgentDetailScreen() {
@@ -118,7 +118,7 @@ export function AgentDetailScreen() {
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{device.label}</Text>
-        <StatusPill status={device.status} />
+        <StatusPill status={device.status as TxStatus} />
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>

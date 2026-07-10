@@ -86,9 +86,9 @@ describe('Agent screens', () => {
   })
 
   it('validates NFC tag UID matches device before payment', () => {
-    const deviceUid = 'tag-abc'
-    const scannedUid = 'tag-abc'
-    const wrongUid = 'tag-xyz'
+    const deviceUid: string = 'tag-abc'
+    const scannedUid: string = 'tag-abc'
+    const wrongUid: string = 'tag-xyz'
     expect(scannedUid === deviceUid).toBe(true)
     expect(wrongUid === deviceUid).toBe(false)
   })

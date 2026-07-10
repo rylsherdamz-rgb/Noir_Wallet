@@ -8,6 +8,7 @@ import { Button } from '@/components/Button'
 import { Toast } from '@/components/Toast'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { useAppStore } from '@/store/useAppStore'
+import type { ToastType } from '@/types'
 import { walletService } from '@/services/wallet'
 import { x402 } from '@/domain/x402'
 import { apiService } from '@/services/api'
@@ -22,15 +23,15 @@ export function SecurityScreen() {
     setBackgroundLockTimeoutSec,
     reset,
   } = useAppStore()
-  const [toast, setToast] = useState<{ visible: boolean; type: 'success' | 'info'; title: string; message?: string }>({
+  const [toast, setToast] = useState<{ visible: boolean; type: ToastType; title: string; message?: string }>({
     visible: false,
-    type: 'success',
+    type: 'info',
     title: '',
   })
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  const showToast = (title: string, message?: string, type: 'success' | 'info' | 'error' = 'success') => {
+  const showToast = (title: string, message?: string, type: ToastType = 'info') => {
     setToast({ visible: true, type, title, message })
   }
 
@@ -212,7 +213,7 @@ export function SecurityScreen() {
         title="Delete Account"
         message="This permanently deletes your account and all associated data. Make sure your recovery phrase is backed up. This action cannot be undone."
         confirmLabel={deleting ? 'Deleting...' : 'Delete Forever'}
-        confirmDestructive
+        variant="danger"
         icon="trash-outline"
         onConfirm={async () => {
           setDeleting(true)

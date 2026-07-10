@@ -111,7 +111,7 @@ describe('useAppStore', () => {
 
   it('setTransactions replaces transaction list', async () => {
     const { useAppStore } = await import('@/store/useAppStore')
-    const txs = [{ id: 'tx1', stellarTxHash: null, merchantId: 'm1', merchantName: 'M', userId: 'u1', deviceId: 'd1', amountCents: 100, assetCode: 'PHP', status: 'confirmed', errorMessage: null, createdAt: '' }]
+    const txs: Array<import('@/types').Transaction> = [{ id: 'tx1', stellarTxHash: null, merchantId: 'm1', merchantName: 'M', userId: 'u1', deviceId: 'd1', amountCents: 100, assetCode: 'PHP' as const, status: 'confirmed' as const, errorMessage: null, createdAt: '' }]
     useAppStore.getState().setTransactions(txs)
     expect(useAppStore.getState().transactions).toHaveLength(1)
   })

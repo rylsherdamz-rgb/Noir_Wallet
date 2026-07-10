@@ -53,6 +53,25 @@ class NFCService {
     }
   }
 
+  async isEnabled(): Promise<boolean> {
+    if (!NfcManager) return false
+    try {
+      return await NfcManager.isEnabled()
+    } catch {
+      return false
+    }
+  }
+
+  async goToSettings(): Promise<boolean> {
+    if (!NfcManager) return false
+    try {
+      await NfcManager.goToNfcSetting()
+      return true
+    } catch {
+      return false
+    }
+  }
+
   async readTag(_timeout = 5000): Promise<NFCTag | null> {
     if (!NfcManager || !NfcTech) return null
     try {

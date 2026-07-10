@@ -41,7 +41,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { Stack, useRouter } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { StyleSheet, AppState, Linking, Alert } from 'react-native'
+import { StyleSheet, AppState, Linking, Alert, AppStateStatus } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import * as SplashScreen from 'expo-splash-screen'
 import * as Notifications from 'expo-notifications'
@@ -135,7 +135,7 @@ export default function RootLayout() {
 
   // App state listener for auto-lock
   useEffect(() => {
-    const handleAppState = (nextState: string) => {
+    const handleAppState = (nextState: AppStateStatus) => {
       if (appStateRef.current === 'active' && nextState.match(/inactive|background/)) {
         const lockedAt = Date.now()
         appStateRef.current = nextState
