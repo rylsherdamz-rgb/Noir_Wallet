@@ -288,7 +288,10 @@ export class StellarService {
 export function createService(): StellarService {
   try {
     const config = require('@/constants/config').Config
-    const isTestnet = (config.sorobanRpcUrl || '').includes('testnet')
+    const envNetwork = process.env.EXPO_PUBLIC_STELLAR_NETWORK
+    const isTestnet = envNetwork
+      ? envNetwork !== 'mainnet'
+      : (config.sorobanRpcUrl || '').includes('testnet')
     return new StellarService({
       network: isTestnet ? 'testnet' : 'mainnet',
       horizonUrl: config.horizonUrl,

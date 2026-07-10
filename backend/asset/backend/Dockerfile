@@ -1,24 +1,24 @@
 # ── Stage 1: build ──────────────────────────────────────────────────────────
 FROM rust:1.90-slim-bookworm AS builder
 
-# System deps for sqlx + openssl
+# System deps for sqlx + openssl + libsodium
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
+    automake \
+    autoconf \
+    libtool \
+    make \
+    file \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 
-# Cache dependencies separately from source for faster rebuilds
-COPY Cargo.toml ./
-RUN mkdir src && echo "fn main() {}" > src/main.rs
-RUN cargo build --release
-RUN rm src/main.rs
+# Copy ALL source (no fake main trick — just build the real thing)
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
+COPY migrations ./migrations
 
-# Now copy real source and build
-COPY . .
-# Touch main.rs so cargo knows it changed
-RUN touch src/main.rs
 RUN cargo build --release
 
 # ── Stage 2: runtime ─────────────────────────────────────────────────────────
@@ -31,8 +31,6 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /build/target/release/noir-backend /usr/local/bin/noir-backend
-
-# Copy migrations so sqlx can run them at startup
 COPY --from=builder /build/migrations /app/migrations
 
 WORKDIR /app

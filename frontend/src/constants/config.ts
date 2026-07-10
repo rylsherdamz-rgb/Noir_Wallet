@@ -18,11 +18,16 @@ const ENV = {
 }
 
 const getEnvVars = () => {
+  if (process.env.EXPO_PUBLIC_STELLAR_NETWORK === 'mainnet') return ENV.prod
+  if (process.env.EXPO_PUBLIC_STELLAR_NETWORK === 'testnet') return ENV.dev
   if (__DEV__) return ENV.dev
   return ENV.prod
 }
 
 export const Config = getEnvVars()
+
+export const stellarNetwork: 'testnet' | 'mainnet' =
+  process.env.EXPO_PUBLIC_STELLAR_NETWORK === 'mainnet' ? 'mainnet' : 'testnet'
 
 export const AppConfig = {
   appName: 'Noir Wallet',

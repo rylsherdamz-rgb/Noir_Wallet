@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Linking } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
@@ -14,13 +14,10 @@ import { apiService } from '@/services/api'
 import { stellarService } from '@/services/stellar-service'
 import { fxRateService } from '@/services/fxRates'
 
-type NetworkType = 'mainnet' | 'testnet'
-
 export function DashboardScreen() {
   const router = useRouter()
-  const { user, balance, devices, transactions, setTransactions, setBalance } = useAppStore()
+  const { user, balance, devices, transactions, setTransactions, setBalance, network: storeNetwork, setNetwork: setStoreNetwork } = useAppStore()
   const [refreshing, setRefreshing] = useState(false)
-  const [network, setNetwork] = useState<NetworkType>('testnet') // Default to testnet for development
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
@@ -53,9 +50,8 @@ export function DashboardScreen() {
 
   const handleNetworkSwitch = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    const newNetwork = network === 'mainnet' ? 'testnet' : 'mainnet'
-    setNetwork(newNetwork)
-    // TODO: Implement actual network switching logic
+    const newNetwork = storeNetwork === 'mainnet' ? 'testnet' : 'mainnet'
+    setStoreNetwork(newNetwork)
   }
 
   return (
@@ -88,24 +84,41 @@ export function DashboardScreen() {
               <TouchableOpacity
                 style={[
                   styles.networkBadge,
-                  network === 'mainnet' && styles.networkBadgeMainnet,
+                  storeNetwork === 'mainnet' && styles.networkBadgeMainnet,
                 ]}
                 onPress={handleNetworkSwitch}
                 accessibilityRole="button"
-                accessibilityLabel={`Current network: ${network}. Tap to switch`}
+                accessibilityLabel={`Current network: ${storeNetwork}. Tap to switch`}
               >
                 <View style={[
                   styles.networkDot,
-                  network === 'mainnet' && styles.networkDotMainnet,
+                  storeNetwork === 'mainnet' && styles.networkDotMainnet,
                 ]} />
                 <Text style={[
                   styles.networkText,
-                  network === 'mainnet' && styles.networkTextMainnet,
+                  storeNetwork === 'mainnet' && styles.networkTextMainnet,
                 ]}>
-                  {network === 'mainnet' ? 'MAINNET' : 'TESTNET'}
+                  {storeNetwork === 'mainnet' ? 'MAINNET' : 'TESTNET'}
                 </Text>
               </TouchableOpacity>
             </View>
+            {/* Stellar Expert Link */}
+            {user?.stellarPublicKey && (
+              <TouchableOpacity
+                style={styles.expertLink}
+                onPress={() => {
+                  const baseUrl = storeNetwork === 'testnet'
+                    ? 'https://stellar.expert/explorer/testnet/account'
+                    : 'https://stellar.expert/explorer/public/account'
+                  Linking.openURL(`${baseUrl}/${user.stellarPublicKey}`)
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="View account on Stellar Expert"
+              >
+                <Ionicons name="open-outline" size={14} color={Colors.gold} />
+                <Text style={styles.expertLinkText}>View on Stellar Expert</Text>
+              </TouchableOpacity>
+            )}
           </View>
           <TouchableOpacity
             style={styles.avatarBtn}
@@ -121,7 +134,7 @@ export function DashboardScreen() {
         </View>
 
         {/* Testnet Banner - Only show on testnet */}
-        {network === 'testnet' && <TestnetFaucetBanner />}
+        {storeNetwork === 'testnet' && <TestnetFaucetBanner />}
 
         {/* Balance Card */}
         <BalanceCard
@@ -340,6 +353,19 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     color: Colors.mutedWhite,
     fontFamily: 'monospace',
+  },
+  expertLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+    paddingVertical: 2,
+  },
+  expertLinkText: {
+    fontSize: FontSize.xs,
+    color: Colors.gold,
+    fontWeight: FontWeight.medium,
+    textDecorationLine: 'underline',
   },
   
   // Network Switcher

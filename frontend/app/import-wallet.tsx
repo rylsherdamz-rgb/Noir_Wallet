@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router'
 import { ImportWalletScreen } from '@/screens/ImportWalletScreen'
 import { useAppStore } from '@/store/useAppStore'
 import { WalletKeys } from '@/services/wallet'
-import { stellarService } from '@/services/stellar'
+import { stellarService } from '@/services/stellar-service'
 
 export default function ImportWalletRoute() {
   const router = useRouter()
@@ -20,12 +20,10 @@ export default function ImportWalletRoute() {
     })
     setIsOnboarded(true)
     
-    // Fund account and wait for it to be created on-chain
-    const funded = await stellarService.fundTestnetAccount(keys.stellarPublic)
+    const funded = await stellarService.fundAccount(keys.stellarPublic)
     
-    // If funding fails, still continue - user can fund later via dashboard
     if (!funded) {
-      console.warn('Testnet funding failed - account may need manual funding')
+      console.warn('Account funding failed — will retry on dashboard')
     }
     
     router.replace('/(tabs)')
