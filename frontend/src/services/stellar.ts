@@ -27,73 +27,54 @@ class StellarService {
   }
 
   async fundTestnetAccount(publicKey: string): Promise<boolean> {
-    const urls = [
-      `https://friendbot.stellar.org?addr=${publicKey}`,
-      `https://horizon-testnet.stellar.org/friendbot?addr=${publicKey}`,
-    ]
-    
-    for (const url of urls) {
-      try {
-        const controller = new AbortController()
-        const timer = setTimeout(() => controller.abort(), 15000) // Increased timeout
-        const response = await fetch(url, { signal: controller.signal })
-        clearTimeout(timer)
-        
-        if (!response.ok) {
-          const text = await response.text()
-          try {
-            const json = JSON.parse(text)
-            // If already funded, that's success
-            if (json.detail?.includes('createAccountAlreadyExist') || 
-                json.detail?.includes('already funded') ||
-                json.detail?.includes('already exists')) {
-              console.log('Account already exists on-chain')
-              return true
-            }
-          } catch {
-            // Not JSON, continue
-          }
-          continue
-        }
-        
+    // Check if already exists first
+    try {
+      await this.server.loadAccount(publicKey)
+      console.log('Account already exists on-chain')
+      return true
+    } catch {
+      // doesn't exist yet, proceed to fund
+    }
+
+    const url = `https://friendbot-testnet.stellar.org?addr=${publicKey}`
+    try {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 10000)
+      const response = await fetch(url, { signal: controller.signal })
+      clearTimeout(timer)
+
+      if (!response.ok) {
         const text = await response.text()
-        const json = JSON.parse(text)
-        
-        if (json.hash) {
-          console.log('Account successfully funded via Friendbot:', json.hash)
-          
-          // Wait a moment for the account to be confirmed on-chain
-          await new Promise(resolve => setTimeout(resolve, 2000))
-          
-          // Verify account was created by checking if we can load it
+        console.warn('Friendbot returned error:', text)
+        return false
+      }
+
+      const text = await response.text()
+      const json = JSON.parse(text)
+
+      if (json.hash) {
+        console.log('Account funded via Friendbot:', json.hash)
+        // Wait for the account to be visible on-chain
+        for (let i = 0; i < 10; i++) {
           try {
             await this.server.loadAccount(publicKey)
             console.log('Account verified on-chain')
             return true
-          } catch (e) {
-            console.warn('Account funded but not yet visible on-chain, waiting...')
-            await new Promise(resolve => setTimeout(resolve, 3000))
-            try {
-              await this.server.loadAccount(publicKey)
-              return true
-            } catch {
-              console.warn('Account still not visible after retry')
-            }
+          } catch {
+            await new Promise(r => setTimeout(r, 1000))
           }
         }
-      } catch (e: any) {
-        console.warn(`Friendbot attempt failed (${url}):`, e.message)
-        continue
+        console.warn('Account funded but still not visible after 10s')
+        return true
       }
-    }
-    
-    // Final check: maybe the account already exists
-    try {
-      await this.server.loadAccount(publicKey)
-      console.log('Account already exists on network')
-      return true
-    } catch {
-      console.error('Failed to fund account via all Friendbot endpoints')
+
+      return false
+    } catch (e: any) {
+      if (e.name === 'AbortError') {
+        console.warn('Friendbot request timed out')
+      } else {
+        console.warn('Friendbot failed:', e.message)
+      }
       return false
     }
   }
