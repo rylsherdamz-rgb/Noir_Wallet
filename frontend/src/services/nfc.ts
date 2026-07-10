@@ -12,7 +12,6 @@ import { NFCTag } from '@/types'
 let NfcManager: any = null
 let NfcTech: any = null
 let Ndef: any = null
-let NfcEvents: any = null
 
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -20,7 +19,6 @@ try {
   NfcManager = mod.default ?? mod
   NfcTech = mod.NfcTech
   Ndef = mod.Ndef
-  NfcEvents = mod.NfcEvents
 } catch {
   NfcManager = null
 }
@@ -73,39 +71,49 @@ class NFCService {
   }
 
   async readTag(timeoutMs = 5000): Promise<NFCTag | null> {
-    if (!NfcManager || !NfcEvents) return null
-
-    return new Promise((resolve) => {
-      const timer = setTimeout(async () => {
-        NfcManager.setEventListener(NfcEvents.DiscoverTag, null)
-        await NfcManager.unregisterTagEvent().catch(() => {})
-        resolve(null)
-      }, timeoutMs)
-
-      NfcManager.setEventListener(NfcEvents.DiscoverTag, async (tag: any) => {
-        clearTimeout(timer)
-        NfcManager.setEventListener(NfcEvents.DiscoverTag, null)
-        await NfcManager.unregisterTagEvent().catch(() => {})
-        const uid = typeof tag?.id === 'string' ? tag.id : tag?.id ? String(tag.id) : ''
-        if (!uid) { resolve(null); return }
-        resolve({
-          uid,
-          type: tag.type ?? 'unknown',
-          isWritable: true,
-          maxCapacity: tag.maxSize ?? 0,
-        })
+    if (!NfcManager || !NfcTech) return null
+    
+    const timer = setTimeout(() => {
+      NfcManager.cancelTechnologyRequest().catch(() => {})
+    }, timeoutMs)
+    
+    try {
+      // Request NFC technology
+      const techs = [NfcTech.Ndef, NfcTech.NfcA, NfcTech.IsoDep]
+      await NfcManager.requestTechnology(techs, {
+        alertMessage: 'Tap your RFID sticker or NFC card against the back of your phone',
       })
 
-      NfcManager.registerTagEvent({
-        alertMessage: 'Tap your tag against the back of your phone',
-        invalidateAfterFirstRead: true,
-        isReaderModeEnabled: true,
-      }).catch(() => {
-        clearTimeout(timer)
-        NfcManager.setEventListener(NfcEvents.DiscoverTag, null)
-        resolve(null)
-      })
-    })
+      // Get the tag
+      const tag = await NfcManager.getTag()
+      if (!tag?.id) return null
+
+      // Handle different ID formats
+      let uid = ''
+      if (typeof tag.id === 'string') {
+        uid = tag.id
+      } else if (Array.isArray(tag.id)) {
+        // Convert byte array to hex string
+        uid = tag.id.map((byte: number) => byte.toString(16).padStart(2, '0')).join('')
+      } else {
+        uid = String(tag.id)
+      }
+
+      return {
+        uid,
+        type: tag.type ?? 'unknown',
+        isWritable: tag.isWritable ?? true,
+        maxCapacity: tag.maxSize ?? 0,
+      }
+    } catch (error) {
+      console.error('NFC readTag error:', error)
+      return null
+    } finally {
+      clearTimeout(timer)
+      try {
+        await NfcManager.cancelTechnologyRequest()
+      } catch {}
+    }
   }
 
   async writeTag(data: Record<string, string>): Promise<boolean> {
@@ -132,31 +140,6 @@ class NFCService {
         await NfcManager.cancelTechnologyRequest()
       } catch {}
     }
-  }
-
-  registerTagCallback(callback: (tag: NFCTag) => void): () => void {
-    if (!NfcManager || !NfcEvents) return () => {}
-    NfcManager.setEventListener(NfcEvents.DiscoverTag, (tag: any) => {
-      callback({
-        uid: tag.id ?? '',
-        type: tag.type ?? 'unknown',
-        isWritable: true,
-        maxCapacity: 0,
-      })
-    })
-    return () => {
-      try {
-        NfcManager.setEventListener(NfcEvents.DiscoverTag, null)
-      } catch {}
-    }
-  }
-
-  cleanup() {
-    if (!NfcManager || !NfcEvents) return
-    try {
-      NfcManager.setEventListener(NfcEvents.DiscoverTag, null)
-      NfcManager.unregisterTagEvent()
-    } catch {}
   }
 }
 

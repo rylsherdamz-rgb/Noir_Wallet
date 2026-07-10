@@ -4,11 +4,12 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
-import { sha256 } from '@noble/hashes/sha2.js'
+import { sha256 } from '@noble/hashes/sha2'
 import { Buffer } from 'buffer'
 import { useAppStore } from '@/store/useAppStore'
 import { apiService } from '@/services/api'
@@ -31,27 +32,49 @@ export function MerchantPosScreen() {
   const isActive = amount !== '' && parseInt(amount) > 0
 
   const handleTap = useCallback(async () => {
-    if (!amount || parseInt(amount) === 0) return
+    if (!amount || parseInt(amount) === 0) {
+      // Provide feedback if no amount entered
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
+      }
+      return
+    }
     
     setPaymentState('processing')
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    }
 
     let tag: NFCTag | null = null
     try {
-      tag = await nfcService.readTag()
+      // Read NFC tag
+      tag = await nfcService.readTag(10000) // 10 second timeout
+      
       if (!tag) {
-        setPaymentState('idle')
+        console.log('No NFC tag detected')
+        setPaymentState('error')
+        if (Platform.OS !== 'web') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+        }
+        setTimeout(() => setPaymentState('idle'), 2000)
         return
       }
+
+      console.log('NFC tag detected:', tag.uid)
       const scanned = tag
 
-      const hash = sha256(new TextEncoder().encode(scanned.uid))
-      const scannedHash = Buffer.from(hash.buffer, hash.byteOffset, hash.byteLength).toString('hex')
+      // Hash the UID
+      const hashBytes = sha256(new TextEncoder().encode(scanned.uid))
+      const scannedHash = Buffer.from(hashBytes).toString('hex')
+      
+      console.log('Tag hash:', scannedHash)
+      
       const linkedDevice = devices.find((d) => d.deviceUidHash === scannedHash)
       const hasAgent = await x402.hasAgent()
       let txHash: string | null = null
 
       if (hasAgent && linkedDevice?.agentPublicKey) {
+        console.log('Using agent payment')
         setAgentMode(true)
         const result = await x402.payWithAgent({
           destination: user?.stellarPublicKey || '',
@@ -60,6 +83,7 @@ export function MerchantPosScreen() {
         if ('error' in result) throw new Error(result.error)
         txHash = result.hash
       } else {
+        console.log('Using API payment')
         const res = await apiService.initiatePayment({
           rawDeviceUid: scanned.uid,
           merchantPublicKey: user?.stellarPublicKey || '',
@@ -74,6 +98,7 @@ export function MerchantPosScreen() {
       }
 
       if (txHash) {
+        console.log('Payment successful:', txHash)
         setPaymentState('success')
         addTransaction({
           id: Math.random().toString(36).slice(2),
@@ -97,6 +122,7 @@ export function MerchantPosScreen() {
         }, 2000)
       }
     } catch (err: any) {
+      console.error('Payment error:', err)
       setPaymentState('error')
       
       // Queue payment for offline retry

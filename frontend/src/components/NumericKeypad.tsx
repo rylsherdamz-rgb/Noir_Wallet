@@ -1,11 +1,14 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import * as Haptics from 'expo-haptics'
+import { DesignTokens } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 
 interface NumericKeypadProps {
   value: string
   onChangeValue: (val: string) => void
   maxDigits?: number
+  hapticFeedback?: boolean
 }
 
 const keys = [
@@ -15,8 +18,22 @@ const keys = [
   ['clear', '0', 'backspace'],
 ]
 
-export function NumericKeypad({ value, onChangeValue, maxDigits = 8 }: NumericKeypadProps) {
+export function NumericKeypad({
+  value,
+  onChangeValue,
+  maxDigits = 8,
+  hapticFeedback = true,
+}: NumericKeypadProps) {
   const handlePress = (key: string) => {
+    // Haptic feedback
+    if (hapticFeedback && Platform.OS !== 'web') {
+      if (key === 'clear' || key === 'backspace') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+      } else {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+      }
+    }
+
     if (key === 'clear') {
       onChangeValue('')
       return
@@ -38,11 +55,13 @@ export function NumericKeypad({ value, onChangeValue, maxDigits = 8 }: NumericKe
               return (
                 <TouchableOpacity
                   key={key}
-                  style={styles.key}
+                  style={[styles.key, styles.specialKey]}
                   onPress={() => handlePress(key)}
                   activeOpacity={0.6}
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear all"
                 >
-                  <Text style={styles.keyText}>C</Text>
+                  <Text style={styles.specialKeyText}>Clear</Text>
                 </TouchableOpacity>
               )
             }
@@ -53,6 +72,8 @@ export function NumericKeypad({ value, onChangeValue, maxDigits = 8 }: NumericKe
                   style={styles.key}
                   onPress={() => handlePress(key)}
                   activeOpacity={0.6}
+                  accessibilityRole="button"
+                  accessibilityLabel="Delete last digit"
                 >
                   <Ionicons name="backspace-outline" size={28} color={Colors.white} />
                 </TouchableOpacity>
@@ -64,6 +85,8 @@ export function NumericKeypad({ value, onChangeValue, maxDigits = 8 }: NumericKe
                 style={styles.key}
                 onPress={() => handlePress(key)}
                 activeOpacity={0.6}
+                accessibilityRole="button"
+                accessibilityLabel={`Digit ${key}`}
               >
                 <Text style={styles.keyText}>{key}</Text>
               </TouchableOpacity>
@@ -83,7 +106,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   key: {
     width: 72,
@@ -92,10 +115,19 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.lightGrey,
     alignItems: 'center',
     justifyContent: 'center',
+    ...DesignTokens.shadows.card,
   },
   keyText: {
     fontSize: FontSize.xxl,
     color: Colors.white,
+    fontWeight: FontWeight.semibold,
+  },
+  specialKey: {
+    backgroundColor: Colors.midGrey,
+  },
+  specialKeyText: {
+    fontSize: FontSize.sm,
+    color: Colors.mutedWhite,
     fontWeight: FontWeight.medium,
   },
 })

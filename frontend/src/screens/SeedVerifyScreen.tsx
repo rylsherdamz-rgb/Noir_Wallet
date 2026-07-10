@@ -127,7 +127,7 @@ export function SeedVerifyScreen({ phrase, onComplete, onBack }: SeedVerifyScree
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.black },
+  container: { flex: 1, backgroundColor: Colors.surfaceBg },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginLeft: Spacing.md, marginTop: Spacing.sm },
   scrollContent: { padding: Spacing.lg, paddingBottom: Spacing.xxl },
 

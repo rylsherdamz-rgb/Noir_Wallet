@@ -16,13 +16,15 @@ pub struct StellarClient {
 
 #[derive(serde::Deserialize, Debug)]
 struct AccountResponse {
-    account: AccountInfo,
+    sequence: String,
+    balances: Vec<BalanceInfo>,
 }
 
 #[derive(serde::Deserialize, Debug)]
-struct AccountInfo {
-    #[serde(rename = "sequenceNumber")]
-    sequence_number: String,
+struct BalanceInfo {
+    balance: String,
+    #[serde(rename = "asset_type")]
+    asset_type: String,
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -79,7 +81,7 @@ impl StellarClient {
             .await
             .map_err(|e| PaymentError::StellarRpcError(format!("Failed to parse account response: {}", e)))?;
 
-        account.account.sequence_number
+        account.sequence
             .parse::<u64>()
             .map_err(|_| PaymentError::StellarRpcError("Invalid sequence number format".to_string()))
     }
@@ -142,8 +144,33 @@ impl StellarClient {
     }
 
     pub async fn get_account_balance(&self, address: &str) -> Result<i64> {
-        let sequence = self.get_account_sequence(address).await?;
-        Ok(sequence as i64 * 1_000_000)
+        let url = format!("{}/accounts/{}", self.rpc_url, address);
+
+        let response = self.http_client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| PaymentError::StellarRpcError(format!("Failed to fetch account: {}", e)))?;
+
+        if !response.status().is_success() {
+            return Err(PaymentError::StellarRpcError("Account not found on network".to_string()));
+        }
+
+        let account: AccountResponse = response
+            .json()
+            .await
+            .map_err(|e| PaymentError::StellarRpcError(format!("Failed to parse account response: {}", e)))?;
+
+        let native_balance = account.balances
+            .iter()
+            .find(|b| b.asset_type == "native")
+            .ok_or_else(|| PaymentError::StellarRpcError("No native balance found".to_string()))?;
+
+        let xlm = native_balance.balance
+            .parse::<f64>()
+            .map_err(|e| PaymentError::StellarRpcError(format!("Invalid balance format: {}", e)))?;
+
+        Ok((xlm * 10_000_000.0) as i64)
     }
 
     pub async fn transfer_to_channel(&self, channel_address: &str, amount: i64) -> Result<String> {

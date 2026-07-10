@@ -145,7 +145,7 @@ export function AgentListScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.black },
+  container: { flex: 1, backgroundColor: Colors.surfaceBg },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
   screenTitle: { fontSize: FontSize.xxl, color: Colors.cream, fontWeight: FontWeight.heavy, paddingVertical: Spacing.md },

@@ -99,7 +99,7 @@ export function WelcomeScreen({ onCreateWallet, onImportWallet }: WelcomeScreenP
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.black },
+  container: { flex: 1, backgroundColor: Colors.surfaceBg },
   safe: { flex: 1 },
   scrollContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.xl },
 

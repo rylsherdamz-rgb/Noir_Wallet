@@ -180,7 +180,7 @@ function ProfileRow({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.black,
+    backgroundColor: Colors.surfaceBg,
   },
   header: {
     flexDirection: 'row',

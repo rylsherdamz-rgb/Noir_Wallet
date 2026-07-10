@@ -94,7 +94,7 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.black },
+  container: { flex: 1, backgroundColor: Colors.surfaceBg },
   scrollContent: { padding: Spacing.lg, paddingTop: Spacing.md, flexGrow: 1 },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md },
   title: { fontSize: FontSize.xl, color: Colors.white, fontWeight: FontWeight.bold, textAlign: 'center', marginTop: Spacing.md },

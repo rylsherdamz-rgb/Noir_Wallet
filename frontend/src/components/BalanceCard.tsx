@@ -4,6 +4,7 @@ import { DesignTokens, colorWithOpacity } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { useState, useEffect } from 'react'
 import { fxRateService } from '@/services/fxRates'
+import { SkeletonLoader } from './SkeletonLoader'
 
 interface AssetRowProps {
   icon: keyof typeof Ionicons.glyphMap
@@ -36,6 +37,7 @@ interface BalanceCardProps {
   usdcBalance: number
   xlmBalance: number
   localTokens?: Record<string, number>
+  loading?: boolean
   testID?: string
 }
 
@@ -44,15 +46,26 @@ export function BalanceCard({
   usdcBalance,
   xlmBalance,
   localTokens,
+  loading = false,
   testID,
 }: BalanceCardProps) {
   const [rates, setRates] = useState({ usdToPhp: 58, xlmToUsd: 0.12 })
+  const [loadingRates, setLoadingRates] = useState(true)
 
   useEffect(() => {
-    fxRateService.getRates().then(setRates).catch(() => {
-      // Use default rates on error
-    })
+    fxRateService
+      .getRates()
+      .then(setRates)
+      .catch(() => {
+        // Use default rates on error
+      })
+      .finally(() => setLoadingRates(false))
   }, [])
+
+  // Show skeleton if explicitly loading or while fetching rates
+  if (loading || loadingRates) {
+    return <SkeletonLoader variant="balance" testID={`${testID}-skeleton`} />
+  }
 
   const xlmValueInPhp = xlmBalance * rates.xlmToUsd * rates.usdToPhp
   const usdcValueInPhp = usdcBalance * rates.usdToPhp

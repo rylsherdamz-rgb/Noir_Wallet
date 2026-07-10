@@ -6,10 +6,13 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
+  Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
+import * as Haptics from 'expo-haptics'
 import { useRouter } from 'expo-router'
+import { DesignTokens } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { TransactionItem } from '@/components/TransactionItem'
 import { FilterChips } from '@/components/FilterChips'
@@ -17,6 +20,7 @@ import { SearchBar } from '@/components/SearchBar'
 import { EmptyState } from '@/components/EmptyState'
 import { SkeletonLoader } from '@/components/SkeletonLoader'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { ScreenHeader } from '@/components/ScreenHeader'
 import { useAppStore } from '@/store/useAppStore'
 import { apiService } from '@/services/api'
 import { TxFilter } from '@/types'
@@ -52,27 +56,51 @@ export function TransactionHistoryScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
     setError(null)
+    
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    }
+    
     try {
       const res = await apiService.getTransactions()
-      if (res?.transactions) setTransactions(res.transactions)
+      if (res?.transactions) {
+        setTransactions(res.transactions)
+        if (Platform.OS !== 'web') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+        }
+      }
     } catch {
       setError('Failed to load transactions')
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      }
     } finally {
       setRefreshing(false)
     }
   }, [setTransactions])
 
+  const handleExport = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    }
+    // TODO: Implement export functionality
+  }
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Ionicons name="arrow-back" size={24} color={Colors.white} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Transactions</Text>
-        <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Ionicons name="download-outline" size={22} color={Colors.gold} />
-        </TouchableOpacity>
-      </View>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScreenHeader
+        title="Transactions"
+        rightAction={
+          <TouchableOpacity
+            onPress={handleExport}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel="Export transactions"
+          >
+            <Ionicons name="download-outline" size={22} color={Colors.gold} />
+          </TouchableOpacity>
+        }
+      />
 
       <View style={styles.searchSection}>
         <SearchBar value={search} onChangeText={setSearch} placeholder="Search merchant or amount..." />
@@ -102,18 +130,16 @@ export function TransactionHistoryScreen() {
         <FlatList
           data={displayTxs}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              onPress={() => router.push(`/transaction/${item.id}`)}
-              activeOpacity={0.7}
-            >
-              <TransactionItem transaction={item} />
-            </TouchableOpacity>
-          )}
+          renderItem={({ item }) => <TransactionItem transaction={item} />}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.gold} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={Colors.gold}
+              colors={[Colors.gold]}
+            />
           }
         />
       )}
@@ -124,23 +150,11 @@ export function TransactionHistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.black,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-  },
-  headerTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
+    backgroundColor: Colors.surfaceBg,
   },
   searchSection: {
     paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.md,
   },
   listContent: {
     paddingHorizontal: Spacing.md,

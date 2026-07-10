@@ -245,7 +245,7 @@ function MetricBox({ label, value, gold }: { label: string; value: string; gold?
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.black },
+  container: { flex: 1, backgroundColor: Colors.surfaceBg },
   notFound: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
   notFoundText: { fontSize: FontSize.md, color: Colors.mutedWhite },
   header: {
