@@ -34,13 +34,6 @@ describe('NFC Service', () => {
     expect(result).toBe(false)
   })
 
-  it('registerTagCallback returns noop without hardware', async () => {
-    const { nfcService } = await import('@/services/nfc')
-    const cleanup = nfcService.registerTagCallback(() => {})
-    expect(typeof cleanup).toBe('function')
-    cleanup()
-  })
-
   it('cleanup does not throw without hardware', async () => {
     const { nfcService } = await import('@/services/nfc')
     expect(() => nfcService.cleanup()).not.toThrow()

@@ -22,7 +22,7 @@ export function EmptyState({
   testID,
 }: EmptyStateProps) {
   return (
-    <View style={styles.container} testID={testID} accessibilityRole="status">
+    <View style={styles.container} testID={testID} accessibilityLiveRegion="polite">
       <View style={styles.iconWrap}>
         <Ionicons name={icon} size={DesignTokens.iconSize.xxl} color={Colors.gold} />
       </View>

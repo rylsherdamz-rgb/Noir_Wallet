@@ -188,7 +188,6 @@ export function ReadyToTapIndicator({
       style={styles.container}
       testID={testID}
       accessibilityLabel={`${getStatusText()}. Amount: ${amount || 'None'}`}
-      accessibilityRole="status"
       accessibilityLiveRegion="polite"
     >
       <View style={styles.radarWrap}>

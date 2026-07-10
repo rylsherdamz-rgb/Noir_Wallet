@@ -104,7 +104,8 @@ vi.mock('expo-router', () => ({
 
 // Mock react-native
 vi.mock('react-native', () => ({
-  StyleSheet: { create: (s: any) => s },
+  Platform: { OS: 'ios', Version: 0, select: (obj: any) => obj.ios ?? obj.default },
+  StyleSheet: { create: (s: any) => s, absoluteFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } },
   View: ({ children }: any) => null,
   Text: ({ children }: any) => null,
   ScrollView: ({ children }: any) => null,

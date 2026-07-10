@@ -200,8 +200,8 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: Colors.special.overlay,
+    ...StyleSheet.absoluteFill,
+    backgroundColor: Colors.overlay,
   },
   sheet: {
     backgroundColor: Colors.cardBg,

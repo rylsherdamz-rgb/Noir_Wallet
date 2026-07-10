@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   },
   inputContainerFocused: {
     borderColor: Colors.gold,
-    backgroundColor: Colors.surface.card,
+    backgroundColor: Colors.cardBg,
   },
   inputContainerError: {
     borderColor: Colors.danger,
