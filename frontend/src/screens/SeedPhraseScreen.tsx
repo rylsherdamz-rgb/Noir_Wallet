@@ -9,7 +9,7 @@ import { walletService, WalletKeys } from '@/services/wallet'
 import * as Clipboard from 'expo-clipboard'
 
 interface SeedPhraseScreenProps {
-  onNext: (keys: WalletKeys) => void
+  onNext: (keys: WalletKeys) => void | Promise<void>
   onBack: () => void
 }
 
@@ -17,6 +17,7 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
   const [phrase, setPhrase] = useState<string[]>([])
   const [revealed, setRevealed] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     walletService.generateMnemonic().then((m) => setPhrase(m.split(' ')))
@@ -29,9 +30,15 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
   }
 
   const handleConfirm = async () => {
-    const keys = await walletService.deriveKeys(phrase.join(' '))
-    walletService.saveKeys(keys)
-    onNext(keys)
+    setLoading(true)
+    try {
+      const keys = await walletService.deriveKeys(phrase.join(' '))
+      await walletService.saveKeys(keys)
+      await onNext(keys)
+    } catch (e) {
+      console.error('Failed to save keys:', e)
+      setLoading(false)
+    }
   }
 
   return (
@@ -83,9 +90,9 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
 
         <View style={styles.actions}>
           <Button
-            label="I've Saved My Phrase"
+            label={loading ? "Creating Account..." : "I've Saved My Phrase"}
             onPress={handleConfirm}
-            disabled={!revealed}
+            disabled={!revealed || loading}
           />
         </View>
       </ScrollView>

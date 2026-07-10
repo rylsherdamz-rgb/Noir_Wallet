@@ -8,7 +8,7 @@ export default function SeedPhraseRoute() {
   const router = useRouter()
   const { setUser } = useAppStore()
 
-  const handleNext = (keys: WalletKeys) => {
+  const handleNext = async (keys: WalletKeys) => {
     setUser({
       id: Math.random().toString(36).slice(2),
       email: '',
@@ -18,7 +18,15 @@ export default function SeedPhraseRoute() {
       role: 'consumer',
       displayName: 'My Wallet',
     })
-    stellarService.fundTestnetAccount(keys.stellarPublic)
+    
+    // Fund account and wait for it to be created on-chain
+    const funded = await stellarService.fundTestnetAccount(keys.stellarPublic)
+    
+    // If funding fails, still continue - user can fund later via dashboard
+    if (!funded) {
+      console.warn('Testnet funding failed - account may need manual funding')
+    }
+    
     router.replace('/seed-verify')
   }
 

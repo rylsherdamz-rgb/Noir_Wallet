@@ -9,7 +9,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { walletService, WalletKeys } from '@/services/wallet'
 
 interface ImportWalletScreenProps {
-  onComplete: (keys: WalletKeys) => void
+  onComplete: (keys: WalletKeys) => void | Promise<void>
   onBack: () => void
 }
 
@@ -30,11 +30,10 @@ export function ImportWalletScreen({ onComplete, onBack }: ImportWalletScreenPro
     setLoading(true)
     try {
       const keys = await walletService.deriveKeys(phrase)
-      walletService.saveKeys(keys)
-      onComplete(keys)
+      await walletService.saveKeys(keys)
+      await onComplete(keys)
     } catch (e: any) {
       setError(e.message || 'Failed to import wallet')
-    } finally {
       setLoading(false)
     }
   }

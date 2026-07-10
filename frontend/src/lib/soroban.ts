@@ -31,6 +31,13 @@ export async function readContract(
   params: ReadContractParams,
 ): Promise<xdr.ScVal> {
   const server = getServer()
+  
+  // Check if account exists on-chain before attempting to use it
+  const accountExists = await sourceAccountExists(params.source)
+  if (!accountExists) {
+    throw new Error(`Account ${params.source.slice(0, 8)}... does not exist on-chain. Please fund this account first via Friendbot or by receiving XLM from another account.`)
+  }
+  
   const account = await server.getAccount(params.source)
 
   const contract = new Contract(params.contractId)
@@ -80,6 +87,13 @@ export async function invokeContract(
   params: InvokeContractParams,
 ): Promise<string> {
   const server = getServer()
+  
+  // Check if account exists on-chain before attempting to use it
+  const accountExists = await sourceAccountExists(params.source)
+  if (!accountExists) {
+    throw new Error(`Account ${params.source.slice(0, 8)}... does not exist on-chain. Please fund this account first via Friendbot or by receiving XLM from another account.`)
+  }
+  
   const account = await server.getAccount(params.source)
 
   const contract = new Contract(params.contractId)

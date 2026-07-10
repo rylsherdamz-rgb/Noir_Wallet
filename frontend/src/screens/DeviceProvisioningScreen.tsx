@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 import {
   View,
   Text,
@@ -8,12 +8,12 @@ import {
   Animated,
   Easing,
   Modal,
-  Pressable,
+  Linking,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { Keypair } from '@stellar/stellar-sdk'
-import { sha256 } from '@noble/hashes/sha2'
+import { sha256 } from '@noble/hashes/sha2.js'
 import { Buffer } from 'buffer'
 import { useNfc } from '@/hooks/useNfc'
 import { useAppStore } from '@/store/useAppStore'
@@ -163,6 +163,27 @@ export function DeviceProvisioningScreen() {
     } catch (err: any) {
       setRegisterError(err?.message ?? 'Registration failed')
       setStep('error')
+    }
+  }
+
+  const fundWallet = async () => {
+    const pk = user?.stellarPublicKey
+    if (!pk) return
+    const friendbotUrl = __DEV__
+      ? `https://friendbot-testnet.stellar.org/?addr=${pk}`
+      : null
+    if (friendbotUrl) {
+      try {
+        setStatusMessage('Funding wallet via Friendbot...')
+        const res = await fetch(friendbotUrl)
+        const data = await res.json()
+        if (data?.hash) {
+          setStatusMessage('Wallet funded!')
+        }
+      } catch {
+        // fallback: open in browser
+        Linking.openURL(friendbotUrl)
+      }
     }
   }
 
@@ -340,9 +361,25 @@ export function DeviceProvisioningScreen() {
               <Text style={[styles.primaryBtnText, { color: Colors.gold }]}>Registering...</Text>
             </TouchableOpacity>
           )}
-          {(step === 'success' || step === 'error') && (
+          {step === 'success' && (
             <TouchableOpacity style={styles.primaryBtn} onPress={reset} activeOpacity={0.8}>
-              <Text style={styles.primaryBtnText}>{step === 'success' ? 'Done' : 'Try Again'}</Text>
+              <Text style={styles.primaryBtnText}>Done</Text>
+            </TouchableOpacity>
+          )}
+          {step === 'error' && registerError?.includes('does not exist on-chain') && (
+            <>
+              <TouchableOpacity style={styles.secondaryBtn} onPress={fundWallet} activeOpacity={0.8}>
+                <Ionicons name="water-outline" size={20} color={Colors.white} />
+                <Text style={styles.secondaryBtnText}>Fund Wallet (Friendbot)</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.primaryBtn} onPress={reset} activeOpacity={0.8}>
+                <Text style={styles.primaryBtnText}>Try Again</Text>
+              </TouchableOpacity>
+            </>
+          )}
+          {step === 'error' && !registerError?.includes('does not exist on-chain') && (
+            <TouchableOpacity style={styles.primaryBtn} onPress={reset} activeOpacity={0.8}>
+              <Text style={styles.primaryBtnText}>Try Again</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -667,6 +704,23 @@ const styles = StyleSheet.create({
   },
   btnDisabled: {
     backgroundColor: Colors.lightGrey,
+  },
+  secondaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: Colors.gold,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    gap: Spacing.sm,
+    minHeight: 52,
+  },
+  secondaryBtnText: {
+    color: Colors.gold,
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
   },
   modalOverlay: {
     flex: 1,

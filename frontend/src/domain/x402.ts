@@ -40,7 +40,11 @@ export const x402 = {
     await SecureStore.setItemAsync(AGENT_BUDGET_KEY, String(DEFAULT_BUDGET_XLM * 10_000_000))
     await SecureStore.setItemAsync(AGENT_CREATED_KEY, new Date().toISOString())
 
-    await stellarService.fundTestnetAccount(kp.publicKey())
+    // Fund agent account and wait for it to be created on-chain
+    const funded = await stellarService.fundTestnetAccount(kp.publicKey())
+    if (!funded) {
+      console.warn('Agent account funding failed - account may not be usable immediately')
+    }
 
     return {
       publicKey: kp.publicKey(),
