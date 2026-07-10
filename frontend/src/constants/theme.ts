@@ -1,68 +1,85 @@
+/**
+ * Theme Constants
+ * 
+ * This file provides backward-compatible exports from the design tokens.
+ * Prefer importing from designTokens.ts for new code.
+ * 
+ * @deprecated Use DesignTokens from '@/constants/designTokens' instead
+ */
+
+import { DesignTokens } from './designTokens'
+
+// Backward compatible color exports
 export const Colors = {
   // Core surfaces (warm dark, anchored to gold hue ~80)
-  black: '#000000',
-  darkGrey: '#121212',
-  surfaceBg: '#0A0A0A',
-  cardBg: '#141414',
-  midGrey: '#1E1E1E',
-  lightGrey: '#2C2C2C',
-  borderGrey: '#3A3A3A',
+  black: DesignTokens.colors.special.black,
+  darkGrey: DesignTokens.colors.surface.dark,
+  surfaceBg: DesignTokens.colors.surface.bg,
+  cardBg: DesignTokens.colors.surface.card,
+  midGrey: DesignTokens.colors.surface.mid,
+  lightGrey: DesignTokens.colors.surface.light,
+  borderGrey: DesignTokens.colors.surface.border,
 
   // Text (warm-tinted neutrals)
-  white: '#FFFFFF',
-  offWhite: '#F5F5F5',
-  mutedWhite: '#A9A9A9',
+  white: DesignTokens.colors.text.primary,
+  offWhite: DesignTokens.colors.text.secondary,
+  mutedWhite: DesignTokens.colors.text.tertiary,
 
   // Brand accent - gold
-  gold: '#C6A15B',
-  goldDim: '#A98A43',
-  cream: '#EDE4D0',
-  silver: '#CECCD0',
+  gold: DesignTokens.colors.brand.gold,
+  goldDim: DesignTokens.colors.brand.goldDim,
+  cream: DesignTokens.colors.brand.cream,
+  silver: DesignTokens.colors.brand.silver,
 
   // Semantic
-  success: '#3ED598',
-  warning: '#F0B429',
-  danger: '#FF5A5F',
-  error: '#FF5A5F',
+  success: DesignTokens.colors.semantic.success,
+  warning: DesignTokens.colors.semantic.warning,
+  danger: DesignTokens.colors.semantic.danger,
+  error: DesignTokens.colors.semantic.error,
 
-  accentGreen: '#3ED598',
-  accentRed: '#FF5A5F',
-  accentYellow: '#F0B429',
-  overlay: 'rgba(0,0,0,0.6)',
+  // Legacy aliases
+  accentGreen: DesignTokens.colors.semantic.success,
+  accentRed: DesignTokens.colors.semantic.danger,
+  accentYellow: DesignTokens.colors.semantic.warning,
+  overlay: DesignTokens.colors.special.overlay,
 }
 
+// Backward compatible spacing exports
 export const Spacing = {
-  xs: 4,
-  sm: 8,
-  md: 16,
-  lg: 24,
-  xl: 32,
-  xxl: 48,
+  xs: DesignTokens.spacing.xs,
+  sm: DesignTokens.spacing.sm,
+  md: DesignTokens.spacing.md,
+  lg: DesignTokens.spacing.lg,
+  xl: DesignTokens.spacing.xl,
+  xxl: DesignTokens.spacing.xxl,
 }
 
+// Backward compatible font size exports
 export const FontSize = {
-  xs: 12,
-  sm: 14,
-  md: 16,
-  lg: 20,
-  xl: 24,
-  xxl: 32,
-  xxxl: 48,
-  hero: 64,
+  xs: DesignTokens.typography.size.xs,
+  sm: DesignTokens.typography.size.sm,
+  md: DesignTokens.typography.size.md,
+  lg: DesignTokens.typography.size.lg,
+  xl: DesignTokens.typography.size.xl,
+  xxl: DesignTokens.typography.size.xxl,
+  xxxl: DesignTokens.typography.size.xxxl,
+  hero: DesignTokens.typography.size.hero,
 }
 
+// Backward compatible font weight exports
 export const FontWeight = {
-  regular: '400' as const,
-  medium: '500' as const,
-  semibold: '600' as const,
-  bold: '700' as const,
-  heavy: '800' as const,
+  regular: DesignTokens.typography.weight.regular,
+  medium: DesignTokens.typography.weight.medium,
+  semibold: DesignTokens.typography.weight.semibold,
+  bold: DesignTokens.typography.weight.bold,
+  heavy: DesignTokens.typography.weight.heavy,
 }
 
+// Backward compatible border radius exports
 export const BorderRadius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
-  full: 9999,
+  sm: DesignTokens.borderRadius.sm,
+  md: DesignTokens.borderRadius.md,
+  lg: DesignTokens.borderRadius.lg,
+  xl: DesignTokens.borderRadius.xl,
+  full: DesignTokens.borderRadius.full,
 }

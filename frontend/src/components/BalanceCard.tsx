@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { DesignTokens, colorWithOpacity } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { useState, useEffect } from 'react'
 import { fxRateService } from '@/services/fxRates'
@@ -10,17 +11,18 @@ interface AssetRowProps {
   amount: string
   value: string
   color: string
+  testID?: string
 }
 
-function AssetRow({ icon, label, amount, value, color }: AssetRowProps) {
+function AssetRow({ icon, label, amount, value, color, testID }: AssetRowProps) {
   return (
-    <View style={styles.assetRow}>
-      <View style={[styles.assetIcon, { backgroundColor: color + '15' }]}>
-        <Ionicons name={icon} size={20} color={color} />
+    <View style={styles.assetRow} testID={testID}>
+      <View style={[styles.assetIcon, { backgroundColor: colorWithOpacity(color, 0.15) }]}>
+        <Ionicons name={icon} size={DesignTokens.iconSize.sm} color={color} />
       </View>
       <View style={styles.assetInfo}>
         <Text style={styles.assetLabel}>{label}</Text>
-        <Text style={[styles.assetAmount, { color: Colors.white }]}>{amount}</Text>
+        <Text style={styles.assetAmount}>{amount}</Text>
       </View>
       <View style={styles.assetValueWrap}>
         <Text style={styles.assetValue}>{value}</Text>
@@ -34,50 +36,76 @@ interface BalanceCardProps {
   usdcBalance: number
   xlmBalance: number
   localTokens?: Record<string, number>
+  testID?: string
 }
 
-export function BalanceCard({ phpBalance, usdcBalance, xlmBalance }: BalanceCardProps) {
+export function BalanceCard({
+  phpBalance,
+  usdcBalance,
+  xlmBalance,
+  localTokens,
+  testID,
+}: BalanceCardProps) {
   const [rates, setRates] = useState({ usdToPhp: 58, xlmToUsd: 0.12 })
 
   useEffect(() => {
-    fxRateService.getRates().then(setRates)
+    fxRateService.getRates().then(setRates).catch(() => {
+      // Use default rates on error
+    })
   }, [])
 
-  const totalPhp = phpBalance + usdcBalance * rates.usdToPhp + xlmBalance * rates.usdToPhp * rates.xlmToUsd
+  const xlmValueInPhp = xlmBalance * rates.xlmToUsd * rates.usdToPhp
+  const usdcValueInPhp = usdcBalance * rates.usdToPhp
+  const totalPhp = phpBalance + usdcValueInPhp + xlmValueInPhp
 
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      testID={testID}
+      accessibilityLabel={`Total portfolio value: ${totalPhp.toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })}`}
+      accessibilityRole="summary"
+    >
+      {/* Portfolio Total */}
       <View style={styles.totalSection}>
-        <Text style={styles.totalLabel}>Portfolio Value</Text>
-        <Text style={styles.totalAmount}>
-          ₱{totalPhp.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+        <Text style={styles.totalLabel}>PORTFOLIO VALUE</Text>
+        <Text style={styles.totalAmount} accessibilityRole="text">
+          ₱{totalPhp.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </Text>
-        <Text style={styles.totalSub}>{totalPhp > 0 ? `$${(totalPhp / rates.usdToPhp).toFixed(2)} USD` : ''}</Text>
+        {totalPhp > 0 && (
+          <Text style={styles.totalSub}>
+            ${(totalPhp / rates.usdToPhp).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+          </Text>
+        )}
       </View>
 
+      {/* Divider */}
       <View style={styles.divider} />
 
-      <View style={styles.assetList}>
+      {/* Asset Breakdown */}
+      <View style={styles.assetList} accessibilityRole="list">
         <AssetRow
           icon="cash-outline"
           label="PHP"
-          amount={`₱${phpBalance.toFixed(2)}`}
+          amount={`₱${phpBalance.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`}
           value="Fiat"
           color={Colors.gold}
+          testID="balance-card-php"
         />
         <AssetRow
           icon="logo-usd"
           label="USDC"
-          amount={`${usdcBalance.toFixed(2)}`}
-          value={`₱${(usdcBalance * rates.usdToPhp).toFixed(2)}`}
+          amount={usdcBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+          value={`₱${usdcValueInPhp.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`}
           color={Colors.silver}
+          testID="balance-card-usdc"
         />
         <AssetRow
           icon="planet-outline"
           label="XLM"
-          amount={`${xlmBalance.toFixed(4)}`}
-          value={`₱${(xlmBalance * rates.usdToPhp * rates.xlmToUsd).toFixed(2)}`}
+          amount={xlmBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+          value={`₱${xlmValueInPhp.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`}
           color={Colors.goldDim}
+          testID="balance-card-xlm"
         />
       </View>
     </View>
@@ -91,23 +119,27 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.borderGrey,
+    ...DesignTokens.shadows.card,
   },
+  
+  // Portfolio Total Section
   totalSection: {
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.md,
   },
   totalLabel: {
     fontSize: FontSize.xs,
     color: Colors.mutedWhite,
     fontWeight: FontWeight.medium,
     textTransform: 'uppercase',
-    letterSpacing: 2,
+    letterSpacing: DesignTokens.typography.letterSpacing.wider,
   },
   totalAmount: {
     fontSize: FontSize.xxl,
     color: Colors.cream,
     fontWeight: FontWeight.heavy,
-    marginTop: Spacing.xs,
+    marginTop: Spacing.sm,
+    lineHeight: FontSize.xxl * DesignTokens.typography.lineHeight.tight,
   },
   totalSub: {
     fontSize: FontSize.sm,
@@ -116,11 +148,15 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.medium,
     minHeight: 18,
   },
+  
+  // Divider
   divider: {
     height: 1,
     backgroundColor: Colors.borderGrey,
     marginVertical: Spacing.lg,
   },
+  
+  // Asset List
   assetList: {
     gap: Spacing.md,
   },
@@ -128,6 +164,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: Spacing.xs,
+    minHeight: DesignTokens.touchTarget.minimum,
   },
   assetIcon: {
     width: 40,
@@ -147,11 +184,14 @@ const styles = StyleSheet.create({
     color: Colors.mutedWhite,
     fontWeight: FontWeight.medium,
     textTransform: 'uppercase',
+    letterSpacing: DesignTokens.typography.letterSpacing.wide,
   },
   assetAmount: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.md,
+    color: Colors.white,
     fontWeight: FontWeight.semibold,
-    marginTop: 1,
+    marginTop: 2,
+    lineHeight: FontSize.md * DesignTokens.typography.lineHeight.tight,
   },
   assetValueWrap: {
     alignItems: 'flex-end',
@@ -159,5 +199,6 @@ const styles = StyleSheet.create({
   assetValue: {
     fontSize: FontSize.sm,
     color: Colors.mutedWhite,
+    fontWeight: FontWeight.medium,
   },
 })

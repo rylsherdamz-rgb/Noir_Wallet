@@ -15,6 +15,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/noir-backend
+  CLOUD_RUN_SERVICE: noir-backend
+  CLOUD_RUN_REGION: us-central1
+
 jobs:
   test:
     name: Build & Test
@@ -62,7 +68,7 @@ jobs:
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -70,7 +76,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/noir-backend
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=sha,prefix={{date 'YYYYMMDD'}}-
             type=ref,event=branch
@@ -86,3 +92,42 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Cloud Run
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: docker
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.CLOUD_RUN_SERVICE }}
+          region: ${{ env.CLOUD_RUN_REGION }}
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          timeout: 300s
+          env_vars: |
+            STELLAR_NETWORK=testnet
+            STELLAR_HORIZON_URL=https://horizon-testnet.stellar.org
+            STELLAR_RPC_URL=https://soroban-testnet.stellar.org
+            STELLAR_NETWORK_PASSPHRASE=Test SDF Network ; September 2015
+            RUST_LOG=info
+          secrets: |
+            DATABASE_URL=DATABASE_URL:latest
+            MASTER_KEY_ID=MASTER_KEY_ID:latest
+            CHANNEL_SECRET_KEY=CHANNEL_SECRET_KEY:latest
+            ISSUER_ADDRESS=ISSUER_ADDRESS:latest
+            PDAX_API_KEY=PDAX_API_KEY:latest
+            PDAX_SECRET_KEY=PDAX_SECRET_KEY:latest
+            PDAX_CLIENT_ID=PDAX_CLIENT_ID:latest
+            TERMINAL_ID=TERMINAL_ID:latest
