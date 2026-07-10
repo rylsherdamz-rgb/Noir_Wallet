@@ -10,16 +10,16 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /build
 
 # Cache dependencies separately from source for faster rebuilds
-COPY Cargo.toml Cargo.lock ./
+COPY Cargo.toml ./
 RUN mkdir src && echo "fn main() {}" > src/main.rs
-RUN cargo build --release --locked
+RUN cargo build --release
 RUN rm src/main.rs
 
 # Now copy real source and build
 COPY . .
 # Touch main.rs so cargo knows it changed
 RUN touch src/main.rs
-RUN cargo build --release --locked
+RUN cargo build --release
 
 # ── Stage 2: runtime ─────────────────────────────────────────────────────────
 FROM debian:bookworm-slim

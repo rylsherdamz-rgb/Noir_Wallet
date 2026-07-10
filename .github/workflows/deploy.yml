@@ -1,57 +1,18 @@
-name: Backend CI/CD
+name: Deploy to Cloud Run
 
 on:
   push:
-    branches: [main, develop, backend]
-    paths:
-      - 'backend/**'
-      - '.github/workflows/backend-ci.yml'
-  pull_request:
-    branches: [main, backend]
-    paths:
-      - 'backend/**'
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+    branches: [main]
+  workflow_dispatch:
 
 env:
-  REGION: us-central1
   PROJECT_ID: noir-wallet-hackathon
+  REGION: us-central1
   SERVICE: noir-backend
 
 jobs:
-  test:
-    name: Build & Test
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend/asset/backend
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          components: clippy, rustfmt
-
-      - run: cargo build --release --locked
-        name: Build
-
-      - run: cargo test --lib
-        name: Run Unit Tests
-
-      - run: cargo clippy -- -D warnings
-        name: Clippy
-
-      - run: cargo fmt -- --check
-        name: Format Check
-
   deploy:
-    name: Build & Deploy to Cloud Run
-    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    needs: test
     permissions:
       contents: read
       id-token: write
@@ -86,7 +47,7 @@ jobs:
       - id: build
         uses: docker/build-push-action@v6
         with:
-          context: backend/asset
+          context: backend/asset/backend
           file: backend/asset/backend/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
