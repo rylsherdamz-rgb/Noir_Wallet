@@ -21,7 +21,11 @@ async fn main() {
         std::process::exit(1);
     }
 
-    println!("Logging in to PDAX ({}) at {}...", config.pdax_environment, config.pdax_base_url());
+    println!(
+        "Logging in to PDAX ({}) at {}...",
+        config.pdax_environment,
+        config.pdax_base_url()
+    );
 
     let client = PdaxClient::new(
         config.pdax_base_url().to_string(),
@@ -75,5 +79,8 @@ async fn main() {
 /// Prints the session in the same shape as PDAX's documented `/login`
 /// response payload, with full token values.
 fn print_session(session: &noir_backend::pdax::PdaxSession) {
-    println!("{}", serde_json::to_string_pretty(session).expect("PdaxSession always serializes"));
+    println!(
+        "{}",
+        serde_json::to_string_pretty(session).expect("PdaxSession always serializes")
+    );
 }

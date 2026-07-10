@@ -37,7 +37,7 @@ impl ConfirmationPoller {
     async fn poll_pending_transactions(&self) -> Result<()> {
         let submitted_txs = self.db.get_submitted_payment_transactions().await?;
 
-        for mut tx in submitted_txs {
+        for tx in submitted_txs {
             if let Some(ref tx_hash) = tx.stellar_tx_hash {
                 match self.stellar.get_transaction_status(tx_hash).await {
                     Ok(status) => {
@@ -50,10 +50,7 @@ impl ConfirmationPoller {
                                 .update_transaction_confirmed_time(&tx.transaction_id, Utc::now())
                                 .await?;
 
-                            log::info!(
-                                "Transaction {} confirmed on Stellar",
-                                tx.transaction_id
-                            );
+                            log::info!("Transaction {} confirmed on Stellar", tx.transaction_id);
                         } else if status == "failed" {
                             self.db
                                 .update_transaction_status(
@@ -63,17 +60,11 @@ impl ConfirmationPoller {
                                 )
                                 .await?;
 
-                            log::warn!(
-                                "Transaction {} failed on Stellar",
-                                tx.transaction_id
-                            );
+                            log::warn!("Transaction {} failed on Stellar", tx.transaction_id);
                         }
                     }
                     Err(e) => {
-                        log::debug!(
-                            "Error checking status for {}: {}",
-                            tx.transaction_id, e
-                        );
+                        log::debug!("Error checking status for {}: {}", tx.transaction_id, e);
                     }
                 }
             }

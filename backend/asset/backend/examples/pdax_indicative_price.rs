@@ -39,7 +39,11 @@ async fn main() {
         println!("Reusing cached PDAX session from .env...");
         client.seed_refresh_token(config.pdax_refresh_token.clone());
     } else {
-        println!("No cached session — logging in to PDAX ({}) at {}...", config.pdax_environment, config.pdax_base_url());
+        println!(
+            "No cached session — logging in to PDAX ({}) at {}...",
+            config.pdax_environment,
+            config.pdax_base_url()
+        );
         match client.login().await {
             Ok(PdaxLoginOutcome::Authenticated(_)) => {}
             Ok(PdaxLoginOutcome::MfaRequired(_)) => {
@@ -58,9 +62,15 @@ async fn main() {
         side, base_quantity, quote_currency, base_currency
     );
 
-    match client.indicative_price(quote_currency, base_currency, side, base_quantity).await {
+    match client
+        .indicative_price(quote_currency, base_currency, side, base_quantity)
+        .await
+    {
         Ok(price) => {
-            println!("{}", serde_json::to_string_pretty(&price).expect("Value always serializes"));
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&price).expect("Value always serializes")
+            );
         }
         Err(e) => {
             eprintln!("Indicative price request failed: {}", e);

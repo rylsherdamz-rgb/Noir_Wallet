@@ -44,7 +44,10 @@ async fn main() {
     match client.refresh().await {
         Ok(session) => {
             println!("Refreshed. New token expires at {}\n", session.expires_at);
-            println!("{}", serde_json::to_string_pretty(&session).expect("PdaxSession always serializes"));
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&session).expect("PdaxSession always serializes")
+            );
             pdax_env_cache::save_session(
                 &session.access_token,
                 &session.refresh_token,

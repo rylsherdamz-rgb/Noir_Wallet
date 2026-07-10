@@ -1,7 +1,7 @@
-use std::sync::Arc;
 use crate::db::DeviceRepository;
 use crate::errors::{PaymentError, Result};
 use crate::models::PaymentRequest;
+use std::sync::Arc;
 
 pub struct DeviceValidator {
     db: Arc<DeviceRepository>,
@@ -14,11 +14,11 @@ impl DeviceValidator {
 
     pub async fn validate_device_active(&self, hash: &str) -> Result<()> {
         let device = self.db.get_device_by_hash(hash).await?;
-        
+
         if device.status != "active" {
             return Err(PaymentError::DeviceNotActive);
         }
-        
+
         Ok(())
     }
 

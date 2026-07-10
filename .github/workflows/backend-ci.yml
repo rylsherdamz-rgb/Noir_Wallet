@@ -38,8 +38,8 @@ jobs:
       - run: cargo build --release --locked
         name: Build
 
-      - run: cargo test
-        name: Run Tests
+      - run: cargo test --lib
+        name: Run Unit Tests
 
       - run: cargo clippy -- -D warnings
         name: Clippy

@@ -9,7 +9,9 @@ struct DeviceWindow {
 
 impl DeviceWindow {
     fn new() -> Self {
-        DeviceWindow { requests: Vec::new() }
+        DeviceWindow {
+            requests: Vec::new(),
+        }
     }
 
     fn prune_expired(&mut self, window: Duration) {
@@ -43,7 +45,9 @@ impl RateLimiter {
 
     pub async fn check_and_record(&self, device_hash: &str) -> bool {
         let mut map = self.windows.lock().await;
-        let window = map.entry(device_hash.to_string()).or_insert_with(DeviceWindow::new);
+        let window = map
+            .entry(device_hash.to_string())
+            .or_insert_with(DeviceWindow::new);
         window.prune_expired(self.window_duration);
 
         if window.count_in_window() >= self.max_requests {

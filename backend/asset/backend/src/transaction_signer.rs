@@ -1,5 +1,5 @@
 use crate::errors::{PaymentError, Result};
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 
 const STELLAR_VERSION_BYTE: u8 = 48;
 
@@ -38,7 +38,7 @@ impl TransactionSigner {
     }
 
     fn create_signature(&self, _envelope_data: &[u8]) -> Result<String> {
-        let decoded_key = decode_secret_key(&self.secret_key)?;
+        let _decoded_key = decode_secret_key(&self.secret_key)?;
 
         let signature_placeholder = hex::encode(vec![0u8; 64]);
         Ok(signature_placeholder)
@@ -144,9 +144,10 @@ fn base32_decode(data: &str, version_byte: u8) -> Result<Vec<u8>> {
                 decoded.push(((bits >> bit_count) & 0xFF) as u8);
             }
         } else {
-            return Err(PaymentError::InvalidPayload(
-                format!("Invalid character in encoded data: {}", c),
-            ));
+            return Err(PaymentError::InvalidPayload(format!(
+                "Invalid character in encoded data: {}",
+                c
+            )));
         }
     }
 
@@ -157,12 +158,10 @@ fn base32_decode(data: &str, version_byte: u8) -> Result<Vec<u8>> {
     }
 
     if decoded[0] != version_byte {
-        return Err(PaymentError::InvalidPayload(
-            format!(
-                "Invalid version byte. Expected {}, got {}",
-                version_byte, decoded[0]
-            ),
-        ));
+        return Err(PaymentError::InvalidPayload(format!(
+            "Invalid version byte. Expected {}, got {}",
+            version_byte, decoded[0]
+        )));
     }
 
     Ok(decoded[1..decoded.len() - 4].to_vec())
@@ -171,9 +170,9 @@ fn base32_decode(data: &str, version_byte: u8) -> Result<Vec<u8>> {
 fn base64_to_bytes(encoded: &str) -> Result<Vec<u8>> {
     use base64::{engine::general_purpose::STANDARD, Engine};
 
-    STANDARD.decode(encoded).map_err(|e| {
-        PaymentError::InvalidPayload(format!("Failed to decode base64: {}", e))
-    })
+    STANDARD
+        .decode(encoded)
+        .map_err(|e| PaymentError::InvalidPayload(format!("Failed to decode base64: {}", e)))
 }
 
 #[cfg(test)]
@@ -194,7 +193,9 @@ mod tests {
 
     #[test]
     fn test_sign_requires_envelope() {
-        let signer = TransactionSigner::new("SDSAYCE335Q5Q57WWFDSF47W4WTHG4QV3CWDMFVZYTDURXTANDVM76E".to_string());
+        let signer = TransactionSigner::new(
+            "SDSAYCE335Q5Q57WWFDSF47W4WTHG4QV3CWDMFVZYTDURXTANDVM76E".to_string(),
+        );
         assert!(signer.is_ok());
 
         let result = signer.unwrap().sign_transaction_envelope("");

@@ -33,7 +33,11 @@ async fn main() {
     if !config.pdax_refresh_token.is_empty() {
         client.seed_refresh_token(config.pdax_refresh_token.clone());
     } else {
-        println!("No cached session — logging in to PDAX ({}) at {}...", config.pdax_environment, config.pdax_base_url());
+        println!(
+            "No cached session — logging in to PDAX ({}) at {}...",
+            config.pdax_environment,
+            config.pdax_base_url()
+        );
         match client.login().await {
             Ok(PdaxLoginOutcome::Authenticated(_)) => {}
             Ok(PdaxLoginOutcome::MfaRequired(_)) => {
@@ -47,11 +51,17 @@ async fn main() {
         }
     }
 
-    println!("Fetching crypto deposit address for currency={}...\n", currency);
+    println!(
+        "Fetching crypto deposit address for currency={}...\n",
+        currency
+    );
 
     match client.crypto_deposit_address(currency).await {
         Ok(address) => {
-            println!("{}", serde_json::to_string_pretty(&address).expect("Value always serializes"));
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&address).expect("Value always serializes")
+            );
         }
         Err(e) => {
             eprintln!("Crypto deposit address request failed: {}", e);

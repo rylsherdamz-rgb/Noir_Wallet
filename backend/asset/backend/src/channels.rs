@@ -15,7 +15,11 @@ pub struct ChannelManager {
 }
 
 impl ChannelManager {
-    pub fn new(db: Arc<DeviceRepository>, stellar: Arc<StellarClient>, min_balance_stroops: i64) -> Self {
+    pub fn new(
+        db: Arc<DeviceRepository>,
+        stellar: Arc<StellarClient>,
+        min_balance_stroops: i64,
+    ) -> Self {
         ChannelManager {
             db,
             stellar,
@@ -61,7 +65,8 @@ impl ChannelManager {
     }
 
     pub async fn check_and_topup_channel(&self, channel: &FeeChannel) -> Result<()> {
-        let current_balance = self.stellar
+        let current_balance = self
+            .stellar
             .get_account_balance(&channel.channel_address)
             .await?;
 
@@ -71,7 +76,8 @@ impl ChannelManager {
                 .transfer_to_channel(&channel.channel_address, topup_amount)
                 .await?;
 
-            self.db.update_channel_balance(&channel.channel_address, topup_amount + current_balance)
+            self.db
+                .update_channel_balance(&channel.channel_address, topup_amount + current_balance)
                 .await?;
         }
 
@@ -79,7 +85,9 @@ impl ChannelManager {
     }
 
     pub async fn record_fee_usage(&self, channel_address: &str, fee_stroops: i64) -> Result<()> {
-        self.db.record_channel_fee_usage(channel_address, fee_stroops).await?;
+        self.db
+            .record_channel_fee_usage(channel_address, fee_stroops)
+            .await?;
         Ok(())
     }
 
@@ -110,7 +118,9 @@ impl ChannelManager {
     }
 
     pub async fn mark_channel_inactive(&self, channel_address: &str) -> Result<()> {
-        self.db.update_fee_channel_status(channel_address, "inactive").await?;
+        self.db
+            .update_fee_channel_status(channel_address, "inactive")
+            .await?;
         log::warn!("Marked channel {} as inactive", channel_address);
         Ok(())
     }

@@ -40,7 +40,11 @@ async fn main() {
     if !config.pdax_refresh_token.is_empty() {
         client.seed_refresh_token(config.pdax_refresh_token.clone());
     } else {
-        println!("No cached session — logging in to PDAX ({}) at {}...", config.pdax_environment, config.pdax_base_url());
+        println!(
+            "No cached session — logging in to PDAX ({}) at {}...",
+            config.pdax_environment,
+            config.pdax_base_url()
+        );
         match client.login().await {
             Ok(PdaxLoginOutcome::Authenticated(_)) => {}
             Ok(PdaxLoginOutcome::MfaRequired(_)) => {
@@ -59,10 +63,16 @@ async fn main() {
         side, base_quantity, quote_currency, base_currency
     );
 
-    match client.firm_quote(quote_currency, base_currency, side, base_quantity).await {
+    match client
+        .firm_quote(quote_currency, base_currency, side, base_quantity)
+        .await
+    {
         Ok(quote) => {
             let received_at = Utc::now();
-            println!("{}", serde_json::to_string_pretty(&quote).expect("Value always serializes"));
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&quote).expect("Value always serializes")
+            );
             println!(
                 "\n⚠ Received at {}. This quote (quote_id, if present above) is only valid for ~15 SECONDS.",
                 received_at.to_rfc3339()

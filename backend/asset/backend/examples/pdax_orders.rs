@@ -35,7 +35,11 @@ async fn main() {
     if !config.pdax_refresh_token.is_empty() {
         client.seed_refresh_token(config.pdax_refresh_token.clone());
     } else {
-        println!("No cached session — logging in to PDAX ({}) at {}...", config.pdax_environment, config.pdax_base_url());
+        println!(
+            "No cached session — logging in to PDAX ({}) at {}...",
+            config.pdax_environment,
+            config.pdax_base_url()
+        );
         match client.login().await {
             Ok(PdaxLoginOutcome::Authenticated(_)) => {}
             Ok(PdaxLoginOutcome::MfaRequired(_)) => {
@@ -53,13 +57,23 @@ async fn main() {
         "Fetching orders: page={} pageSize={}{}{}...\n",
         page,
         page_size,
-        start_date.map(|d| format!(" startDate={}", d)).unwrap_or_default(),
-        end_date.map(|d| format!(" endDate={}", d)).unwrap_or_default(),
+        start_date
+            .map(|d| format!(" startDate={}", d))
+            .unwrap_or_default(),
+        end_date
+            .map(|d| format!(" endDate={}", d))
+            .unwrap_or_default(),
     );
 
-    match client.list_orders(page, page_size, start_date, end_date).await {
+    match client
+        .list_orders(page, page_size, start_date, end_date)
+        .await
+    {
         Ok(orders) => {
-            println!("{}", serde_json::to_string_pretty(&orders).expect("Value always serializes"));
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&orders).expect("Value always serializes")
+            );
         }
         Err(e) => {
             eprintln!("Orders request failed: {}", e);

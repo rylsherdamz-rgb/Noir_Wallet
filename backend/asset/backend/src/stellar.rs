@@ -66,24 +66,23 @@ impl StellarClient {
     pub async fn get_account_sequence(&self, address: &str) -> Result<u64> {
         let url = format!("{}/accounts/{}", self.rpc_url, address);
 
-        let response = self.http_client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| PaymentError::StellarRpcError(format!("Failed to fetch account: {}", e)))?;
+        let response = self.http_client.get(&url).send().await.map_err(|e| {
+            PaymentError::StellarRpcError(format!("Failed to fetch account: {}", e))
+        })?;
 
         if !response.status().is_success() {
-            return Err(PaymentError::StellarRpcError("Account not found on network".to_string()));
+            return Err(PaymentError::StellarRpcError(
+                "Account not found on network".to_string(),
+            ));
         }
 
-        let account: AccountResponse = response
-            .json()
-            .await
-            .map_err(|e| PaymentError::StellarRpcError(format!("Failed to parse account response: {}", e)))?;
+        let account: AccountResponse = response.json().await.map_err(|e| {
+            PaymentError::StellarRpcError(format!("Failed to parse account response: {}", e))
+        })?;
 
-        account.sequence
-            .parse::<u64>()
-            .map_err(|_| PaymentError::StellarRpcError("Invalid sequence number format".to_string()))
+        account.sequence.parse::<u64>().map_err(|_| {
+            PaymentError::StellarRpcError("Invalid sequence number format".to_string())
+        })
     }
 
     pub async fn submit_transaction(&self, envelope_xdr: &str) -> Result<String> {
@@ -93,17 +92,19 @@ impl StellarClient {
             "tx": envelope_xdr,
         });
 
-        let response = self.http_client
+        let response = self
+            .http_client
             .post(&url)
             .json(&body)
             .send()
             .await
-            .map_err(|e| PaymentError::StellarRpcError(format!("Failed to submit transaction: {}", e)))?;
+            .map_err(|e| {
+                PaymentError::StellarRpcError(format!("Failed to submit transaction: {}", e))
+            })?;
 
-        let submit: SubmitResponse = response
-            .json()
-            .await
-            .map_err(|e| PaymentError::StellarRpcError(format!("Failed to parse submit response: {}", e)))?;
+        let submit: SubmitResponse = response.json().await.map_err(|e| {
+            PaymentError::StellarRpcError(format!("Failed to parse submit response: {}", e))
+        })?;
 
         if let Some(error) = submit.error_result {
             return Err(PaymentError::SubmissionFailed(format!(
@@ -112,25 +113,23 @@ impl StellarClient {
             )));
         }
 
-        submit.hash
-            .ok_or_else(|| PaymentError::SubmissionFailed("No transaction hash in response".to_string()))
+        submit.hash.ok_or_else(|| {
+            PaymentError::SubmissionFailed("No transaction hash in response".to_string())
+        })
     }
 
     pub async fn get_transaction_status(&self, tx_hash: &str) -> Result<String> {
         let url = format!("{}/transactions/{}", self.rpc_url, tx_hash);
 
-        let response = self.http_client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| PaymentError::StellarRpcError(format!("Failed to fetch transaction: {}", e)))?;
+        let response = self.http_client.get(&url).send().await.map_err(|e| {
+            PaymentError::StellarRpcError(format!("Failed to fetch transaction: {}", e))
+        })?;
 
         match response.status().as_u16() {
             200 => {
-                let tx: TransactionResponse = response
-                    .json()
-                    .await
-                    .map_err(|e| PaymentError::StellarRpcError(format!("Failed to parse tx response: {}", e)))?;
+                let tx: TransactionResponse = response.json().await.map_err(|e| {
+                    PaymentError::StellarRpcError(format!("Failed to parse tx response: {}", e))
+                })?;
 
                 if tx.successful {
                     Ok("confirmed".to_string())
@@ -139,34 +138,37 @@ impl StellarClient {
                 }
             }
             404 => Ok("pending".to_string()),
-            _ => Err(PaymentError::StellarRpcError("Failed to check transaction status".to_string())),
+            _ => Err(PaymentError::StellarRpcError(
+                "Failed to check transaction status".to_string(),
+            )),
         }
     }
 
     pub async fn get_account_balance(&self, address: &str) -> Result<i64> {
         let url = format!("{}/accounts/{}", self.rpc_url, address);
 
-        let response = self.http_client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| PaymentError::StellarRpcError(format!("Failed to fetch account: {}", e)))?;
+        let response = self.http_client.get(&url).send().await.map_err(|e| {
+            PaymentError::StellarRpcError(format!("Failed to fetch account: {}", e))
+        })?;
 
         if !response.status().is_success() {
-            return Err(PaymentError::StellarRpcError("Account not found on network".to_string()));
+            return Err(PaymentError::StellarRpcError(
+                "Account not found on network".to_string(),
+            ));
         }
 
-        let account: AccountResponse = response
-            .json()
-            .await
-            .map_err(|e| PaymentError::StellarRpcError(format!("Failed to parse account response: {}", e)))?;
+        let account: AccountResponse = response.json().await.map_err(|e| {
+            PaymentError::StellarRpcError(format!("Failed to parse account response: {}", e))
+        })?;
 
-        let native_balance = account.balances
+        let native_balance = account
+            .balances
             .iter()
             .find(|b| b.asset_type == "native")
             .ok_or_else(|| PaymentError::StellarRpcError("No native balance found".to_string()))?;
 
-        let xlm = native_balance.balance
+        let xlm = native_balance
+            .balance
             .parse::<f64>()
             .map_err(|e| PaymentError::StellarRpcError(format!("Invalid balance format: {}", e)))?;
 

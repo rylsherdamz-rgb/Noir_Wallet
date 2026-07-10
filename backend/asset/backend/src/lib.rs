@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 pub mod api;
 pub mod cache;
 pub mod channel_selector;

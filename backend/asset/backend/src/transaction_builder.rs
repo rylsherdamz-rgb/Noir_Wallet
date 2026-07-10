@@ -1,11 +1,14 @@
 use crate::errors::{PaymentError, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
 
+#[allow(dead_code)]
 const TESTNET_NETWORK_ID: &[u8; 32] = b"Test SDF Network ; June 2015\x00\x00\x00\x00";
+#[allow(dead_code)]
 const PUBNET_NETWORK_ID: &[u8; 32] = b"Public Global Stellar Network\x00\x00\x00";
 const BASE_FEE_STROOPS: u32 = 200;
 
 pub struct TransactionBuilder {
+    #[allow(dead_code)]
     network: String,
 }
 
@@ -14,6 +17,7 @@ impl TransactionBuilder {
         TransactionBuilder { network }
     }
 
+    #[allow(dead_code)]
     fn get_network_id(&self) -> &'static [u8; 32] {
         if self.network == "testnet" {
             TESTNET_NETWORK_ID
@@ -49,12 +53,7 @@ impl TransactionBuilder {
             ));
         }
 
-        self.create_envelope_xdr(
-            source,
-            destination,
-            amount_stroops,
-            sequence,
-        )
+        self.create_envelope_xdr(source, destination, amount_stroops, sequence)
     }
 
     fn create_envelope_xdr(
@@ -159,12 +158,14 @@ fn decode_stellar_account(account: &str) -> Result<Vec<u8>> {
     const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
     if !account.starts_with('G') || account.len() < 55 || account.len() > 56 {
-        return Err(PaymentError::InvalidPayload(
-            format!("Invalid Stellar account ID format: {} (len={})", account, account.len()),
-        ));
+        return Err(PaymentError::InvalidPayload(format!(
+            "Invalid Stellar account ID format: {} (len={})",
+            account,
+            account.len()
+        )));
     }
 
-    let mut decoded = vec![0u8; 35];
+    let mut decoded = [0u8; 35];
     let mut bit_pos = 0usize;
 
     for c in account.chars() {
@@ -183,9 +184,10 @@ fn decode_stellar_account(account: &str) -> Result<Vec<u8>> {
                 bit_pos += 1;
             }
         } else {
-            return Err(PaymentError::InvalidPayload(
-                format!("Invalid character in account ID: {}", c),
-            ));
+            return Err(PaymentError::InvalidPayload(format!(
+                "Invalid character in account ID: {}",
+                c
+            )));
         }
     }
 

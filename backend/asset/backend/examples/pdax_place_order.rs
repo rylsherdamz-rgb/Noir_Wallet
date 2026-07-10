@@ -52,7 +52,11 @@ async fn main() {
     if !config.pdax_refresh_token.is_empty() {
         client.seed_refresh_token(config.pdax_refresh_token.clone());
     } else {
-        println!("No cached session — logging in to PDAX ({}) at {}...", config.pdax_environment, config.pdax_base_url());
+        println!(
+            "No cached session — logging in to PDAX ({}) at {}...",
+            config.pdax_environment,
+            config.pdax_base_url()
+        );
         match client.login().await {
             Ok(PdaxLoginOutcome::Authenticated(_)) => {}
             Ok(PdaxLoginOutcome::MfaRequired(_)) => {
@@ -67,14 +71,20 @@ async fn main() {
     }
 
     println!("Requesting firm quote...");
-    let quote = match client.firm_quote(quote_currency, base_currency, side, base_quantity).await {
+    let quote = match client
+        .firm_quote(quote_currency, base_currency, side, base_quantity)
+        .await
+    {
         Ok(q) => q,
         Err(e) => {
             eprintln!("Firm quote request failed: {}", e);
             std::process::exit(1);
         }
     };
-    println!("{}", serde_json::to_string_pretty(&quote).expect("Value always serializes"));
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&quote).expect("Value always serializes")
+    );
 
     let quote_id = quote
         .get("data")
@@ -93,7 +103,10 @@ async fn main() {
 
     match client.place_order(quote_id, side, &idempotency_id).await {
         Ok(order) => {
-            println!("Order placed:\n{}", serde_json::to_string_pretty(&order).expect("Value always serializes"));
+            println!(
+                "Order placed:\n{}",
+                serde_json::to_string_pretty(&order).expect("Value always serializes")
+            );
         }
         Err(e) => {
             eprintln!("Place order failed: {}", e);

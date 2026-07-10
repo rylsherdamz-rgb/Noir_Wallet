@@ -54,8 +54,7 @@ impl Config {
             environment: env::var("ENVIRONMENT").unwrap_or_else(|_| "development".to_string()),
             database_url: env::var("DATABASE_URL")
                 .map_err(|_| PaymentError::ConfigError("DATABASE_URL not set".to_string()))?,
-            stellar_network: env::var("STELLAR_NETWORK")
-                .unwrap_or_else(|_| "testnet".to_string()),
+            stellar_network: env::var("STELLAR_NETWORK").unwrap_or_else(|_| "testnet".to_string()),
             stellar_rpc_url: env::var("STELLAR_RPC_URL")
                 .unwrap_or_else(|_| "https://soroban-testnet.stellar.org".to_string()),
             api_port: env::var("API_PORT")
@@ -66,7 +65,10 @@ impl Config {
             log_level: env::var("LOG_LEVEL").unwrap_or_else(|_| "info".to_string()),
             confirmation_poll_interval_secs: parse_env("CONFIRMATION_POLL_INTERVAL_SECS", 2),
             contract_sync_interval_secs: parse_env("CONTRACT_SYNC_INTERVAL_SECS", 3600),
-            channel_balance_check_interval_secs: parse_env("CHANNEL_BALANCE_CHECK_INTERVAL_SECS", 300),
+            channel_balance_check_interval_secs: parse_env(
+                "CHANNEL_BALANCE_CHECK_INTERVAL_SECS",
+                300,
+            ),
             submission_process_interval_secs: parse_env("SUBMISSION_PROCESS_INTERVAL_SECS", 5),
             notification_prune_interval_secs: parse_env("NOTIFICATION_PRUNE_INTERVAL_SECS", 30),
             db_max_connections: parse_env("DB_MAX_CONNECTIONS", 20),
@@ -82,10 +84,12 @@ impl Config {
             pdax_environment: env::var("PDAX_ENVIRONMENT").unwrap_or_else(|_| "uat".to_string()),
             pdax_base_url_production: env::var("PDAX_API_BASE_URL_PRODUCTION")
                 .unwrap_or_else(|_| "https://services.pdax.ph/api/pdax-api".to_string()),
-            pdax_base_url_stage: env::var("PDAX_API_BASE_URL_STAGE")
-                .unwrap_or_else(|_| "https://stage.services.sandbox.pdax.ph/api/pdax-api".to_string()),
-            pdax_base_url_uat: env::var("PDAX_API_BASE_URL_UAT")
-                .unwrap_or_else(|_| "https://uat.services.sandbox.pdax.ph/api/pdax-api".to_string()),
+            pdax_base_url_stage: env::var("PDAX_API_BASE_URL_STAGE").unwrap_or_else(|_| {
+                "https://stage.services.sandbox.pdax.ph/api/pdax-api".to_string()
+            }),
+            pdax_base_url_uat: env::var("PDAX_API_BASE_URL_UAT").unwrap_or_else(|_| {
+                "https://uat.services.sandbox.pdax.ph/api/pdax-api".to_string()
+            }),
             pdax_username: env::var("PDAX_USERNAME").unwrap_or_default(),
             pdax_password: env::var("PDAX_PASSWORD").unwrap_or_default(),
             pdax_api_key: env::var("PDAX_API_KEY").unwrap_or_default(),
@@ -107,7 +111,9 @@ impl Config {
 
     pub fn validate(&self) -> Result<()> {
         if self.database_url.is_empty() {
-            return Err(PaymentError::ConfigError("DATABASE_URL is empty".to_string()));
+            return Err(PaymentError::ConfigError(
+                "DATABASE_URL is empty".to_string(),
+            ));
         }
         if self.is_production() && self.is_testnet() {
             return Err(PaymentError::ConfigError(
@@ -121,7 +127,8 @@ impl Config {
         }
         if self.channel_min_balance_stroops >= self.channel_topup_target_stroops {
             return Err(PaymentError::ConfigError(
-                "CHANNEL_MIN_BALANCE_STROOPS must be less than CHANNEL_TOPUP_TARGET_STROOPS".to_string(),
+                "CHANNEL_MIN_BALANCE_STROOPS must be less than CHANNEL_TOPUP_TARGET_STROOPS"
+                    .to_string(),
             ));
         }
         Ok(())

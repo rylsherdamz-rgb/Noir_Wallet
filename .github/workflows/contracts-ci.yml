@@ -33,10 +33,7 @@ jobs:
         with:
           target: wasm32-unknown-unknown
           components: clippy, rustfmt
-
-      - uses: stellar-expert/soroban-cli-action@v1
-        with:
-          version: latest
+          toolchain: 1.85
 
       - run: cargo build --release --target wasm32-unknown-unknown
         name: Build Contracts

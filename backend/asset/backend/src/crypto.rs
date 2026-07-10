@@ -1,10 +1,10 @@
+use crate::errors::{PaymentError, Result};
 use aes_gcm::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
     Aes256Gcm, Key, Nonce,
 };
 use base64::{engine::general_purpose::STANDARD, Engine};
-use sha2::{Sha256, Digest};
-use crate::errors::{PaymentError, Result};
+use sha2::{Digest, Sha256};
 
 const NONCE_LEN: usize = 12;
 
@@ -50,7 +50,10 @@ impl LocalKeyManager {
         }
         let mut master_key = [0u8; 32];
         master_key.copy_from_slice(&bytes);
-        Ok(LocalKeyManager { master_key, version })
+        Ok(LocalKeyManager {
+            master_key,
+            version,
+        })
     }
 
     fn cipher(&self) -> Aes256Gcm {
@@ -74,7 +77,9 @@ impl KeyManager for LocalKeyManager {
 
     fn unwrap_data_key(&self, wrapped: &[u8]) -> Result<Vec<u8>> {
         if wrapped.len() < NONCE_LEN {
-            return Err(PaymentError::EncryptionError("Wrapped key too short".to_string()));
+            return Err(PaymentError::EncryptionError(
+                "Wrapped key too short".to_string(),
+            ));
         }
         let (nonce_bytes, ciphertext) = wrapped.split_at(NONCE_LEN);
 
@@ -98,7 +103,9 @@ struct EncryptedPayload {
 
 impl EncryptedPayload {
     fn to_bytes(&self) -> Vec<u8> {
-        let mut out = Vec::with_capacity(4 + self.wrapped_dek.len() + self.nonce.len() + self.ciphertext.len());
+        let mut out = Vec::with_capacity(
+            4 + self.wrapped_dek.len() + self.nonce.len() + self.ciphertext.len(),
+        );
         out.extend_from_slice(&(self.wrapped_dek.len() as u32).to_be_bytes());
         out.extend_from_slice(&self.wrapped_dek);
         out.extend_from_slice(&self.nonce);
@@ -108,12 +115,16 @@ impl EncryptedPayload {
 
     fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.len() < 4 {
-            return Err(PaymentError::EncryptionError("Encrypted payload truncated".to_string()));
+            return Err(PaymentError::EncryptionError(
+                "Encrypted payload truncated".to_string(),
+            ));
         }
         let wrapped_len = u32::from_be_bytes(bytes[0..4].try_into().unwrap()) as usize;
         let rest = &bytes[4..];
         if rest.len() < wrapped_len + NONCE_LEN {
-            return Err(PaymentError::EncryptionError("Encrypted payload truncated".to_string()));
+            return Err(PaymentError::EncryptionError(
+                "Encrypted payload truncated".to_string(),
+            ));
         }
 
         Ok(EncryptedPayload {
@@ -152,7 +163,10 @@ pub fn decrypt_at_rest(key_manager: &dyn KeyManager, blob: &[u8]) -> Result<Vec<
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&dek));
 
     cipher
-        .decrypt(Nonce::from_slice(&payload.nonce), payload.ciphertext.as_slice())
+        .decrypt(
+            Nonce::from_slice(&payload.nonce),
+            payload.ciphertext.as_slice(),
+        )
         .map_err(|e| PaymentError::EncryptionError(format!("Decryption failed: {}", e)))
 }
 
@@ -166,7 +180,7 @@ pub fn hash_device_serial(serial: &str) -> Result<String> {
     let mut hasher = Sha256::new();
     hasher.update(serial.as_bytes());
     let result = hasher.finalize();
-    
+
     Ok(hex::encode(result))
 }
 
@@ -236,7 +250,8 @@ mod tests {
     #[test]
     fn test_decrypt_fails_with_wrong_key_manager() {
         let km = test_key_manager();
-        let other_km = LocalKeyManager::new("//////////////////////////////////////////8=", 1).unwrap();
+        let other_km =
+            LocalKeyManager::new("//////////////////////////////////////////8=", 1).unwrap();
         let blob = encrypt_at_rest(&km, b"payload").unwrap();
 
         assert!(decrypt_at_rest(&other_km, &blob).is_err());

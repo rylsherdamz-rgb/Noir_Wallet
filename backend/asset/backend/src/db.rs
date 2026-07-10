@@ -1,6 +1,8 @@
-use sqlx::PgPool;
 use crate::errors::{PaymentError, Result};
-use crate::models::{Device, DailySpend, PaymentTransaction, FeeChannel, Merchant, AppUser, TransactionNotification};
+use crate::models::{
+    AppUser, DailySpend, Device, FeeChannel, Merchant, PaymentTransaction, TransactionNotification,
+};
+use sqlx::PgPool;
 
 #[derive(Clone)]
 pub struct DeviceRepository {
@@ -31,13 +33,9 @@ impl DeviceRepository {
         .ok_or(PaymentError::DeviceNotFound)
     }
 
-    pub async fn check_daily_limit(
-        &self,
-        hash: &str,
-        amount: i64,
-    ) -> Result<bool> {
+    pub async fn check_daily_limit(&self, hash: &str, amount: i64) -> Result<bool> {
         let device = self.get_device_by_hash(hash).await?;
-        
+
         let today = chrono::Utc::now().date_naive();
         let daily_spend = sqlx::query_as::<_, DailySpend>(
             "SELECT id, device_hash, transaction_date, total_spent_stroops, transaction_count FROM daily_spends WHERE device_hash = $1 AND transaction_date = $2"
@@ -56,7 +54,7 @@ impl DeviceRepository {
 
     pub async fn increment_daily_spend(&self, hash: &str, amount: i64) -> Result<()> {
         let today = chrono::Utc::now().date_naive();
-        
+
         sqlx::query(
             "INSERT INTO daily_spends (device_hash, transaction_date, total_spent_stroops, transaction_count) 
              VALUES ($1, $2, $3, 1)
@@ -149,7 +147,12 @@ impl DeviceRepository {
         .map_err(|e| PaymentError::DatabaseError(e.to_string()))
     }
 
-    pub async fn update_transaction_status(&self, tx_id: &str, status: &str, error: Option<String>) -> Result<()> {
+    pub async fn update_transaction_status(
+        &self,
+        tx_id: &str,
+        status: &str,
+        error: Option<String>,
+    ) -> Result<()> {
         sqlx::query(
             "UPDATE payment_transactions SET status = $1, error_message = $2 WHERE transaction_id = $3"
         )
@@ -165,7 +168,7 @@ impl DeviceRepository {
 
     pub async fn update_transaction_hash(&self, tx_id: &str, hash: &str) -> Result<()> {
         sqlx::query(
-            "UPDATE payment_transactions SET stellar_tx_hash = $1 WHERE transaction_id = $2"
+            "UPDATE payment_transactions SET stellar_tx_hash = $1 WHERE transaction_id = $2",
         )
         .bind(hash)
         .bind(tx_id)
@@ -176,28 +179,32 @@ impl DeviceRepository {
         Ok(())
     }
 
-    pub async fn update_transaction_submitted_time(&self, tx_id: &str, time: chrono::DateTime<chrono::Utc>) -> Result<()> {
-        sqlx::query(
-            "UPDATE payment_transactions SET submitted_at = $1 WHERE transaction_id = $2"
-        )
-        .bind(time)
-        .bind(tx_id)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+    pub async fn update_transaction_submitted_time(
+        &self,
+        tx_id: &str,
+        time: chrono::DateTime<chrono::Utc>,
+    ) -> Result<()> {
+        sqlx::query("UPDATE payment_transactions SET submitted_at = $1 WHERE transaction_id = $2")
+            .bind(time)
+            .bind(tx_id)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
 
         Ok(())
     }
 
-    pub async fn update_transaction_confirmed_time(&self, tx_id: &str, time: chrono::DateTime<chrono::Utc>) -> Result<()> {
-        sqlx::query(
-            "UPDATE payment_transactions SET confirmed_at = $1 WHERE transaction_id = $2"
-        )
-        .bind(time)
-        .bind(tx_id)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+    pub async fn update_transaction_confirmed_time(
+        &self,
+        tx_id: &str,
+        time: chrono::DateTime<chrono::Utc>,
+    ) -> Result<()> {
+        sqlx::query("UPDATE payment_transactions SET confirmed_at = $1 WHERE transaction_id = $2")
+            .bind(time)
+            .bind(tx_id)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
 
         Ok(())
     }
@@ -234,7 +241,11 @@ impl DeviceRepository {
         Ok(())
     }
 
-    pub async fn record_channel_fee_usage(&self, channel_address: &str, fee_stroops: i64) -> Result<()> {
+    pub async fn record_channel_fee_usage(
+        &self,
+        channel_address: &str,
+        fee_stroops: i64,
+    ) -> Result<()> {
         sqlx::query(
             "UPDATE fee_channels SET balance_stroops = balance_stroops - $1, last_balance_check = $2 WHERE channel_address = $3"
         )
@@ -248,9 +259,13 @@ impl DeviceRepository {
         Ok(())
     }
 
-    pub async fn update_transaction_channel(&self, tx_id: &str, channel_address: &str) -> Result<()> {
+    pub async fn update_transaction_channel(
+        &self,
+        tx_id: &str,
+        channel_address: &str,
+    ) -> Result<()> {
         sqlx::query(
-            "UPDATE payment_transactions SET fee_channel_used = $1 WHERE transaction_id = $2"
+            "UPDATE payment_transactions SET fee_channel_used = $1 WHERE transaction_id = $2",
         )
         .bind(channel_address)
         .bind(tx_id)
@@ -261,7 +276,10 @@ impl DeviceRepository {
         Ok(())
     }
 
-    pub async fn get_transaction_by_idempotency_key(&self, key: &str) -> Result<Option<PaymentTransaction>> {
+    pub async fn get_transaction_by_idempotency_key(
+        &self,
+        key: &str,
+    ) -> Result<Option<PaymentTransaction>> {
         sqlx::query_as::<_, PaymentTransaction>(
             "SELECT id, transaction_id, device_hash, source_wallet, destination_wallet, amount_stroops, fee_stroops, status, stellar_tx_hash, created_at, submitted_at, confirmed_at, error_message, fee_channel_used FROM payment_transactions WHERE idempotency_key = $1 LIMIT 1"
         )
@@ -271,7 +289,11 @@ impl DeviceRepository {
         .map_err(|e| PaymentError::DatabaseError(e.to_string()))
     }
 
-    pub async fn store_payment_transaction_with_key(&self, tx: &PaymentTransaction, idempotency_key: &str) -> Result<()> {
+    pub async fn store_payment_transaction_with_key(
+        &self,
+        tx: &PaymentTransaction,
+        idempotency_key: &str,
+    ) -> Result<()> {
         sqlx::query(
             "INSERT INTO payment_transactions (transaction_id, device_hash, source_wallet, destination_wallet, amount_stroops, fee_stroops, status, created_at, fee_channel_used, idempotency_key)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"

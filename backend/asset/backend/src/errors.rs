@@ -7,34 +7,34 @@ use thiserror::Error;
 pub enum PaymentError {
     #[error("Device not found")]
     DeviceNotFound,
-    
+
     #[error("Device is not active")]
     DeviceNotActive,
-    
+
     #[error("Spend limit exceeded for today")]
     SpendLimitExceeded,
-    
+
     #[error("Invalid payload: {0}")]
     InvalidPayload(String),
-    
+
     #[error("Database error: {0}")]
     DatabaseError(String),
-    
+
     #[error("Stellar RPC error: {0}")]
     StellarRpcError(String),
 
     #[error("PDAX API error: {0}")]
     PdaxApiError(String),
-    
+
     #[error("Transaction sequence number conflict")]
     SequenceNumberConflict,
-    
+
     #[error("Failed to submit transaction: {0}")]
     SubmissionFailed(String),
-    
+
     #[error("Internal server error")]
     InternalError,
-    
+
     #[error("Configuration error: {0}")]
     ConfigError(String),
 
@@ -65,16 +65,13 @@ impl ResponseError for PaymentError {
         };
 
         match self {
-            PaymentError::DeviceNotFound
-            | PaymentError::InvalidPayload(_) => {
+            PaymentError::DeviceNotFound | PaymentError::InvalidPayload(_) => {
                 HttpResponse::BadRequest().json(error_response)
             }
-            PaymentError::DeviceNotActive | PaymentError::SpendLimitExceeded | PaymentError::InsufficientFunds => {
-                HttpResponse::Forbidden().json(error_response)
-            }
-            PaymentError::RateLimited => {
-                HttpResponse::TooManyRequests().json(error_response)
-            }
+            PaymentError::DeviceNotActive
+            | PaymentError::SpendLimitExceeded
+            | PaymentError::InsufficientFunds => HttpResponse::Forbidden().json(error_response),
+            PaymentError::RateLimited => HttpResponse::TooManyRequests().json(error_response),
             PaymentError::DatabaseError(_)
             | PaymentError::StellarRpcError(_)
             | PaymentError::PdaxApiError(_)
@@ -93,9 +90,9 @@ impl ResponseError for PaymentError {
             PaymentError::DeviceNotFound | PaymentError::InvalidPayload(_) => {
                 StatusCode::BAD_REQUEST
             }
-            PaymentError::DeviceNotActive | PaymentError::SpendLimitExceeded | PaymentError::InsufficientFunds => {
-                StatusCode::FORBIDDEN
-            }
+            PaymentError::DeviceNotActive
+            | PaymentError::SpendLimitExceeded
+            | PaymentError::InsufficientFunds => StatusCode::FORBIDDEN,
             PaymentError::RateLimited => StatusCode::TOO_MANY_REQUESTS,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }

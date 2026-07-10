@@ -25,12 +25,18 @@ pub fn save_session(access_token: &str, refresh_token: &str, expires_at: &str) {
     let mut lines: Vec<String> = contents.lines().map(|l| l.to_string()).collect();
     for (key, value) in updates {
         let new_line = format!("{}={}", key, value);
-        match lines.iter().position(|l| l.starts_with(&format!("{}=", key))) {
+        match lines
+            .iter()
+            .position(|l| l.starts_with(&format!("{}=", key)))
+        {
             Some(i) => lines[i] = new_line,
             None => lines.push(new_line),
         }
     }
 
     fs::write(&path, lines.join("\n") + "\n").expect("Failed to write .env session cache");
-    println!("Saved session to {} (PDAX_ACCESS_TOKEN / PDAX_REFRESH_TOKEN / PDAX_TOKEN_EXPIRES_AT).", path.display());
+    println!(
+        "Saved session to {} (PDAX_ACCESS_TOKEN / PDAX_REFRESH_TOKEN / PDAX_TOKEN_EXPIRES_AT).",
+        path.display()
+    );
 }

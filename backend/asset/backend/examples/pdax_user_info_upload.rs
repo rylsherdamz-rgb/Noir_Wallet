@@ -28,10 +28,12 @@ async fn main() {
     let args: Vec<String> = std::env::args().collect();
     let amount: f64 = args
         .get(1)
-        .map(|s| s.parse().unwrap_or_else(|_| {
-            eprintln!("amount must be a number, got: {}", s);
-            std::process::exit(1);
-        }))
+        .map(|s| {
+            s.parse().unwrap_or_else(|_| {
+                eprintln!("amount must be a number, got: {}", s);
+                std::process::exit(1);
+            })
+        })
         .unwrap_or(55000.0);
 
     if config.pdax_username.is_empty() {
@@ -57,7 +59,11 @@ async fn main() {
     if !config.pdax_refresh_token.is_empty() {
         client.seed_refresh_token(config.pdax_refresh_token.clone());
     } else {
-        println!("No cached session — logging in to PDAX ({}) at {}...", config.pdax_environment, config.pdax_base_url());
+        println!(
+            "No cached session — logging in to PDAX ({}) at {}...",
+            config.pdax_environment,
+            config.pdax_base_url()
+        );
         match client.login().await {
             Ok(PdaxLoginOutcome::Authenticated(_)) => {}
             Ok(PdaxLoginOutcome::MfaRequired(_)) => {
@@ -113,11 +119,17 @@ async fn main() {
         instructions: Some("instructions".to_string()),
     };
 
-    println!("Submitting fiat user-info-upload (identifier={})...\n", request.identifier);
+    println!(
+        "Submitting fiat user-info-upload (identifier={})...\n",
+        request.identifier
+    );
 
     match client.fiat_user_info_upload(&request).await {
         Ok(response) => {
-            println!("{}", serde_json::to_string_pretty(&response).expect("Value always serializes"));
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&response).expect("Value always serializes")
+            );
         }
         Err(e) => {
             eprintln!("Fiat user-info-upload request failed: {}", e);

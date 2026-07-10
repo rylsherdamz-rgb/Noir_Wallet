@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use actix_web::{web, App, HttpServer};
 use log::info;
 use sqlx::postgres::PgPoolOptions;
@@ -26,11 +28,11 @@ mod transaction_signer;
 mod validation;
 mod workers;
 
+use channels::ChannelManager;
 use config::Config;
 use db::DeviceRepository;
-use channels::ChannelManager;
 use state::AppState;
-use workers::{ConfirmationPoller, ContractSyncWorker, ChannelMonitor, NotificationPruner};
+use workers::{ChannelMonitor, ConfirmationPoller, ContractSyncWorker, NotificationPruner};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -40,7 +42,10 @@ async fn main() -> std::io::Result<()> {
     config.validate().expect("Invalid configuration");
 
     info!("Starting Noir Wallet payment gateway");
-    info!("Environment: {} | Network: {}", config.environment, config.stellar_network);
+    info!(
+        "Environment: {} | Network: {}",
+        config.environment, config.stellar_network
+    );
 
     // DB pool with tuned settings
     let pool = PgPoolOptions::new()
@@ -57,7 +62,10 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("Failed to run migrations");
 
-    info!("Database ready ({} max connections)", config.db_max_connections);
+    info!(
+        "Database ready ({} max connections)",
+        config.db_max_connections
+    );
 
     let stellar_client = stellar::StellarClient::new(
         config.stellar_rpc_url.clone(),
@@ -138,19 +146,34 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::JsonConfig::default().limit(max_body))
             .app_data(app_state.clone())
             .app_data(channel_manager_data.clone())
-            .route("/health",  web::get().to(api::health_check))
+            .route("/health", web::get().to(api::health_check))
             .route("/metrics", web::get().to(api::get_metrics))
             .route("/payment", web::post().to(api::process_payment))
-            .route("/payment/{transaction_id}", web::get().to(api::get_transaction_status))
-            .route("/device/{device_serial}/transactions", web::get().to(api::get_device_transactions))
+            .route(
+                "/payment/{transaction_id}",
+                web::get().to(api::get_transaction_status),
+            )
+            .route(
+                "/device/{device_serial}/transactions",
+                web::get().to(api::get_device_transactions),
+            )
             .route("/channels", web::get().to(api::list_fee_channels))
-            .route("/channels/{channel_address}", web::get().to(api::get_channel_details))
+            .route(
+                "/channels/{channel_address}",
+                web::get().to(api::get_channel_details),
+            )
             // Frontend API endpoints
-            .route("/payments/initiate", web::post().to(api::initiate_payment_frontend))
+            .route(
+                "/payments/initiate",
+                web::post().to(api::initiate_payment_frontend),
+            )
             .route("/payments/batch", web::post().to(api::batch_payments))
             .route("/transactions", web::get().to(api::list_transactions))
             .route("/notifications", web::get().to(api::list_notifications))
-            .route("/notifications/register", web::post().to(api::register_push_token))
+            .route(
+                "/notifications/register",
+                web::post().to(api::register_push_token),
+            )
             .route("/auth/account", web::delete().to(api::delete_account))
             .route("/pdax/cash-in", web::post().to(api::pdax_cash_in))
             .route("/pdax/cash-out", web::post().to(api::pdax_cash_out))

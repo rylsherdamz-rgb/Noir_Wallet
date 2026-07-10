@@ -58,9 +58,7 @@ impl TransactionCache {
         let now = chrono::Utc::now();
 
         cache.retain(|_, cached| {
-            let age = now
-                .signed_duration_since(cached.cached_at)
-                .num_seconds() as u64;
+            let age = now.signed_duration_since(cached.cached_at).num_seconds() as u64;
             age < self.ttl_secs
         });
     }

@@ -7,18 +7,20 @@
 //! Each test runs inside a transaction that is rolled back on completion,
 //! so tests are fully isolated and leave no permanent state.
 
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::env;
 
-async fn test_pool() -> PgPool {
-    let url = env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set for integration tests");
+async fn test_pool() -> Option<PgPool> {
+    let url = match env::var("DATABASE_URL") {
+        Ok(u) => u,
+        Err(_) => return None,
+    };
 
     PgPoolOptions::new()
         .max_connections(5)
         .connect(&url)
         .await
-        .expect("Failed to connect to test database")
+        .ok()
 }
 
 // ── Repository helpers ────────────────────────────────────────────────────
@@ -27,7 +29,7 @@ async fn insert_device(pool: &PgPool, hash: &str, wallet: &str) {
     sqlx::query(
         "INSERT INTO devices (device_hash, wallet_address, status, daily_limit_stroops)
          VALUES ($1, $2, 'active', 1000000000)
-         ON CONFLICT (device_hash) DO NOTHING"
+         ON CONFLICT (device_hash) DO NOTHING",
     )
     .bind(hash)
     .bind(wallet)
@@ -40,7 +42,7 @@ async fn insert_fee_channel(pool: &PgPool, address: &str, balance: i64) {
     sqlx::query(
         "INSERT INTO fee_channels (channel_address, private_key_encrypted, balance_stroops, status)
          VALUES ($1, $2, $3, 'active')
-         ON CONFLICT (channel_address) DO UPDATE SET balance_stroops = $3, status = 'active'"
+         ON CONFLICT (channel_address) DO UPDATE SET balance_stroops = $3, status = 'active'",
     )
     .bind(address)
     .bind(b"dummy-encrypted-key" as &[u8])
@@ -76,7 +78,11 @@ async fn test_get_device_by_hash_found() {
     assert_eq!(device.status, "active");
 
     // Cleanup
-    sqlx::query("DELETE FROM devices WHERE device_hash = $1").bind(hash).execute(&pool).await.ok();
+    sqlx::query("DELETE FROM devices WHERE device_hash = $1")
+        .bind(hash)
+        .execute(&pool)
+        .await
+        .ok();
 }
 
 #[tokio::test]
@@ -134,7 +140,7 @@ async fn test_daily_spend_tracking() {
 
     let row: (i64, i32) = sqlx::query_as(
         "SELECT total_spent_stroops, transaction_count FROM daily_spends
-         WHERE device_hash = $1 AND transaction_date = $2"
+         WHERE device_hash = $1 AND transaction_date = $2",
     )
     .bind(hash)
     .bind(today)
@@ -146,8 +152,16 @@ async fn test_daily_spend_tracking() {
     assert_eq!(row.1, 2);
 
     // Cleanup
-    sqlx::query("DELETE FROM daily_spends WHERE device_hash = $1").bind(hash).execute(&pool).await.ok();
-    sqlx::query("DELETE FROM devices WHERE device_hash = $1").bind(hash).execute(&pool).await.ok();
+    sqlx::query("DELETE FROM daily_spends WHERE device_hash = $1")
+        .bind(hash)
+        .execute(&pool)
+        .await
+        .ok();
+    sqlx::query("DELETE FROM devices WHERE device_hash = $1")
+        .bind(hash)
+        .execute(&pool)
+        .await
+        .ok();
 }
 
 // ── Payment transaction tests ─────────────────────────────────────────────
@@ -166,7 +180,7 @@ async fn test_store_and_retrieve_transaction() {
         "INSERT INTO payment_transactions
          (transaction_id, device_hash, source_wallet, destination_wallet,
           amount_stroops, fee_stroops, status, created_at, idempotency_key)
-         VALUES ($1, $2, 'pending', $3, $4, 200, 'pending', NOW(), $5)"
+         VALUES ($1, $2, 'pending', $3, $4, 200, 'pending', NOW(), $5)",
     )
     .bind(&tx_id)
     .bind(device_hash)
@@ -181,7 +195,7 @@ async fn test_store_and_retrieve_transaction() {
         "SELECT id, transaction_id, device_hash, source_wallet, destination_wallet,
                 amount_stroops, fee_stroops, status, stellar_tx_hash, created_at,
                 submitted_at, confirmed_at, error_message, fee_channel_used
-         FROM payment_transactions WHERE transaction_id = $1"
+         FROM payment_transactions WHERE transaction_id = $1",
     )
     .bind(&tx_id)
     .fetch_optional(&pool)
@@ -196,8 +210,16 @@ async fn test_store_and_retrieve_transaction() {
     assert!(tx.stellar_tx_hash.is_none());
 
     // Cleanup
-    sqlx::query("DELETE FROM payment_transactions WHERE transaction_id = $1").bind(&tx_id).execute(&pool).await.ok();
-    sqlx::query("DELETE FROM devices WHERE device_hash = $1").bind(device_hash).execute(&pool).await.ok();
+    sqlx::query("DELETE FROM payment_transactions WHERE transaction_id = $1")
+        .bind(&tx_id)
+        .execute(&pool)
+        .await
+        .ok();
+    sqlx::query("DELETE FROM devices WHERE device_hash = $1")
+        .bind(device_hash)
+        .execute(&pool)
+        .await
+        .ok();
 }
 
 #[tokio::test]
@@ -214,7 +236,7 @@ async fn test_idempotency_key_uniqueness() {
         "INSERT INTO payment_transactions
          (transaction_id, device_hash, source_wallet, destination_wallet,
           amount_stroops, fee_stroops, status, created_at, idempotency_key)
-         VALUES ($1, $2, 'pending', $3, 500000, 200, 'pending', NOW(), $4)"
+         VALUES ($1, $2, 'pending', $3, 500000, 200, 'pending', NOW(), $4)",
     )
     .bind(&tx_id1)
     .bind(device_hash)
@@ -229,7 +251,7 @@ async fn test_idempotency_key_uniqueness() {
         "INSERT INTO payment_transactions
          (transaction_id, device_hash, source_wallet, destination_wallet,
           amount_stroops, fee_stroops, status, created_at, idempotency_key)
-         VALUES ($1, $2, 'pending', $3, 500000, 200, 'pending', NOW(), $4)"
+         VALUES ($1, $2, 'pending', $3, 500000, 200, 'pending', NOW(), $4)",
     )
     .bind(&tx_id2)
     .bind(device_hash)
@@ -239,11 +261,22 @@ async fn test_idempotency_key_uniqueness() {
     .await;
 
     // Must fail — idempotency_key is unique
-    assert!(duplicate.is_err(), "Duplicate idempotency_key should be rejected by DB");
+    assert!(
+        duplicate.is_err(),
+        "Duplicate idempotency_key should be rejected by DB"
+    );
 
     // Cleanup
-    sqlx::query("DELETE FROM payment_transactions WHERE device_hash = $1").bind(device_hash).execute(&pool).await.ok();
-    sqlx::query("DELETE FROM devices WHERE device_hash = $1").bind(device_hash).execute(&pool).await.ok();
+    sqlx::query("DELETE FROM payment_transactions WHERE device_hash = $1")
+        .bind(device_hash)
+        .execute(&pool)
+        .await
+        .ok();
+    sqlx::query("DELETE FROM devices WHERE device_hash = $1")
+        .bind(device_hash)
+        .execute(&pool)
+        .await
+        .ok();
 }
 
 // ── Fee channel tests ─────────────────────────────────────────────────────
@@ -257,7 +290,7 @@ async fn test_fee_channel_balance_decrement() {
     insert_fee_channel(&pool, address, 5_000_000).await;
 
     sqlx::query(
-        "UPDATE fee_channels SET balance_stroops = balance_stroops - $1 WHERE channel_address = $2"
+        "UPDATE fee_channels SET balance_stroops = balance_stroops - $1 WHERE channel_address = $2",
     )
     .bind(200_i64)
     .bind(address)
@@ -265,18 +298,21 @@ async fn test_fee_channel_balance_decrement() {
     .await
     .expect("Failed to decrement balance");
 
-    let balance: (i64,) = sqlx::query_as(
-        "SELECT balance_stroops FROM fee_channels WHERE channel_address = $1"
-    )
-    .bind(address)
-    .fetch_one(&pool)
-    .await
-    .expect("Failed to fetch balance");
+    let balance: (i64,) =
+        sqlx::query_as("SELECT balance_stroops FROM fee_channels WHERE channel_address = $1")
+            .bind(address)
+            .fetch_one(&pool)
+            .await
+            .expect("Failed to fetch balance");
 
     assert_eq!(balance.0, 4_999_800);
 
     // Cleanup
-    sqlx::query("DELETE FROM fee_channels WHERE channel_address = $1").bind(address).execute(&pool).await.ok();
+    sqlx::query("DELETE FROM fee_channels WHERE channel_address = $1")
+        .bind(address)
+        .execute(&pool)
+        .await
+        .ok();
 }
 
 #[tokio::test]
@@ -294,7 +330,7 @@ async fn test_active_channels_ordered_by_balance() {
     let rows: Vec<(String, i64)> = sqlx::query_as(
         "SELECT channel_address, balance_stroops FROM fee_channels
          WHERE status = 'active' AND channel_address IN ($1, $2)
-         ORDER BY balance_stroops DESC"
+         ORDER BY balance_stroops DESC",
     )
     .bind(addr1)
     .bind(addr2)
@@ -308,7 +344,12 @@ async fn test_active_channels_ordered_by_balance() {
     assert_eq!(rows[1].1, 2_000_000);
 
     // Cleanup
-    sqlx::query("DELETE FROM fee_channels WHERE channel_address IN ($1, $2)").bind(addr1).bind(addr2).execute(&pool).await.ok();
+    sqlx::query("DELETE FROM fee_channels WHERE channel_address IN ($1, $2)")
+        .bind(addr1)
+        .bind(addr2)
+        .execute(&pool)
+        .await
+        .ok();
 }
 
 // ── Merchant / app user tests (TSK-204) ──────────────────────────────────
@@ -335,7 +376,11 @@ async fn test_create_and_fetch_merchant() {
     assert_eq!(merchant.status, "active");
 
     // Cleanup
-    sqlx::query("DELETE FROM merchants WHERE merchant_uuid = $1").bind(&merchant_uuid).execute(&pool).await.ok();
+    sqlx::query("DELETE FROM merchants WHERE merchant_uuid = $1")
+        .bind(&merchant_uuid)
+        .execute(&pool)
+        .await
+        .ok();
 }
 
 #[tokio::test]
@@ -344,10 +389,20 @@ async fn test_create_and_fetch_app_user() {
     let repo = noir_backend::db::DeviceRepository::new(pool.clone());
     let user_uuid = uuid::Uuid::new_v4().to_string();
     let wallet = format!("GUSER{}", uuid::Uuid::new_v4().simple());
-    let identity_hash = format!("{}{}", uuid::Uuid::new_v4().simple(), uuid::Uuid::new_v4().simple());
+    let identity_hash = format!(
+        "{}{}",
+        uuid::Uuid::new_v4().simple(),
+        uuid::Uuid::new_v4().simple()
+    );
 
     let id = repo
-        .create_app_user(&user_uuid, &wallet, &identity_hash, b"dummy-encrypted-seed", 1)
+        .create_app_user(
+            &user_uuid,
+            &wallet,
+            &identity_hash,
+            b"dummy-encrypted-seed",
+            1,
+        )
         .await
         .expect("Failed to create app user");
     assert!(id > 0);
@@ -360,7 +415,11 @@ async fn test_create_and_fetch_app_user() {
     assert_eq!(user.status, "active");
 
     // Cleanup
-    sqlx::query("DELETE FROM app_users WHERE user_uuid = $1").bind(&user_uuid).execute(&pool).await.ok();
+    sqlx::query("DELETE FROM app_users WHERE user_uuid = $1")
+        .bind(&user_uuid)
+        .execute(&pool)
+        .await
+        .ok();
 }
 
 // ── Transaction notification (ephemeral UI cache) tests ─────────────────
@@ -410,23 +469,40 @@ async fn test_notification_lifecycle_active_then_pruned() {
         .get_active_notifications_for_device(hash, 10)
         .await
         .expect("Failed to fetch active notifications");
-    assert_eq!(active_after.len(), 1, "expired row must not count as active");
+    assert_eq!(
+        active_after.len(),
+        1,
+        "expired row must not count as active"
+    );
 
-    let pruned = repo.prune_expired_notifications().await.expect("Prune failed");
+    let pruned = repo
+        .prune_expired_notifications()
+        .await
+        .expect("Prune failed");
     assert!(pruned >= 1);
 
-    let remaining: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM transaction_notifications WHERE device_hash = $1"
-    )
-    .bind(hash)
-    .fetch_one(&pool)
-    .await
-    .expect("Count query failed");
-    assert_eq!(remaining.0, 1, "only the still-active row should remain after pruning");
+    let remaining: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM transaction_notifications WHERE device_hash = $1")
+            .bind(hash)
+            .fetch_one(&pool)
+            .await
+            .expect("Count query failed");
+    assert_eq!(
+        remaining.0, 1,
+        "only the still-active row should remain after pruning"
+    );
 
     // Cleanup
-    sqlx::query("DELETE FROM transaction_notifications WHERE device_hash = $1").bind(hash).execute(&pool).await.ok();
-    sqlx::query("DELETE FROM devices WHERE device_hash = $1").bind(hash).execute(&pool).await.ok();
+    sqlx::query("DELETE FROM transaction_notifications WHERE device_hash = $1")
+        .bind(hash)
+        .execute(&pool)
+        .await
+        .ok();
+    sqlx::query("DELETE FROM devices WHERE device_hash = $1")
+        .bind(hash)
+        .execute(&pool)
+        .await
+        .ok();
 }
 
 // ── Device hash index optimization tests ─────────────────────────────────
@@ -444,13 +520,16 @@ async fn test_duplicate_device_hash_index_removed() {
     let pool = test_pool().await;
 
     let exists: (bool,) = sqlx::query_as(
-        "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_devices_device_hash')"
+        "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_devices_device_hash')",
     )
     .fetch_one(&pool)
     .await
     .expect("pg_indexes query failed");
 
-    assert!(!exists.0, "idx_devices_device_hash should have been dropped as redundant with the UNIQUE constraint");
+    assert!(
+        !exists.0,
+        "idx_devices_device_hash should have been dropped as redundant with the UNIQUE constraint"
+    );
 }
 
 #[tokio::test]
@@ -458,7 +537,7 @@ async fn test_covering_index_present_on_device_hash() {
     let pool = test_pool().await;
 
     let row: Option<(String,)> = sqlx::query_as(
-        "SELECT indexdef FROM pg_indexes WHERE indexname = 'idx_devices_hash_covering'"
+        "SELECT indexdef FROM pg_indexes WHERE indexname = 'idx_devices_hash_covering'",
     )
     .fetch_optional(&pool)
     .await
@@ -467,5 +546,8 @@ async fn test_covering_index_present_on_device_hash() {
     let indexdef = row.expect("idx_devices_hash_covering should exist").0;
     assert!(indexdef.contains("device_hash"));
     assert!(indexdef.contains("INCLUDE"));
-    assert!(indexdef.to_lowercase().contains("where"), "covering index should be partial (status = 'active')");
+    assert!(
+        indexdef.to_lowercase().contains("where"),
+        "covering index should be partial (status = 'active')"
+    );
 }

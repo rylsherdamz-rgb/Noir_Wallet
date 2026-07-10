@@ -7,6 +7,7 @@ use std::time::Duration;
 use tokio::time::sleep;
 
 pub struct ChannelMonitor {
+    #[allow(dead_code)]
     channel_manager: Arc<ChannelManager>,
     db: Arc<DeviceRepository>,
     stellar: Arc<StellarClient>,
@@ -53,10 +54,7 @@ impl ChannelMonitor {
 
         for mut channel in channels {
             if let Err(e) = self.check_and_topup_channel(&mut channel).await {
-                log::error!(
-                    "Error checking channel {}: {}",
-                    channel.channel_address, e
-                );
+                log::error!("Error checking channel {}: {}", channel.channel_address, e);
             }
         }
 
@@ -64,7 +62,10 @@ impl ChannelMonitor {
     }
 
     async fn check_and_topup_channel(&self, channel: &mut crate::models::FeeChannel) -> Result<()> {
-        let network_balance = self.stellar.get_account_balance(&channel.channel_address).await?;
+        let network_balance = self
+            .stellar
+            .get_account_balance(&channel.channel_address)
+            .await?;
 
         log::debug!(
             "Channel {} has {} stroops (DB: {}, Min: {})",
@@ -77,7 +78,8 @@ impl ChannelMonitor {
         if network_balance < self.min_balance_stroops {
             log::info!(
                 "Channel {} balance low ({} stroops), initiating topup",
-                channel.channel_address, network_balance
+                channel.channel_address,
+                network_balance
             );
 
             let topup_amount = self.topup_target_stroops - network_balance;
@@ -94,7 +96,8 @@ impl ChannelMonitor {
 
             log::info!(
                 "Channel {} topup completed: {} stroops",
-                channel.channel_address, topup_amount
+                channel.channel_address,
+                topup_amount
             );
         } else {
             channel.balance_stroops = network_balance;

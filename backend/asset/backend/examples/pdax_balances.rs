@@ -32,7 +32,11 @@ async fn main() {
     if !config.pdax_refresh_token.is_empty() {
         client.seed_refresh_token(config.pdax_refresh_token.clone());
     } else {
-        println!("No cached session — logging in to PDAX ({}) at {}...", config.pdax_environment, config.pdax_base_url());
+        println!(
+            "No cached session — logging in to PDAX ({}) at {}...",
+            config.pdax_environment,
+            config.pdax_base_url()
+        );
         match client.login().await {
             Ok(PdaxLoginOutcome::Authenticated(_)) => {}
             Ok(PdaxLoginOutcome::MfaRequired(_)) => {
@@ -50,7 +54,10 @@ async fn main() {
 
     match client.get_balances(currency).await {
         Ok(balances) => {
-            println!("{}", serde_json::to_string_pretty(&balances).expect("Value always serializes"));
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&balances).expect("Value always serializes")
+            );
         }
         Err(e) => {
             eprintln!("Balances request failed: {}", e);

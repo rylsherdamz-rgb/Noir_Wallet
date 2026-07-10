@@ -1,12 +1,12 @@
-use sqlx::PgPool;
-use std::sync::Arc;
 use crate::cache::TransactionCache;
 use crate::db::DeviceRepository;
-use crate::stellar::StellarClient;
-use crate::validation::DeviceValidator;
 use crate::fees::FeeChannelManager;
 use crate::metrics::MetricsCollector;
 use crate::rate_limiter::RateLimiter;
+use crate::stellar::StellarClient;
+use crate::validation::DeviceValidator;
+use sqlx::PgPool;
+use std::sync::Arc;
 
 pub struct AppState {
     pub db_pool: PgPool,
@@ -20,11 +20,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(
-        db_pool: PgPool,
-        stellar_client: StellarClient,
-        fee_channels: Vec<String>,
-    ) -> Self {
+    pub fn new(db_pool: PgPool, stellar_client: StellarClient, fee_channels: Vec<String>) -> Self {
         let db = Arc::new(DeviceRepository::new(db_pool.clone()));
         let validator = Arc::new(DeviceValidator::new(db.clone()));
 

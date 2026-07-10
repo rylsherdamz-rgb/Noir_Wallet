@@ -438,7 +438,9 @@ impl PdaxSession {
             expiry: tokens.expiry,
             access_token: tokens.access_token,
             id_token: tokens.id_token,
-            refresh_token: tokens.refresh_token.unwrap_or_else(|| previous.refresh_token.clone()),
+            refresh_token: tokens
+                .refresh_token
+                .unwrap_or_else(|| previous.refresh_token.clone()),
             expires_at: Utc::now() + Duration::seconds(tokens.expiry),
         }
     }
@@ -491,13 +493,15 @@ impl PdaxClient {
 
         if !status.is_success() {
             let message = pdax_error_message(response).await;
-            return Err(PaymentError::PdaxApiError(format!("Login rejected ({}): {}", status, message)));
+            return Err(PaymentError::PdaxApiError(format!(
+                "Login rejected ({}): {}",
+                status, message
+            )));
         }
 
-        let parsed: PdaxLoginResponse = response
-            .json()
-            .await
-            .map_err(|e| PaymentError::PdaxApiError(format!("Failed to parse login response: {}", e)))?;
+        let parsed: PdaxLoginResponse = response.json().await.map_err(|e| {
+            PaymentError::PdaxApiError(format!("Failed to parse login response: {}", e))
+        })?;
 
         match parsed {
             PdaxLoginResponse::Tokens(tokens) => {
@@ -519,7 +523,11 @@ impl PdaxClient {
     /// Calls POST /pdax-institution/v1/otp to complete an MFA challenge
     /// returned by `login`. On success the resulting tokens become the
     /// client's active session.
-    pub async fn verify_otp(&self, challenge: &PdaxMfaChallenge, code: &str) -> Result<PdaxSession> {
+    pub async fn verify_otp(
+        &self,
+        challenge: &PdaxMfaChallenge,
+        code: &str,
+    ) -> Result<PdaxSession> {
         let url = format!("{}/pdax-institution/v1/otp", self.base_url);
 
         let response = self
@@ -538,13 +546,15 @@ impl PdaxClient {
         let status = response.status();
         if !status.is_success() {
             let message = pdax_error_message(response).await;
-            return Err(PaymentError::PdaxApiError(format!("OTP rejected ({}): {}", status, message)));
+            return Err(PaymentError::PdaxApiError(format!(
+                "OTP rejected ({}): {}",
+                status, message
+            )));
         }
 
-        let tokens: PdaxLoginTokens = response
-            .json()
-            .await
-            .map_err(|e| PaymentError::PdaxApiError(format!("Failed to parse OTP response: {}", e)))?;
+        let tokens: PdaxLoginTokens = response.json().await.map_err(|e| {
+            PaymentError::PdaxApiError(format!("Failed to parse OTP response: {}", e))
+        })?;
 
         let session = PdaxSession::from_tokens(tokens);
         *self.session.write() = Some(session.clone());
@@ -573,7 +583,9 @@ impl PdaxClient {
     /// from the current session and replaces it with the renewed one.
     pub async fn refresh(&self) -> Result<PdaxSession> {
         let previous = self.session.read().clone().ok_or_else(|| {
-            PaymentError::PdaxApiError("No PDAX session to refresh — call login() first".to_string())
+            PaymentError::PdaxApiError(
+                "No PDAX session to refresh — call login() first".to_string(),
+            )
         })?;
 
         let url = format!("{}/pdax-institution/v1/refresh-token", self.base_url);
@@ -592,13 +604,15 @@ impl PdaxClient {
         let status = response.status();
         if !status.is_success() {
             let message = pdax_error_message(response).await;
-            return Err(PaymentError::PdaxApiError(format!("Refresh rejected ({}): {}", status, message)));
+            return Err(PaymentError::PdaxApiError(format!(
+                "Refresh rejected ({}): {}",
+                status, message
+            )));
         }
 
-        let tokens: PdaxRefreshTokens = response
-            .json()
-            .await
-            .map_err(|e| PaymentError::PdaxApiError(format!("Failed to parse refresh response: {}", e)))?;
+        let tokens: PdaxRefreshTokens = response.json().await.map_err(|e| {
+            PaymentError::PdaxApiError(format!("Failed to parse refresh response: {}", e))
+        })?;
 
         let session = PdaxSession::from_refresh(tokens, &previous);
         *self.session.write() = Some(session.clone());
@@ -652,12 +666,17 @@ impl PdaxClient {
             .header("id_token", &session.id_token)
             .send()
             .await
-            .map_err(|e| PaymentError::PdaxApiError(format!("Indicative price request failed: {}", e)))?;
+            .map_err(|e| {
+                PaymentError::PdaxApiError(format!("Indicative price request failed: {}", e))
+            })?;
 
         let status = response.status();
         if !status.is_success() {
             let message = pdax_error_message(response).await;
-            return Err(PaymentError::PdaxApiError(format!("Indicative price rejected ({}): {}", status, message)));
+            return Err(PaymentError::PdaxApiError(format!(
+                "Indicative price rejected ({}): {}",
+                status, message
+            )));
         }
 
         response.json().await.map_err(|e| {
@@ -698,13 +717,15 @@ impl PdaxClient {
         let status = response.status();
         if !status.is_success() {
             let message = pdax_error_message(response).await;
-            return Err(PaymentError::PdaxApiError(format!("Firm quote rejected ({}): {}", status, message)));
+            return Err(PaymentError::PdaxApiError(format!(
+                "Firm quote rejected ({}): {}",
+                status, message
+            )));
         }
 
-        response
-            .json()
-            .await
-            .map_err(|e| PaymentError::PdaxApiError(format!("Failed to parse firm quote response: {}", e)))
+        response.json().await.map_err(|e| {
+            PaymentError::PdaxApiError(format!("Failed to parse firm quote response: {}", e))
+        })
     }
 
     /// Calls GET /pdax-institution/v1/orders to list this account's orders.
@@ -741,13 +762,15 @@ impl PdaxClient {
         let status = response.status();
         if !status.is_success() {
             let message = pdax_error_message(response).await;
-            return Err(PaymentError::PdaxApiError(format!("Orders request rejected ({}): {}", status, message)));
+            return Err(PaymentError::PdaxApiError(format!(
+                "Orders request rejected ({}): {}",
+                status, message
+            )));
         }
 
-        response
-            .json()
-            .await
-            .map_err(|e| PaymentError::PdaxApiError(format!("Failed to parse orders response: {}", e)))
+        response.json().await.map_err(|e| {
+            PaymentError::PdaxApiError(format!("Failed to parse orders response: {}", e))
+        })
     }
 
     /// Calls GET /pdax-institution/v1/orders/{order_id} for the details of a
@@ -763,18 +786,22 @@ impl PdaxClient {
             .header("id_token", &session.id_token)
             .send()
             .await
-            .map_err(|e| PaymentError::PdaxApiError(format!("Order details request failed: {}", e)))?;
+            .map_err(|e| {
+                PaymentError::PdaxApiError(format!("Order details request failed: {}", e))
+            })?;
 
         let status = response.status();
         if !status.is_success() {
             let message = pdax_error_message(response).await;
-            return Err(PaymentError::PdaxApiError(format!("Order details rejected ({}): {}", status, message)));
+            return Err(PaymentError::PdaxApiError(format!(
+                "Order details rejected ({}): {}",
+                status, message
+            )));
         }
 
-        response
-            .json()
-            .await
-            .map_err(|e| PaymentError::PdaxApiError(format!("Failed to parse order details response: {}", e)))
+        response.json().await.map_err(|e| {
+            PaymentError::PdaxApiError(format!("Failed to parse order details response: {}", e))
+        })
     }
 
     /// Calls GET /pdax-institution/v1/crypto/deposit for the wallet address
@@ -792,16 +819,24 @@ impl PdaxClient {
             .header("id_token", &session.id_token)
             .send()
             .await
-            .map_err(|e| PaymentError::PdaxApiError(format!("Crypto deposit address request failed: {}", e)))?;
+            .map_err(|e| {
+                PaymentError::PdaxApiError(format!("Crypto deposit address request failed: {}", e))
+            })?;
 
         let status = response.status();
         if !status.is_success() {
             let message = pdax_error_message(response).await;
-            return Err(PaymentError::PdaxApiError(format!("Crypto deposit address rejected ({}): {}", status, message)));
+            return Err(PaymentError::PdaxApiError(format!(
+                "Crypto deposit address rejected ({}): {}",
+                status, message
+            )));
         }
 
         response.json().await.map_err(|e| {
-            PaymentError::PdaxApiError(format!("Failed to parse crypto deposit address response: {}", e))
+            PaymentError::PdaxApiError(format!(
+                "Failed to parse crypto deposit address response: {}",
+                e
+            ))
         })
     }
 
@@ -809,7 +844,10 @@ impl PdaxClient {
     /// of the PDAX account to an on-chain address — typically irreversible
     /// once broadcast.** Verify `request.address`/`request.tag` independently
     /// before calling this; there is no confirmation step.
-    pub async fn crypto_withdraw(&self, request: &CryptoWithdrawRequest) -> Result<serde_json::Value> {
+    pub async fn crypto_withdraw(
+        &self,
+        request: &CryptoWithdrawRequest,
+    ) -> Result<serde_json::Value> {
         let session = self.current_session().await?;
         let url = format!("{}/pdax-institution/v1/crypto/withdraw", self.base_url);
 
@@ -821,18 +859,22 @@ impl PdaxClient {
             .json(request)
             .send()
             .await
-            .map_err(|e| PaymentError::PdaxApiError(format!("Crypto withdraw request failed: {}", e)))?;
+            .map_err(|e| {
+                PaymentError::PdaxApiError(format!("Crypto withdraw request failed: {}", e))
+            })?;
 
         let status = response.status();
         if !status.is_success() {
             let message = pdax_error_message(response).await;
-            return Err(PaymentError::PdaxApiError(format!("Crypto withdraw rejected ({}): {}", status, message)));
+            return Err(PaymentError::PdaxApiError(format!(
+                "Crypto withdraw rejected ({}): {}",
+                status, message
+            )));
         }
 
-        response
-            .json()
-            .await
-            .map_err(|e| PaymentError::PdaxApiError(format!("Failed to parse crypto withdraw response: {}", e)))
+        response.json().await.map_err(|e| {
+            PaymentError::PdaxApiError(format!("Failed to parse crypto withdraw response: {}", e))
+        })
     }
 
     /// Calls GET /pdax-institution/v1/fiat/transactions to list/track fiat
@@ -869,12 +911,17 @@ impl PdaxClient {
             .header("id_token", &session.id_token)
             .send()
             .await
-            .map_err(|e| PaymentError::PdaxApiError(format!("Fiat transactions request failed: {}", e)))?;
+            .map_err(|e| {
+                PaymentError::PdaxApiError(format!("Fiat transactions request failed: {}", e))
+            })?;
 
         let status = response.status();
         if !status.is_success() {
             let message = pdax_error_message(response).await;
-            return Err(PaymentError::PdaxApiError(format!("Fiat transactions rejected ({}): {}", status, message)));
+            return Err(PaymentError::PdaxApiError(format!(
+                "Fiat transactions rejected ({}): {}",
+                status, message
+            )));
         }
 
         response.json().await.map_err(|e| {
@@ -921,16 +968,24 @@ impl PdaxClient {
             .header("id_token", &session.id_token)
             .send()
             .await
-            .map_err(|e| PaymentError::PdaxApiError(format!("Crypto transactions request failed: {}", e)))?;
+            .map_err(|e| {
+                PaymentError::PdaxApiError(format!("Crypto transactions request failed: {}", e))
+            })?;
 
         let status = response.status();
         if !status.is_success() {
             let message = pdax_error_message(response).await;
-            return Err(PaymentError::PdaxApiError(format!("Crypto transactions rejected ({}): {}", status, message)));
+            return Err(PaymentError::PdaxApiError(format!(
+                "Crypto transactions rejected ({}): {}",
+                status, message
+            )));
         }
 
         response.json().await.map_err(|e| {
-            PaymentError::PdaxApiError(format!("Failed to parse crypto transactions response: {}", e))
+            PaymentError::PdaxApiError(format!(
+                "Failed to parse crypto transactions response: {}",
+                e
+            ))
         })
     }
 
@@ -958,13 +1013,15 @@ impl PdaxClient {
         let status = response.status();
         if !status.is_success() {
             let message = pdax_error_message(response).await;
-            return Err(PaymentError::PdaxApiError(format!("Balances rejected ({}): {}", status, message)));
+            return Err(PaymentError::PdaxApiError(format!(
+                "Balances rejected ({}): {}",
+                status, message
+            )));
         }
 
-        response
-            .json()
-            .await
-            .map_err(|e| PaymentError::PdaxApiError(format!("Failed to parse balances response: {}", e)))
+        response.json().await.map_err(|e| {
+            PaymentError::PdaxApiError(format!("Failed to parse balances response: {}", e))
+        })
     }
 
     /// Calls POST /pdax-institution/v1/fiat/deposit to register a fiat
@@ -983,18 +1040,22 @@ impl PdaxClient {
             .json(request)
             .send()
             .await
-            .map_err(|e| PaymentError::PdaxApiError(format!("Fiat deposit request failed: {}", e)))?;
+            .map_err(|e| {
+                PaymentError::PdaxApiError(format!("Fiat deposit request failed: {}", e))
+            })?;
 
         let status = response.status();
         if !status.is_success() {
             let message = pdax_error_message(response).await;
-            return Err(PaymentError::PdaxApiError(format!("Fiat deposit rejected ({}): {}", status, message)));
+            return Err(PaymentError::PdaxApiError(format!(
+                "Fiat deposit rejected ({}): {}",
+                status, message
+            )));
         }
 
-        response
-            .json()
-            .await
-            .map_err(|e| PaymentError::PdaxApiError(format!("Failed to parse fiat deposit response: {}", e)))
+        response.json().await.map_err(|e| {
+            PaymentError::PdaxApiError(format!("Failed to parse fiat deposit response: {}", e))
+        })
     }
 
     /// Calls POST /pdax-institution/v1/fiat/withdraw. **This sends real
@@ -1014,27 +1075,37 @@ impl PdaxClient {
             .json(request)
             .send()
             .await
-            .map_err(|e| PaymentError::PdaxApiError(format!("Fiat withdraw request failed: {}", e)))?;
+            .map_err(|e| {
+                PaymentError::PdaxApiError(format!("Fiat withdraw request failed: {}", e))
+            })?;
 
         let status = response.status();
         if !status.is_success() {
             let message = pdax_error_message(response).await;
-            return Err(PaymentError::PdaxApiError(format!("Fiat withdraw rejected ({}): {}", status, message)));
+            return Err(PaymentError::PdaxApiError(format!(
+                "Fiat withdraw rejected ({}): {}",
+                status, message
+            )));
         }
 
-        response
-            .json()
-            .await
-            .map_err(|e| PaymentError::PdaxApiError(format!("Failed to parse fiat withdraw response: {}", e)))
+        response.json().await.map_err(|e| {
+            PaymentError::PdaxApiError(format!("Failed to parse fiat withdraw response: {}", e))
+        })
     }
 
     /// Calls POST /pdax-institution/v1/fiat/user-info-upload. Despite
     /// sharing most of `fiat_withdraw`'s schema, PDAX's own doc labels this
     /// "Withdraw Fiat from your account to a beneficiary" too — treat it as
     /// having the same real-money-movement risk until proven otherwise.
-    pub async fn fiat_user_info_upload(&self, request: &FiatUserInfoUploadRequest) -> Result<serde_json::Value> {
+    pub async fn fiat_user_info_upload(
+        &self,
+        request: &FiatUserInfoUploadRequest,
+    ) -> Result<serde_json::Value> {
         let session = self.current_session().await?;
-        let url = format!("{}/pdax-institution/v1/fiat/user-info-upload", self.base_url);
+        let url = format!(
+            "{}/pdax-institution/v1/fiat/user-info-upload",
+            self.base_url
+        );
 
         let response = self
             .http_client
@@ -1044,16 +1115,24 @@ impl PdaxClient {
             .json(request)
             .send()
             .await
-            .map_err(|e| PaymentError::PdaxApiError(format!("Fiat user-info-upload request failed: {}", e)))?;
+            .map_err(|e| {
+                PaymentError::PdaxApiError(format!("Fiat user-info-upload request failed: {}", e))
+            })?;
 
         let status = response.status();
         if !status.is_success() {
             let message = pdax_error_message(response).await;
-            return Err(PaymentError::PdaxApiError(format!("Fiat user-info-upload rejected ({}): {}", status, message)));
+            return Err(PaymentError::PdaxApiError(format!(
+                "Fiat user-info-upload rejected ({}): {}",
+                status, message
+            )));
         }
 
         response.json().await.map_err(|e| {
-            PaymentError::PdaxApiError(format!("Failed to parse fiat user-info-upload response: {}", e))
+            PaymentError::PdaxApiError(format!(
+                "Failed to parse fiat user-info-upload response: {}",
+                e
+            ))
         })
     }
 
@@ -1085,18 +1164,22 @@ impl PdaxClient {
             })
             .send()
             .await
-            .map_err(|e| PaymentError::PdaxApiError(format!("Place order request failed: {}", e)))?;
+            .map_err(|e| {
+                PaymentError::PdaxApiError(format!("Place order request failed: {}", e))
+            })?;
 
         let status = response.status();
         if !status.is_success() {
             let message = pdax_error_message(response).await;
-            return Err(PaymentError::PdaxApiError(format!("Place order rejected ({}): {}", status, message)));
+            return Err(PaymentError::PdaxApiError(format!(
+                "Place order rejected ({}): {}",
+                status, message
+            )));
         }
 
-        response
-            .json()
-            .await
-            .map_err(|e| PaymentError::PdaxApiError(format!("Failed to parse place order response: {}", e)))
+        response.json().await.map_err(|e| {
+            PaymentError::PdaxApiError(format!("Failed to parse place order response: {}", e))
+        })
     }
 }
 
