@@ -1,5 +1,5 @@
 # ── Stage 1: build ──────────────────────────────────────────────────────────
-FROM rust:1.85-slim-bookworm AS builder
+FROM rust:1.90-slim-bookworm AS builder
 
 # System deps for sqlx + openssl
 RUN apt-get update && apt-get install -y \
