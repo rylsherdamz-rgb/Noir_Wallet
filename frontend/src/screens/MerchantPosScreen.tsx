@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { useAppStore } from '@/store/useAppStore'
 import { apiService } from '@/services/api'
-import { QueuedPayment } from '@/types'
+import { NFCTag, QueuedPayment } from '@/types'
 import { nfcService } from '@/services/nfc'
 import { x402 } from '@/domain/x402'
 import { NumericKeypad } from '@/components/NumericKeypad'
@@ -32,11 +32,13 @@ export function MerchantPosScreen() {
     setIsProcessing(true)
     setLastResult(null)
 
+    let tag: NFCTag | null = null
     try {
-      const tag = await nfcService.readTag()
+      tag = await nfcService.readTag()
       if (!tag) { setIsProcessing(false); return }
+      const scanned = tag
 
-      const linkedDevice = devices.find((d) => d.deviceUidHash === tag.uid)
+      const linkedDevice = devices.find((d) => d.deviceUidHash === scanned.uid)
       const hasAgent = await x402.hasAgent()
       let txHash: string | null = null
 
@@ -50,7 +52,7 @@ export function MerchantPosScreen() {
         txHash = result.hash
       } else {
         const res = await apiService.initiatePayment({
-          rawDeviceUid: tag.uid,
+          rawDeviceUid: scanned.uid,
           merchantPublicKey: user?.stellarPublicKey || '',
           amountCents: parseInt(amount),
           assetCode: 'PHP',
@@ -72,7 +74,7 @@ export function MerchantPosScreen() {
           merchantId: 'me',
           merchantName: 'Tap Pay',
           userId: user?.id || 'local',
-          deviceId: tag.uid,
+          deviceId: scanned.uid,
           amountCents: parseInt(amount),
           assetCode: 'PHP',
           status: 'confirmed',

@@ -243,7 +243,7 @@ describe('2 — Explorer links', () => {
 
   it('generates mainnet explorer URL', async () => {
     const hash = 'abc123'
-    const network = 'mainnet'
+    const network: string = 'mainnet'
     const url = network === 'testnet'
       ? `https://stellar.expert/explorer/testnet/tx/${hash}`
       : `https://stellar.expert/explorer/public/tx/${hash}`
@@ -328,7 +328,7 @@ describe('6 — QR scanner', () => {
   it('camera permissions default to granted in mock', async () => {
     const { useCameraPermissions } = await import('expo-camera')
     const [permission] = useCameraPermissions()
-    expect(permission.granted).toBe(true)
+    expect(permission!.granted).toBe(true)
   })
 })
 

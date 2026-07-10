@@ -16,11 +16,14 @@ export function ProfileScreen() {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(user?.displayName || '')
   const [email, setEmail] = useState(user?.email || '')
-  const [toast, setToast] = useState<{ visible: boolean; type: 'success' | 'info'; title: string; message?: string }>({
+  const [toast, setToast] = useState<{ visible: boolean; type: 'success' | 'info' | 'error'; title: string; message?: string }>({
     visible: false,
-    type: 'success',
+    type: 'info',
     title: '',
   })
+  const showToast = (title: string, message?: string, type: 'success' | 'info' | 'error' = 'info') => {
+    setToast({ visible: true, type, title, message })
+  }
 
   const handleSave = () => {
     if (user) {

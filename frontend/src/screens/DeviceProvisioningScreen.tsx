@@ -23,7 +23,7 @@ const LABELS = ['My Wallet Card', 'Daily Carry', 'Home Key']
 const OTHER = 'Other'
 
 export function DeviceProvisioningScreen() {
-  const { isSupported, lastTag, error, scanTag, writeToTag, clearTag } = useNfc()
+  const { isSupported, isEnabled, lastTag, error, scanTag, writeToTag, goToNfcSettings, clearTag } = useNfc()
   const { user, addDevice } = useAppStore()
   const [step, setStep] = useState<Step>('intro')
   const [label, setLabel] = useState('')
@@ -47,22 +47,31 @@ export function DeviceProvisioningScreen() {
 
   const handleScan = async () => {
     setStep('scanning')
-    const tag = await scanTag()
-    if (tag) {
+    try {
+      const tag = await scanTag()
+      if (!tag) {
+        setStep('error')
+        return
+      }
+
       setStep('writing')
       const displayLabel = label === OTHER && customName.trim()
         ? customName.trim()
         : label || `${user?.displayName || 'My'} Card`
 
       let agentPubKey = ''
-      const hasAgent = await x402.hasAgent()
-      if (!hasAgent) {
-        const agent = await x402.createAgent()
-        agentPubKey = agent.publicKey
-        setAgentCreated(true)
-      } else {
-        const agent = await x402.getAgent()
-        agentPubKey = agent?.publicKey || ''
+      try {
+        const hasAgent = await x402.hasAgent()
+        if (!hasAgent) {
+          const agent = await x402.createAgent()
+          agentPubKey = agent.publicKey
+          setAgentCreated(true)
+        } else {
+          const agent = await x402.getAgent()
+          agentPubKey = agent?.publicKey || ''
+        }
+      } catch {
+        // x402 failure shouldn't block device linking
       }
 
       const written = await writeToTag({
@@ -89,7 +98,7 @@ export function DeviceProvisioningScreen() {
       } else {
         setStep('error')
       }
-    } else {
+    } catch {
       setStep('error')
     }
   }
@@ -108,7 +117,16 @@ export function DeviceProvisioningScreen() {
         </View>
 
         <View style={styles.center}>
-          {step === 'intro' && (
+          {step === 'intro' && !isEnabled && (
+            <View style={styles.nfcOffWrap}>
+              <Ionicons name="radio-outline" size={64} color={Colors.warning} />
+              <Text style={styles.nfcOffTitle}>NFC is Off</Text>
+              <Text style={styles.nfcOffSub}>
+                Enable NFC in your phone's settings to link a device
+              </Text>
+            </View>
+          )}
+          {step === 'intro' && isEnabled && (
             <View style={styles.illustration}>
               <View style={styles.phoneBody}>
                 <View style={styles.phoneScreen}>
@@ -165,7 +183,7 @@ export function DeviceProvisioningScreen() {
           )}
         </View>
 
-        {step === 'intro' && (
+        {step === 'intro' && isEnabled && (
           <View style={styles.labelSection}>
             <Text style={styles.labelTitle}>Name this device</Text>
             <View style={styles.labelRow}>
@@ -197,18 +215,28 @@ export function DeviceProvisioningScreen() {
                 maxLength={32}
               />
             )}
-            {!isSupported && (
-              <Text style={styles.unsupported}>NFC unavailable on this device</Text>
-            )}
           </View>
+        )}
+        {!isSupported && (
+          <Text style={styles.unsupported}>NFC unavailable on this device</Text>
         )}
 
         <View style={styles.actions}>
-          {step === 'intro' && (
+          {step === 'intro' && !isEnabled && (
             <TouchableOpacity
               style={[styles.primaryBtn, !isSupported && styles.btnDisabled]}
-              onPress={handleScan}
+              onPress={goToNfcSettings}
               disabled={!isSupported}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="settings-outline" size={20} color={Colors.black} />
+              <Text style={styles.primaryBtnText}>Open NFC Settings</Text>
+            </TouchableOpacity>
+          )}
+          {step === 'intro' && isEnabled && (
+            <TouchableOpacity
+              style={styles.primaryBtn}
+              onPress={handleScan}
               activeOpacity={0.8}
             >
               <Ionicons name="radio" size={20} color={Colors.black} />
@@ -429,6 +457,22 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: FontSize.md,
     textAlign: 'center',
+  },
+  nfcOffWrap: {
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  nfcOffTitle: {
+    fontSize: FontSize.lg,
+    color: Colors.warning,
+    fontWeight: FontWeight.bold,
+  },
+  nfcOffSub: {
+    fontSize: FontSize.sm,
+    color: Colors.mutedWhite,
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: Spacing.xl,
   },
   unsupported: {
     fontSize: FontSize.xs,
