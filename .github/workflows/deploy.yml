@@ -58,7 +58,7 @@ jobs:
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: ${{ env.SERVICE }}
-          image: ${{ steps.meta.outputs.tags }}
+          image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/noir-backend/${{ env.SERVICE }}:latest
           region: ${{ env.REGION }}
           env_vars: |
             ENVIRONMENT=development
