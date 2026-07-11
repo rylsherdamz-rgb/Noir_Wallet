@@ -61,14 +61,12 @@ jobs:
           image: ${{ steps.meta.outputs.tags }}
           region: ${{ env.REGION }}
           env_vars: |
-            ENVIRONMENT=production
+            ENVIRONMENT=development
             STELLAR_NETWORK=testnet
+            PDAX_ENVIRONMENT=uat
+            API_PORT=8080
+            API_KEY=dev-key-not-secure
           secrets: |
             DATABASE_URL=DATABASE_URL:latest
-            MASTER_KEY_ID=MASTER_KEY_ID:latest
-            CHANNEL_SECRET_KEY=CHANNEL_SECRET_KEY:latest
-            ISSUER_ADDRESS=ISSUER_ADDRESS:latest
-            PDAX_API_KEY=PDAX_API_KEY:latest
-            PDAX_SECRET_KEY=PDAX_SECRET_KEY:latest
-            PDAX_CLIENT_ID=PDAX_CLIENT_ID:latest
-            TERMINAL_ID=TERMINAL_ID:latest
+            PDAX_USERNAME=PDAX_USERNAME:latest
+            PDAX_PASSWORD=PDAX_PASSWORD:latest
