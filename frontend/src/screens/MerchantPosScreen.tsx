@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
+  Modal,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -27,6 +28,12 @@ export function MerchantPosScreen() {
   const [amount, setAmount] = useState('')
   const [paymentState, setPaymentState] = useState<'idle' | 'active' | 'processing' | 'success' | 'error'>('idle')
   const [agentMode, setAgentMode] = useState(false)
+  const [pinModalVisible, setPinModalVisible] = useState(false)
+  const [enteredPin, setEnteredPin] = useState('')
+
+  // Amounts above this (in cents) require a card PIN — mirrors the backend
+  // threshold (100,000,000 stroops).
+  const PIN_REQUIRED_ABOVE_CENTS = 100_000
 
   const displayAmount = amount ? `₱${(parseInt(amount) / 100).toFixed(2)}` : ''
   const isActive = amount !== '' && parseInt(amount) > 0
@@ -39,7 +46,13 @@ export function MerchantPosScreen() {
       }
       return
     }
-    
+
+    // Large amounts require a card PIN — collect it before tapping.
+    if (parseInt(amount) > PIN_REQUIRED_ABOVE_CENTS && !enteredPin) {
+      setPinModalVisible(true)
+      return
+    }
+
     setPaymentState('processing')
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -98,6 +111,7 @@ export function MerchantPosScreen() {
           amountStroops,
           idempotencyKey: `${scanned.uid}-${Date.now()}`,
           memo: 'Noir tap',
+          pin: enteredPin || undefined,
         })
         if (pay.error) throw new Error(pay.error)
         txHash = pay.stellar_tx_hash || null
@@ -126,6 +140,7 @@ export function MerchantPosScreen() {
           setAmount('')
           setPaymentState('idle')
           setAgentMode(false)
+          setEnteredPin('')
         }, 2000)
       }
     } catch (err: any) {
@@ -152,9 +167,10 @@ export function MerchantPosScreen() {
       setTimeout(() => {
         setPaymentState('idle')
         setAgentMode(false)
+        setEnteredPin('')
       }, 3000)
     }
-  }, [amount, user, addTransaction, devices, addPendingPayment])
+  }, [amount, user, addTransaction, devices, addPendingPayment, enteredPin])
 
   const recentTxs = transactions.slice(0, 5)
 
@@ -246,6 +262,49 @@ export function MerchantPosScreen() {
           </View>
         )}
       </View>
+
+      <Modal
+        visible={pinModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPinModalVisible(false)}
+      >
+        <View style={styles.pinOverlay}>
+          <View style={styles.pinCard}>
+            <Text style={styles.pinTitle}>Enter Card PIN</Text>
+            <Text style={styles.pinSub}>
+              Required for amounts over ₱{(PIN_REQUIRED_ABOVE_CENTS / 100).toLocaleString()}
+            </Text>
+            <Text style={styles.pinDots}>{'•'.repeat(enteredPin.length) || '—'}</Text>
+            <NumericKeypad value={enteredPin} onChangeValue={setEnteredPin} maxDigits={6} />
+            <View style={styles.pinActions}>
+              <TouchableOpacity
+                style={styles.pinCancel}
+                onPress={() => {
+                  setPinModalVisible(false)
+                  setEnteredPin('')
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel PIN entry"
+              >
+                <Text style={styles.pinCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.pinConfirm, enteredPin.length < 4 && styles.pinDisabled]}
+                disabled={enteredPin.length < 4}
+                onPress={() => {
+                  setPinModalVisible(false)
+                  handleTap()
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Confirm PIN and tap"
+              >
+                <Text style={styles.pinConfirmText}>Confirm &amp; Tap</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -254,6 +313,73 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.surfaceBg,
+  },
+  pinOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  pinCard: {
+    backgroundColor: Colors.surfaceBg,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.xl,
+    alignItems: 'center',
+  },
+  pinTitle: {
+    fontSize: FontSize.xl,
+    color: Colors.white,
+    fontWeight: FontWeight.bold,
+  },
+  pinSub: {
+    fontSize: FontSize.sm,
+    color: Colors.mutedWhite,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.md,
+    textAlign: 'center',
+  },
+  pinDots: {
+    fontSize: FontSize.xl,
+    color: Colors.gold,
+    letterSpacing: 6,
+    marginBottom: Spacing.md,
+    minHeight: 28,
+  },
+  pinActions: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    width: '100%',
+    marginTop: Spacing.md,
+  },
+  pinCancel: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.borderGrey,
+    alignItems: 'center',
+  },
+  pinCancelText: {
+    fontSize: FontSize.md,
+    color: Colors.mutedWhite,
+    fontWeight: FontWeight.semibold,
+  },
+  pinConfirm: {
+    flex: 2,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.gold,
+    alignItems: 'center',
+  },
+  pinConfirmText: {
+    fontSize: FontSize.md,
+    color: Colors.black,
+    fontWeight: FontWeight.bold,
+  },
+  pinDisabled: {
+    backgroundColor: Colors.lightGrey,
   },
   content: {
     flex: 1,

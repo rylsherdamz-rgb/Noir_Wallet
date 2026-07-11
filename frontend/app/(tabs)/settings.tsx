@@ -176,6 +176,16 @@ export default function SettingsScreen() {
         {/* Fiat */}
         <SectionHeader title="Banking" />
         <Card style={styles.card}>
+          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/cards')}>
+            <View style={styles.rowLeft}>
+              <Ionicons name="card-outline" size={20} color={Colors.silver} />
+              <View>
+                <Text style={styles.rowLabel}>Cards</Text>
+                <Text style={styles.navHint}>Add a tap-to-pay card, set a PIN, or revoke</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.navRow} onPress={() => router.push('/fiat')}>
             <View style={styles.rowLeft}>
               <Ionicons name="wallet-outline" size={20} color={Colors.silver} />

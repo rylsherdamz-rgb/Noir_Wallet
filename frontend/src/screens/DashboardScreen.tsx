@@ -160,6 +160,12 @@ export function DashboardScreen() {
             testID="quick-action-receive"
           />
           <ActionButton
+            icon="radio-outline"
+            label="Tap"
+            onPress={() => router.push('/tap')}
+            testID="quick-action-tap"
+          />
+          <ActionButton
             icon="wallet-outline"
             label="Cash In"
             onPress={() => router.push('/fiat')} // Navigate to fiat on/off ramp
