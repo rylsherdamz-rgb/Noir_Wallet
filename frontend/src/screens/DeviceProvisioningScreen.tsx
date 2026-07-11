@@ -24,6 +24,7 @@ import { walletService } from '@/services/wallet'
 import { stellarService } from '@/services/stellar-service'
 import { AppConfig } from '@/constants/config'
 import { Device } from '@/types'
+import { useRouter } from 'expo-router'
 
 type Step = 'intro' | 'scanning' | 'confirm' | 'registering' | 'success' | 'error'
 
@@ -31,6 +32,7 @@ const LABELS = ['My Wallet Card', 'Daily Carry', 'Home Key']
 const OTHER = 'Other'
 
 export function DeviceProvisioningScreen() {
+  const router = useRouter()
   const { isSupported, isEnabled, lastTag, error, scanTag, writeToTag, goToNfcSettings, clearTag } = useNfc()
   const { user, addDevice } = useAppStore()
   const [step, setStep] = useState<Step>('intro')
@@ -52,7 +54,7 @@ export function DeviceProvisioningScreen() {
     outputRange: ['0deg', '360deg'],
   })
 
-  const FRIENDBOT_URL = __DEV__
+  const FRIENDBOT_URL = stellarService.networkName === 'testnet'
     ? `https://friendbot-testnet.stellar.org`
     : null
 
@@ -80,7 +82,7 @@ export function DeviceProvisioningScreen() {
       if (!funded) {
         setFunding(true)
         setBalanceXlm('Funding...')
-        const ok = await stellarService.fundAccount(user.stellarPublicKey)
+        const ok = await stellarService.fundAccount(user.stellarPublicKey, 3)
         if (ok) {
           await stellarService.waitForAccount(user.stellarPublicKey)
           setBalanceXlm('10,000')
@@ -200,21 +202,14 @@ export function DeviceProvisioningScreen() {
   const fundWallet = async () => {
     const pk = user?.stellarPublicKey
     if (!pk) return
-    const friendbotUrl = __DEV__
-      ? `https://friendbot-testnet.stellar.org/?addr=${pk}`
-      : null
-    if (friendbotUrl) {
-      try {
-        setStatusMessage('Funding wallet via Friendbot...')
-        const res = await fetch(friendbotUrl)
-        const data = await res.json()
-        if (data?.hash) {
-          setStatusMessage('Wallet funded!')
-        }
-      } catch {
-        // fallback: open in browser
-        Linking.openURL(friendbotUrl)
-      }
+    setStatusMessage('Funding wallet via Friendbot...')
+    const ok = await stellarService.fundAccount(pk, 5)
+    if (ok) {
+      await stellarService.waitForAccount(pk)
+      setBalanceXlm('10,000')
+      setStatusMessage('Wallet funded!')
+    } else {
+      setStatusMessage('Funding failed — check network connection')
     }
   }
 
@@ -399,9 +394,15 @@ export function DeviceProvisioningScreen() {
             </TouchableOpacity>
           )}
           {step === 'success' && (
-            <TouchableOpacity style={styles.primaryBtn} onPress={reset} activeOpacity={0.8}>
-              <Text style={styles.primaryBtnText}>Done</Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.push('/fiat')} activeOpacity={0.8}>
+                <Ionicons name="cash-outline" size={20} color={Colors.white} />
+                <Text style={styles.secondaryBtnText}>Cash In via PDAX</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.primaryBtn} onPress={reset} activeOpacity={0.8}>
+                <Text style={styles.primaryBtnText}>Done</Text>
+              </TouchableOpacity>
+            </>
           )}
           {step === 'error' && registerError?.includes('does not exist on-chain') && (
             <>
@@ -456,7 +457,7 @@ export function DeviceProvisioningScreen() {
               </View>
               <View style={styles.modalRow}>
                 <Text style={styles.modalLabel}>Network</Text>
-                <Text style={styles.modalValue}>Stellar {__DEV__ ? 'Testnet' : 'Mainnet'}</Text>
+                <Text style={styles.modalValue}>Stellar {stellarService.networkName === 'testnet' ? 'Testnet' : 'Mainnet'}</Text>
               </View>
               <View style={styles.modalRow}>
                 <Text style={styles.modalLabel}>Wallet</Text>

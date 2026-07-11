@@ -1,4 +1,4 @@
-import { Config, AppConfig } from '@/constants/config'
+import { Config, AppConfig, apiKey } from '@/constants/config'
 import { Device, Transaction, MerchantSettings, Balance, Notification } from '@/types'
 
 class ApiService {
@@ -20,6 +20,10 @@ class ApiService {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(options.headers as Record<string, string>),
+    }
+
+    if (apiKey) {
+      headers['x-api-key'] = apiKey
     }
 
     if (this.token) {
@@ -92,6 +96,57 @@ class ApiService {
         }),
       },
     )
+  }
+
+  /** Register a device in the backend payment DB (device_serial -> wallet). */
+  async registerPaymentDevice(deviceSerial: string, walletAddress: string) {
+    return this.request<{ device_hash: string; status: string }>('/devices/register', {
+      method: 'POST',
+      body: JSON.stringify({ device_serial: deviceSerial, wallet_address: walletAddress }),
+    })
+  }
+
+  /**
+   * Non-custodial fee-bump payment: send the user-signed inner transaction XDR
+   * to the backend, which fee-bumps it with a channel account and submits it.
+   * Field names match the backend `PaymentRequest` (snake_case).
+   */
+  async payViaBackend(params: {
+    deviceSerial: string
+    destinationWallet: string
+    amountStroops: number
+    signedXdr: string
+    idempotencyKey: string
+    memo?: string
+  }) {
+    return this.request<{
+      status: string
+      transaction_id: string
+      device_hash: string
+      submitted_at: string
+      stellar_tx_hash?: string
+      error?: string
+    }>('/payment', {
+      method: 'POST',
+      body: JSON.stringify({
+        device_serial: params.deviceSerial,
+        destination_wallet: params.destinationWallet,
+        amount_stroops: params.amountStroops,
+        memo: params.memo,
+        idempotency_key: params.idempotencyKey,
+        signed_xdr: params.signedXdr,
+      }),
+    })
+  }
+
+  /** Poll a payment's status by transaction id. */
+  async getPaymentStatus(transactionId: string) {
+    return this.request<{
+      status: string
+      transaction_id: string
+      stellar_tx_hash?: string
+      error_message?: string
+    }>(`/payment/${transactionId}`)
   }
 
   /** Batch process offline transactions when connectivity is restored */

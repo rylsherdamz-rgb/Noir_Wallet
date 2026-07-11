@@ -64,6 +64,28 @@ export class StellarService {
 
   get networkName() { return this.network }
 
+  /**
+   * Re-point the service at a different Stellar network at runtime.
+   *
+   * The service is a singleton, so without this the network chosen at startup
+   * (from EXPO_PUBLIC_STELLAR_NETWORK) is frozen forever — even if the UI
+   * network toggle changes. That mismatch is what makes an account that is
+   * clearly visible on one network's explorer read back as "not found".
+   */
+  setNetwork(network: 'testnet' | 'mainnet'): void {
+    if (network === this.network) return
+    const isTestnet = network !== 'mainnet'
+    this.network = isTestnet ? 'testnet' : 'mainnet'
+    this.horizon = new Horizon.Server(
+      isTestnet ? 'https://horizon-testnet.stellar.org' : 'https://horizon.stellar.org',
+    )
+    this.soroban = new rpc.Server(
+      isTestnet ? 'https://soroban-testnet.stellar.org' : 'https://soroban.stellar.org',
+    )
+    this.networkPassphrase = isTestnet ? Networks.TESTNET : Networks.PUBLIC
+    console.log(`[StellarService] network switched to ${this.network}`)
+  }
+
   private get friendbotUrl(): string | null {
     return this.network === 'testnet' ? 'https://friendbot-testnet.stellar.org' : null
   }
@@ -75,18 +97,38 @@ export class StellarService {
     return { publicKey: kp.publicKey(), secretKey: kp.secret() }
   }
 
-  async accountExists(publicKey: string): Promise<boolean> {
-    try {
-      await this.horizon.loadAccount(publicKey)
-      return true
-    } catch {
+  async accountExists(publicKey: string, retries = 2): Promise<boolean> {
+    let sawTransientError = false
+    for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        await this.soroban.getAccount(publicKey)
+        await this.horizon.loadAccount(publicKey)
         return true
-      } catch {
-        return false
+      } catch (e: any) {
+        const status = e?.response?.status ?? e?.response?.statusCode
+        const isNotFound = status === 404 || e?.name === 'NotFoundError'
+        // Whether Horizon says "missing" or errors for another reason, confirm
+        // against Soroban RPC before trusting a negative result.
+        try {
+          await this.soroban.getAccount(publicKey)
+          return true
+        } catch {}
+        if (!isNotFound) {
+          // Non-404 (network blip, 429 rate-limit, 5xx, TLS/DNS) — NOT proof the
+          // account is missing. Retry rather than reporting a false negative.
+          sawTransientError = true
+        }
+        if (attempt < retries) {
+          await new Promise(r => setTimeout(r, 1500))
+        }
       }
     }
+    if (sawTransientError) {
+      console.warn(
+        `[accountExists] ${publicKey.slice(0, 8)}... reported missing on ${this.network}, ` +
+        `but network/RPC errors occurred — this may be a connectivity issue, not a missing account.`,
+      )
+    }
+    return false
   }
 
   async waitForAccount(publicKey: string, timeoutMs = 15000): Promise<boolean> {
@@ -98,7 +140,7 @@ export class StellarService {
     return false
   }
 
-  async fundAccount(publicKey: string): Promise<boolean> {
+  async fundAccount(publicKey: string, retries = 2): Promise<boolean> {
     const exists = await this.accountExists(publicKey)
     if (exists) return true
 
@@ -107,41 +149,46 @@ export class StellarService {
       return false
     }
 
-    try {
-      const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 10000)
-      const response = await fetch(`${this.friendbotUrl}?addr=${publicKey}`, {
-        signal: controller.signal,
-      })
-      clearTimeout(timer)
-
-      if (!response.ok) {
-        const text = await response.text()
-        console.warn('Friendbot error:', text)
-        // If account already exists, that's fine
-        if (text.includes('already') || text.includes('exist')) return true
-        return false
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      if (attempt > 0) {
+        console.warn(`Friendbot retry ${attempt}/${retries}...`)
+        await new Promise(r => setTimeout(r, 2000))
       }
 
-      const data = await response.json()
-      if (!data.hash) return false
+      try {
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 15000)
+        const response = await fetch(`${this.friendbotUrl}?addr=${publicKey}`, {
+          signal: controller.signal,
+        })
+        clearTimeout(timer)
 
-      // Wait for account to appear on-chain
-      for (let i = 0; i < 10; i++) {
-        try {
-          await this.horizon.loadAccount(publicKey)
-          return true
-        } catch { await new Promise(r => setTimeout(r, 1000)) }
-      }
-      return true
-    } catch (e: any) {
-      if (e.name === 'AbortError') {
-        console.warn('Friendbot timed out — account may still be funding')
+        if (!response.ok) {
+          const text = await response.text()
+          console.warn('Friendbot error:', text)
+          if (text.includes('already') || text.includes('exist')) return true
+          continue
+        }
+
+        const data = await response.json()
+        if (!data.hash) continue
+
+        for (let i = 0; i < 10; i++) {
+          try {
+            await this.horizon.loadAccount(publicKey)
+            return true
+          } catch { await new Promise(r => setTimeout(r, 1000)) }
+        }
         return true
+      } catch (e: any) {
+        if (e.name === 'AbortError') {
+          console.warn('Friendbot timed out — account may still be funding')
+          continue
+        }
+        console.warn('Friendbot failed:', e.message)
       }
-      console.warn('Friendbot failed:', e.message)
-      return false
     }
+    return false
   }
 
   async getBalance(publicKey: string): Promise<BalanceResult> {
@@ -158,7 +205,16 @@ export class StellarService {
           .filter((b: any) => b.asset_type !== 'native')
           .map((b: any) => ({ code: b.asset_code, issuer: b.asset_issuer, balance: b.balance })),
       }
-    } catch {
+    } catch (e: any) {
+      const status = e?.response?.status ?? e?.response?.statusCode
+      const isNotFound = status === 404 || e?.name === 'NotFoundError'
+      if (!isNotFound) {
+        console.warn(
+          `[getBalance] non-404 error for ${publicKey.slice(0, 8)}... on ${this.network} ` +
+          `(reporting zero balance may be misleading):`,
+          e?.message ?? e,
+        )
+      }
       return { xlm: 0, usdc: 0, assets: [] }
     }
   }
@@ -177,21 +233,42 @@ export class StellarService {
     const exists = await this.accountExists(publicKey)
     if (exists) return true
     const funded = await this.fundAccount(publicKey)
-    if (!funded) return false
+    if (!funded) {
+      // One last attempt — poll for up to 30s in case Friendbot is still processing
+      return this.waitForAccount(publicKey, 30000)
+    }
     return this.waitForAccount(publicKey)
   }
 
   async invokeContract(params: InvokeParams): Promise<string> {
     const sourceKp = Keypair.fromSecret(params.signerSecret)
     const sourcePub = sourceKp.publicKey()
+    console.log(`[invokeContract] source=${sourcePub.slice(0, 8)}... method=${params.method} network=${this.network}`)
 
     const funded = await this.ensureAccountFunded(sourcePub)
+    console.log(`[invokeContract] ensureAccountFunded returned=${funded} soroban=${this.soroban.serverURL}`)
     if (!funded) {
-      throw new Error(`Account ${sourcePub.slice(0, 8)}... does not exist on-chain and funding failed`)
+      console.warn(
+        `Account ${sourcePub.slice(0, 8)}... not confirmed on ${this.network} — ` +
+        `attempting transaction anyway. If it fails, fund with Friendbot first.`
+      )
     }
 
-    const account = await this.soroban.getAccount(sourcePub)
+    let account: any
+    try {
+      account = await this.soroban.getAccount(sourcePub)
+      console.log(`[invokeContract] soroban.getAccount OK seq=${account.sequenceNumber}`)
+    } catch (e: any) {
+      console.log(`[invokeContract] soroban.getAccount FAILED:`, e?.message || e)
+      throw new Error(
+        `Cannot load account ${sourcePub.slice(0, 8)}... from Soroban RPC (${this.soroban.serverURL}). ` +
+        `Verify the account is funded on Stellar ${this.network === 'testnet' ? 'testnet' : 'mainnet'}. ` +
+        `Error: ${e?.message || 'unknown'}`
+      )
+    }
+
     const contract = new Contract(params.contractId)
+    console.log(`[invokeContract] building tx for contract=${params.contractId.slice(0, 8)}...`)
 
     const tx = new TransactionBuilder(account, {
       fee: BASE_FEE,
@@ -201,27 +278,50 @@ export class StellarService {
       .setTimeout(30)
       .build()
 
-    const prepared = await this.soroban.prepareTransaction(tx)
-    prepared.sign(sourceKp)
+    let prepared: any
+    try {
+      prepared = await this.soroban.prepareTransaction(tx)
+      console.log(`[invokeContract] prepareTransaction OK`)
+    } catch (e: any) {
+      console.log(`[invokeContract] prepareTransaction FAILED:`, e?.message || e)
+      throw new Error(`Transaction simulation failed: ${e?.message || 'unknown'}`)
+    }
 
-    const sendResult = await this.soroban.sendTransaction(prepared)
+    prepared.sign(sourceKp)
+    console.log(`[invokeContract] transaction signed`)
+
+    let sendResult: any
+    try {
+      sendResult = await this.soroban.sendTransaction(prepared)
+      console.log(`[invokeContract] sendTransaction status=${sendResult.status} hash=${sendResult.hash?.slice(0, 16)}...`)
+    } catch (e: any) {
+      console.log(`[invokeContract] sendTransaction FAILED:`, e?.message || e)
+      throw new Error(`Failed to submit transaction: ${e?.message || 'unknown'}`)
+    }
+
     if (sendResult.status === 'ERROR') {
-      throw new Error('Transaction rejected by network')
+      const errMsg = sendResult.errorResult?.resultString || 'Transaction rejected by network'
+      console.log(`[invokeContract] ERROR: ${errMsg}`)
+      throw new Error(errMsg)
     }
 
     const hash = sendResult.hash
     for (let i = 0; i < 60; i++) {
-      const result = await this.soroban.getTransaction(hash)
-      if (result.status === 'SUCCESS') return hash
+      const result: any = await this.soroban.getTransaction(hash)
+      if (result.status === 'SUCCESS') {
+        console.log(`[invokeContract] SUCCESS hash=${hash.slice(0, 16)}...`)
+        return hash
+      }
       if (result.status === 'FAILED') {
-        const r: any = result
+        console.log(`[invokeContract] FAILED: ${result.resultString || 'no details'}`)
         let msg = 'Transaction failed'
-        if (r.resultString) msg += `: ${r.resultString}`
+        if (result.resultString) msg += `: ${result.resultString}`
         throw new Error(msg)
       }
       await new Promise(r => setTimeout(r, 1000))
     }
 
+    console.log(`[invokeContract] TIMEOUT after 60s`)
     throw new Error('Transaction timed out after 60s')
   }
 
@@ -288,17 +388,17 @@ export class StellarService {
 export function createService(): StellarService {
   try {
     const config = require('@/constants/config').Config
-    const envNetwork = process.env.EXPO_PUBLIC_STELLAR_NETWORK
-    const isTestnet = envNetwork
-      ? envNetwork !== 'mainnet'
-      : (config.sorobanRpcUrl || '').includes('testnet')
+    const stellarNetworkConfig = require('@/constants/config').stellarNetwork
+    const network: 'testnet' | 'mainnet' = stellarNetworkConfig === 'mainnet' ? 'mainnet' : 'testnet'
+    console.log(`[StellarService] Creating service for ${network} (horizon: ${config.horizonUrl})`)
     return new StellarService({
-      network: isTestnet ? 'testnet' : 'mainnet',
+      network,
       horizonUrl: config.horizonUrl,
       sorobanRpcUrl: config.sorobanRpcUrl,
       networkPassphrase: config.networkPassphrase,
     })
-  } catch {
+  } catch (e) {
+    console.warn('[StellarService] Failed to load config, defaulting to testnet:', e)
     return new StellarService({ network: 'testnet' })
   }
 }

@@ -147,6 +147,55 @@ class StellarService {
     }
   }
 
+  /**
+   * Build and sign a payment transaction with the user's wallet and return the
+   * base64 XDR **without submitting**. This is the non-custodial half of the
+   * fee-bump flow: the signed inner tx is sent to the backend (`/payment`),
+   * which wraps it in a channel-signed fee-bump and submits it — so the user
+   * never pays the network fee and never exposes their secret to the backend.
+   */
+  async buildSignedPaymentXdr(params: {
+    sourceSecret: string
+    destination: string
+    amount: string
+    assetCode?: string
+    assetIssuer?: string
+    memo?: string
+  }): Promise<{ xdr: string } | { error: string }> {
+    try {
+      const sourceKp = Keypair.fromSecret(params.sourceSecret)
+      const account = await this.server.loadAccount(sourceKp.publicKey())
+
+      const asset =
+        params.assetCode && params.assetCode !== 'XLM' && params.assetIssuer
+          ? new Asset(params.assetCode, params.assetIssuer)
+          : Asset.native()
+
+      let builder = new TransactionBuilder(account, {
+        fee: BASE_FEE,
+        networkPassphrase: this.networkPassphrase,
+      }).addOperation(
+        Operation.payment({
+          destination: params.destination,
+          asset,
+          amount: params.amount,
+        }),
+      )
+
+      if (params.memo && params.memo.trim()) {
+        // Memo import kept local to avoid touching the module import list.
+        const { Memo } = require('@stellar/stellar-sdk')
+        builder = builder.addMemo(Memo.text(params.memo.slice(0, 28)))
+      }
+
+      const tx = builder.setTimeout(120).build()
+      tx.sign(sourceKp)
+      return { xdr: tx.toXDR() }
+    } catch (err: any) {
+      return { error: err.message ?? 'Failed to build transaction' }
+    }
+  }
+
   async loadAccount(publicKey: string): Promise<Horizon.AccountResponse | null> {
     try {
       return await this.server.loadAccount(publicKey)

@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import * as SecureStore from 'expo-secure-store'
+import { stellarService } from '@/services/stellar-service'
+import { stellarNetwork } from '@/constants/config'
 import {
   User,
   Device,
@@ -63,7 +65,7 @@ const initialState = {
   isWalletCreated: false,
   isScanning: false,
   nfcSupported: false,
-  network: 'testnet' as StellarNetwork,
+  network: stellarNetwork as StellarNetwork,
   security: {
     biometricLockEnabled: false,
     backgroundLockTimeoutSec: 60,
@@ -97,7 +99,12 @@ export const useAppStore = create<AppState>()(
       setIsWalletCreated: (isWalletCreated) => set({ isWalletCreated }),
       setIsScanning: (isScanning) => set({ isScanning }),
       setNfcSupported: (nfcSupported) => set({ nfcSupported }),
-      setNetwork: (network) => set({ network }),
+      setNetwork: (network) => {
+        // Keep the on-chain service in lock-step with the UI toggle, otherwise
+        // the app queries one network while the explorer link points at another.
+        stellarService.setNetwork(network)
+        set({ network })
+      },
       setBiometricLockEnabled: (val) =>
         set((s) => ({ security: { ...s.security, biometricLockEnabled: val } })),
       setBackgroundLockTimeoutSec: (sec) =>
@@ -125,6 +132,11 @@ export const useAppStore = create<AppState>()(
         network: state.network,
         security: state.security,
       }) as unknown as AppState,
+      onRehydrateStorage: () => (state) => {
+        // The persisted network must be re-applied to the singleton service,
+        // which was constructed from env before this state was restored.
+        if (state?.network) stellarService.setNetwork(state.network)
+      },
     },
   ),
 )

@@ -32,6 +32,8 @@ export const Config = getEnvVars()
 export const stellarNetwork: 'testnet' | 'mainnet' =
   process.env.EXPO_PUBLIC_STELLAR_NETWORK === 'mainnet' ? 'mainnet' : 'testnet'
 
+export const apiKey = process.env.EXPO_PUBLIC_API_KEY ?? ''
+
 export const AppConfig = {
   appName: 'Noir Wallet',
   appVersion: Constants.expoConfig?.version ?? '1.0.0',
