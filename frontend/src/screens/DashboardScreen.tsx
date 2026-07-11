@@ -1,18 +1,31 @@
-import { useCallback, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Linking } from 'react-native'
+import { useCallback, useState, ReactNode } from 'react'
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Linking, Image } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
+import * as Clipboard from 'expo-clipboard'
 import { useRouter } from 'expo-router'
 import { useAppStore } from '@/store/useAppStore'
 import { BalanceCard } from '@/components/BalanceCard'
-import { TransactionItem } from '@/components/TransactionItem'
-import { DesignTokens, colorWithOpacity } from '@/constants/designTokens'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { TestnetFaucetBanner } from '@/components/TestnetFaucetBanner'
+import { PressableScale } from '@/components/brand/PressableScale'
+import { SignalRipple } from '@/components/brand/SignalRipple'
+import { TapGlyph } from '@/components/brand/BrandGlyph'
+import { DesignTokens, colorWithOpacity } from '@/constants/designTokens'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
 import { apiService } from '@/services/api'
 import { stellarService } from '@/services/stellar-service'
 import { fxRateService } from '@/services/fxRates'
+import { Transaction } from '@/types'
+
+const NOIR_MARK = require('../../assets/noir-mark.png')
+
+function greetingForHour(): string {
+  const h = new Date().getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 18) return 'Good afternoon'
+  return 'Good evening'
+}
 
 export function DashboardScreen() {
   const router = useRouter()
@@ -22,14 +35,14 @@ export function DashboardScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    
+
     try {
       const txRes = await apiService.getTransactions()
       if (txRes?.transactions) setTransactions(txRes.transactions)
     } catch {
       // backend unavailable
     }
-    
+
     if (user?.stellarPublicKey) {
       try {
         const onChain = await stellarService.getBalance(user.stellarPublicKey)
@@ -44,7 +57,7 @@ export function DashboardScreen() {
         // horizon unavailable
       }
     }
-    
+
     setRefreshing(false)
   }, [setTransactions, setBalance, user?.stellarPublicKey])
 
@@ -53,6 +66,14 @@ export function DashboardScreen() {
     const newNetwork = storeNetwork === 'mainnet' ? 'testnet' : 'mainnet'
     setStoreNetwork(newNetwork)
   }
+
+  const copyAddress = async () => {
+    if (!user?.stellarPublicKey) return
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    await Clipboard.setStringAsync(user.stellarPublicKey)
+  }
+
+  const displayName = user?.displayName || user?.email?.split('@')[0] || ''
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -68,57 +89,11 @@ export function DashboardScreen() {
           />
         }
       >
-        {/* Header with Network Switcher */}
-        <View style={styles.header}>
-          <View style={styles.headerText}>
-            <Text style={styles.greeting} accessibilityRole="header">
-              Welcome{user?.email ? `, ${user.email.split('@')[0]}` : ''}
-            </Text>
-            <View style={styles.walletRow}>
-              <Text style={styles.walletLabel} accessibilityLabel={`Wallet address: ${user?.stellarPublicKey || 'No wallet'}`}>
-                {user?.stellarPublicKey
-                  ? `${user.stellarPublicKey.slice(0, 8)}...${user.stellarPublicKey.slice(-4)}`
-                  : 'No wallet'}
-              </Text>
-              {/* Network Badge */}
-              <TouchableOpacity
-                style={[
-                  styles.networkBadge,
-                  storeNetwork === 'mainnet' && styles.networkBadgeMainnet,
-                ]}
-                onPress={handleNetworkSwitch}
-                accessibilityRole="button"
-                accessibilityLabel={`Current network: ${storeNetwork}. Tap to switch`}
-              >
-                <View style={[
-                  styles.networkDot,
-                  storeNetwork === 'mainnet' && styles.networkDotMainnet,
-                ]} />
-                <Text style={[
-                  styles.networkText,
-                  storeNetwork === 'mainnet' && styles.networkTextMainnet,
-                ]}>
-                  {storeNetwork === 'mainnet' ? 'MAINNET' : 'TESTNET'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            {/* Stellar Expert Link */}
-            {user?.stellarPublicKey && (
-              <TouchableOpacity
-                style={styles.expertLink}
-                onPress={() => {
-                  const baseUrl = storeNetwork === 'testnet'
-                    ? 'https://stellar.expert/explorer/testnet/account'
-                    : 'https://stellar.expert/explorer/public/account'
-                  Linking.openURL(`${baseUrl}/${user.stellarPublicKey}`)
-                }}
-                accessibilityRole="button"
-                accessibilityLabel="View account on Stellar Expert"
-              >
-                <Ionicons name="open-outline" size={14} color={Colors.gold} />
-                <Text style={styles.expertLinkText}>View on Stellar Expert</Text>
-              </TouchableOpacity>
-            )}
+        {/* Brand bar */}
+        <View style={styles.brandBar}>
+          <View style={styles.lockup}>
+            <Image source={NOIR_MARK} style={styles.markImg} resizeMode="contain" />
+            <Text style={styles.wordmark}>NOIR</Text>
           </View>
           <TouchableOpacity
             style={styles.avatarBtn}
@@ -129,8 +104,61 @@ export function DashboardScreen() {
             accessibilityLabel="View profile"
             accessibilityRole="button"
           >
-            <Ionicons name="person-outline" size={22} color={Colors.cream} />
+            <Ionicons name="person-outline" size={20} color={Colors.cream} />
           </TouchableOpacity>
+        </View>
+
+        {/* Greeting + wallet identity */}
+        <View style={styles.greetBlock}>
+          <Text style={styles.greeting} accessibilityRole="header">
+            {greetingForHour()}{displayName ? `, ${displayName}` : ''}
+          </Text>
+          <View style={styles.subRow}>
+            <TouchableOpacity
+              style={styles.addrChip}
+              onPress={copyAddress}
+              accessibilityRole="button"
+              accessibilityLabel={`Wallet address: ${user?.stellarPublicKey || 'No wallet'}. Tap to copy`}
+            >
+              <Text style={styles.addrText}>
+                {user?.stellarPublicKey
+                  ? `${user.stellarPublicKey.slice(0, 6)}…${user.stellarPublicKey.slice(-4)}`
+                  : 'No wallet'}
+              </Text>
+              {user?.stellarPublicKey && (
+                <Ionicons name="copy-outline" size={12} color={Colors.mutedWhite} />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.networkBadge, storeNetwork === 'mainnet' && styles.networkBadgeMainnet]}
+              onPress={handleNetworkSwitch}
+              accessibilityRole="button"
+              accessibilityLabel={`Current network: ${storeNetwork}. Tap to switch`}
+            >
+              <View style={[styles.networkDot, storeNetwork === 'mainnet' && styles.networkDotMainnet]} />
+              <Text style={[styles.networkText, storeNetwork === 'mainnet' && styles.networkTextMainnet]}>
+                {storeNetwork === 'mainnet' ? 'MAINNET' : 'TESTNET'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {user?.stellarPublicKey && (
+            <TouchableOpacity
+              style={styles.expertLink}
+              onPress={() => {
+                const baseUrl = storeNetwork === 'testnet'
+                  ? 'https://stellar.expert/explorer/testnet/account'
+                  : 'https://stellar.expert/explorer/public/account'
+                Linking.openURL(`${baseUrl}/${user.stellarPublicKey}`)
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="View account on Stellar Expert"
+            >
+              <Ionicons name="open-outline" size={13} color={Colors.gold} />
+              <Text style={styles.expertLinkText}>View on Stellar Expert</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Testnet Banner - Only show on testnet */}
@@ -145,48 +173,29 @@ export function DashboardScreen() {
           testID="dashboard-balance-card"
         />
 
-        {/* Quick Actions - Updated with Cash In/Cash Out */}
+        {/* Quick Actions */}
         <View style={styles.quickActions} accessibilityRole="menu">
-          <ActionButton
-            icon="arrow-up-outline"
-            label="Send"
-            onPress={() => router.push('/send')}
-            testID="quick-action-send"
-          />
-          <ActionButton
-            icon="arrow-down-outline"
-            label="Receive"
-            onPress={() => router.push('/receive')}
-            testID="quick-action-receive"
-          />
-          <ActionButton
-            icon="radio-outline"
-            label="Tap"
-            onPress={() => router.push('/tap')}
-            testID="quick-action-tap"
-          />
-          <ActionButton
-            icon="wallet-outline"
-            label="Cash In"
-            onPress={() => router.push('/fiat')} // Navigate to fiat on/off ramp
-            testID="quick-action-cashin"
-            color={Colors.success}
-          />
-          <ActionButton
-            icon="cash-outline"
-            label="Cash Out"
-            onPress={() => router.push('/fiat')} // Navigate to fiat on/off ramp
-            testID="quick-action-cashout"
-            color={Colors.warning}
-          />
+          <QuickAction label="Send" onPress={() => router.push('/send')} testID="quick-action-send">
+            <Ionicons name="arrow-up" size={21} color={Colors.gold} />
+          </QuickAction>
+          <QuickAction label="Receive" onPress={() => router.push('/receive')} testID="quick-action-receive">
+            <Ionicons name="arrow-down" size={21} color={Colors.gold} />
+          </QuickAction>
+          <QuickAction label="Tap" tap onPress={() => router.push('/tap')} testID="quick-action-tap">
+            <TapGlyph size={22} color={Colors.goldHi} />
+          </QuickAction>
+          <QuickAction label="Cash In" onPress={() => router.push('/fiat')} testID="quick-action-cashin" tint={Colors.success}>
+            <Ionicons name="wallet-outline" size={21} color={Colors.success} />
+          </QuickAction>
+          <QuickAction label="Cash Out" onPress={() => router.push('/fiat')} testID="quick-action-cashout" tint={Colors.warning}>
+            <Ionicons name="cash-outline" size={21} color={Colors.warning} />
+          </QuickAction>
         </View>
 
         {/* My Wallets Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle} accessibilityRole="header">
-              My Wallets
-            </Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">MY WALLETS</Text>
             <TouchableOpacity
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -198,7 +207,7 @@ export function DashboardScreen() {
               <Text style={styles.seeAll}>Manage</Text>
             </TouchableOpacity>
           </View>
-          
+
           {devices.length === 0 ? (
             <TouchableOpacity
               style={styles.emptyWalletCard}
@@ -209,7 +218,7 @@ export function DashboardScreen() {
               accessibilityLabel="Link your first NFC wallet"
               accessibilityHint="Opens device linking screen"
             >
-              <Ionicons name="add-outline" size={32} color={Colors.gold} />
+              <Ionicons name="add-outline" size={30} color={Colors.gold} />
               <Text style={styles.emptyWalletText}>Link your first NFC wallet</Text>
             </TouchableOpacity>
           ) : (
@@ -226,6 +235,7 @@ export function DashboardScreen() {
                   accessibilityLabel={`${device.label}, ${device.status === 'active' ? 'Active' : 'Inactive'}, ${((device.dailySpendLimitCents - device.accumulatedTodayCents) / 100).toFixed(0)} pesos remaining today`}
                   accessibilityRole="summary"
                 >
+                  <Image source={NOIR_MARK} style={styles.walletWatermark} resizeMode="contain" />
                   <View style={styles.walletCardHeader}>
                     <Ionicons name="radio" size={DesignTokens.iconSize.md} color={Colors.gold} />
                     <View
@@ -236,10 +246,8 @@ export function DashboardScreen() {
                       accessibilityLabel={device.status}
                     />
                   </View>
-                  <Text style={styles.walletLabelText} numberOfLines={1}>
-                    {device.label}
-                  </Text>
-                  <Text style={styles.walletRemainingLabel}>Daily Remaining</Text>
+                  <Text style={styles.walletLabelText} numberOfLines={1}>{device.label}</Text>
+                  <Text style={styles.walletRemainingLabel}>DAILY REMAINING</Text>
                   <Text style={styles.walletRemainingValue}>
                     ₱{((device.dailySpendLimitCents - device.accumulatedTodayCents) / 100).toFixed(0)}
                   </Text>
@@ -263,9 +271,7 @@ export function DashboardScreen() {
         {/* Recent Activity Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle} accessibilityRole="header">
-              Recent Activity
-            </Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">RECENT ACTIVITY</Text>
             <TouchableOpacity
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -279,11 +285,22 @@ export function DashboardScreen() {
           </View>
           {transactions.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="receipt-outline" size={48} color={Colors.mutedWhite} />
+              <Ionicons name="receipt-outline" size={44} color={Colors.mutedWhite} />
               <Text style={styles.emptyStateText}>No transactions yet</Text>
             </View>
           ) : (
-            transactions.slice(0, 5).map((tx) => <TransactionItem key={tx.id} transaction={tx} />)
+            <View style={styles.activityList}>
+              {transactions.slice(0, 5).map((tx) => (
+                <ActivityRow
+                  key={tx.id}
+                  tx={tx}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                    router.push(`/transaction/${tx.id}`)
+                  }}
+                />
+              ))}
+            </View>
           )}
         </View>
       </ScrollView>
@@ -291,31 +308,62 @@ export function DashboardScreen() {
   )
 }
 
-interface ActionButtonProps {
-  icon: keyof typeof Ionicons.glyphMap
+interface QuickActionProps {
+  children: ReactNode
   label: string
   onPress: () => void
-  color?: string
+  tap?: boolean
+  tint?: string
   testID?: string
 }
 
-function ActionButton({ icon, label, onPress, color = Colors.gold, testID }: ActionButtonProps) {
+function QuickAction({ children, label, onPress, tap, tint, testID }: QuickActionProps) {
   return (
-    <TouchableOpacity
-      style={styles.actionBtn}
-      activeOpacity={0.7}
-      onPress={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-        onPress()
-      }}
+    <PressableScale
+      style={styles.qbtn}
+      onPress={onPress}
       accessibilityLabel={label}
       accessibilityRole="button"
       testID={testID}
     >
-      <View style={[styles.actionIcon, { backgroundColor: colorWithOpacity(color, 0.15) }]}>
-        <Ionicons name={icon} size={22} color={color} />
+      <View style={[styles.disc, tap && styles.discTap]}>
+        {tap && <SignalRipple size={54} color={Colors.gold} rings={2} />}
+        {children}
       </View>
-      <Text style={styles.actionLabel}>{label}</Text>
+      <Text style={styles.qlabel}>{label}</Text>
+    </PressableScale>
+  )
+}
+
+function ActivityRow({ tx, onPress }: { tx: Transaction; onPress: () => void }) {
+  const isOutgoing = tx.assetCode !== 'PHP'
+  const amountStr =
+    tx.assetCode === 'PHP'
+      ? `₱${(tx.amountCents / 100).toFixed(2)}`
+      : `${(tx.amountCents / 100).toFixed(2)} ${tx.assetCode}`
+  const statusLabel = tx.status.charAt(0).toUpperCase() + tx.status.slice(1)
+  const time = new Date(tx.createdAt).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })
+  const accent = isOutgoing ? Colors.cream : Colors.success
+
+  return (
+    <TouchableOpacity
+      style={styles.txRow}
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`Transaction ${tx.merchantName}, ${isOutgoing ? 'sent' : 'received'} ${amountStr}, ${statusLabel}`}
+      accessibilityHint="Tap to view details"
+    >
+      <View style={[styles.txIcon, { backgroundColor: colorWithOpacity(accent, 0.13) }]}>
+        <Ionicons name={isOutgoing ? 'arrow-up' : 'arrow-down'} size={17} color={accent} />
+      </View>
+      <View style={styles.txInfo}>
+        <Text style={styles.txTitle} numberOfLines={1}>{tx.merchantName}</Text>
+        <Text style={styles.txMeta} numberOfLines={1}>{time} · {statusLabel}</Text>
+      </View>
+      <Text style={[styles.txAmount, { color: accent }]}>
+        {isOutgoing ? '−' : '+'}{amountStr}
+      </Text>
     </TouchableOpacity>
   )
 }
@@ -332,127 +380,156 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.xxl,
   },
-  
-  // Header
-  header: {
+
+  // Brand bar
+  brandBar: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingVertical: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
   },
-  headerText: {
-    flex: 1,
-  },
-  greeting: {
-    fontSize: FontSize.xl,
-    color: Colors.cream,
-    fontWeight: FontWeight.bold,
-    lineHeight: FontSize.xl * DesignTokens.typography.lineHeight.tight,
-  },
-  walletRow: {
+  lockup: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    marginTop: Spacing.xs,
   },
-  walletLabel: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    fontFamily: 'monospace',
+  markImg: {
+    width: 26,
+    height: 27,
   },
-  expertLink: {
+  wordmark: {
+    fontFamily: Fonts.display,
+    fontSize: 15,
+    color: Colors.cream,
+    letterSpacing: 5,
+  },
+  avatarBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.cardBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colorWithOpacity(Colors.gold, 0.5),
+  },
+
+  // Greeting
+  greetBlock: {
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.lg,
+  },
+  greeting: {
+    fontFamily: Fonts.display,
+    fontSize: 22,
+    color: Colors.cream,
+    letterSpacing: 0.2,
+  },
+  subRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
-    paddingVertical: 2,
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
   },
-  expertLinkText: {
-    fontSize: FontSize.xs,
-    color: Colors.gold,
-    fontWeight: FontWeight.medium,
-    textDecorationLine: 'underline',
+  addrChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#0E0E0E',
+    borderWidth: 1,
+    borderColor: Colors.borderGrey,
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
-  
-  // Network Switcher
+  addrText: {
+    fontFamily: Fonts.mono,
+    fontSize: 12,
+    color: Colors.silver,
+  },
   networkBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    backgroundColor: colorWithOpacity(Colors.warning, 0.15),
+    paddingVertical: 5,
+    backgroundColor: colorWithOpacity(Colors.gold, 0.1),
     borderRadius: BorderRadius.full,
     borderWidth: 1,
-    borderColor: colorWithOpacity(Colors.warning, 0.3),
+    borderColor: colorWithOpacity(Colors.gold, 0.32),
   },
   networkBadgeMainnet: {
-    backgroundColor: colorWithOpacity(Colors.success, 0.15),
-    borderColor: colorWithOpacity(Colors.success, 0.3),
+    backgroundColor: colorWithOpacity(Colors.success, 0.12),
+    borderColor: colorWithOpacity(Colors.success, 0.32),
   },
   networkDot: {
     width: 6,
     height: 6,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.warning,
+    backgroundColor: Colors.gold,
   },
   networkDotMainnet: {
     backgroundColor: Colors.success,
   },
   networkText: {
-    fontSize: 9,
-    fontWeight: FontWeight.bold,
-    color: Colors.warning,
-    letterSpacing: 0.5,
+    fontFamily: Fonts.displayMd,
+    fontSize: 10,
+    color: Colors.gold,
+    letterSpacing: 1.2,
   },
   networkTextMainnet: {
     color: Colors.success,
   },
-  
-  avatarBtn: {
-    width: DesignTokens.touchTarget.minimum,
-    height: DesignTokens.touchTarget.minimum,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.cardBg,
+  expertLink: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
+    gap: 5,
+    marginTop: Spacing.md,
   },
-  
+  expertLinkText: {
+    fontSize: FontSize.xs,
+    color: Colors.gold,
+    fontWeight: FontWeight.medium,
+  },
+
   // Quick Actions
   quickActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.xl,
-    gap: Spacing.sm,
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.md,
+    gap: 6,
   },
-  actionBtn: {
+  qbtn: {
     alignItems: 'center',
     flex: 1,
-    minHeight: DesignTokens.touchTarget.comfortable,
-    justifyContent: 'center',
   },
-  actionIcon: {
-    width: 56,
-    height: 56,
+  disc: {
+    width: 54,
+    height: 54,
     borderRadius: BorderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: Colors.borderGrey,
+    backgroundColor: '#141414',
     marginBottom: Spacing.sm,
   },
-  actionLabel: {
-    fontSize: FontSize.xs,
+  discTap: {
+    borderColor: colorWithOpacity(Colors.goldHi, 0.45),
+  },
+  qlabel: {
+    fontFamily: Fonts.displayMd,
+    fontSize: 10,
     color: Colors.offWhite,
-    fontWeight: FontWeight.medium,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
   },
 
   // Sections
   section: {
-    marginBottom: Spacing.xl,
+    marginTop: Spacing.xl,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -461,16 +538,19 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   sectionTitle: {
-    fontSize: FontSize.lg,
-    color: Colors.cream,
-    fontWeight: FontWeight.bold,
+    fontFamily: Fonts.displayMd,
+    fontSize: FontSize.sm,
+    color: Colors.silver,
+    letterSpacing: 2,
   },
   seeAll: {
-    fontSize: FontSize.sm,
+    fontFamily: Fonts.displayMd,
+    fontSize: FontSize.xs,
     color: Colors.gold,
-    fontWeight: FontWeight.medium,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
-  
+
   // Wallet Cards
   walletScroll: {
     marginHorizontal: -Spacing.lg,
@@ -486,7 +566,16 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.borderGrey,
+    overflow: 'hidden',
     ...DesignTokens.shadows.card,
+  },
+  walletWatermark: {
+    position: 'absolute',
+    width: 70,
+    height: 70,
+    top: -16,
+    right: -14,
+    opacity: 0.12,
   },
   walletCardHeader: {
     flexDirection: 'row',
@@ -500,28 +589,29 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
   },
   walletLabelText: {
+    fontFamily: Fonts.display,
     fontSize: FontSize.md,
     color: Colors.cream,
-    fontWeight: FontWeight.semibold,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   walletRemainingLabel: {
-    fontSize: FontSize.xs,
+    fontFamily: Fonts.displayMd,
+    fontSize: 9.5,
     color: Colors.mutedWhite,
-    textTransform: 'uppercase',
-    letterSpacing: DesignTokens.typography.letterSpacing.wide,
+    letterSpacing: 1.2,
   },
   walletRemainingValue: {
-    fontSize: FontSize.lg,
+    fontFamily: Fonts.display,
+    fontSize: 19,
     color: Colors.gold,
-    fontWeight: FontWeight.bold,
-    marginTop: Spacing.xs,
+    marginTop: 3,
+    fontVariant: ['tabular-nums'],
   },
   addWalletCard: {
-    width: 80,
+    width: 74,
     backgroundColor: Colors.surfaceBg,
     borderRadius: BorderRadius.lg,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderStyle: 'dashed',
     borderColor: Colors.borderGrey,
     alignItems: 'center',
@@ -534,9 +624,9 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: Colors.gold + '40',
+    borderColor: colorWithOpacity(Colors.gold, 0.35),
     minHeight: DesignTokens.touchTarget.large,
   },
   emptyWalletText: {
@@ -545,12 +635,62 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.medium,
     marginTop: Spacing.sm,
   },
-  
+
+  // Recent Activity
+  activityList: {
+    backgroundColor: Colors.cardBg,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderGrey,
+    paddingHorizontal: Spacing.md,
+    ...DesignTokens.shadows.card,
+  },
+  txRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.surfaceBg,
+    minHeight: DesignTokens.touchTarget.comfortable,
+  },
+  txIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  txInfo: {
+    flex: 1,
+    marginLeft: Spacing.md,
+    marginRight: Spacing.sm,
+  },
+  txTitle: {
+    fontSize: FontSize.md,
+    color: Colors.white,
+    fontWeight: FontWeight.semibold,
+  },
+  txMeta: {
+    fontFamily: Fonts.mono,
+    fontSize: 11.5,
+    color: Colors.mutedWhite,
+    marginTop: 3,
+  },
+  txAmount: {
+    fontFamily: Fonts.display,
+    fontSize: FontSize.md,
+    fontVariant: ['tabular-nums'],
+  },
+
   // Empty State
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: Spacing.xxl,
+    backgroundColor: Colors.cardBg,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderGrey,
   },
   emptyStateText: {
     color: Colors.mutedWhite,
