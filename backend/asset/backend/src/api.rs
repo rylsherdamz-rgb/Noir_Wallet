@@ -8,6 +8,31 @@ use chrono::Utc;
 use serde::Serialize;
 use std::sync::Arc;
 
+/// Register (or re-activate) a device in the backend DB so it can be used for
+/// payments. `device_serial` is the raw NFC/RFID UID; it is hashed the same way
+/// as at payment time so the two always match.
+pub async fn register_device(
+    req: web::Json<crate::models::RegisterDeviceRequest>,
+    state: web::Data<AppState>,
+) -> Result<HttpResponse> {
+    if req.device_serial.is_empty() || req.wallet_address.is_empty() {
+        return Err(PaymentError::InvalidPayload(
+            "device_serial and wallet_address are required".to_string(),
+        ));
+    }
+    let device_hash = hash_device_serial(&req.device_serial)?;
+    // Default daily limit: 100 XLM (1,000,000,000 stroops), matching the schema.
+    let limit = req.daily_limit_stroops.unwrap_or(1_000_000_000);
+    state
+        .db
+        .upsert_device(&device_hash, &req.wallet_address, limit)
+        .await?;
+    Ok(HttpResponse::Ok().json(crate::models::RegisterDeviceResponse {
+        device_hash,
+        status: "active".to_string(),
+    }))
+}
+
 pub async fn process_payment(
     req: web::Json<PaymentRequest>,
     state: web::Data<AppState>,

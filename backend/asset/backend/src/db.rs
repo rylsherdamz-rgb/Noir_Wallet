@@ -33,6 +33,30 @@ impl DeviceRepository {
         .ok_or(PaymentError::DeviceNotFound)
     }
 
+    /// Insert or re-activate a device row mapping a device hash to a wallet.
+    /// Used by `/devices/register` (the on-chain contract sync is not yet
+    /// implemented, so this is how a device becomes payable in the backend).
+    pub async fn upsert_device(
+        &self,
+        device_hash: &str,
+        wallet_address: &str,
+        daily_limit_stroops: i64,
+    ) -> Result<()> {
+        sqlx::query(
+            "INSERT INTO devices (device_hash, wallet_address, status, daily_limit_stroops)
+             VALUES ($1, $2, 'active', $3)
+             ON CONFLICT (device_hash)
+             DO UPDATE SET wallet_address = EXCLUDED.wallet_address, status = 'active', daily_limit_stroops = EXCLUDED.daily_limit_stroops",
+        )
+        .bind(device_hash)
+        .bind(wallet_address)
+        .bind(daily_limit_stroops)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+        Ok(())
+    }
+
     pub async fn check_daily_limit(&self, hash: &str, amount: i64) -> Result<bool> {
         let device = self.get_device_by_hash(hash).await?;
 

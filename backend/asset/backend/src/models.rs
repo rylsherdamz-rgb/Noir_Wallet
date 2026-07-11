@@ -104,6 +104,20 @@ pub struct PaymentRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct RegisterDeviceRequest {
+    pub device_serial: String,
+    pub wallet_address: String,
+    #[serde(default)]
+    pub daily_limit_stroops: Option<i64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RegisterDeviceResponse {
+    pub device_hash: String,
+    pub status: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PaymentResponse {
     pub status: String,
     pub transaction_id: String,
