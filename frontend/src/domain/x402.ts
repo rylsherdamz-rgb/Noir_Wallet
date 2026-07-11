@@ -1,6 +1,15 @@
 import { Keypair } from '@stellar/stellar-sdk'
-import * as SecureStore from 'expo-secure-store'
+import { secureGetItem, secureSetItem, secureDeleteItem } from '@/services/secureStorage'
 import { stellarService } from '@/services/stellar'
+
+// Platform-aware secure storage: expo-secure-store on native, localStorage on
+// web preview. Redirected here so the existing SecureStore.* call sites below
+// keep working without change.
+const SecureStore = {
+  getItemAsync: secureGetItem,
+  setItemAsync: secureSetItem,
+  deleteItemAsync: secureDeleteItem,
+}
 
 const AGENT_SECRET_KEY = 'x402.agent.secret'
 const AGENT_PUBLIC_KEY = 'x402.agent.public'
