@@ -1,13 +1,15 @@
 #![allow(dead_code)]
 
 use actix_web::{web, App, HttpServer};
-use log::info;
+use auth::ApiKeyMiddleware;
+use log::{info, warn};
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::task;
 
 mod api;
+mod auth;
 mod cache;
 mod channel_selector;
 mod channels;
@@ -18,6 +20,7 @@ mod errors;
 mod fees;
 mod metrics;
 mod models;
+mod pdax;
 mod queue;
 mod rate_limiter;
 mod state;
@@ -67,13 +70,33 @@ async fn main() -> std::io::Result<()> {
         config.db_max_connections
     );
 
-    let stellar_client = stellar::StellarClient::new(
+    let stellar_client = stellar::StellarClient::with_horizon(
         config.stellar_rpc_url.clone(),
+        config.horizon_url.clone(),
         config.stellar_network.clone(),
     );
 
     let db = Arc::new(DeviceRepository::new(pool.clone()));
     let stellar_arc = Arc::new(stellar_client.clone());
+
+    // Seed the fee channel row from CHANNEL_SECRET_KEY so channel selection and
+    // health reporting reflect the real, funded channel. The secret stays in
+    // memory only; the DB row holds just the public address + balance.
+    if !config.channel_secret_key.trim().is_empty() {
+        match transaction_signer::TransactionSigner::from_secret(config.channel_secret_key.trim()) {
+            Ok(signer) => {
+                let addr = signer.public_strkey();
+                let balance = stellar_arc.get_account_balance(&addr).await.unwrap_or(0);
+                match db.upsert_fee_channel(&addr, balance).await {
+                    Ok(_) => info!("Fee channel seeded: {addr} (balance {balance} stroops)"),
+                    Err(e) => warn!("Failed to seed fee channel {addr}: {e}"),
+                }
+            }
+            Err(e) => warn!("CHANNEL_SECRET_KEY invalid, cannot seed fee channel: {e}"),
+        }
+    } else {
+        warn!("CHANNEL_SECRET_KEY not set — no fee channel; payments will not submit");
+    }
 
     let channel_manager = Arc::new(ChannelManager::new(
         db.clone(),
@@ -81,9 +104,43 @@ async fn main() -> std::io::Result<()> {
         config.channel_min_balance_stroops,
     ));
 
+    // Build PDAX client
+    let pdax_client = crate::pdax::PdaxClient::new(
+        config.pdax_base_url().to_string(),
+        config.pdax_username.clone(),
+        config.pdax_password.clone(),
+    );
+
+    // Login to PDAX at startup so the session is ready for cash-in/cash-out
+    {
+        let pc = pdax_client.clone();
+        task::spawn(async move {
+            match pc.login().await {
+                Ok(outcome) => match outcome {
+                    crate::pdax::PdaxLoginOutcome::Authenticated(s) => {
+                        info!(
+                            "PDAX login OK — user={}, expires_at={:?}",
+                            s.username, s.expires_at
+                        );
+                    }
+                    crate::pdax::PdaxLoginOutcome::MfaRequired(_) => {
+                        warn!("PDAX login requires MFA — trading endpoints will fail");
+                    }
+                },
+                Err(e) => warn!("PDAX initial login failed: {}", e),
+            }
+        });
+    }
+
     // Build app state with config-driven rate limiter
     let app_state = {
-        let mut state = AppState::new(pool.clone(), stellar_client, vec![]);
+        let mut state = AppState::new(
+            pool.clone(),
+            stellar_client,
+            pdax_client,
+            vec![],
+            config.api_key.clone(),
+        );
         state.rate_limiter = Arc::new(rate_limiter::RateLimiter::new(
             config.rate_limit_window_secs,
             config.rate_limit_max_requests,
@@ -99,6 +156,7 @@ async fn main() -> std::io::Result<()> {
         channel_manager.clone(),
         config.stellar_network.clone(),
         config.submission_process_interval_secs,
+        config.channel_secret_key.clone(),
     );
     task::spawn(async move { submission_processor.run().await });
 
@@ -138,11 +196,13 @@ async fn main() -> std::io::Result<()> {
     let channel_manager_data = web::Data::new(channel_manager.clone());
     let max_body = config.max_request_body_bytes;
     let bind_addr = format!("{}:{}", config.api_host, config.api_port);
+    let api_key = config.api_key.clone();
 
     info!("Listening on {}", bind_addr);
 
     HttpServer::new(move || {
         App::new()
+            .wrap(ApiKeyMiddleware::new(api_key.clone()))
             .app_data(web::JsonConfig::default().limit(max_body))
             .app_data(app_state.clone())
             .app_data(channel_manager_data.clone())

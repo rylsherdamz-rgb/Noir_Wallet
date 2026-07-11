@@ -85,6 +85,18 @@ pub async fn process_payment(
         .db
         .store_payment_transaction_with_key(&payment_tx, &req.idempotency_key)
         .await?;
+    // Non-custodial: persist the user-signed inner envelope for the worker to
+    // fee-bump. Required — without it the payment can never be submitted.
+    match &req.signed_xdr {
+        Some(xdr) if !xdr.is_empty() => {
+            state.db.store_signed_envelope(&transaction_id, xdr).await?;
+        }
+        _ => {
+            return Err(PaymentError::InvalidPayload(
+                "signed_xdr (user-signed inner transaction) is required".to_string(),
+            ));
+        }
+    }
     state
         .db
         .increment_daily_spend(&device_hash, req.amount_stroops as i64)
@@ -295,6 +307,7 @@ pub async fn initiate_payment_frontend(
         amount_stroops,
         memo: Some(format!("POS payment via {}", req.asset_code)),
         idempotency_key,
+        signed_xdr: None,
     };
 
     // Call the existing internal handler logic — we inline it to avoid
@@ -431,16 +444,116 @@ pub async fn delete_account(_state: web::Data<AppState>) -> Result<HttpResponse>
     Ok(HttpResponse::Ok().json(crate::models::OkResponse { ok: true }))
 }
 
-pub async fn pdax_cash_in(_req: web::Json<crate::models::FiatCashRequest>) -> Result<HttpResponse> {
-    Ok(HttpResponse::Ok().json(crate::models::FiatCashResponse {
-        reference: format!("CASH-IN-{}", uuid::Uuid::new_v4()),
-    }))
+async fn ensure_pdax_session(client: &crate::pdax::PdaxClient) -> Result<()> {
+    match client.current_session().await {
+        Ok(_) => Ok(()),
+        Err(_) => match client.login().await {
+            Ok(crate::pdax::PdaxLoginOutcome::Authenticated(_)) => Ok(()),
+            Ok(crate::pdax::PdaxLoginOutcome::MfaRequired(_)) => {
+                Err(PaymentError::PdaxApiError("PDAX login requires MFA".into()))
+            }
+            Err(e) => Err(e),
+        },
+    }
 }
 
-pub async fn pdax_cash_out(
-    _req: web::Json<crate::models::FiatCashRequest>,
+/// Cash-in: convert PHP fiat to USDC.
+/// Pair: USDC-PHP, side="sell" (selling PHP base_currency to get USDC quote_currency)
+pub async fn pdax_cash_in(
+    req: web::Json<crate::models::FiatCashRequest>,
+    state: web::Data<AppState>,
 ) -> Result<HttpResponse> {
-    Ok(HttpResponse::Ok().json(crate::models::FiatCashResponse {
-        reference: format!("CASH-OUT-{}", uuid::Uuid::new_v4()),
-    }))
+    let amount_php = format!("{:.2}", req.amount_cents as f64 / 100.0);
+    log::info!("PDAX cash-in: PHP {}", amount_php);
+
+    ensure_pdax_session(&state.pdax_client).await?;
+
+    // Sell PHP to get USDC
+    let quote = state
+        .pdax_client
+        .firm_quote("USDC", "PHP", "sell", &amount_php)
+        .await?;
+    let quote_id = quote["data"]["quote_id"]
+        .as_str()
+        .ok_or_else(|| PaymentError::PdaxApiError("Missing quote_id in firm_quote response".into()))?;
+
+    let idempotency = uuid::Uuid::new_v4().to_string();
+    let order = state
+        .pdax_client
+        .place_order(quote_id, "sell", &idempotency)
+        .await?;
+
+    let ref_id = order["data"]["order_id"].as_i64().unwrap_or(0);
+    log::info!("PDAX cash-in order placed: order_id={}", ref_id);
+
+    // Withdraw USDC to user's Stellar wallet if wallet_address provided
+    if let Some(wallet) = &req.wallet_address {
+        let usdc_cents = order["data"]["total_amount"].as_f64().unwrap_or(0.0);
+        let usdc_amount = format!("{:.7}", usdc_cents / 100.0);
+
+        log::info!("Withdrawing {} USDC to wallet {}", usdc_amount, wallet);
+
+        let withdraw = state.pdax_client.crypto_withdraw(
+            &crate::pdax::CryptoWithdrawRequest {
+                identifier: uuid::Uuid::new_v4().to_string(),
+                currency: "USDCXLM".to_string(),
+                address: wallet.clone(),
+                amount: usdc_amount,
+                tag: None,
+                beneficiary_first_name: None,
+                beneficiary_last_name: None,
+                beneficiary_exchange: None,
+                send_to_self: None,
+                beneficiary_wallet: None,
+            },
+        ).await?;
+
+        log::info!("USDC withdrawal initiated: {:?}", withdraw);
+
+        return Ok(HttpResponse::Ok().json(serde_json::json!({
+            "reference": format!("CASH-IN-{}", ref_id),
+            "order": order,
+            "withdrawal": withdraw,
+        })));
+    }
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "reference": format!("CASH-IN-{}", ref_id),
+        "order": order,
+    })))
+}
+
+/// Cash-out: convert USDC to PHP fiat.
+/// Pair: USDC-PHP, side="buy" (buying PHP base_currency with USDC quote_currency)
+pub async fn pdax_cash_out(
+    req: web::Json<crate::models::FiatCashRequest>,
+    state: web::Data<AppState>,
+) -> Result<HttpResponse> {
+    let amount_php = format!("{:.2}", req.amount_cents as f64 / 100.0);
+    log::info!("PDAX cash-out: PHP {}", amount_php);
+
+    ensure_pdax_session(&state.pdax_client).await?;
+
+    // Buy PHP with USDC
+    let quote = state
+        .pdax_client
+        .firm_quote("USDC", "PHP", "buy", &amount_php)
+        .await?;
+    let quote_id = quote["data"]["quote_id"]
+        .as_str()
+        .ok_or_else(|| PaymentError::PdaxApiError("Missing quote_id in firm_quote response".into()))?;
+
+    let idempotency = uuid::Uuid::new_v4().to_string();
+    let order = state
+        .pdax_client
+        .place_order(quote_id, "buy", &idempotency)
+        .await?;
+
+    let ref_id = order["data"]["order_id"].as_i64().unwrap_or(0);
+    log::info!("PDAX cash-out order placed: order_id={}", ref_id);
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "reference": format!("CASH-OUT-{}", ref_id),
+        "order": order,
+    })))
 }

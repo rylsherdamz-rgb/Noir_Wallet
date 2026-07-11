@@ -1,39 +1,122 @@
-use crate::errors::{PaymentError, Result};
-use base64::{engine::general_purpose::STANDARD, Engine};
+//! Real Stellar transaction construction using `stellar-xdr`.
+//!
+//! Replaces the previous hand-rolled XDR (wrong network id, malformed
+//! envelopes, zero signatures) with the maintained `stellar-xdr` types.
+//!
+//! Two builders:
+//!   * `build_fee_bump` — the non-custodial core: wraps a client-signed inner
+//!     transaction in a fee-bump whose fee source is a channel account, signed
+//!     by the channel. The user's wallet remains the payment source; the
+//!     backend never holds user secrets.
+//!   * `build_signed_payment` — a genuine server-side payment (used for
+//!     channel top-ups from a funded source), signed with real ed25519.
 
-#[allow(dead_code)]
-const TESTNET_NETWORK_ID: &[u8; 32] = b"Test SDF Network ; June 2015\x00\x00\x00\x00";
-#[allow(dead_code)]
-const PUBNET_NETWORK_ID: &[u8; 32] = b"Public Global Stellar Network\x00\x00\x00";
-const BASE_FEE_STROOPS: u32 = 200;
+use crate::errors::{PaymentError, Result};
+use crate::transaction_signer::TransactionSigner;
+use sha2::{Digest, Sha256};
+use stellar_strkey::ed25519 as strkey_ed25519;
+use stellar_xdr::{
+    Asset, DecoratedSignature, FeeBumpTransaction, FeeBumpTransactionEnvelope,
+    FeeBumpTransactionExt, FeeBumpTransactionInnerTx, Limits, Memo, MuxedAccount, Operation,
+    OperationBody, PaymentOp, Preconditions, ReadXdr, SequenceNumber, Signature, SignatureHint,
+    StringM, Transaction, TransactionEnvelope, TransactionExt, TransactionV1Envelope, Uint256,
+    VecM, WriteXdr,
+};
+
+/// Minimum base fee per operation, in stroops.
+const BASE_FEE_STROOPS: i64 = 200;
 
 pub struct TransactionBuilder {
-    #[allow(dead_code)]
-    network: String,
+    network_id: [u8; 32],
 }
 
 impl TransactionBuilder {
     pub fn new(network: String) -> Self {
-        TransactionBuilder { network }
+        Self::for_network(&network)
     }
 
-    #[allow(dead_code)]
-    fn get_network_id(&self) -> &'static [u8; 32] {
-        if self.network == "testnet" {
-            TESTNET_NETWORK_ID
-        } else {
-            PUBNET_NETWORK_ID
-        }
+    pub fn for_network(network: &str) -> Self {
+        let passphrase = match network {
+            "public" | "pubnet" | "mainnet" => "Public Global Stellar Network ; September 2015",
+            _ => "Test SDF Network ; September 2015",
+        };
+        let network_id: [u8; 32] = Sha256::digest(passphrase.as_bytes()).into();
+        Self { network_id }
     }
 
-    pub fn build_payment_envelope(
+    /// SHA-256 network id (exposed for tests / diagnostics).
+    pub fn network_id(&self) -> [u8; 32] {
+        self.network_id
+    }
+
+    /// Wrap a client-signed inner transaction (base64 XDR) in a fee-bump whose
+    /// fee source is the channel account, signed by the channel. Returns
+    /// base64 XDR ready for Horizon submission.
+    pub fn build_fee_bump(
         &self,
-        source: &str,
+        signed_inner_xdr: &str,
+        channel_signer: &TransactionSigner,
+    ) -> Result<String> {
+        let inner = TransactionEnvelope::from_xdr_base64(signed_inner_xdr, Limits::none())
+            .map_err(|e| PaymentError::InvalidPayload(format!("Invalid inner tx XDR: {e}")))?;
+
+        let inner_v1: TransactionV1Envelope = match inner {
+            TransactionEnvelope::Tx(v1) => v1,
+            _ => {
+                return Err(PaymentError::InvalidPayload(
+                    "Inner transaction must be a v1 (ENVELOPE_TYPE_TX) envelope".to_string(),
+                ))
+            }
+        };
+
+        // Non-custodial invariant: the inner tx must already be user-signed.
+        if inner_v1.signatures.is_empty() {
+            return Err(PaymentError::InvalidPayload(
+                "Inner transaction carries no user signature".to_string(),
+            ));
+        }
+
+        let num_ops = inner_v1.tx.operations.len() as i64;
+        let inner_fee = i64::from(inner_v1.tx.fee);
+        // Fee-bump fee must cover (inner ops + 1) * base fee and exceed inner fee.
+        let fee = ((num_ops + 1) * BASE_FEE_STROOPS).max(inner_fee + BASE_FEE_STROOPS);
+
+        let fee_bump = FeeBumpTransaction {
+            fee_source: muxed_from_g(&channel_signer.public_strkey())?,
+            fee,
+            inner_tx: FeeBumpTransactionInnerTx::Tx(inner_v1),
+            ext: FeeBumpTransactionExt::V0,
+        };
+
+        let hash = fee_bump
+            .hash(self.network_id)
+            .map_err(|e| PaymentError::SubmissionFailed(format!("fee-bump hash error: {e}")))?;
+
+        let decorated = decorated_signature(channel_signer, &hash)?;
+        let signatures: VecM<DecoratedSignature, 20> = vec![decorated]
+            .try_into()
+            .map_err(|_| PaymentError::SubmissionFailed("signature vec overflow".into()))?;
+
+        let envelope = TransactionEnvelope::TxFeeBump(FeeBumpTransactionEnvelope {
+            tx: fee_bump,
+            signatures,
+        });
+
+        envelope
+            .to_xdr_base64(Limits::none())
+            .map_err(|e| PaymentError::SubmissionFailed(format!("xdr encode error: {e}")))
+    }
+
+    /// Build and sign a native-XLM payment from `source_signer` to
+    /// `destination`. `sequence` must be the source account's next sequence
+    /// number (current + 1). Returns base64 XDR.
+    pub fn build_signed_payment(
+        &self,
+        source_signer: &TransactionSigner,
         destination: &str,
         amount_stroops: i64,
-        sequence: u64,
-        _memo: Option<String>,
-        _signing_key: &str,
+        sequence: i64,
+        memo: Option<String>,
     ) -> Result<String> {
         if amount_stroops <= 0 {
             return Err(PaymentError::InvalidPayload(
@@ -41,219 +124,157 @@ impl TransactionBuilder {
             ));
         }
 
-        if source == destination {
-            return Err(PaymentError::InvalidPayload(
-                "Source and destination cannot be the same".to_string(),
-            ));
-        }
-
-        if sequence == 0 {
-            return Err(PaymentError::InvalidPayload(
-                "Sequence number must be greater than 0".to_string(),
-            ));
-        }
-
-        self.create_envelope_xdr(source, destination, amount_stroops, sequence)
-    }
-
-    fn create_envelope_xdr(
-        &self,
-        source: &str,
-        destination: &str,
-        amount_stroops: i64,
-        sequence: u64,
-    ) -> Result<String> {
-        let mut xdr_bytes = Vec::new();
-
-        xdr_bytes.extend_from_slice(&[0, 0, 0, 2]);
-
-        self.write_transaction_envelope(
-            &mut xdr_bytes,
-            source,
-            destination,
-            amount_stroops,
-            sequence,
-        )?;
-
-        let encoded = STANDARD.encode(&xdr_bytes);
-        Ok(encoded)
-    }
-
-    fn write_transaction_envelope(
-        &self,
-        buf: &mut Vec<u8>,
-        source: &str,
-        destination: &str,
-        amount_stroops: i64,
-        sequence: u64,
-    ) -> Result<()> {
-        self.write_account_id(buf, source)?;
-        self.write_uint32(buf, BASE_FEE_STROOPS);
-        self.write_uint64(buf, sequence);
-
-        self.write_uint32(buf, 0);
-        self.write_string(buf, "")?;
-
-        self.write_uint32(buf, 1);
-        self.write_payment_operation(buf, destination, amount_stroops)?;
-
-        self.write_uint32(buf, 0);
-
-        Ok(())
-    }
-
-    fn write_payment_operation(
-        &self,
-        buf: &mut Vec<u8>,
-        destination: &str,
-        amount: i64,
-    ) -> Result<()> {
-        self.write_account_id(buf, "")?;
-        self.write_uint32(buf, 1);
-        self.write_account_id(buf, destination)?;
-        self.write_int64(buf, amount);
-        Ok(())
-    }
-
-    fn write_account_id(&self, buf: &mut Vec<u8>, account: &str) -> Result<()> {
-        self.write_uint32(buf, 0);
-
-        let decoded = if account.is_empty() {
-            vec![0u8; 32]
-        } else {
-            decode_stellar_account(account)?
+        let memo = match memo {
+            Some(t) if !t.is_empty() => {
+                let m: StringM<28> = t.into_bytes().try_into().map_err(|_| {
+                    PaymentError::InvalidPayload("memo too long (max 28 bytes)".to_string())
+                })?;
+                Memo::Text(m)
+            }
+            _ => Memo::None,
         };
 
-        buf.extend_from_slice(&decoded);
-        Ok(())
-    }
+        let op = Operation {
+            source_account: None,
+            body: OperationBody::Payment(PaymentOp {
+                destination: muxed_from_g(destination)?,
+                asset: Asset::Native,
+                amount: amount_stroops,
+            }),
+        };
+        let operations: VecM<Operation, 100> = vec![op]
+            .try_into()
+            .map_err(|_| PaymentError::InvalidPayload("too many operations".into()))?;
 
-    fn write_uint32(&self, buf: &mut Vec<u8>, value: u32) {
-        buf.extend_from_slice(&value.to_be_bytes());
-    }
+        let tx = Transaction {
+            source_account: muxed_from_g(&source_signer.public_strkey())?,
+            fee: BASE_FEE_STROOPS as u32,
+            seq_num: SequenceNumber(sequence),
+            cond: Preconditions::None,
+            memo,
+            operations,
+            ext: TransactionExt::V0,
+        };
 
-    fn write_uint64(&self, buf: &mut Vec<u8>, value: u64) {
-        buf.extend_from_slice(&value.to_be_bytes());
-    }
+        let hash = tx
+            .hash(self.network_id)
+            .map_err(|e| PaymentError::SubmissionFailed(format!("tx hash error: {e}")))?;
 
-    fn write_int64(&self, buf: &mut Vec<u8>, value: i64) {
-        buf.extend_from_slice(&value.to_be_bytes());
-    }
+        let decorated = decorated_signature(source_signer, &hash)?;
+        let signatures: VecM<DecoratedSignature, 20> = vec![decorated]
+            .try_into()
+            .map_err(|_| PaymentError::SubmissionFailed("signature vec overflow".into()))?;
 
-    fn write_string(&self, buf: &mut Vec<u8>, s: &str) -> Result<()> {
-        let bytes = s.as_bytes();
-        self.write_uint32(buf, bytes.len() as u32);
-        buf.extend_from_slice(bytes);
+        let envelope = TransactionEnvelope::Tx(TransactionV1Envelope { tx, signatures });
 
-        let padding = (4 - (bytes.len() % 4)) % 4;
-        for _ in 0..padding {
-            buf.push(0);
-        }
-
-        Ok(())
+        envelope
+            .to_xdr_base64(Limits::none())
+            .map_err(|e| PaymentError::SubmissionFailed(format!("xdr encode error: {e}")))
     }
 }
 
-fn decode_stellar_account(account: &str) -> Result<Vec<u8>> {
-    const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+fn muxed_from_g(g_addr: &str) -> Result<MuxedAccount> {
+    let pk = strkey_ed25519::PublicKey::from_string(g_addr)
+        .map_err(|e| PaymentError::InvalidPayload(format!("Invalid account {g_addr}: {e}")))?;
+    Ok(MuxedAccount::Ed25519(Uint256(pk.0)))
+}
 
-    if !account.starts_with('G') || account.len() < 55 || account.len() > 56 {
-        return Err(PaymentError::InvalidPayload(format!(
-            "Invalid Stellar account ID format: {} (len={})",
-            account,
-            account.len()
-        )));
-    }
-
-    let mut decoded = [0u8; 35];
-    let mut bit_pos = 0usize;
-
-    for c in account.chars() {
-        if let Some(pos) = ALPHABET.iter().position(|&b| b == c as u8) {
-            let val = pos as u8;
-
-            for i in 0..5 {
-                let bit = (val >> (4 - i)) & 1;
-                let byte_idx = bit_pos / 8;
-                let bit_idx = 7 - (bit_pos % 8);
-
-                if byte_idx < decoded.len() {
-                    decoded[byte_idx] |= bit << bit_idx;
-                }
-
-                bit_pos += 1;
-            }
-        } else {
-            return Err(PaymentError::InvalidPayload(format!(
-                "Invalid character in account ID: {}",
-                c
-            )));
-        }
-    }
-
-    Ok(decoded[0..32].to_vec())
+fn decorated_signature(signer: &TransactionSigner, hash: &[u8; 32]) -> Result<DecoratedSignature> {
+    let sig = signer.sign(hash);
+    Ok(DecoratedSignature {
+        hint: SignatureHint(signer.signature_hint()),
+        signature: Signature(
+            sig.to_vec()
+                .try_into()
+                .map_err(|_| PaymentError::SubmissionFailed("bad signature length".into()))?,
+        ),
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_zero_amount_fails() {
-        let builder = TransactionBuilder::new("testnet".to_string());
-        let result = builder.build_payment_envelope(
-            "GBRPYHIL2CI3WHPSKKRPQ5TSG64IJLC3B7VCLIY63XMJD5FYXHAIBOP",
-            "GBQKFPHDMZNXWVXQFBFWWWQSDK3HYEHUVA7YHXC7QKCYJF5MZBWPPQTA",
-            0,
-            1,
-            None,
-            "SDSAYCE335Q5Q57WWFDSF47W4WTHG4QV3CWDMFVZYTDURXTANDVM76E",
-        );
-        assert!(result.is_err());
+    fn signer_from_seed(seed: [u8; 32]) -> TransactionSigner {
+        let secret = stellar_strkey::Unredacted(&strkey_ed25519::PrivateKey(seed))
+            .to_string()
+            .as_str()
+            .to_owned();
+        TransactionSigner::from_secret(&secret).unwrap()
     }
 
     #[test]
-    fn test_same_source_destination_fails() {
-        let builder = TransactionBuilder::new("testnet".to_string());
-        let result = builder.build_payment_envelope(
-            "GBRPYHIL2CI3WHPSKKRPQ5TSG64IJLC3B7VCLIY63XMJD5FYXHAIBOP",
-            "GBRPYHIL2CI3WHPSKKRPQ5TSG64IJLC3B7VCLIY63XMJD5FYXHAIBOP",
-            1000,
-            1,
-            None,
-            "SDSAYCE335Q5Q57WWFDSF47W4WTHG4QV3CWDMFVZYTDURXTANDVM76E",
-        );
-        assert!(result.is_err());
+    fn signed_payment_roundtrips_and_is_signed() {
+        let builder = TransactionBuilder::for_network("testnet");
+        let source = signer_from_seed([3u8; 32]);
+        let dest = signer_from_seed([9u8; 32]).public_strkey();
+
+        let xdr = builder
+            .build_signed_payment(&source, &dest, 1_000_000, 42, Some("hi".into()))
+            .expect("payment builds");
+
+        let env = TransactionEnvelope::from_xdr_base64(&xdr, Limits::none()).unwrap();
+        match env {
+            TransactionEnvelope::Tx(v1) => {
+                assert_eq!(v1.signatures.len(), 1);
+                assert_eq!(v1.tx.seq_num, SequenceNumber(42));
+            }
+            _ => panic!("expected v1 tx envelope"),
+        }
     }
 
     #[test]
-    fn test_zero_sequence_fails() {
-        let builder = TransactionBuilder::new("testnet".to_string());
-        let result = builder.build_payment_envelope(
-            "GBRPYHIL2CI3WHPSKKRPQ5TSG64IJLC3B7VCLIY63XMJD5FYXHAIBOP",
-            "GBQKFPHDMZNXWVXQFBFWWWQSDK3HYEHUVA7YHXC7QKCYJF5MZBWPPQTA",
-            1000,
-            0,
-            None,
-            "SDSAYCE335Q5Q57WWFDSF47W4WTHG4QV3CWDMFVZYTDURXTANDVM76E",
-        );
-        assert!(result.is_err());
+    fn fee_bump_wraps_user_signed_inner() {
+        let builder = TransactionBuilder::for_network("testnet");
+        let user = signer_from_seed([1u8; 32]);
+        let dest = signer_from_seed([2u8; 32]).public_strkey();
+        let channel = signer_from_seed([5u8; 32]);
+
+        let inner_xdr = builder
+            .build_signed_payment(&user, &dest, 500_000, 7, None)
+            .unwrap();
+
+        let fb_xdr = builder.build_fee_bump(&inner_xdr, &channel).unwrap();
+
+        let env = TransactionEnvelope::from_xdr_base64(&fb_xdr, Limits::none()).unwrap();
+        match env {
+            TransactionEnvelope::TxFeeBump(fb) => {
+                assert_eq!(fb.signatures.len(), 1);
+                match fb.tx.fee_source {
+                    MuxedAccount::Ed25519(Uint256(bytes)) => {
+                        assert_eq!(bytes, channel.public_key_bytes());
+                    }
+                    _ => panic!("unexpected fee source type"),
+                }
+                let hash = fb.tx.hash(builder.network_id()).unwrap();
+                use ed25519_dalek::{Signature as Ed, Verifier, VerifyingKey};
+                let vk = VerifyingKey::from_bytes(&channel.public_key_bytes()).unwrap();
+                let sig_bytes: [u8; 64] =
+                    fb.signatures[0].signature.0.to_vec().try_into().unwrap();
+                assert!(vk.verify(&hash, &Ed::from_bytes(&sig_bytes)).is_ok());
+            }
+            _ => panic!("expected fee-bump envelope"),
+        }
     }
 
     #[test]
-    fn test_valid_envelope_creation() {
-        let builder = TransactionBuilder::new("testnet".to_string());
-        let result = builder.build_payment_envelope(
-            "GBRPYHIL2CI3WHPSKKRPQ5TSG64IJLC3B7VCLIY63XMJD5FYXHAIBOP",
-            "GBQKFPHDMZNXWVXQFBFWWWQSDK3HYEHUVA7YHXC7QKCYJF5MZBWPPQTA",
-            1000000,
-            5,
-            None,
-            "SDSAYCE335Q5Q57WWFDSF47W4WTHG4QV3CWDMFVZYTDURXTANDVM76E",
-        );
-        assert!(result.is_ok());
-
-        let xdr = result.unwrap();
-        assert!(!xdr.is_empty());
+    fn rejects_unsigned_inner() {
+        let builder = TransactionBuilder::for_network("testnet");
+        let channel = signer_from_seed([5u8; 32]);
+        let user = signer_from_seed([1u8; 32]);
+        let dest = signer_from_seed([2u8; 32]).public_strkey();
+        let signed = builder
+            .build_signed_payment(&user, &dest, 500_000, 7, None)
+            .unwrap();
+        let env = TransactionEnvelope::from_xdr_base64(&signed, Limits::none()).unwrap();
+        if let TransactionEnvelope::Tx(mut v1) = env {
+            v1.signatures = vec![].try_into().unwrap();
+            let unsigned = TransactionEnvelope::Tx(v1)
+                .to_xdr_base64(Limits::none())
+                .unwrap();
+            assert!(builder.build_fee_bump(&unsigned, &channel).is_err());
+        } else {
+            panic!("expected v1");
+        }
     }
 }

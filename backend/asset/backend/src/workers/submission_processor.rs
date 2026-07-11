@@ -9,15 +9,18 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 
-const MAX_CHANNEL_RETRIES: usize = 3;
-
+/// Processes pending payments in the non-custodial fee-bump model:
+///   1. The client submitted a user-signed inner transaction (stored as
+///      `signed_envelope_xdr`).
+///   2. This worker wraps it in a fee-bump signed by the channel key and
+///      submits the fee-bump to Horizon.
 pub struct SubmissionProcessor {
     db: Arc<DeviceRepository>,
     stellar: Arc<StellarClient>,
     channel_manager: Arc<ChannelManager>,
     builder: TransactionBuilder,
-    #[allow(dead_code)]
-    signer: Option<TransactionSigner>,
+    channel_signer: Option<TransactionSigner>,
+    channel_address: Option<String>,
     process_interval: Duration,
 }
 
@@ -28,13 +31,35 @@ impl SubmissionProcessor {
         channel_manager: Arc<ChannelManager>,
         network: String,
         process_interval_secs: u64,
+        channel_secret_key: String,
     ) -> Self {
+        // Build the channel signer once. If the key is missing/invalid we log
+        // and leave it None; pending payments will fail with a clear message
+        // rather than silently producing invalid transactions.
+        let (channel_signer, channel_address) = if channel_secret_key.trim().is_empty() {
+            log::warn!("CHANNEL_SECRET_KEY not set — payment submission is disabled");
+            (None, None)
+        } else {
+            match TransactionSigner::from_secret(channel_secret_key.trim()) {
+                Ok(s) => {
+                    let addr = s.public_strkey();
+                    log::info!("Fee channel signer loaded: {addr}");
+                    (Some(s), Some(addr))
+                }
+                Err(e) => {
+                    log::error!("Invalid CHANNEL_SECRET_KEY: {e}");
+                    (None, None)
+                }
+            }
+        };
+
         SubmissionProcessor {
             db,
             stellar,
             channel_manager,
             builder: TransactionBuilder::new(network),
-            signer: None,
+            channel_signer,
+            channel_address,
             process_interval: Duration::from_secs(process_interval_secs),
         }
     }
@@ -42,7 +67,7 @@ impl SubmissionProcessor {
     pub async fn run(&self) {
         loop {
             if let Err(e) = self.process_pending_transactions().await {
-                log::error!("Error processing pending transactions: {}", e);
+                log::error!("Error processing pending transactions: {e}");
             }
             sleep(self.process_interval).await;
         }
@@ -53,7 +78,7 @@ impl SubmissionProcessor {
 
         for mut tx in pending_txs {
             if let Err(e) = self.process_transaction(&mut tx).await {
-                log::error!("Error processing transaction {}: {}", tx.transaction_id, e);
+                log::error!("Error processing transaction {}: {e}", tx.transaction_id);
                 self.db
                     .update_transaction_status(&tx.transaction_id, "failed", Some(e.to_string()))
                     .await
@@ -65,107 +90,54 @@ impl SubmissionProcessor {
     }
 
     async fn process_transaction(&self, tx: &mut crate::models::PaymentTransaction) -> Result<()> {
-        let fee_stroops = tx.fee_stroops;
-        let mut last_error: Option<PaymentError> = None;
+        let channel_signer = self.channel_signer.as_ref().ok_or_else(|| {
+            PaymentError::ConfigError("No fee channel key configured".to_string())
+        })?;
+        let channel_address = self
+            .channel_address
+            .clone()
+            .unwrap_or_else(|| channel_signer.public_strkey());
 
-        for attempt in 0..MAX_CHANNEL_RETRIES {
-            let channel = match self
-                .channel_manager
-                .get_channel_for_amount(fee_stroops)
-                .await
-            {
-                Ok(ch) => ch,
-                Err(e) => {
-                    log::warn!("No suitable channel on attempt {}: {}", attempt + 1, e);
-                    last_error = Some(e);
-                    break;
-                }
-            };
+        // The user-signed inner transaction must be present (non-custodial).
+        let signed_inner = self
+            .db
+            .get_signed_envelope(&tx.transaction_id)
+            .await?
+            .ok_or_else(|| {
+                PaymentError::InvalidPayload("No user-signed envelope stored".to_string())
+            })?;
 
-            let sequence = match self
-                .stellar
-                .get_account_sequence(&channel.channel_address)
-                .await
-            {
-                Ok(seq) => seq,
-                Err(e) => {
-                    log::warn!(
-                        "Failed to get sequence for channel {} on attempt {}: {}",
-                        channel.channel_address,
-                        attempt + 1,
-                        e
-                    );
-                    last_error = Some(e);
-                    continue;
-                }
-            };
+        // Wrap in a channel-signed fee-bump.
+        let fee_bump_xdr = self.builder.build_fee_bump(&signed_inner, channel_signer)?;
 
-            let envelope_xdr = match self.builder.build_payment_envelope(
-                &channel.channel_address,
-                &tx.destination_wallet,
-                tx.amount_stroops,
-                sequence,
-                None,
-                "",
-            ) {
-                Ok(xdr) => xdr,
-                Err(e) => {
-                    last_error = Some(e);
-                    break;
-                }
-            };
+        // Submit to Horizon.
+        let tx_hash = self.stellar.submit_transaction(&fee_bump_xdr).await?;
 
-            match self.stellar.submit_transaction(&envelope_xdr).await {
-                Ok(tx_hash) => {
-                    self.db
-                        .update_transaction_status(&tx.transaction_id, "submitted", None)
-                        .await?;
-                    self.db
-                        .update_transaction_hash(&tx.transaction_id, &tx_hash)
-                        .await?;
-                    self.db
-                        .update_transaction_submitted_time(&tx.transaction_id, Utc::now())
-                        .await?;
-                    self.db
-                        .update_transaction_channel(&tx.transaction_id, &channel.channel_address)
-                        .await?;
-                    self.channel_manager
-                        .record_fee_usage(&channel.channel_address, fee_stroops)
-                        .await?;
+        self.db
+            .update_transaction_status(&tx.transaction_id, "submitted", None)
+            .await?;
+        self.db
+            .update_transaction_hash(&tx.transaction_id, &tx_hash)
+            .await?;
+        self.db
+            .update_transaction_submitted_time(&tx.transaction_id, Utc::now())
+            .await?;
+        self.db
+            .update_transaction_channel(&tx.transaction_id, &channel_address)
+            .await?;
 
-                    if attempt > 0 {
-                        log::info!(
-                            "Submitted transaction {} via fallback channel {} (attempt {}) hash {}",
-                            tx.transaction_id,
-                            channel.channel_address,
-                            attempt + 1,
-                            tx_hash
-                        );
-                    } else {
-                        log::info!(
-                            "Submitted transaction {} via channel {} hash {}",
-                            tx.transaction_id,
-                            channel.channel_address,
-                            tx_hash
-                        );
-                    }
-                    return Ok(());
-                }
-                Err(e) => {
-                    log::warn!(
-                        "Submission failed for transaction {} on channel {} attempt {}: {}",
-                        tx.transaction_id,
-                        channel.channel_address,
-                        attempt + 1,
-                        e
-                    );
-                    last_error = Some(e);
-                }
-            }
-        }
+        // Best-effort fee accounting against the channel row (if it exists).
+        self.channel_manager
+            .record_fee_usage(&channel_address, tx.fee_stroops)
+            .await
+            .ok();
 
-        Err(last_error.unwrap_or(PaymentError::SubmissionFailed(
-            "All channels exhausted".to_string(),
-        )))
+        log::info!(
+            "Submitted transaction {} via fee-bump channel {} hash {}",
+            tx.transaction_id,
+            channel_address,
+            tx_hash
+        );
+        Ok(())
     }
 }

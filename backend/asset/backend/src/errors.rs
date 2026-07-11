@@ -46,6 +46,9 @@ pub enum PaymentError {
 
     #[error("Encryption error: {0}")]
     EncryptionError(String),
+
+    #[error("Unauthorized")]
+    Unauthorized,
 }
 
 #[derive(Serialize)]
@@ -72,6 +75,7 @@ impl ResponseError for PaymentError {
             | PaymentError::SpendLimitExceeded
             | PaymentError::InsufficientFunds => HttpResponse::Forbidden().json(error_response),
             PaymentError::RateLimited => HttpResponse::TooManyRequests().json(error_response),
+            PaymentError::Unauthorized => HttpResponse::Unauthorized().json(error_response),
             PaymentError::DatabaseError(_)
             | PaymentError::StellarRpcError(_)
             | PaymentError::PdaxApiError(_)
@@ -87,6 +91,7 @@ impl ResponseError for PaymentError {
 
     fn status_code(&self) -> StatusCode {
         match self {
+            PaymentError::Unauthorized => StatusCode::UNAUTHORIZED,
             PaymentError::DeviceNotFound | PaymentError::InvalidPayload(_) => {
                 StatusCode::BAD_REQUEST
             }
@@ -116,6 +121,7 @@ impl PaymentError {
             PaymentError::InsufficientFunds => "INSUFFICIENT_FUNDS".to_string(),
             PaymentError::RateLimited => "RATE_LIMITED".to_string(),
             PaymentError::EncryptionError(_) => "ENCRYPTION_ERROR".to_string(),
+            PaymentError::Unauthorized => "UNAUTHORIZED".to_string(),
         }
     }
 }

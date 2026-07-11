@@ -97,6 +97,10 @@ pub struct PaymentRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub memo: Option<String>,
     pub idempotency_key: String,
+    /// Base64 XDR of the inner payment transaction, already signed by the
+    /// user's wallet (non-custodial). The backend fee-bumps and submits it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signed_xdr: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -174,8 +178,10 @@ pub struct OkResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FiatCashRequest {
     pub amount_cents: u64,
+    pub wallet_address: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

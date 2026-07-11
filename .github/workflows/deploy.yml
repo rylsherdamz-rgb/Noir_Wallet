@@ -70,3 +70,4 @@ jobs:
             DATABASE_URL=DATABASE_URL:latest
             PDAX_USERNAME=PDAX_USERNAME:latest
             PDAX_PASSWORD=PDAX_PASSWORD:latest
+            CHANNEL_SECRET_KEY=CHANNEL_SECRET_KEY:latest

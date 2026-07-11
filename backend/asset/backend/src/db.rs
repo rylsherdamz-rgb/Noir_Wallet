@@ -138,6 +138,32 @@ impl DeviceRepository {
         Ok(())
     }
 
+    /// Store the user-signed inner transaction envelope (base64 XDR) for a
+    /// pending payment. Set by the API in the non-custodial flow.
+    pub async fn store_signed_envelope(&self, tx_id: &str, xdr: &str) -> Result<()> {
+        sqlx::query(
+            "UPDATE payment_transactions SET signed_envelope_xdr = $1 WHERE transaction_id = $2",
+        )
+        .bind(xdr)
+        .bind(tx_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+        Ok(())
+    }
+
+    /// Fetch the user-signed inner envelope for a payment, if present.
+    pub async fn get_signed_envelope(&self, tx_id: &str) -> Result<Option<String>> {
+        let row: Option<(Option<String>,)> = sqlx::query_as(
+            "SELECT signed_envelope_xdr FROM payment_transactions WHERE transaction_id = $1",
+        )
+        .bind(tx_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+        Ok(row.and_then(|r| r.0))
+    }
+
     pub async fn get_pending_payment_transactions(&self) -> Result<Vec<PaymentTransaction>> {
         sqlx::query_as::<_, PaymentTransaction>(
             "SELECT id, transaction_id, device_hash, source_wallet, destination_wallet, amount_stroops, fee_stroops, status, stellar_tx_hash, created_at, submitted_at, confirmed_at, error_message, fee_channel_used FROM payment_transactions WHERE status = 'pending' ORDER BY created_at ASC LIMIT 100"
@@ -216,6 +242,29 @@ impl DeviceRepository {
         .fetch_all(&self.pool)
         .await
         .map_err(|e| PaymentError::DatabaseError(e.to_string()))
+    }
+
+    /// Insert or refresh the fee channel row for `address`.
+    ///
+    /// The signing key itself is NOT stored here — it lives in Secret Manager
+    /// (`CHANNEL_SECRET_KEY`) and is only ever loaded into memory. We satisfy
+    /// the NOT NULL `private_key_encrypted` column with an empty blob; this row
+    /// exists for channel selection, balance tracking, and health reporting.
+    pub async fn upsert_fee_channel(&self, address: &str, balance_stroops: i64) -> Result<()> {
+        let empty: &[u8] = &[];
+        sqlx::query(
+            "INSERT INTO fee_channels (channel_address, private_key_encrypted, balance_stroops, status)
+             VALUES ($1, $2, $3, 'active')
+             ON CONFLICT (channel_address)
+             DO UPDATE SET balance_stroops = EXCLUDED.balance_stroops, status = 'active', last_balance_check = NOW()"
+        )
+        .bind(address)
+        .bind(empty)
+        .bind(balance_stroops)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+        Ok(())
     }
 
     pub async fn get_all_active_fee_channels(&self) -> Result<Vec<FeeChannel>> {

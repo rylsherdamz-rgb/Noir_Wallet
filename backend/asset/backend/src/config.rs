@@ -46,6 +46,12 @@ pub struct Config {
     pub pdax_access_token: String,
     pub pdax_refresh_token: String,
     pub pdax_token_expires_at: String,
+    // API key for frontend authentication
+    pub api_key: String,
+    // Fee channel signing key (S...) used to fee-bump user-signed transactions.
+    pub channel_secret_key: String,
+    // Horizon base URL (submission + account lookups), distinct from Soroban RPC.
+    pub horizon_url: String,
 }
 
 impl Config {
@@ -98,6 +104,16 @@ impl Config {
             pdax_access_token: env::var("PDAX_ACCESS_TOKEN").unwrap_or_default(),
             pdax_refresh_token: env::var("PDAX_REFRESH_TOKEN").unwrap_or_default(),
             pdax_token_expires_at: env::var("PDAX_TOKEN_EXPIRES_AT").unwrap_or_default(),
+            api_key: env::var("API_KEY").unwrap_or_default(),
+            channel_secret_key: env::var("CHANNEL_SECRET_KEY").unwrap_or_default(),
+            horizon_url: env::var("STELLAR_HORIZON_URL").unwrap_or_else(|_| {
+                match env::var("STELLAR_NETWORK").as_deref() {
+                    Ok("public") | Ok("pubnet") | Ok("mainnet") => {
+                        "https://horizon.stellar.org".to_string()
+                    }
+                    _ => "https://horizon-testnet.stellar.org".to_string(),
+                }
+            }),
         })
     }
 
