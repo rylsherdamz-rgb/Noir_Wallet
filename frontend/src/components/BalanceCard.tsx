@@ -170,7 +170,8 @@ export function BalanceCard({
     <GestureDetector gesture={tilt}>
       <Animated.View style={cardStyle} onLayout={onLayout}>
         <LinearGradient
-          colors={['#D4A96499', '#A57E3D26', '#FFFFFF14']}
+          colors={['rgba(228,190,124,0.92)', 'rgba(198,161,91,0.42)', 'rgba(120,92,45,0.16)', 'rgba(0,0,0,0.42)']}
+          locations={[0, 0.38, 0.68, 1]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.heroBorder}
@@ -184,19 +185,20 @@ export function BalanceCard({
           >
             <HeroFacets />
 
-            {/* soft diagonal light sheen (toned down) */}
+            {/* thin warm ray of light — glints off the top-right facet corner, clear of the balance text */}
             <Animated.View style={[styles.sheenWrap, sheenStyle]} pointerEvents="none">
               <LinearGradient
-                colors={['transparent', 'rgba(255,255,255,0.06)', 'transparent']}
-                locations={[0.36, 0.5, 0.64]}
+                colors={['transparent', 'rgba(255,246,228,0.04)', 'rgba(255,248,236,0.16)', 'rgba(255,246,228,0.04)', 'transparent']}
+                locations={[0.72, 0.79, 0.82, 0.85, 0.91]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={StyleSheet.absoluteFill}
               />
             </Animated.View>
 
-            {/* subtle top bevel highlight */}
+            {/* beveled edges: lit top highlight + shadowed bottom lip (fakes the inset bevel RN lacks) */}
             <View style={styles.topHighlight} pointerEvents="none" />
+            <View style={styles.bottomShadow} pointerEvents="none" />
 
             {/* Portfolio Total */}
             <View
@@ -261,12 +263,12 @@ export function BalanceCard({
 const styles = StyleSheet.create({
   heroBorder: {
     borderRadius: 22,
-    padding: 1,
+    padding: 1.5,
     // stronger, softer depth so the card reads as raised
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.55,
-    shadowRadius: 24,
+    shadowOpacity: 0.6,
+    shadowRadius: 26,
     elevation: 12,
   },
   heroInner: {
@@ -281,15 +283,27 @@ const styles = StyleSheet.create({
     opacity: 0.18,
   },
   sheenWrap: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   topHighlight: {
     position: 'absolute',
     top: 0,
-    left: 16,
-    right: 16,
+    left: 14,
+    right: 22,
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.09)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  bottomShadow: {
+    position: 'absolute',
+    bottom: 0,
+    left: 22,
+    right: 14,
+    height: 1.5,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
 
   totalHeader: {

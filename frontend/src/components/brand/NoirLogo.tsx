@@ -11,7 +11,7 @@ interface NoirLogoProps {
   style?: StyleProp<ViewStyle>
 }
 
-const LOGO_MARK = require('../../../assets/logo.jpg')
+const LOGO_MARK = require('../../../assets/noir-mark.png')
 const LOGO_FULL = require('../../../assets/logo-full.jpg')
 
 export function NoirLogo({
@@ -34,7 +34,7 @@ export function NoirLogo({
       <View style={[styles.center, style]}>
         <Image
           source={LOGO_MARK}
-          style={{ width: size, height: size, borderRadius: size / 2 }}
+          style={{ width: size, height: size }}
           resizeMode="contain"
         />
       </View>
