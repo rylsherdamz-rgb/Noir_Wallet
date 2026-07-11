@@ -13,8 +13,6 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { Buffer } from 'buffer'
 import { useAppStore } from '@/store/useAppStore'
 import { apiService } from '@/services/api'
-import { walletService } from '@/services/wallet'
-import { stellarService } from '@/services/stellar'
 import { NFCTag, QueuedPayment } from '@/types'
 import { nfcService } from '@/services/nfc'
 import { x402 } from '@/domain/x402'
@@ -85,51 +83,25 @@ export function MerchantPosScreen() {
         if ('error' in result) throw new Error(result.error)
         txHash = result.hash
       } else {
-        // Non-custodial fee-bump: the paying wallet (this app's own wallet)
-        // signs the inner payment; the backend sponsors the network fee via a
-        // channel account. Verified end-to-end on testnet.
-        console.log('Using non-custodial backend fee-bump payment')
-        const keys = await walletService.loadKeys()
-        if (!keys?.stellarSecret) throw new Error('Wallet not initialized')
-
+        // Passive NFC card: it only carries a UID and cannot sign. The merchant
+        // sends the UID + amount to the backend, which signs from the card's
+        // custodied wallet and fee-bumps it. Verified end-to-end on testnet.
+        console.log('Using custodial UID-authorized tap payment')
         const merchant = user?.stellarPublicKey || ''
         if (!merchant) throw new Error('No merchant wallet configured')
-        if (keys.stellarPublic === merchant) {
-          throw new Error('Payer and merchant wallet are the same — use a separate customer wallet')
-        }
 
-        const amountXlm = (parseInt(amount) / 100).toFixed(2)
-        const built = await stellarService.buildSignedPaymentXdr({
-          sourceSecret: keys.stellarSecret,
-          destination: merchant,
-          amount: amountXlm,
-          memo: 'Noir tap',
-        })
-        if ('error' in built) throw new Error(built.error)
-
-        // Ensure the tapped device is known to the backend, mapped to the payer.
-        await apiService.registerPaymentDevice(scanned.uid, keys.stellarPublic)
-
-        const pay = await apiService.payViaBackend({
+        // 1 cent -> 1000 stroops (0.0001 XLM), matching backend convention.
+        const amountStroops = parseInt(amount) * 1000
+        const pay = await apiService.tapPay({
           deviceSerial: scanned.uid,
           destinationWallet: merchant,
-          amountStroops: Math.round(parseFloat(amountXlm) * 10_000_000),
-          signedXdr: built.xdr,
+          amountStroops,
           idempotencyKey: `${scanned.uid}-${Date.now()}`,
           memo: 'Noir tap',
         })
-
-        // Poll until the fee-bump is submitted and we have a Stellar hash.
-        let status = pay.status
+        if (pay.error) throw new Error(pay.error)
         txHash = pay.stellar_tx_hash || null
-        for (let i = 0; i < 15 && !txHash && status !== 'failed'; i++) {
-          await new Promise((r) => setTimeout(r, 2000))
-          const s = await apiService.getPaymentStatus(pay.transaction_id)
-          status = s.status
-          txHash = s.stellar_tx_hash || null
-          if (s.error_message) throw new Error(s.error_message)
-        }
-        if (!txHash) throw new Error('Payment not confirmed in time')
+        if (!txHash) throw new Error('Tap payment not submitted')
       }
 
       if (txHash) {

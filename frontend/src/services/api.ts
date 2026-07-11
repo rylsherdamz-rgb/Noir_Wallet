@@ -98,6 +98,48 @@ class ApiService {
     )
   }
 
+  /** Provision a passive NFC card: backend mints+funds a custodied wallet for the UID. */
+  async provisionCard(deviceSerial: string, dailyLimitStroops?: number) {
+    return this.request<{ device_hash: string; wallet_address: string; status: string }>(
+      '/cards/provision',
+      {
+        method: 'POST',
+        body: JSON.stringify({ device_serial: deviceSerial, daily_limit_stroops: dailyLimitStroops }),
+      },
+    )
+  }
+
+  /**
+   * Custodial UID-authorized tap payment: merchant sends the card UID + amount;
+   * the backend signs from the card's custodied wallet, fee-bumps, and submits.
+   * This is how a passive (keyless) NFC card pays.
+   */
+  async tapPay(params: {
+    deviceSerial: string
+    destinationWallet: string
+    amountStroops: number
+    idempotencyKey: string
+    memo?: string
+  }) {
+    return this.request<{
+      status: string
+      transaction_id: string
+      device_hash: string
+      submitted_at: string
+      stellar_tx_hash?: string
+      error?: string
+    }>('/payment/tap', {
+      method: 'POST',
+      body: JSON.stringify({
+        device_serial: params.deviceSerial,
+        destination_wallet: params.destinationWallet,
+        amount_stroops: params.amountStroops,
+        idempotency_key: params.idempotencyKey,
+        memo: params.memo,
+      }),
+    })
+  }
+
   /** Register a device in the backend payment DB (device_serial -> wallet). */
   async registerPaymentDevice(deviceSerial: string, walletAddress: string) {
     return this.request<{ device_hash: string; status: string }>('/devices/register', {
