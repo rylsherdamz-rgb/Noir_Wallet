@@ -184,7 +184,7 @@ export function SendScreen() {
                 onPress={() => handleSelectRecipient(device.deviceUidHash)}
                 activeOpacity={0.7}
               >
-                <Avatar name={device.label} size={44} variant="merchant" />
+                <Avatar name={device.label} size={44} variant="device" />
                 <View style={styles.recipientInfo}>
                   <Text style={styles.recipientName}>{device.label}</Text>
                   <Text style={styles.recipientAddress}>{device.deviceUidHash.slice(0, 12)}...</Text>

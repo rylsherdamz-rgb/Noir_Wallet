@@ -103,7 +103,7 @@ export function TransactionHistoryScreen() {
       />
 
       <View style={styles.searchSection}>
-        <SearchBar value={search} onChangeText={setSearch} placeholder="Search merchant or amount..." />
+        <SearchBar value={search} onChangeText={setSearch} placeholder="Search name or amount..." />
       </View>
 
       <FilterChips options={FILTERS} selected={filter} onSelect={setFilter} />

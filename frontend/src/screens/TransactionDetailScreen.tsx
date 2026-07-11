@@ -46,7 +46,7 @@ export function TransactionDetailScreen() {
   const shareTx = async () => {
     if (!tx) return
     await Share.share({
-      message: `Noir Wallet Transaction\nAmount: ${formattedAmount} ${tx.assetCode}\nMerchant: ${tx.merchantName}\nStatus: ${tx.status}\nHash: ${tx.stellarTxHash || 'N/A'}`,
+      message: `Noir Wallet Transaction\nAmount: ${formattedAmount} ${tx.assetCode}\nTo: ${tx.merchantName}\nStatus: ${tx.status}\nHash: ${tx.stellarTxHash || 'N/A'}`,
     })
   }
 
@@ -82,7 +82,7 @@ export function TransactionDetailScreen() {
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <View style={styles.heroSection}>
-          <Avatar name={tx.merchantName} size={64} variant="merchant" />
+          <Avatar name={tx.merchantName} size={64} variant="user" />
           <Text style={styles.merchantName}>{tx.merchantName}</Text>
           <StatusPill status={tx.status} />
           <Text style={[styles.amount, tx.status === 'failed' && styles.amountFailed]}>
@@ -96,7 +96,7 @@ export function TransactionDetailScreen() {
         <View style={styles.detailsCard}>
           <DetailRow label="Transaction ID" value={tx.id} mono />
           <DetailRow label="Date" value={`${formattedDate} at ${formattedTime}`} />
-          <DetailRow label="Merchant" value={tx.merchantName} />
+          <DetailRow label="To" value={tx.merchantName} />
           <DetailRow label="Amount" value={`${formattedAmount} ${tx.assetCode}`} gold />
           <DetailRow label="Fee" value="~0.00001 XLM" />
           <DetailRow label="Status" value={tx.status.charAt(0).toUpperCase() + tx.status.slice(1)} />

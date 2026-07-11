@@ -17,7 +17,7 @@ export function Avatar({ uri, name, size = 40, variant = 'user' }: AvatarProps) 
   const iconMap = {
     user: 'person-outline' as const,
     device: 'hardware-chip-outline' as const,
-    merchant: 'storefront-outline' as const,
+    merchant: 'person-circle-outline' as const,
   }
 
   if (uri) {
