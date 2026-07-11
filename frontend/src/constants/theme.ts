@@ -27,6 +27,8 @@ export const Colors = {
 
   // Brand accent - gold
   gold: DesignTokens.colors.brand.gold,
+  goldHi: DesignTokens.colors.brand.goldHi,
+  goldDeep: DesignTokens.colors.brand.goldDeep,
   goldDim: DesignTokens.colors.brand.goldDim,
   cream: DesignTokens.colors.brand.cream,
   silver: DesignTokens.colors.brand.silver,
@@ -82,4 +84,12 @@ export const BorderRadius = {
   lg: DesignTokens.borderRadius.lg,
   xl: DesignTokens.borderRadius.xl,
   full: DesignTokens.borderRadius.full,
+}
+
+// Brand font families (Jost geometric sans; loaded in app/_layout via expo-font)
+export const Fonts = {
+  display: DesignTokens.fontFamily.display,
+  displayMd: DesignTokens.fontFamily.displayMd,
+  displayRg: DesignTokens.fontFamily.displayRg,
+  mono: DesignTokens.fontFamily.mono,
 }

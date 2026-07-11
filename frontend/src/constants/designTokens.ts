@@ -33,7 +33,9 @@ export const DesignTokens = {
     
     // Brand & Accent Colors
     brand: {
-      gold: '#C6A15B',        // Primary brand, CTAs
+      gold: '#C6A15B',        // Primary brand, CTAs (matches the logo's mid-gold)
+      goldHi: '#D4A964',      // Faceted gold — highlight (gradients, glints)
+      goldDeep: '#A57E3D',    // Faceted gold — shadow (gradient depth, pressed)
       goldDim: '#A98A43',     // Dimmed gold for secondary elements
       cream: '#EDE4D0',       // Highlights, special text
       silver: '#CECCD0',      // USDC, secondary brand
@@ -57,6 +59,18 @@ export const DesignTokens = {
       black: '#000000',
       white: '#FFFFFF',
     },
+  },
+
+  /**
+   * Brand Font Families
+   * Jost — geometric, wide-tracked sans (Futura-class). Loaded in app/_layout via expo-font.
+   * Body text intentionally stays on the system font (fontFamily omitted).
+   */
+  fontFamily: {
+    display: 'Jost-SemiBold',   // Wordmark, headings, balance numerals
+    displayMd: 'Jost-Medium',   // Eyebrows, labels, tab labels
+    displayRg: 'Jost-Regular',  // Geometric body accents
+    mono: 'monospace',          // Addresses, hashes
   },
 
   /**
