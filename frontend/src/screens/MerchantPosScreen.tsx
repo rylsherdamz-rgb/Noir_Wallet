@@ -9,6 +9,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
+import { useRouter } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { Buffer } from 'buffer'
@@ -19,11 +20,11 @@ import { nfcService } from '@/services/nfc'
 import { x402 } from '@/domain/x402'
 import { NumericKeypad } from '@/components/NumericKeypad'
 import { ReadyToTapIndicator } from '@/components/ReadyToTapIndicator'
-import { NoirLogo } from '@/components/brand/NoirLogo'
 import { DesignTokens } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 
 export function MerchantPosScreen() {
+  const router = useRouter()
   const { transactions, addTransaction, user, devices, addPendingPayment } = useAppStore()
   const [amount, setAmount] = useState('')
   const [paymentState, setPaymentState] = useState<'idle' | 'active' | 'processing' | 'success' | 'error'>('idle')
@@ -179,11 +180,18 @@ export function MerchantPosScreen() {
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <NoirLogo variant="mark" size={28} />
+          <TouchableOpacity
+            onPress={() => router.back()}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="arrow-back" size={24} color={Colors.white} />
+          </TouchableOpacity>
           <Text style={styles.headerTitle} accessibilityRole="header">
             Tap to Pay
           </Text>
-          <View style={{ width: 28 }} />
+          <View style={{ width: 24 }} />
         </View>
 
         {/* Tap Section */}
