@@ -145,6 +145,19 @@ async fn main() -> std::io::Result<()> {
             config.rate_limit_window_secs,
             config.rate_limit_max_requests,
         ));
+        state.channel_secret_key = config.channel_secret_key.clone();
+        state.network = config.stellar_network.clone();
+        if config.master_key_id.trim().is_empty() {
+            warn!("MASTER_KEY_ID not set — custodial card provisioning/tap disabled");
+        } else {
+            match crypto::LocalKeyManager::new(config.master_key_id.trim(), 1) {
+                Ok(km) => {
+                    state.key_manager = Some(Arc::new(km));
+                    info!("Custodial key manager initialized");
+                }
+                Err(e) => warn!("Invalid MASTER_KEY_ID: {e}"),
+            }
+        }
         state
     };
     let app_state = web::Data::new(app_state);
@@ -209,6 +222,8 @@ async fn main() -> std::io::Result<()> {
             .route("/health", web::get().to(api::health_check))
             .route("/metrics", web::get().to(api::get_metrics))
             .route("/payment", web::post().to(api::process_payment))
+            .route("/payment/tap", web::post().to(api::tap_payment))
+            .route("/cards/provision", web::post().to(api::provision_card))
             .route("/devices/register", web::post().to(api::register_device))
             .route(
                 "/payment/{transaction_id}",

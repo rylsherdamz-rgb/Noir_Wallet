@@ -52,6 +52,8 @@ pub struct Config {
     pub channel_secret_key: String,
     // Horizon base URL (submission + account lookups), distinct from Soroban RPC.
     pub horizon_url: String,
+    // Base64 32-byte master key for envelope-encrypting custodied card wallets.
+    pub master_key_id: String,
 }
 
 impl Config {
@@ -114,6 +116,7 @@ impl Config {
                     _ => "https://horizon-testnet.stellar.org".to_string(),
                 }
             }),
+            master_key_id: env::var("MASTER_KEY_ID").unwrap_or_default(),
         })
     }
 

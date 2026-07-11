@@ -57,6 +57,58 @@ impl DeviceRepository {
         Ok(())
     }
 
+    /// Provision (or re-provision) a custodial card: map the device hash to a
+    /// wallet and store its envelope-encrypted secret + key version.
+    pub async fn upsert_custodial_device(
+        &self,
+        device_hash: &str,
+        wallet_address: &str,
+        wallet_secret_encrypted: &[u8],
+        seed_key_version: i32,
+        daily_limit_stroops: i64,
+    ) -> Result<()> {
+        sqlx::query(
+            "INSERT INTO devices (device_hash, wallet_address, status, daily_limit_stroops, wallet_secret_encrypted, seed_key_version)
+             VALUES ($1, $2, 'active', $3, $4, $5)
+             ON CONFLICT (device_hash)
+             DO UPDATE SET wallet_address = EXCLUDED.wallet_address, status = 'active',
+                           daily_limit_stroops = EXCLUDED.daily_limit_stroops,
+                           wallet_secret_encrypted = EXCLUDED.wallet_secret_encrypted,
+                           seed_key_version = EXCLUDED.seed_key_version",
+        )
+        .bind(device_hash)
+        .bind(wallet_address)
+        .bind(daily_limit_stroops)
+        .bind(wallet_secret_encrypted)
+        .bind(seed_key_version)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+        Ok(())
+    }
+
+    /// Fetch a custodial device's wallet address + encrypted secret + key version.
+    pub async fn get_device_custody(
+        &self,
+        device_hash: &str,
+    ) -> Result<(String, Vec<u8>, i32)> {
+        let row: Option<(String, Option<Vec<u8>>, i32)> = sqlx::query_as(
+            "SELECT wallet_address, wallet_secret_encrypted, seed_key_version FROM devices WHERE device_hash = $1",
+        )
+        .bind(device_hash)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+
+        match row {
+            Some((wallet, Some(enc), ver)) => Ok((wallet, enc, ver)),
+            Some((_, None, _)) => Err(PaymentError::InvalidPayload(
+                "Device is not a custodial card (no stored key)".to_string(),
+            )),
+            None => Err(PaymentError::DeviceNotFound),
+        }
+    }
+
     pub async fn check_daily_limit(&self, hash: &str, amount: i64) -> Result<bool> {
         let device = self.get_device_by_hash(hash).await?;
 

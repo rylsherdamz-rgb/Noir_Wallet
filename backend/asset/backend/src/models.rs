@@ -104,6 +104,30 @@ pub struct PaymentRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct ProvisionCardRequest {
+    pub device_serial: String,
+    #[serde(default)]
+    pub daily_limit_stroops: Option<i64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProvisionCardResponse {
+    pub device_hash: String,
+    pub wallet_address: String,
+    pub status: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TapPaymentRequest {
+    pub device_serial: String,
+    pub destination_wallet: String,
+    pub amount_stroops: u64,
+    #[serde(default)]
+    pub memo: Option<String>,
+    pub idempotency_key: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RegisterDeviceRequest {
     pub device_serial: String,
     pub wallet_address: String,

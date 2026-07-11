@@ -1,4 +1,5 @@
 use crate::cache::TransactionCache;
+use crate::crypto::KeyManager;
 use crate::db::DeviceRepository;
 use crate::fees::FeeChannelManager;
 use crate::metrics::MetricsCollector;
@@ -20,6 +21,12 @@ pub struct AppState {
     pub tx_cache: TransactionCache,
     pub rate_limiter: Arc<RateLimiter>,
     pub api_key: String,
+    /// Envelope-encryption key manager for custodied card wallets (set in main).
+    pub key_manager: Option<Arc<dyn KeyManager>>,
+    /// Channel signing key (S...) used to fee-bump custodial tap payments.
+    pub channel_secret_key: String,
+    /// Stellar network name (testnet/mainnet) for tx building.
+    pub network: String,
 }
 
 impl AppState {
@@ -44,6 +51,9 @@ impl AppState {
             tx_cache: TransactionCache::new(300),
             rate_limiter: Arc::new(RateLimiter::new(60, 10)),
             api_key,
+            key_manager: None,
+            channel_secret_key: String::new(),
+            network: "testnet".to_string(),
         }
     }
 }

@@ -59,6 +59,32 @@ impl StellarClient {
         self
     }
 
+    /// Fund an account on testnet via Friendbot. No-op error on mainnet.
+    pub async fn fund_testnet(&self, address: &str) -> Result<()> {
+        if !matches!(self.network.as_str(), "testnet" | "" ) {
+            return Err(PaymentError::ConfigError(
+                "Friendbot funding is only available on testnet".to_string(),
+            ));
+        }
+        let url = format!("https://friendbot.stellar.org/?addr={address}");
+        let resp = self
+            .http_client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| PaymentError::StellarRpcError(format!("Friendbot request failed: {e}")))?;
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            if body.contains("already") || body.contains("exist") {
+                return Ok(());
+            }
+            return Err(PaymentError::StellarRpcError(format!(
+                "Friendbot funding failed: {body}"
+            )));
+        }
+        Ok(())
+    }
+
     /// Current sequence number of an account (from Horizon).
     pub async fn get_account_sequence(&self, address: &str) -> Result<u64> {
         let account = self.load_account(address).await?;

@@ -11,6 +11,173 @@ use std::sync::Arc;
 /// Register (or re-activate) a device in the backend DB so it can be used for
 /// payments. `device_serial` is the raw NFC/RFID UID; it is hashed the same way
 /// as at payment time so the two always match.
+/// Provision a passive NFC card: mint a custodied Stellar wallet for the card's
+/// UID, fund it on testnet, store its secret envelope-encrypted, and map the
+/// UID hash to it. The card itself only ever carries its UID.
+pub async fn provision_card(
+    req: web::Json<crate::models::ProvisionCardRequest>,
+    state: web::Data<AppState>,
+) -> Result<HttpResponse> {
+    let km = state
+        .key_manager
+        .as_ref()
+        .ok_or_else(|| PaymentError::ConfigError("MASTER_KEY_ID not configured".to_string()))?;
+    if req.device_serial.is_empty() {
+        return Err(PaymentError::InvalidPayload(
+            "device_serial is required".to_string(),
+        ));
+    }
+    let device_hash = hash_device_serial(&req.device_serial)?;
+
+    let (secret, signer) = crate::transaction_signer::TransactionSigner::generate();
+    let wallet = signer.public_strkey();
+
+    state.stellar_client.fund_testnet(&wallet).await?;
+
+    let encrypted = crate::crypto::encrypt_at_rest(km.as_ref(), secret.as_bytes())?;
+    let limit = req.daily_limit_stroops.unwrap_or(1_000_000_000);
+    state
+        .db
+        .upsert_custodial_device(&device_hash, &wallet, &encrypted, km.key_version(), limit)
+        .await?;
+
+    Ok(HttpResponse::Ok().json(crate::models::ProvisionCardResponse {
+        device_hash,
+        wallet_address: wallet,
+        status: "active".to_string(),
+    }))
+}
+
+/// UID-authorized custodial tap payment: a merchant reader sends the card UID +
+/// amount; the backend signs a payment from the card's custodied wallet, fee-
+/// bumps it with the channel, and submits — bounded by the device's daily limit
+/// and rate limit. This is how a *passive* (keyless) NFC card can pay.
+pub async fn tap_payment(
+    req: web::Json<crate::models::TapPaymentRequest>,
+    state: web::Data<AppState>,
+) -> Result<HttpResponse> {
+    state.metrics.record_payment_received();
+
+    if req.device_serial.is_empty()
+        || req.destination_wallet.is_empty()
+        || req.amount_stroops == 0
+        || req.idempotency_key.is_empty()
+    {
+        return Err(PaymentError::InvalidPayload(
+            "device_serial, destination_wallet, amount_stroops, idempotency_key are required"
+                .to_string(),
+        ));
+    }
+
+    let km = state
+        .key_manager
+        .as_ref()
+        .ok_or_else(|| PaymentError::ConfigError("MASTER_KEY_ID not configured".to_string()))?;
+    let device_hash = hash_device_serial(&req.device_serial)?;
+
+    // Idempotency: replay the prior result if this key was already used.
+    if let Ok(Some(existing)) = state
+        .db
+        .get_transaction_by_idempotency_key(&req.idempotency_key)
+        .await
+    {
+        state.metrics.record_idempotency_hit();
+        return Ok(HttpResponse::Ok().json(PaymentResponse {
+            status: existing.status,
+            transaction_id: existing.transaction_id,
+            device_hash: existing.device_hash,
+            submitted_at: existing.created_at.to_rfc3339(),
+            stellar_tx_hash: existing.stellar_tx_hash,
+            error: existing.error_message,
+        }));
+    }
+
+    if !state.rate_limiter.check_and_record(&device_hash).await {
+        state.metrics.record_rate_limit_rejection();
+        return Err(PaymentError::RateLimited);
+    }
+
+    state.validator.validate_device_active(&device_hash).await?;
+    let within_limit = state
+        .validator
+        .validate_spend_limit(&device_hash, req.amount_stroops as i64)
+        .await?;
+    if !within_limit {
+        state.metrics.record_payment_rejected("spend_limit_exceeded");
+        return Err(PaymentError::SpendLimitExceeded);
+    }
+
+    // Load + decrypt the card's custodied wallet.
+    let (wallet, encrypted, _ver) = state.db.get_device_custody(&device_hash).await?;
+    let secret_bytes = crate::crypto::decrypt_at_rest(km.as_ref(), &encrypted)?;
+    let secret = String::from_utf8(secret_bytes)
+        .map_err(|_| PaymentError::EncryptionError("Corrupt stored key".to_string()))?;
+    let card_signer = crate::transaction_signer::TransactionSigner::from_secret(&secret)?;
+
+    if state.channel_secret_key.trim().is_empty() {
+        return Err(PaymentError::ConfigError(
+            "No fee channel key configured".to_string(),
+        ));
+    }
+    let channel_signer =
+        crate::transaction_signer::TransactionSigner::from_secret(state.channel_secret_key.trim())?;
+
+    // Build the card-signed payment, fee-bump with the channel, submit.
+    let amount = req.amount_stroops as i64;
+    let seq = state.stellar_client.get_account_sequence(&wallet).await? + 1;
+    let builder = crate::transaction_builder::TransactionBuilder::for_network(&state.network);
+    let inner = builder.build_signed_payment(
+        &card_signer,
+        &req.destination_wallet,
+        amount,
+        seq as i64,
+        req.memo.clone(),
+    )?;
+    let fee_bump = builder.build_fee_bump(&inner, &channel_signer)?;
+    let tx_hash = state.stellar_client.submit_transaction(&fee_bump).await?;
+
+    // Persist audit row + spend accounting.
+    let tx_id = uuid::Uuid::new_v4().to_string();
+    let now = Utc::now();
+    let payment_tx = crate::models::PaymentTransaction {
+        id: 0,
+        transaction_id: tx_id.clone(),
+        device_hash: device_hash.clone(),
+        source_wallet: wallet,
+        destination_wallet: req.destination_wallet.clone(),
+        amount_stroops: amount,
+        fee_stroops: 200,
+        status: "submitted".to_string(),
+        stellar_tx_hash: Some(tx_hash.clone()),
+        created_at: now,
+        submitted_at: Some(now),
+        confirmed_at: None,
+        error_message: None,
+        fee_channel_used: Some(channel_signer.public_strkey()),
+    };
+    state
+        .db
+        .store_payment_transaction_with_key(&payment_tx, &req.idempotency_key)
+        .await
+        .ok();
+    state.db.update_transaction_hash(&tx_id, &tx_hash).await.ok();
+    state
+        .db
+        .increment_daily_spend(&device_hash, amount)
+        .await
+        .ok();
+    state.metrics.record_payment_accepted();
+
+    Ok(HttpResponse::Ok().json(PaymentResponse {
+        status: "submitted".to_string(),
+        transaction_id: tx_id,
+        device_hash,
+        submitted_at: now.to_rfc3339(),
+        stellar_tx_hash: Some(tx_hash),
+        error: None,
+    }))
+}
+
 pub async fn register_device(
     req: web::Json<crate::models::RegisterDeviceRequest>,
     state: web::Data<AppState>,

@@ -21,6 +21,20 @@ impl TransactionSigner {
         Self::from_secret(&secret_key)
     }
 
+    /// Generate a fresh random Stellar keypair. Returns the secret seed string
+    /// (`S...`) alongside the signer. Used to provision custodied card wallets.
+    pub fn generate() -> (String, Self) {
+        use rand::RngCore;
+        let mut seed = [0u8; 32];
+        rand::rngs::OsRng.fill_bytes(&mut seed);
+        let signing_key = SigningKey::from_bytes(&seed);
+        let secret = stellar_strkey::Unredacted(&strkey_ed25519::PrivateKey(seed))
+            .to_string()
+            .as_str()
+            .to_owned();
+        (secret, Self { signing_key })
+    }
+
     /// Build a signer from a Stellar secret seed (`S...`).
     pub fn from_secret(secret: &str) -> Result<Self> {
         if secret.is_empty() {
