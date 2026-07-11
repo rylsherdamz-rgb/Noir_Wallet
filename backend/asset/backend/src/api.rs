@@ -41,6 +41,14 @@ pub async fn provision_card(
         .upsert_custodial_device(&device_hash, &wallet, &encrypted, km.key_version(), limit)
         .await?;
 
+    // Optional PIN (second factor for large taps).
+    if let Some(pin) = req.pin.as_deref() {
+        if !pin.is_empty() {
+            let pin_hash = hash_device_serial(pin)?; // SHA-256 hex
+            state.db.set_device_pin(&device_hash, Some(&pin_hash)).await?;
+        }
+    }
+
     Ok(HttpResponse::Ok().json(crate::models::ProvisionCardResponse {
         device_hash,
         wallet_address: wallet,
@@ -105,6 +113,23 @@ pub async fn tap_payment(
     if !within_limit {
         state.metrics.record_payment_rejected("spend_limit_exceeded");
         return Err(PaymentError::SpendLimitExceeded);
+    }
+
+    // PIN second factor: required when the card has a PIN and the amount is
+    // above the threshold (a cloneable UID alone shouldn't move large sums).
+    const PIN_REQUIRED_ABOVE_STROOPS: i64 = 100_000_000; // 10 XLM
+    if let Some(pin_hash) = state.db.get_device_pin_hash(&device_hash).await? {
+        if req.amount_stroops as i64 > PIN_REQUIRED_ABOVE_STROOPS {
+            let provided = req.pin.as_deref().unwrap_or("");
+            if provided.is_empty() {
+                return Err(PaymentError::InvalidPayload(
+                    "PIN required for this amount".to_string(),
+                ));
+            }
+            if hash_device_serial(provided)? != pin_hash {
+                return Err(PaymentError::Unauthorized);
+            }
+        }
     }
 
     // Load + decrypt the card's custodied wallet.
@@ -176,6 +201,27 @@ pub async fn tap_payment(
         stellar_tx_hash: Some(tx_hash),
         error: None,
     }))
+}
+
+/// Revoke a card: set its device status to 'revoked' so all future taps fail.
+pub async fn revoke_card(
+    req: web::Json<crate::models::RevokeCardRequest>,
+    state: web::Data<AppState>,
+) -> Result<HttpResponse> {
+    if req.device_serial.is_empty() {
+        return Err(PaymentError::InvalidPayload(
+            "device_serial is required".to_string(),
+        ));
+    }
+    let device_hash = hash_device_serial(&req.device_serial)?;
+    let affected = state.db.update_device_status(&device_hash, "revoked").await?;
+    if affected == 0 {
+        return Err(PaymentError::DeviceNotFound);
+    }
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "device_hash": device_hash,
+        "status": "revoked",
+    })))
 }
 
 pub async fn register_device(

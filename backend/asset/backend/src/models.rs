@@ -108,6 +108,9 @@ pub struct ProvisionCardRequest {
     pub device_serial: String,
     #[serde(default)]
     pub daily_limit_stroops: Option<i64>,
+    /// Optional PIN required for tap payments above the threshold.
+    #[serde(default)]
+    pub pin: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -118,6 +121,11 @@ pub struct ProvisionCardResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct RevokeCardRequest {
+    pub device_serial: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TapPaymentRequest {
     pub device_serial: String,
     pub destination_wallet: String,
@@ -125,6 +133,9 @@ pub struct TapPaymentRequest {
     #[serde(default)]
     pub memo: Option<String>,
     pub idempotency_key: String,
+    /// Required when the card has a PIN and the amount exceeds the threshold.
+    #[serde(default)]
+    pub pin: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

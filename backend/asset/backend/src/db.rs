@@ -87,6 +87,40 @@ impl DeviceRepository {
         Ok(())
     }
 
+    /// Set a device's status (e.g. 'active', 'revoked'). Revocation makes all
+    /// subsequent tap payments fail device validation.
+    pub async fn update_device_status(&self, device_hash: &str, status: &str) -> Result<u64> {
+        let res = sqlx::query("UPDATE devices SET status = $1 WHERE device_hash = $2")
+            .bind(status)
+            .bind(device_hash)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+        Ok(res.rows_affected())
+    }
+
+    /// Store (or clear) a card's PIN hash.
+    pub async fn set_device_pin(&self, device_hash: &str, pin_hash: Option<&str>) -> Result<()> {
+        sqlx::query("UPDATE devices SET pin_hash = $1 WHERE device_hash = $2")
+            .bind(pin_hash)
+            .bind(device_hash)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+        Ok(())
+    }
+
+    /// Fetch a device's PIN hash, if any.
+    pub async fn get_device_pin_hash(&self, device_hash: &str) -> Result<Option<String>> {
+        let row: Option<(Option<String>,)> =
+            sqlx::query_as("SELECT pin_hash FROM devices WHERE device_hash = $1")
+                .bind(device_hash)
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+        Ok(row.and_then(|r| r.0))
+    }
+
     /// Fetch a custodial device's wallet address + encrypted secret + key version.
     pub async fn get_device_custody(
         &self,

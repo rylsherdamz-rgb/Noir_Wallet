@@ -224,6 +224,7 @@ async fn main() -> std::io::Result<()> {
             .route("/payment", web::post().to(api::process_payment))
             .route("/payment/tap", web::post().to(api::tap_payment))
             .route("/cards/provision", web::post().to(api::provision_card))
+            .route("/cards/revoke", web::post().to(api::revoke_card))
             .route("/devices/register", web::post().to(api::register_device))
             .route(
                 "/payment/{transaction_id}",
