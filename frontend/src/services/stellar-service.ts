@@ -2,6 +2,8 @@ import {
   Keypair,
   TransactionBuilder,
   Contract,
+  Operation,
+  Asset,
   BASE_FEE,
   Networks,
   rpc,
@@ -140,6 +142,35 @@ export class StellarService {
     return false
   }
 
+  /**
+   * Wait until the *Soroban RPC* can see the account, returning it.
+   *
+   * Horizon (what the explorer shows) and the Soroban RPC are different
+   * services that ingest the ledger independently. Right after Friendbot
+   * funding, Horizon often sees the account seconds before the RPC does —
+   * a single `soroban.getAccount()` then throws "account not found" even
+   * though the account is clearly visible on stellar.expert. Polling here
+   * closes that race instead of failing on the first attempt.
+   */
+  async waitForAccountOnRpc(publicKey: string, timeoutMs = 20000): Promise<any | null> {
+    const deadline = Date.now() + timeoutMs
+    let lastError: any = null
+    while (Date.now() < deadline) {
+      try {
+        return await this.soroban.getAccount(publicKey)
+      } catch (e: any) {
+        lastError = e
+        await new Promise(r => setTimeout(r, 1000))
+      }
+    }
+    console.warn(
+      `[waitForAccountOnRpc] ${publicKey.slice(0, 8)}... still not visible on the Soroban RPC ` +
+      `(${this.soroban.serverURL}) after ${timeoutMs}ms. Last error:`,
+      lastError?.message ?? lastError,
+    )
+    return null
+  }
+
   async fundAccount(publicKey: string, retries = 2): Promise<boolean> {
     const exists = await this.accountExists(publicKey)
     if (exists) return true
@@ -219,6 +250,51 @@ export class StellarService {
     }
   }
 
+  /**
+   * Simple Horizon payment (XLM or issued asset), signed by the source.
+   * Lives here (network-aware singleton) so callers like the x402 agent
+   * always pay on the *currently selected* network — the old `stellar.ts`
+   * service froze its network at startup, which could fund an agent on one
+   * network and pay on another ("account not found" symptoms).
+   */
+  async submitPayment(params: {
+    sourceSecret: string
+    destination: string
+    amount: string
+    assetCode?: string
+    assetIssuer?: string
+  }): Promise<{ hash: string } | { error: string }> {
+    try {
+      const sourceKp = Keypair.fromSecret(params.sourceSecret)
+      const account = await this.horizon.loadAccount(sourceKp.publicKey())
+
+      const asset =
+        params.assetCode && params.assetCode !== 'XLM' && params.assetIssuer
+          ? new Asset(params.assetCode, params.assetIssuer)
+          : Asset.native()
+
+      const tx = new TransactionBuilder(account, {
+        fee: BASE_FEE,
+        networkPassphrase: this.networkPassphrase,
+      })
+        .addOperation(
+          Operation.payment({
+            destination: params.destination,
+            asset,
+            amount: params.amount,
+          }),
+        )
+        .setTimeout(30)
+        .build()
+
+      tx.sign(sourceKp)
+      const result = await this.horizon.submitTransaction(tx)
+      return { hash: result.hash }
+    } catch (err: any) {
+      return { error: err?.message ?? 'Transaction failed' }
+    }
+  }
+
   // ── Soroban Contract Operations ───────────────────────────────
 
   deviceHashScVal(sha256Hex: string): xdr.ScVal {
@@ -254,18 +330,18 @@ export class StellarService {
       )
     }
 
-    let account: any
-    try {
-      account = await this.soroban.getAccount(sourcePub)
-      console.log(`[invokeContract] soroban.getAccount OK seq=${account.sequenceNumber}`)
-    } catch (e: any) {
-      console.log(`[invokeContract] soroban.getAccount FAILED:`, e?.message || e)
+    // Horizon (and the explorer) can see a freshly funded account seconds
+    // before the Soroban RPC does — poll the RPC instead of failing on the
+    // first "account not found".
+    const account: any = await this.waitForAccountOnRpc(sourcePub)
+    if (!account) {
       throw new Error(
-        `Cannot load account ${sourcePub.slice(0, 8)}... from Soroban RPC (${this.soroban.serverURL}). ` +
-        `Verify the account is funded on Stellar ${this.network === 'testnet' ? 'testnet' : 'mainnet'}. ` +
-        `Error: ${e?.message || 'unknown'}`
+        `Account ${sourcePub.slice(0, 8)}... is not visible on the Soroban RPC (${this.soroban.serverURL}) yet, ` +
+        `even after waiting. It may exist on Horizon/stellar.expert while the RPC is still catching up — ` +
+        `wait a few seconds and try again. Network: ${this.network}.`
       )
     }
+    console.log(`[invokeContract] soroban.getAccount OK seq=${account.sequenceNumber}`)
 
     const contract = new Contract(params.contractId)
     console.log(`[invokeContract] building tx for contract=${params.contractId.slice(0, 8)}...`)
@@ -344,7 +420,13 @@ export class StellarService {
       throw new Error(`Account ${params.source.slice(0, 8)}... does not exist on-chain`)
     }
 
-    const account = await this.soroban.getAccount(params.source)
+    const account = await this.waitForAccountOnRpc(params.source, 10000)
+    if (!account) {
+      throw new Error(
+        `Account ${params.source.slice(0, 8)}... exists on Horizon but is not visible on the ` +
+        `Soroban RPC yet — try again shortly.`
+      )
+    }
     const contract = new Contract(params.contractId)
 
     const tx = new TransactionBuilder(account, {
