@@ -3,18 +3,18 @@ import {
   TransactionBuilder,
   Operation,
   Asset,
-  Horizon,
   BASE_FEE,
   Networks,
+  rpc,
 } from '@stellar/stellar-sdk'
 import { Config } from '@/constants/config'
 
 class StellarService {
-  private server: Horizon.Server
+  private server: rpc.Server
   private networkPassphrase: string
 
   constructor() {
-    this.server = new Horizon.Server(Config.horizonUrl)
+    this.server = new rpc.Server(Config.sorobanRpcUrl)
     this.networkPassphrase = Config.networkPassphrase
   }
 
@@ -27,9 +27,8 @@ class StellarService {
   }
 
   async fundTestnetAccount(publicKey: string): Promise<boolean> {
-    // Check if already exists first
     try {
-      await this.server.loadAccount(publicKey)
+      await this.server.getAccount(publicKey)
       console.log('Account already exists on-chain')
       return true
     } catch {
@@ -54,10 +53,9 @@ class StellarService {
 
       if (json.hash) {
         console.log('Account funded via Friendbot:', json.hash)
-        // Wait for the account to be visible on-chain
         for (let i = 0; i < 10; i++) {
           try {
-            await this.server.loadAccount(publicKey)
+            await this.server.getAccount(publicKey)
             console.log('Account verified on-chain')
             return true
           } catch {
@@ -85,24 +83,9 @@ class StellarService {
     assets: Array<{ code: string; issuer: string; balance: string }>
   }> {
     try {
-      const account = await this.server.loadAccount(publicKey)
-      const balances = account.balances as any[]
-      const xlmBalance = balances.find((b) => b.asset_type === 'native')
-      const usdcBalance = balances.find(
-        (b) => b.asset_code === 'USDC',
-      )
-
-      return {
-        xlm: parseFloat(xlmBalance?.balance ?? '0'),
-        usdc: parseFloat(usdcBalance?.balance ?? '0'),
-        assets: balances
-          .filter((b) => b.asset_type !== 'native')
-          .map((b: any) => ({
-            code: b.asset_code,
-            issuer: b.asset_issuer,
-            balance: b.balance,
-          })),
-      }
+      const account: any = await this.server.getAccount(publicKey)
+      const xlm = parseFloat(account.balance ?? '0') / 10_000_000
+      return { xlm, usdc: 0, assets: [] }
     } catch {
       return { xlm: 0, usdc: 0, assets: [] }
     }
@@ -118,7 +101,7 @@ class StellarService {
     try {
       const sourceKp = Keypair.fromSecret(params.sourceSecret)
       const sourcePub = sourceKp.publicKey()
-      const account = await this.server.loadAccount(sourcePub)
+      const account = await this.server.getAccount(sourcePub)
 
       const asset =
         params.assetCode && params.assetCode !== 'XLM' && params.assetIssuer
@@ -140,7 +123,10 @@ class StellarService {
         .build()
 
       tx.sign(sourceKp)
-      const result = await this.server.submitTransaction(tx)
+      const result: any = await this.server.sendTransaction(tx)
+      if (result.status === 'ERROR') {
+        return { error: result.errorResult?.resultString || 'Transaction rejected' }
+      }
       return { hash: result.hash }
     } catch (err: any) {
       return { error: err.message ?? 'Transaction failed' }
@@ -164,7 +150,7 @@ class StellarService {
   }): Promise<{ xdr: string } | { error: string }> {
     try {
       const sourceKp = Keypair.fromSecret(params.sourceSecret)
-      const account = await this.server.loadAccount(sourceKp.publicKey())
+      const account = await this.server.getAccount(sourceKp.publicKey())
 
       const asset =
         params.assetCode && params.assetCode !== 'XLM' && params.assetIssuer
@@ -196,9 +182,9 @@ class StellarService {
     }
   }
 
-  async loadAccount(publicKey: string): Promise<Horizon.AccountResponse | null> {
+  async loadAccount(publicKey: string): Promise<any | null> {
     try {
-      return await this.server.loadAccount(publicKey)
+      return await this.server.getAccount(publicKey)
     } catch {
       return null
     }

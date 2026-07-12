@@ -48,9 +48,9 @@ describe('Theme Constants', () => {
 })
 
 describe('Config Constants', () => {
-  it('Config has horizon URL', async () => {
+  it('Config has soroban RPC URL', async () => {
     const { Config } = await import('@/constants/config')
-    expect(Config.horizonUrl).toContain('stellar.org')
+    expect(Config.sorobanRpcUrl).toContain('stellar.org')
     expect(Config.networkPassphrase).toContain('Test')
   })
 

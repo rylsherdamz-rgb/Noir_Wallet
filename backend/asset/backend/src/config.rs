@@ -50,8 +50,7 @@ pub struct Config {
     pub api_key: String,
     // Fee channel signing key (S...) used to fee-bump user-signed transactions.
     pub channel_secret_key: String,
-    // Horizon base URL (submission + account lookups), distinct from Soroban RPC.
-    pub horizon_url: String,
+
     // Base64 32-byte master key for envelope-encrypting custodied card wallets.
     pub master_key_id: String,
 }
@@ -108,14 +107,6 @@ impl Config {
             pdax_token_expires_at: env::var("PDAX_TOKEN_EXPIRES_AT").unwrap_or_default(),
             api_key: env::var("API_KEY").unwrap_or_default(),
             channel_secret_key: env::var("CHANNEL_SECRET_KEY").unwrap_or_default(),
-            horizon_url: env::var("STELLAR_HORIZON_URL").unwrap_or_else(|_| {
-                match env::var("STELLAR_NETWORK").as_deref() {
-                    Ok("public") | Ok("pubnet") | Ok("mainnet") => {
-                        "https://horizon.stellar.org".to_string()
-                    }
-                    _ => "https://horizon-testnet.stellar.org".to_string(),
-                }
-            }),
             master_key_id: env::var("MASTER_KEY_ID").unwrap_or_default(),
         })
     }

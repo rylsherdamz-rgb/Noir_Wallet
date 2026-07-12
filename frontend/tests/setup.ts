@@ -54,15 +54,18 @@ vi.mock('@stellar/stellar-sdk', async () => {
       getAssetType() { return (this as any).code === 'XLM' ? 'native' : 'credit_alphanum4' }
       getCode() { return (this as any).code }
     },
-    Horizon: {
+    rpc: {
       Server: class MockServer {
         constructor(url: string) {}
-        loadAccount = vi.fn().mockResolvedValue({
-          balances: [{ asset_type: 'native', balance: '10000' }],
+        getAccount = vi.fn().mockResolvedValue({
+          id: 'G...',
           sequence: '1',
+          balance: '100000000000',
         })
-        submitTransaction = vi.fn().mockResolvedValue({ hash: 'test-tx-hash' })
-        root = vi.fn().mockResolvedValue({ horizon_version: '2.0.0' })
+        sendTransaction = vi.fn().mockResolvedValue({ status: 'SUCCESS', hash: 'test-tx-hash' })
+        getTransaction = vi.fn().mockResolvedValue({ status: 'SUCCESS' })
+        simulateTransaction = vi.fn().mockResolvedValue({})
+        prepareTransaction = vi.fn().mockImplementation((tx: any) => Promise.resolve(tx))
       },
     },
     TransactionBuilder: class MockTxBuilder {

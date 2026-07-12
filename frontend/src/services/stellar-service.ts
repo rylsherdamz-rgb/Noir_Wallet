@@ -9,13 +9,11 @@ import {
   rpc,
   xdr,
   Address,
-  Horizon,
 } from '@stellar/stellar-sdk'
 import { Buffer } from 'buffer'
 
 export interface StellarServiceOptions {
   network?: 'testnet' | 'mainnet'
-  horizonUrl?: string
   sorobanRpcUrl?: string
   networkPassphrase?: string
 }
@@ -47,7 +45,6 @@ export interface RegisterDeviceParams {
 }
 
 export class StellarService {
-  private horizon: Horizon.Server
   private soroban: rpc.Server
   private networkPassphrase: string
   private network: 'testnet' | 'mainnet'
@@ -55,9 +52,6 @@ export class StellarService {
   constructor(opts?: StellarServiceOptions) {
     const isTestnet = opts?.network !== 'mainnet'
     this.network = isTestnet ? 'testnet' : 'mainnet'
-    this.horizon = new Horizon.Server(
-      opts?.horizonUrl ?? (isTestnet ? 'https://horizon-testnet.stellar.org' : 'https://horizon.stellar.org'),
-    )
     this.soroban = new rpc.Server(
       opts?.sorobanRpcUrl ?? (isTestnet ? 'https://soroban-testnet.stellar.org' : 'https://soroban.stellar.org'),
     )
@@ -66,21 +60,10 @@ export class StellarService {
 
   get networkName() { return this.network }
 
-  /**
-   * Re-point the service at a different Stellar network at runtime.
-   *
-   * The service is a singleton, so without this the network chosen at startup
-   * (from EXPO_PUBLIC_STELLAR_NETWORK) is frozen forever — even if the UI
-   * network toggle changes. That mismatch is what makes an account that is
-   * clearly visible on one network's explorer read back as "not found".
-   */
   setNetwork(network: 'testnet' | 'mainnet'): void {
     if (network === this.network) return
     const isTestnet = network !== 'mainnet'
     this.network = isTestnet ? 'testnet' : 'mainnet'
-    this.horizon = new Horizon.Server(
-      isTestnet ? 'https://horizon-testnet.stellar.org' : 'https://horizon.stellar.org',
-    )
     this.soroban = new rpc.Server(
       isTestnet ? 'https://soroban-testnet.stellar.org' : 'https://soroban.stellar.org',
     )
@@ -103,20 +86,11 @@ export class StellarService {
     let sawTransientError = false
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        await this.horizon.loadAccount(publicKey)
+        await this.soroban.getAccount(publicKey)
         return true
       } catch (e: any) {
-        const status = e?.response?.status ?? e?.response?.statusCode
-        const isNotFound = status === 404 || e?.name === 'NotFoundError'
-        // Whether Horizon says "missing" or errors for another reason, confirm
-        // against Soroban RPC before trusting a negative result.
-        try {
-          await this.soroban.getAccount(publicKey)
-          return true
-        } catch {}
+        const isNotFound = e?.name === 'NotFoundError'
         if (!isNotFound) {
-          // Non-404 (network blip, 429 rate-limit, 5xx, TLS/DNS) — NOT proof the
-          // account is missing. Retry rather than reporting a false negative.
           sawTransientError = true
         }
         if (attempt < retries) {
@@ -126,8 +100,8 @@ export class StellarService {
     }
     if (sawTransientError) {
       console.warn(
-        `[accountExists] ${publicKey.slice(0, 8)}... reported missing on ${this.network}, ` +
-        `but network/RPC errors occurred — this may be a connectivity issue, not a missing account.`,
+        `[accountExists] ${publicKey.slice(0, 8)}... not found on ${this.network} ` +
+        `via Soroban RPC — may be a connectivity issue.`,
       )
     }
     return false
@@ -206,7 +180,7 @@ export class StellarService {
 
         for (let i = 0; i < 10; i++) {
           try {
-            await this.horizon.loadAccount(publicKey)
+            await this.soroban.getAccount(publicKey)
             return true
           } catch { await new Promise(r => setTimeout(r, 1000)) }
         }
@@ -224,25 +198,15 @@ export class StellarService {
 
   async getBalance(publicKey: string): Promise<BalanceResult> {
     try {
-      const account = await this.horizon.loadAccount(publicKey)
-      const balances = account.balances as any[]
-      const xlmBalance = balances.find((b: any) => b.asset_type === 'native')
-      const usdcBalance = balances.find((b: any) => b.asset_code === 'USDC')
-
-      return {
-        xlm: parseFloat(xlmBalance?.balance ?? '0'),
-        usdc: parseFloat(usdcBalance?.balance ?? '0'),
-        assets: balances
-          .filter((b: any) => b.asset_type !== 'native')
-          .map((b: any) => ({ code: b.asset_code, issuer: b.asset_issuer, balance: b.balance })),
-      }
+      const account: any = await this.soroban.getAccount(publicKey)
+      const balanceStroops = account.balance ?? '0'
+      const xlm = parseFloat(balanceStroops) / 10_000_000
+      return { xlm, usdc: 0, assets: [] }
     } catch (e: any) {
-      const status = e?.response?.status ?? e?.response?.statusCode
-      const isNotFound = status === 404 || e?.name === 'NotFoundError'
+      const isNotFound = e?.name === 'NotFoundError'
       if (!isNotFound) {
         console.warn(
-          `[getBalance] non-404 error for ${publicKey.slice(0, 8)}... on ${this.network} ` +
-          `(reporting zero balance may be misleading):`,
+          `[getBalance] RPC error for ${publicKey.slice(0, 8)}... on ${this.network}:`,
           e?.message ?? e,
         )
       }
@@ -250,13 +214,6 @@ export class StellarService {
     }
   }
 
-  /**
-   * Simple Horizon payment (XLM or issued asset), signed by the source.
-   * Lives here (network-aware singleton) so callers like the x402 agent
-   * always pay on the *currently selected* network — the old `stellar.ts`
-   * service froze its network at startup, which could fund an agent on one
-   * network and pay on another ("account not found" symptoms).
-   */
   async submitPayment(params: {
     sourceSecret: string
     destination: string
@@ -266,7 +223,7 @@ export class StellarService {
   }): Promise<{ hash: string } | { error: string }> {
     try {
       const sourceKp = Keypair.fromSecret(params.sourceSecret)
-      const account = await this.horizon.loadAccount(sourceKp.publicKey())
+      const account = await this.soroban.getAccount(sourceKp.publicKey())
 
       const asset =
         params.assetCode && params.assetCode !== 'XLM' && params.assetIssuer
@@ -288,7 +245,10 @@ export class StellarService {
         .build()
 
       tx.sign(sourceKp)
-      const result = await this.horizon.submitTransaction(tx)
+      const result: any = await this.soroban.sendTransaction(tx)
+      if (result.status === 'ERROR') {
+        return { error: result.errorResult?.resultString || 'Transaction rejected' }
+      }
       return { hash: result.hash }
     } catch (err: any) {
       return { error: err?.message ?? 'Transaction failed' }
@@ -423,7 +383,7 @@ export class StellarService {
     const account = await this.waitForAccountOnRpc(params.source, 10000)
     if (!account) {
       throw new Error(
-        `Account ${params.source.slice(0, 8)}... exists on Horizon but is not visible on the ` +
+        `Account ${params.source.slice(0, 8)}... is not visible on the ` +
         `Soroban RPC yet — try again shortly.`
       )
     }
@@ -472,10 +432,9 @@ export function createService(): StellarService {
     const config = require('@/constants/config').Config
     const stellarNetworkConfig = require('@/constants/config').stellarNetwork
     const network: 'testnet' | 'mainnet' = stellarNetworkConfig === 'mainnet' ? 'mainnet' : 'testnet'
-    console.log(`[StellarService] Creating service for ${network} (horizon: ${config.horizonUrl})`)
+    console.log(`[StellarService] Creating service for ${network}`)
     return new StellarService({
       network,
-      horizonUrl: config.horizonUrl,
       sorobanRpcUrl: config.sorobanRpcUrl,
       networkPassphrase: config.networkPassphrase,
     })
