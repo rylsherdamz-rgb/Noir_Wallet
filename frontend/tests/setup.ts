@@ -117,25 +117,29 @@ vi.mock('expo-router', () => ({
 }))
 
 // Mock react-native
-vi.mock('react-native', () => ({
-  Platform: { OS: 'ios', Version: 0, select: (obj: any) => obj.ios ?? obj.default },
-  StyleSheet: { create: (s: any) => s, absoluteFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } },
-  View: ({ children }: any) => null,
-  Text: ({ children }: any) => null,
-  ScrollView: ({ children }: any) => null,
-  TouchableOpacity: ({ children, onPress }: any) => null,
-  TextInput: ({ value, onChangeText }: any) => null,
-  RefreshControl: ({}: any) => null,
-  Animated: {
-    Value: class { constructor(v: number) { this._v = v }; _v: number },
-    timing: () => ({ start: () => {} }),
-    loop: () => ({ start: () => {}, stop: () => {} }),
-    sequence: () => ({}),
+vi.mock('react-native', () => {
+  const Platform = { OS: 'ios', Version: 0, select: (obj: any) => obj.ios ?? obj.default }
+  return {
+    Platform,
+    StyleSheet: { create: (s: any) => s, absoluteFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } },
     View: ({ children }: any) => null,
+    Text: ({ children }: any) => null,
+    ScrollView: ({ children }: any) => null,
+    TouchableOpacity: ({ children, onPress }: any) => null,
+    TextInput: ({ value, onChangeText }: any) => null,
+    RefreshControl: ({}: any) => null,
+    Animated: {
+      Value: class { constructor(v: number) { this._v = v }; _v: number },
+      timing: () => ({ start: () => {} }),
+      loop: () => ({ start: () => {}, stop: () => {} }),
+      sequence: () => ({}),
+      View: ({ children }: any) => null,
+      Easing: { inOut: () => ({}), ease: () => ({}) },
+    },
     Easing: { inOut: () => ({}), ease: () => ({}) },
-  },
-  Easing: { inOut: () => ({}), ease: () => ({}) },
-}))
+    default: { Platform },
+  }
+})
 
 // Mock @expo/vector-icons
 vi.mock('@expo/vector-icons', () => ({
