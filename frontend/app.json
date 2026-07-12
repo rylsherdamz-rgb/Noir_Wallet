@@ -4,7 +4,7 @@
     "slug": "noir-wallet",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/noir-mark.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#000000",
     "scheme": "noirwallet",
@@ -18,7 +18,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#000000",
-        "foregroundImage": "./assets/android-icon-foreground.png",
+        "foregroundImage": "./assets/noir-mark.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
@@ -44,7 +44,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash-icon.png",
+          "image": "./assets/noir-mark.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#000000"
