@@ -2,12 +2,14 @@ import Constants from 'expo-constants'
 
 const ENV = {
   dev: {
+    horizonUrl: 'https://horizon-testnet.stellar.org',
     networkPassphrase: 'Test SDF Network ; September 2015',
     apiBaseUrl: 'http://localhost:8080',
     pdaxApiBaseUrl: 'https://api-sandbox.pdax.ph',
     sorobanRpcUrl: 'https://soroban-testnet.stellar.org',
   },
   prod: {
+    horizonUrl: 'https://horizon.stellar.org',
     networkPassphrase: 'Public Global Stellar Network ; September 2015',
     apiBaseUrl: 'https://noir-backend-646705730224.us-central1.run.app',
     pdaxApiBaseUrl: 'https://api.pdax.ph',

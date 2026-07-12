@@ -3,18 +3,18 @@ import {
   TransactionBuilder,
   Operation,
   Asset,
+  Horizon,
   BASE_FEE,
   Networks,
-  rpc,
 } from '@stellar/stellar-sdk'
 import { Config } from '@/constants/config'
 
 class StellarService {
-  private server: rpc.Server
+  private server: Horizon.Server
   private networkPassphrase: string
 
   constructor() {
-    this.server = new rpc.Server(Config.sorobanRpcUrl)
+    this.server = new Horizon.Server(Config.horizonUrl!)
     this.networkPassphrase = Config.networkPassphrase
   }
 
@@ -28,7 +28,7 @@ class StellarService {
 
   async fundTestnetAccount(publicKey: string): Promise<boolean> {
     try {
-      await this.server.getAccount(publicKey)
+      await this.server.loadAccount(publicKey)
       console.log('Account already exists on-chain')
       return true
     } catch {
@@ -55,7 +55,7 @@ class StellarService {
         console.log('Account funded via Friendbot:', json.hash)
         for (let i = 0; i < 10; i++) {
           try {
-            await this.server.getAccount(publicKey)
+            await this.server.loadAccount(publicKey)
             console.log('Account verified on-chain')
             return true
           } catch {
@@ -83,20 +83,22 @@ class StellarService {
     assets: Array<{ code: string; issuer: string; balance: string }>
   }> {
     try {
-      const raw = await fetch(this.server.serverURL.toString(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'getAccount',
-          params: { publicKey },
-        }),
-      })
-      const json: any = await raw.json()
-      const balanceStroops = json?.result?.balance ?? '0'
-      const xlm = parseFloat(balanceStroops) / 10_000_000
-      return { xlm, usdc: 0, assets: [] }
+      const account = await this.server.loadAccount(publicKey)
+      const balances = account.balances as any[]
+      const xlmBalance = balances.find((b) => b.asset_type === 'native')
+      const usdcBalance = balances.find((b) => b.asset_code === 'USDC')
+
+      return {
+        xlm: parseFloat(xlmBalance?.balance ?? '0'),
+        usdc: parseFloat(usdcBalance?.balance ?? '0'),
+        assets: balances
+          .filter((b) => b.asset_type !== 'native')
+          .map((b: any) => ({
+            code: b.asset_code,
+            issuer: b.asset_issuer,
+            balance: b.balance,
+          })),
+      }
     } catch {
       return { xlm: 0, usdc: 0, assets: [] }
     }
@@ -112,7 +114,7 @@ class StellarService {
     try {
       const sourceKp = Keypair.fromSecret(params.sourceSecret)
       const sourcePub = sourceKp.publicKey()
-      const account = await this.server.getAccount(sourcePub)
+      const account = await this.server.loadAccount(sourcePub)
 
       const asset =
         params.assetCode && params.assetCode !== 'XLM' && params.assetIssuer
@@ -134,23 +136,13 @@ class StellarService {
         .build()
 
       tx.sign(sourceKp)
-      const result: any = await this.server.sendTransaction(tx)
-      if (result.status === 'ERROR') {
-        return { error: result.errorResult?.resultString || 'Transaction rejected' }
-      }
+      const result = await this.server.submitTransaction(tx)
       return { hash: result.hash }
     } catch (err: any) {
       return { error: err.message ?? 'Transaction failed' }
     }
   }
 
-  /**
-   * Build and sign a payment transaction with the user's wallet and return the
-   * base64 XDR **without submitting**. This is the non-custodial half of the
-   * fee-bump flow: the signed inner tx is sent to the backend (`/payment`),
-   * which wraps it in a channel-signed fee-bump and submits it — so the user
-   * never pays the network fee and never exposes their secret to the backend.
-   */
   async buildSignedPaymentXdr(params: {
     sourceSecret: string
     destination: string
@@ -161,7 +153,7 @@ class StellarService {
   }): Promise<{ xdr: string } | { error: string }> {
     try {
       const sourceKp = Keypair.fromSecret(params.sourceSecret)
-      const account = await this.server.getAccount(sourceKp.publicKey())
+      const account = await this.server.loadAccount(sourceKp.publicKey())
 
       const asset =
         params.assetCode && params.assetCode !== 'XLM' && params.assetIssuer
@@ -180,7 +172,6 @@ class StellarService {
       )
 
       if (params.memo && params.memo.trim()) {
-        // Memo import kept local to avoid touching the module import list.
         const { Memo } = require('@stellar/stellar-sdk')
         builder = builder.addMemo(Memo.text(params.memo.slice(0, 28)))
       }
@@ -193,9 +184,9 @@ class StellarService {
     }
   }
 
-  async loadAccount(publicKey: string): Promise<any | null> {
+  async loadAccount(publicKey: string): Promise<Horizon.AccountResponse | null> {
     try {
-      return await this.server.getAccount(publicKey)
+      return await this.server.loadAccount(publicKey)
     } catch {
       return null
     }

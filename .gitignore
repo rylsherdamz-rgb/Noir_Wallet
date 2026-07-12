@@ -60,5 +60,5 @@ expo-env.d.ts
 **/ios/
 **/android/
 
-# --- Promotion / marketing demo video (local only, not tracked) ---
-promotion/
+# --- ML models (large, not tracked) ---
+models/
