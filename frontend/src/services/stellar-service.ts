@@ -144,14 +144,28 @@ export class StellarService {
   }): Promise<{ hash: string } | { error: string }> {
     try {
       const sourceKp = Keypair.fromSecret(params.sourceSecret)
-      const account = await this.horizon.loadAccount(sourceKp.publicKey())
+      const sourcePub = sourceKp.publicKey()
+
+      // Verify source exists on Horizon
+      let sourceAccount
+      try {
+        sourceAccount = await this.horizon.loadAccount(sourcePub)
+      } catch {
+        return { error: 'Source account not found — fund it first' }
+      }
+
+      // Verify destination exists (Stellar Payment requires it)
+      const destExists = await this.accountExists(params.destination)
+      if (!destExists) {
+        return { error: `Destination account ${params.destination.slice(0, 8)}... does not exist — send at least 1 XLM via create account first` }
+      }
 
       const asset =
         params.assetCode && params.assetCode !== 'XLM' && params.assetIssuer
           ? new Asset(params.assetCode, params.assetIssuer)
           : Asset.native()
 
-      const tx = new TransactionBuilder(account, {
+      const tx = new TransactionBuilder(sourceAccount, {
         fee: BASE_FEE,
         networkPassphrase: this.networkPassphrase,
       })
@@ -169,7 +183,8 @@ export class StellarService {
       const result = await this.horizon.submitTransaction(tx)
       return { hash: result.hash }
     } catch (err: any) {
-      return { error: err?.message ?? 'Transaction failed' }
+      const msg = err?.response?.data?.detail || err?.response?.data?.title || err?.message || 'Transaction failed'
+      return { error: msg }
     }
   }
 

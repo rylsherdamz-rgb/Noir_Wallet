@@ -71,6 +71,7 @@ async fn main() -> std::io::Result<()> {
     );
 
     let stellar_client = stellar::StellarClient::new(
+        config.stellar_horizon_url.clone(),
         config.stellar_rpc_url.clone(),
         config.stellar_network.clone(),
     );

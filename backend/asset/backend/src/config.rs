@@ -7,6 +7,7 @@ pub struct Config {
     pub database_url: String,
     pub stellar_network: String,
     pub stellar_rpc_url: String,
+    pub stellar_horizon_url: String,
     pub api_port: u16,
     pub api_host: String,
     pub log_level: String,
@@ -64,6 +65,8 @@ impl Config {
             stellar_network: env::var("STELLAR_NETWORK").unwrap_or_else(|_| "testnet".to_string()),
             stellar_rpc_url: env::var("STELLAR_RPC_URL")
                 .unwrap_or_else(|_| "https://soroban-testnet.stellar.org".to_string()),
+            stellar_horizon_url: env::var("STELLAR_HORIZON_URL")
+                .unwrap_or_else(|_| "https://horizon-testnet.stellar.org".to_string()),
             api_port: env::var("API_PORT")
                 .unwrap_or_else(|_| "8081".to_string())
                 .parse()
