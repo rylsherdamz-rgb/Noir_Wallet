@@ -198,18 +198,25 @@ export class StellarService {
 
   async getBalance(publicKey: string): Promise<BalanceResult> {
     try {
-      const account: any = await this.soroban.getAccount(publicKey)
-      const balanceStroops = account.balance ?? '0'
+      const raw = await fetch(this.soroban.serverURL.toString(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'getAccount',
+          params: { publicKey },
+        }),
+      })
+      const json: any = await raw.json()
+      const balanceStroops = json?.result?.balance ?? '0'
       const xlm = parseFloat(balanceStroops) / 10_000_000
       return { xlm, usdc: 0, assets: [] }
     } catch (e: any) {
-      const isNotFound = e?.name === 'NotFoundError'
-      if (!isNotFound) {
-        console.warn(
-          `[getBalance] RPC error for ${publicKey.slice(0, 8)}... on ${this.network}:`,
-          e?.message ?? e,
-        )
-      }
+      console.warn(
+        `[getBalance] RPC error for ${publicKey.slice(0, 8)}... on ${this.network}:`,
+        e?.message ?? e,
+      )
       return { xlm: 0, usdc: 0, assets: [] }
     }
   }

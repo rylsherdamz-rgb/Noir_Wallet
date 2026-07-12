@@ -83,8 +83,19 @@ class StellarService {
     assets: Array<{ code: string; issuer: string; balance: string }>
   }> {
     try {
-      const account: any = await this.server.getAccount(publicKey)
-      const xlm = parseFloat(account.balance ?? '0') / 10_000_000
+      const raw = await fetch(this.server.serverURL.toString(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'getAccount',
+          params: { publicKey },
+        }),
+      })
+      const json: any = await raw.json()
+      const balanceStroops = json?.result?.balance ?? '0'
+      const xlm = parseFloat(balanceStroops) / 10_000_000
       return { xlm, usdc: 0, assets: [] }
     } catch {
       return { xlm: 0, usdc: 0, assets: [] }
