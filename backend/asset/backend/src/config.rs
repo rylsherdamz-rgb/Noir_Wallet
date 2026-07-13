@@ -64,7 +64,7 @@ impl Config {
                 .map_err(|_| PaymentError::ConfigError("DATABASE_URL not set".to_string()))?,
             stellar_network: env::var("STELLAR_NETWORK").unwrap_or_else(|_| "testnet".to_string()),
             stellar_rpc_url: env::var("STELLAR_RPC_URL")
-                .unwrap_or_else(|_| "https://soroban-testnet.stellar.org".to_string()),
+                .unwrap_or_else(|_| "https://stellar-testnet.g.alchemy.com/v2/8bi-1e9YaEqKhk7rC6lEE".to_string()),
             stellar_horizon_url: env::var("STELLAR_HORIZON_URL")
                 .unwrap_or_else(|_| "https://horizon-testnet.stellar.org".to_string()),
             api_port: env::var("API_PORT")

@@ -100,22 +100,40 @@ Mobile App / POS Terminal
 | `unregister` | `device_hash: BytesN<32>` | Remove a device (admin only) |
 | `get_wallet` | `device_hash: BytesN<32>` | Look up wallet by device hash |
 
-### Frontend Architecture
+## Project Structure
 
 ```
-frontend/
-├── app/              Expo Router pages (tabs, onboarding, settings)
-├── src/
-│   ├── screens/      Welcome, Dashboard, POS, Device Link, Agents
-│   ├── components/   BalanceCard, NumericKeypad, ReadyToTap, etc.
-│   ├── services/     NFC, Stellar SDK, API client, wallet
-│   ├── store/        Zustand state management
-│   ├── hooks/        useNfc, useProfile, custom hooks
-│   ├── lib/          soroban.ts (readContract, invokeContract, helpers)
-│   ├── domain/       x402 agent logic
-│   └── constants/    Theme (black/gold), config
-
+Noir_Wallet/
+├── frontend/                # React Native Expo application
+│   └── src/
+│       ├── screens/         # Dashboard, POS, Device Provisioning, Agents, etc.
+│       ├── components/      # BalanceCard, NumericKeypad, ReadyToTap, etc.
+│       ├── services/        # Stellar SDK, NFC, API client
+│       ├── store/           # Zustand state management
+│       ├── hooks/           # useNfc, useProfile, custom hooks
+│       ├── lib/             # soroban.ts helpers, x402 auth
+│       ├── domain/          # x402 agent logic
+│       ├── constants/       # Theme (black/gold), network config
+│       └── types/           # TypeScript type definitions
+├── backend/                 # Soroban smart contracts (Rust)
+│   └── asset/
+│       └── contracts/device_registry/
+├── assets/                  # Demo video, poster, branding
+├── images/                  # Screenshots & diagrams
+├── promo/                   # Promotional materials
+├── models/                  # ML / design models
+├── old/                     # Archived code (backward compat)
+└── contextimages/           # Design inspiration and moodboards
 ```
+
+## Device Provisioning Flow
+
+1. Open the app and tap **Link Device**
+2. Hold your NFC tag against the phone
+3. App reads the tag UID and writes wallet info to the tag
+4. A **signature prompt** appears with transaction details
+5. Tap **Sign** — the app SHA-256 hashes your tag UID, calls `device_registry.register()` on Soroban, and polls for confirmation
+6. Device is linked and registered on-chain
 
 ## Getting Started
 
@@ -181,18 +199,19 @@ cd frontend
 npm test
 ```
 
-## Device Provisioning Flow
+## UI Screenshots
 
-1. Open the app and tap **Link Device**
-2. Hold your NFC tag against the phone
-3. App reads the tag UID and writes wallet info to the tag
-4. A **signature prompt** appears with transaction details
-5. Tap **Sign** — the app SHA-256 hashes your tag UID, calls `device_registry.register()` on Soroban, and polls for confirmation
-6. Device is linked and registered on-chain
+*Screenshots coming soon. Drop your screen captures in `images/` to populate this section.*
 
-## Screenshots
-
-*Screenshots coming soon.*
+<!--
+Example (once images exist):
+![Welcome Screen](images/welcome.png)
+![Dashboard](images/dashboard.png)
+![Send Payment](images/send.png)
+![Agent List](images/agents.png)
+![Device Provisioning](images/provisioning.png)
+![Transaction History](images/history.png)
+-->
 
 ## License
 

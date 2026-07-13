@@ -10,8 +10,35 @@ import {
   xdr,
   Address,
   Horizon,
-} from '@stellar/stellar-sdk'
+  authorizeEntry,
+} from '@stellar/stellar-sdk/axios'
 import { Buffer } from 'buffer'
+import { TransactionBase } from '@stellar/stellar-sdk/axios'
+
+TransactionBase.prototype.toXDR = function () {
+  const raw = this.toEnvelope().toXDR()
+  return Buffer.from(raw).toString('base64')
+}
+
+const CACHE_TTL_MS = 30000
+
+interface CacheEntry<T> {
+  value: T
+  expiresAt: number
+}
+
+function makeCache<T>(): (key: string, ttl: number, fetcher: () => Promise<T>) => Promise<T> {
+  const store = new Map<string, CacheEntry<T>>()
+  return async (key: string, ttl: number, fetcher: () => Promise<T>): Promise<T> => {
+    const existing = store.get(key)
+    if (existing && Date.now() < existing.expiresAt) {
+      return existing.value
+    }
+    const value = await fetcher()
+    store.set(key, { value, expiresAt: Date.now() + ttl })
+    return value
+  }
+}
 
 export interface StellarServiceOptions {
   network?: 'testnet' | 'mainnet'
@@ -50,6 +77,7 @@ export class StellarService {
   private soroban: rpc.Server
   private networkPassphrase: string
   private network: 'testnet' | 'mainnet'
+  private existsCache: (key: string, ttl: number, fetcher: () => Promise<boolean>) => Promise<boolean>
 
   constructor(opts?: StellarServiceOptions) {
     const isTestnet = opts?.network !== 'mainnet'
@@ -59,8 +87,9 @@ export class StellarService {
     )
     this.soroban = new rpc.Server(
       opts?.sorobanRpcUrl ?? (isTestnet ? 'https://soroban-testnet.stellar.org' : 'https://soroban.stellar.org'),
-    )
+    ) as rpc.Server
     this.networkPassphrase = opts?.networkPassphrase ?? (isTestnet ? Networks.TESTNET : Networks.PUBLIC)
+    this.existsCache = makeCache<boolean>()
   }
 
   get networkName() { return this.network }
@@ -74,7 +103,7 @@ export class StellarService {
     )
     this.soroban = new rpc.Server(
       isTestnet ? 'https://soroban-testnet.stellar.org' : 'https://soroban.stellar.org',
-    )
+    ) as rpc.Server
     this.networkPassphrase = isTestnet ? Networks.TESTNET : Networks.PUBLIC
     console.log(`[StellarService] network switched to ${this.network}`)
   }
@@ -91,21 +120,23 @@ export class StellarService {
   }
 
   async accountExists(publicKey: string, retries = 2): Promise<boolean> {
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        await this.horizon.loadAccount(publicKey)
-        return true
-      } catch (e: any) {
-        const status = e?.response?.status ?? e?.response?.statusCode
-        const isNotFound = status === 404 || e?.name === 'NotFoundError'
-        if (!isNotFound && attempt < retries) {
-          await new Promise(r => setTimeout(r, 1500))
-          continue
+    return this.existsCache(publicKey, CACHE_TTL_MS, async () => {
+      for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+          await this.horizon.loadAccount(publicKey)
+          return true
+        } catch (e: any) {
+          const status = e?.response?.status ?? e?.response?.statusCode
+          const isNotFound = status === 404 || e?.name === 'NotFoundError'
+          if (!isNotFound && attempt < retries) {
+            await new Promise(r => setTimeout(r, 1500))
+            continue
+          }
+          if (isNotFound) return false
         }
-        if (isNotFound) return false
       }
-    }
-    return false
+      return false
+    })
   }
 
   async getBalance(publicKey: string): Promise<BalanceResult> {
@@ -250,29 +281,6 @@ export class StellarService {
 
   // ── Soroban Contract Operations (RPC) ─────────────────────────
 
-  /**
-   * Wait until the *Soroban RPC* can see the account, returning it.
-   * Horizon and Soroban RPC ingest the ledger independently — Horizon
-   * sees accounts seconds before the RPC does, so we poll here.
-   */
-  async waitForAccountOnRpc(publicKey: string, timeoutMs = 20000): Promise<any | null> {
-    const deadline = Date.now() + timeoutMs
-    let lastError: any = null
-    while (Date.now() < deadline) {
-      try {
-        return await this.soroban.getAccount(publicKey)
-      } catch (e: any) {
-        lastError = e
-        await new Promise(r => setTimeout(r, 1000))
-      }
-    }
-    console.warn(
-      `[waitForAccountOnRpc] ${publicKey.slice(0, 8)}... not visible on Soroban RPC ` +
-      `after ${timeoutMs}ms.`,
-    )
-    return null
-  }
-
   deviceHashScVal(sha256Hex: string): xdr.ScVal {
     return xdr.ScVal.scvBytes(Buffer.from(sha256Hex, 'hex'))
   }
@@ -304,12 +312,15 @@ export class StellarService {
       )
     }
 
-    const account = await this.waitForAccountOnRpc(sourcePub)
-    if (!account) {
-      throw new Error(
-        `Account ${sourcePub.slice(0, 8)}... not visible on Soroban RPC (${this.soroban.serverURL}) ` +
-        `yet — wait a few seconds and try again. Network: ${this.network}.`
-      )
+    // Obtain the sequence from Horizon. `rpc.getAccount` is an optional RPC
+    // convenience lookup and some providers do not index classic accounts
+    // reliably. The RPC simulation below is the authoritative preflight for
+    // the contract transaction.
+    let account
+    try {
+      account = await this.horizon.loadAccount(sourcePub)
+    } catch (e: any) {
+      throw new Error(`Could not load source account from Horizon: ${e?.message || 'unknown error'}`)
     }
 
     const contract = new Contract(params.contractId)
@@ -321,11 +332,44 @@ export class StellarService {
       .setTimeout(30)
       .build()
 
+    const txXdr = tx.toXDR()
+    if (__DEV__) {
+      console.log(`[invokeContract] tx XDR: ${txXdr.substring(0, 80)}...`)
+    }
+
     let prepared: any
     try {
       prepared = await this.soroban.prepareTransaction(tx)
+
+      // Sign the auth entries on the prepared transaction.
+      // The RPC simulation returns unsigned placeholder auth entries that need
+      // the wallet's signature before submission, or the contract's
+      // `require_auth()` call will reject the transaction.
+      const opRaw: any = prepared?.operations?.[0]
+      const invokeBody: any = opRaw?.body()?.value()
+      const authArray: any[] | undefined = invokeBody?.auth?.()
+      if (authArray && authArray.length > 0) {
+        const { sequence } = await this.soroban.getLatestLedger()
+        const validUntil = sequence + 10
+        const signed = await Promise.all(
+          Array.from(authArray).map((entry: any) =>
+            authorizeEntry(entry, sourceKp, validUntil, this.networkPassphrase)
+          )
+        )
+        // Replace in-place so the xdr reflects the signatures
+        authArray.splice(0, authArray.length, ...signed)
+        if (__DEV__) {
+          console.log(`[invokeContract] signed ${signed.length} auth entr${signed.length === 1 ? 'y' : 'ies'} for ${params.method}`)
+        }
+      }
     } catch (e: any) {
-      throw new Error(`Transaction simulation failed: ${e?.message || 'unknown'}`)
+      const errMsg = typeof e === 'object' ? (e?.message ?? e?.data ?? JSON.stringify(e)) : String(e)
+      console.error(`[invokeContract] simulation failed for ${params.method}`, {
+        error: errMsg,
+        xdrPrefix: txXdr.substring(0, 80),
+        source: params.signerSecret.slice(0, 8) + '...',
+      })
+      throw new Error(`Transaction simulation failed: ${errMsg}`)
     }
 
     prepared.sign(sourceKp)
@@ -334,12 +378,24 @@ export class StellarService {
     try {
       sendResult = await this.soroban.sendTransaction(prepared)
     } catch (e: any) {
-      throw new Error(`Failed to submit transaction: ${e?.message || 'unknown'}`)
+      const errMsg = typeof e === 'object' ? (e?.message ?? e?.data ?? JSON.stringify(e)) : String(e)
+      console.error(`[invokeContract] sendTransaction failed for ${params.method}`, {
+        error: errMsg,
+        source: params.signerSecret.slice(0, 8) + '...',
+      })
+      throw new Error(`Failed to submit transaction: ${errMsg}`)
     }
 
     if (sendResult.status === 'ERROR') {
-      const errMsg = sendResult.errorResult?.resultString || 'Transaction rejected by network'
-      throw new Error(errMsg)
+      const errXdr = sendResult.errorResultXdr
+      const errStr = sendResult.errorResult?.resultString
+      console.error(`[invokeContract] transaction ERROR for ${params.method}`, {
+        status: sendResult.status,
+        errorResultXdr: errXdr,
+        resultString: errStr,
+        hash: sendResult.hash,
+      })
+      throw new Error(errStr || 'Transaction rejected by network')
     }
 
     const hash = sendResult.hash
@@ -349,6 +405,11 @@ export class StellarService {
         return hash
       }
       if (result.status === 'FAILED') {
+        console.error(`[invokeContract] transaction FAILED for ${params.method}`, {
+          resultString: result.resultString,
+          resultXdr: result.resultXdr,
+          hash,
+        })
         let msg = 'Transaction failed'
         if (result.resultString) msg += `: ${result.resultString}`
         throw new Error(msg)
@@ -378,12 +439,10 @@ export class StellarService {
       throw new Error(`Account ${params.source.slice(0, 8)}... does not exist on-chain`)
     }
 
-    const account = await this.waitForAccountOnRpc(params.source, 10000)
-    if (!account) {
-      throw new Error(
-        `Account ${params.source.slice(0, 8)}... not visible on Soroban RPC yet — try again shortly.`
-      )
-    }
+    // Horizon is the source of the account sequence. Do not block contract
+    // reads on `rpc.getAccount`, which is inconsistently supported by RPC
+    // providers for classic accounts.
+    const account = await this.horizon.loadAccount(params.source)
     const contract = new Contract(params.contractId)
 
     const tx = new TransactionBuilder(account, {
@@ -393,6 +452,11 @@ export class StellarService {
       .addOperation(contract.call(params.method, ...params.args))
       .setTimeout(30)
       .build()
+
+    const txXdr = tx.toXDR()
+    if (__DEV__) {
+      console.log(`[readContract] tx XDR: ${txXdr.substring(0, 80)}...`)
+    }
 
     const sim = await this.soroban.simulateTransaction(tx)
 

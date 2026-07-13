@@ -1,5 +1,4 @@
 import {
-  rpc,
   xdr,
   Account,
   Address,
@@ -7,15 +6,22 @@ import {
   Keypair,
   TransactionBuilder,
   BASE_FEE,
-} from '@stellar/stellar-sdk'
+  rpc,
+} from '@stellar/stellar-sdk/axios'
 import { Buffer } from 'buffer'
+import { TransactionBase } from '@stellar/stellar-sdk/axios'
 import { Config } from '@/constants/config'
+
+TransactionBase.prototype.toXDR = function () {
+  const raw = this.toEnvelope().toXDR()
+  return Buffer.from(raw).toString('base64')
+}
 
 let _server: rpc.Server | null = null
 
 function getServer(): rpc.Server {
   if (!_server) {
-    _server = new rpc.Server(Config.sorobanRpcUrl)
+    _server = new rpc.Server(Config.sorobanRpcUrl) as rpc.Server
   }
   return _server
 }
@@ -49,6 +55,10 @@ export async function readContract(
     .addOperation(contract.call(params.method, ...(params.args ?? [])))
     .setTimeout(30)
     .build()
+
+  if (__DEV__) {
+    console.log(`[soroban/readContract] tx XDR: ${tx.toXDR().substring(0, 80)}...`)
+  }
 
   const sim = await server.simulateTransaction(tx)
 
@@ -105,6 +115,10 @@ export async function invokeContract(
     .addOperation(contract.call(params.method, ...(params.args ?? [])))
     .setTimeout(30)
     .build()
+
+  if (__DEV__) {
+    console.log(`[soroban/invokeContract] tx XDR: ${tx.toXDR().substring(0, 80)}...`)
+  }
 
   const prepared = await server.prepareTransaction(tx)
   prepared.sign(params.signer)
