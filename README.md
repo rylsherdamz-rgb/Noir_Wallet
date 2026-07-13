@@ -4,6 +4,8 @@
 
 **Hackathon Track:** Payment & Consumer Applications
 
+> 📊 **[View Pitch Deck](ppt/Noir-Wallet-Pitch.pptx)** — Slide deck covering the product, architecture, market, and demo walkthrough.
+
 ## Screenshots
 
 <div align="center">
