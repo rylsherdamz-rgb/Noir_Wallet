@@ -199,19 +199,41 @@ cd frontend
 npm test
 ```
 
-## UI Screenshots
+## Screenshots
 
-*Screenshots coming soon. Drop your screen captures in `images/` to populate this section.*
+<div align="center">
 
-<!--
-Example (once images exist):
-![Welcome Screen](images/welcome.png)
-![Dashboard](images/dashboard.png)
-![Send Payment](images/send.png)
-![Agent List](images/agents.png)
-![Device Provisioning](images/provisioning.png)
-![Transaction History](images/history.png)
--->
+### Title & Problem
+
+<img src="frontend/assets/screenshots/intro.png" width="48%" alt="Intro — Noir Wallet">
+<img src="frontend/assets/screenshots/problem.png" width="48%" alt="Problem — tap friction">
+
+### Walkthrough
+
+<img src="frontend/assets/screenshots/welcome.png" width="48%" alt="Welcome — wallet identity">
+<img src="frontend/assets/screenshots/dashboard.png" width="48%" alt="Dashboard — portfolio overview">
+<img src="frontend/assets/screenshots/link.png" width="48%" alt="Device linking — NFC provisioning">
+<img src="frontend/assets/screenshots/agent.png" width="48%" alt="x402 Agent — per-device wallets">
+<img src="frontend/assets/screenshots/send.png" width="48%" alt="Send — instant transfers">
+<img src="frontend/assets/screenshots/receive.png" width="48%" alt="Receive — QR payments">
+<img src="frontend/assets/screenshots/transactions.png" width="48%" alt="Transaction history">
+
+### Tap to Pay
+
+<img src="frontend/assets/screenshots/taptopay.png" width="48%" alt="Tap to Pay — x402 moment">
+<img src="frontend/assets/screenshots/outro.png" width="48%" alt="Outro — tap the future">
+
+</div>
+
+*Rendered from the [NoirDemo](./promotion) Remotion composition at 1920×1080.*
+
+## Team
+
+| Role | Name |
+|------|------|
+| Fullstack Developer | Richie Christian De Guzman |
+| Backend Developer | Johnrick Rabara |
+| UI/UX Designer | Jefferson Tuparan |
 
 ## License
 

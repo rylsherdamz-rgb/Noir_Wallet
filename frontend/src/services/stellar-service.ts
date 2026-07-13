@@ -340,36 +340,68 @@ export class StellarService {
     let prepared: any
     try {
       prepared = await this.soroban.prepareTransaction(tx)
+      if (__DEV__) {
+        console.log(`[invokeContract] prepareTransaction OK for ${params.method}`)
+      }
+    } catch (e: any) {
+      const errMsg = typeof e === 'object' ? (e?.message ?? e?.data ?? JSON.stringify(e)) : String(e)
+      console.error(`[invokeContract] prepareTransaction failed for ${params.method}`, {
+        error: errMsg,
+        xdrPrefix: txXdr.substring(0, 80),
+        source: params.signerSecret.slice(0, 8) + '...',
+      })
+      throw new Error(`Transaction simulation failed: ${errMsg}`)
+    }
 
+    try {
       // Sign the auth entries on the prepared transaction.
       // The RPC simulation returns unsigned placeholder auth entries that need
       // the wallet's signature before submission, or the contract's
       // `require_auth()` call will reject the transaction.
-      const opRaw: any = prepared?.operations?.[0]
-      const invokeBody: any = opRaw?.body()?.value()
-      const authArray: any[] | undefined = invokeBody?.auth?.()
-      if (authArray && authArray.length > 0) {
+      const env = xdr.TransactionEnvelope.fromXDR(prepared.toXDR(), 'base64')
+      const ops = env.v1().tx().operations()
+      const invokeBody = ops[0].body().value() as xdr.InvokeHostFunctionOp
+      const authEntries = Array.from(invokeBody.auth())
+      if (__DEV__) console.log(`[invokeContract] auth entries:`, authEntries.length)
+      if (authEntries.length > 0) {
         const { sequence } = await this.soroban.getLatestLedger()
         const validUntil = sequence + 10
+        if (__DEV__) console.log(`[invokeContract] signing ${authEntries.length} auth entries, validUntil=${validUntil}`)
         const signed = await Promise.all(
-          Array.from(authArray).map((entry: any) =>
+          authEntries.map((entry: any) =>
             authorizeEntry(entry, sourceKp, validUntil, this.networkPassphrase)
           )
         )
-        // Replace in-place so the xdr reflects the signatures
-        authArray.splice(0, authArray.length, ...signed)
+        // Extract sorobanData (resource fees, footprint) from the prepared
+        // transaction's envelope to preserve it through the rebuild.
+        const sorobanData = env.v1().tx().ext().sorobanData()
+
+        // Build a new operation with signed auth, then rebuild the transaction
+        // preserving fee, sorobanData, and other fields from the prepared tx.
+        const newOp = Operation.invokeHostFunction({
+          func: invokeBody.hostFunction(),
+          auth: signed,
+        })
+        const builder = TransactionBuilder.cloneFrom(prepared, {
+          networkPassphrase: this.networkPassphrase,
+          sorobanData,
+        })
+        builder.clearOperations()
+        builder.addOperation(newOp)
+        builder.setTimeout(30)
+        prepared = builder.build()
         if (__DEV__) {
           console.log(`[invokeContract] signed ${signed.length} auth entr${signed.length === 1 ? 'y' : 'ies'} for ${params.method}`)
         }
       }
     } catch (e: any) {
       const errMsg = typeof e === 'object' ? (e?.message ?? e?.data ?? JSON.stringify(e)) : String(e)
-      console.error(`[invokeContract] simulation failed for ${params.method}`, {
+      console.error(`[invokeContract] auth signing failed for ${params.method}`, {
         error: errMsg,
         xdrPrefix: txXdr.substring(0, 80),
         source: params.signerSecret.slice(0, 8) + '...',
       })
-      throw new Error(`Transaction simulation failed: ${errMsg}`)
+      throw new Error(`Transaction auth signing failed: ${errMsg}`)
     }
 
     prepared.sign(sourceKp)
@@ -386,32 +418,66 @@ export class StellarService {
       throw new Error(`Failed to submit transaction: ${errMsg}`)
     }
 
+    const hash = sendResult.hash
+
     if (sendResult.status === 'ERROR') {
       const errXdr = sendResult.errorResultXdr
-      const errStr = sendResult.errorResult?.resultString
-      console.error(`[invokeContract] transaction ERROR for ${params.method}`, {
-        status: sendResult.status,
+      console.error(`[invokeContract] sendTransaction ERROR for ${params.method}`, {
+        hash,
         errorResultXdr: errXdr,
-        resultString: errStr,
-        hash: sendResult.hash,
+        sendResult: JSON.stringify(sendResult),
       })
-      throw new Error(errStr || 'Transaction rejected by network')
+      try {
+        if (errXdr) {
+          const txResult: any = xdr.TransactionResult.fromXDR(errXdr, 'base64')
+          const result: any = txResult.result()
+          console.error(`[invokeContract] decoded result:`, {
+            outerCode: result.switch().name,
+            innerCode: result.value()?.switch?.()?.name,
+          })
+        }
+      } catch (parseErr: any) {
+        console.error(`[invokeContract] could not decode errorResultXdr:`, parseErr.message)
+      }
+      // Some RPCs return ERROR from sendTransaction but still include the tx;
+      // poll getTransaction briefly as a fallback to confirm failure.
+      for (let i = 0; i < 10; i++) {
+        await new Promise(r => setTimeout(r, 1000))
+        const check: any = await this.soroban.getTransaction(hash)
+        if (check.status === 'SUCCESS') return hash
+        if (check.status === 'FAILED') {
+          console.error(`[invokeContract] tx FAILED via poll for ${params.method}`, {
+            resultString: check.resultString,
+            resultXdr: check.resultXdr,
+            hash,
+          })
+          throw new Error(check.resultString || 'Transaction failed')
+        }
+      }
+      throw new Error(`Transaction rejected by network (hash: ${hash})`)
     }
 
-    const hash = sendResult.hash
     for (let i = 0; i < 60; i++) {
       const result: any = await this.soroban.getTransaction(hash)
       if (result.status === 'SUCCESS') {
         return hash
       }
       if (result.status === 'FAILED') {
-        console.error(`[invokeContract] transaction FAILED for ${params.method}`, {
-          resultString: result.resultString,
-          resultXdr: result.resultXdr,
-          hash,
-        })
         let msg = 'Transaction failed'
-        if (result.resultString) msg += `: ${result.resultString}`
+        try {
+          const txRes: any = result.resultXdr
+          const r = txRes.result()
+          const opResults = r.value()
+          const opRes = opResults[0]
+          const opCode = opRes.switch().name
+          if (opCode === 'opINNER') {
+            const inner = opRes.value()
+            msg = `Contract error: ${inner.value()?.switch()?.name ?? inner.switch().name}`
+          } else {
+            msg = `Operation error: ${opCode}`
+          }
+        } catch (_) {}
+        console.error(`[invokeContract] transaction FAILED for ${params.method}`, { hash, msg })
         throw new Error(msg)
       }
       await new Promise(r => setTimeout(r, 1000))
