@@ -33,6 +33,7 @@ pub async fn provision_card(
     let wallet = signer.public_strkey();
 
     state.stellar_client.fund_testnet(&wallet).await?;
+    state.stellar_client.wait_for_account(&wallet, 15).await?;
 
     let encrypted = crate::crypto::encrypt_at_rest(km.as_ref(), secret.as_bytes())?;
     let limit = req.daily_limit_stroops.unwrap_or(1_000_000_000);

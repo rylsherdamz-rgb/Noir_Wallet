@@ -7,6 +7,7 @@ pub struct Config {
     pub database_url: String,
     pub stellar_network: String,
     pub stellar_rpc_url: String,
+    pub stellar_horizon_url: String,
     pub api_port: u16,
     pub api_host: String,
     pub log_level: String,
@@ -50,8 +51,7 @@ pub struct Config {
     pub api_key: String,
     // Fee channel signing key (S...) used to fee-bump user-signed transactions.
     pub channel_secret_key: String,
-    // Horizon base URL (submission + account lookups), distinct from Soroban RPC.
-    pub horizon_url: String,
+
     // Base64 32-byte master key for envelope-encrypting custodied card wallets.
     pub master_key_id: String,
 }
@@ -64,7 +64,9 @@ impl Config {
                 .map_err(|_| PaymentError::ConfigError("DATABASE_URL not set".to_string()))?,
             stellar_network: env::var("STELLAR_NETWORK").unwrap_or_else(|_| "testnet".to_string()),
             stellar_rpc_url: env::var("STELLAR_RPC_URL")
-                .unwrap_or_else(|_| "https://soroban-testnet.stellar.org".to_string()),
+                .unwrap_or_else(|_| "https://stellar-testnet.g.alchemy.com/v2/8bi-1e9YaEqKhk7rC6lEE".to_string()),
+            stellar_horizon_url: env::var("STELLAR_HORIZON_URL")
+                .unwrap_or_else(|_| "https://horizon-testnet.stellar.org".to_string()),
             api_port: env::var("API_PORT")
                 .unwrap_or_else(|_| "8081".to_string())
                 .parse()
@@ -108,14 +110,6 @@ impl Config {
             pdax_token_expires_at: env::var("PDAX_TOKEN_EXPIRES_AT").unwrap_or_default(),
             api_key: env::var("API_KEY").unwrap_or_default(),
             channel_secret_key: env::var("CHANNEL_SECRET_KEY").unwrap_or_default(),
-            horizon_url: env::var("STELLAR_HORIZON_URL").unwrap_or_else(|_| {
-                match env::var("STELLAR_NETWORK").as_deref() {
-                    Ok("public") | Ok("pubnet") | Ok("mainnet") => {
-                        "https://horizon.stellar.org".to_string()
-                    }
-                    _ => "https://horizon-testnet.stellar.org".to_string(),
-                }
-            }),
             master_key_id: env::var("MASTER_KEY_ID").unwrap_or_default(),
         })
     }

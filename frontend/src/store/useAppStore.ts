@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import * as SecureStore from 'expo-secure-store'
+import { secureGetItem, secureSetItem, secureDeleteItem } from '@/services/secureStorage'
 import { stellarService } from '@/services/stellar-service'
 import { stellarNetwork } from '@/constants/config'
 import {
@@ -119,9 +119,9 @@ export const useAppStore = create<AppState>()(
     {
       name: 'noir-wallet',
       storage: createJSONStorage(() => ({
-        getItem: (name) => SecureStore.getItemAsync(name),
-        setItem: (name, value) => SecureStore.setItemAsync(name, value),
-        removeItem: (name) => SecureStore.deleteItemAsync(name),
+        getItem: (name) => secureGetItem(name),
+        setItem: (name, value) => secureSetItem(name, value),
+        removeItem: (name) => secureDeleteItem(name),
       })),
       partialize: (state) => ({
         user: state.user,

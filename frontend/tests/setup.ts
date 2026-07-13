@@ -55,14 +55,28 @@ vi.mock('@stellar/stellar-sdk', async () => {
       getCode() { return (this as any).code }
     },
     Horizon: {
-      Server: class MockServer {
+      Server: class MockHorizonServer {
         constructor(url: string) {}
         loadAccount = vi.fn().mockResolvedValue({
-          balances: [{ asset_type: 'native', balance: '10000' }],
+          id: 'G...',
           sequence: '1',
+          balances: [{ asset_type: 'native', balance: '10000.0000000' }],
         })
-        submitTransaction = vi.fn().mockResolvedValue({ hash: 'test-tx-hash' })
-        root = vi.fn().mockResolvedValue({ horizon_version: '2.0.0' })
+        submitTransaction = vi.fn().mockResolvedValue({ hash: 'test-hash' })
+      },
+    },
+    rpc: {
+      Server: class MockRpcServer {
+        constructor(url: string) {}
+        getAccount = vi.fn().mockResolvedValue({
+          id: 'G...',
+          sequence: '1',
+          balance: '100000000000',
+        })
+        sendTransaction = vi.fn().mockResolvedValue({ status: 'SUCCESS', hash: 'test-tx-hash' })
+        getTransaction = vi.fn().mockResolvedValue({ status: 'SUCCESS' })
+        simulateTransaction = vi.fn().mockResolvedValue({})
+        prepareTransaction = vi.fn().mockImplementation((tx: any) => Promise.resolve(tx))
       },
     },
     TransactionBuilder: class MockTxBuilder {
@@ -103,25 +117,29 @@ vi.mock('expo-router', () => ({
 }))
 
 // Mock react-native
-vi.mock('react-native', () => ({
-  Platform: { OS: 'ios', Version: 0, select: (obj: any) => obj.ios ?? obj.default },
-  StyleSheet: { create: (s: any) => s, absoluteFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } },
-  View: ({ children }: any) => null,
-  Text: ({ children }: any) => null,
-  ScrollView: ({ children }: any) => null,
-  TouchableOpacity: ({ children, onPress }: any) => null,
-  TextInput: ({ value, onChangeText }: any) => null,
-  RefreshControl: ({}: any) => null,
-  Animated: {
-    Value: class { constructor(v: number) { this._v = v }; _v: number },
-    timing: () => ({ start: () => {} }),
-    loop: () => ({ start: () => {}, stop: () => {} }),
-    sequence: () => ({}),
+vi.mock('react-native', () => {
+  const Platform = { OS: 'ios', Version: 0, select: (obj: any) => obj.ios ?? obj.default }
+  return {
+    Platform,
+    StyleSheet: { create: (s: any) => s, absoluteFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } },
     View: ({ children }: any) => null,
+    Text: ({ children }: any) => null,
+    ScrollView: ({ children }: any) => null,
+    TouchableOpacity: ({ children, onPress }: any) => null,
+    TextInput: ({ value, onChangeText }: any) => null,
+    RefreshControl: ({}: any) => null,
+    Animated: {
+      Value: class { constructor(v: number) { this._v = v }; _v: number },
+      timing: () => ({ start: () => {} }),
+      loop: () => ({ start: () => {}, stop: () => {} }),
+      sequence: () => ({}),
+      View: ({ children }: any) => null,
+      Easing: { inOut: () => ({}), ease: () => ({}) },
+    },
     Easing: { inOut: () => ({}), ease: () => ({}) },
-  },
-  Easing: { inOut: () => ({}), ease: () => ({}) },
-}))
+    default: { Platform },
+  }
+})
 
 // Mock @expo/vector-icons
 vi.mock('@expo/vector-icons', () => ({

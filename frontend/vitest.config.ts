@@ -27,7 +27,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      'react-native': path.resolve(__dirname, './node_modules/react-native'),
     },
   },
   define: {

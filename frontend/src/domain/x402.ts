@@ -1,6 +1,18 @@
 import { Keypair } from '@stellar/stellar-sdk'
-import * as SecureStore from 'expo-secure-store'
-import { stellarService } from '@/services/stellar'
+import { secureGetItem, secureSetItem, secureDeleteItem } from '@/services/secureStorage'
+// The network-aware singleton (NOT the legacy '@/services/stellar', whose
+// network is frozen at startup). Keeps the agent wallet on the same network
+// as the rest of the app when the user toggles testnet/mainnet.
+import { stellarService } from '@/services/stellar-service'
+
+// Platform-aware secure storage: expo-secure-store on native, localStorage on
+// web preview. Redirected here so the existing SecureStore.* call sites below
+// keep working without change.
+const SecureStore = {
+  getItemAsync: secureGetItem,
+  setItemAsync: secureSetItem,
+  deleteItemAsync: secureDeleteItem,
+}
 
 const AGENT_SECRET_KEY = 'x402.agent.secret'
 const AGENT_PUBLIC_KEY = 'x402.agent.public'
@@ -41,7 +53,7 @@ export const x402 = {
     await SecureStore.setItemAsync(AGENT_CREATED_KEY, new Date().toISOString())
 
     // Fund agent account and wait for it to be created on-chain
-    const funded = await stellarService.fundTestnetAccount(kp.publicKey())
+    const funded = await stellarService.fundAccount(kp.publicKey())
     if (!funded) {
       console.warn('Agent account funding failed - account may not be usable immediately')
     }

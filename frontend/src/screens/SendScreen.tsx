@@ -19,7 +19,7 @@ import { Avatar } from '@/components/Avatar'
 import { SmartTip } from '@/components/SmartTip'
 import { useAppStore } from '@/store/useAppStore'
 import { walletService } from '@/services/wallet'
-import { stellarService } from '@/services/stellar'
+import { stellarService } from '@/services/stellar-service'
 import { AssetCode } from '@/types'
 
 export function SendScreen() {

@@ -2,22 +2,32 @@
 
 **x402 — Contactless payments powered by Stellar. No app opens. No confirmation. Just tap and go.**
 
-**Live preview:** *Coming soon*
+**Hackathon Track:** Payment & Consumer Applications
+
+## Screenshots
+
+<div align="center">
+
+<img src="frontend/assets/screenshots/intro.png" width="32%" alt="Intro">
+<img src="frontend/assets/screenshots/dashboard.png" width="32%" alt="Dashboard">
+<img src="frontend/assets/screenshots/welcome.png" width="32%" alt="Welcome">
+<img src="frontend/assets/screenshots/link.png" width="32%" alt="Device Linking">
+<img src="frontend/assets/screenshots/agent.png" width="32%" alt="x402 Agent">
+<img src="frontend/assets/screenshots/taptopay.png" width="32%" alt="Tap to Pay">
+<img src="frontend/assets/screenshots/send.png" width="32%" alt="Send">
+<img src="frontend/assets/screenshots/receive.png" width="32%" alt="Receive">
+<img src="frontend/assets/screenshots/transactions.png" width="32%" alt="Transactions">
+
+</div>
 
 ## Demo
 
 <div align="center">
 
-https://github.com/rylsherdamz-rgb/Noir_Wallet/raw/main/assets/noir-demo.mp4
-
 <video src="https://github.com/rylsherdamz-rgb/Noir_Wallet/raw/main/assets/noir-demo.mp4" poster="assets/noir-demo-poster.jpg" controls muted width="820">
   Your browser can't play this video.
   <a href="https://github.com/rylsherdamz-rgb/Noir_Wallet/raw/main/assets/noir-demo.mp4">Download / watch the demo (MP4)</a>.
 </video>
-
-<a href="https://github.com/rylsherdamz-rgb/Noir_Wallet/raw/main/assets/noir-demo.mp4">
-  <img src="assets/noir-demo-poster.jpg" alt="Noir Wallet — product demo (click to play)" width="820">
-</a>
 
 <em>▶ A 95-second, Google-style product walkthrough — narrated voiceover, the x402 tap-to-pay flow, per-device agent wallets, and the full mobile app. Built with Remotion.</em>
 
@@ -100,22 +110,40 @@ Mobile App / POS Terminal
 | `unregister` | `device_hash: BytesN<32>` | Remove a device (admin only) |
 | `get_wallet` | `device_hash: BytesN<32>` | Look up wallet by device hash |
 
-### Frontend Architecture
+## Project Structure
 
 ```
-frontend/
-├── app/              Expo Router pages (tabs, onboarding, settings)
-├── src/
-│   ├── screens/      Welcome, Dashboard, POS, Device Link, Agents
-│   ├── components/   BalanceCard, NumericKeypad, ReadyToTap, etc.
-│   ├── services/     NFC, Stellar SDK, API client, wallet
-│   ├── store/        Zustand state management
-│   ├── hooks/        useNfc, useProfile, custom hooks
-│   ├── lib/          soroban.ts (readContract, invokeContract, helpers)
-│   ├── domain/       x402 agent logic
-│   └── constants/    Theme (black/gold), config
-
+Noir_Wallet/
+├── frontend/                # React Native Expo application
+│   └── src/
+│       ├── screens/         # Dashboard, POS, Device Provisioning, Agents, etc.
+│       ├── components/      # BalanceCard, NumericKeypad, ReadyToTap, etc.
+│       ├── services/        # Stellar SDK, NFC, API client
+│       ├── store/           # Zustand state management
+│       ├── hooks/           # useNfc, useProfile, custom hooks
+│       ├── lib/             # soroban.ts helpers, x402 auth
+│       ├── domain/          # x402 agent logic
+│       ├── constants/       # Theme (black/gold), network config
+│       └── types/           # TypeScript type definitions
+├── backend/                 # Soroban smart contracts (Rust)
+│   └── asset/
+│       └── contracts/device_registry/
+├── assets/                  # Demo video, poster, branding
+├── images/                  # Screenshots & diagrams
+├── promo/                   # Promotional materials
+├── models/                  # ML / design models
+├── old/                     # Archived code (backward compat)
+└── contextimages/           # Design inspiration and moodboards
 ```
+
+## Device Provisioning Flow
+
+1. Open the app and tap **Link Device**
+2. Hold your NFC tag against the phone
+3. App reads the tag UID and writes wallet info to the tag
+4. A **signature prompt** appears with transaction details
+5. Tap **Sign** — the app SHA-256 hashes your tag UID, calls `device_registry.register()` on Soroban, and polls for confirmation
+6. Device is linked and registered on-chain
 
 ## Getting Started
 
@@ -181,18 +209,15 @@ cd frontend
 npm test
 ```
 
-## Device Provisioning Flow
 
-1. Open the app and tap **Link Device**
-2. Hold your NFC tag against the phone
-3. App reads the tag UID and writes wallet info to the tag
-4. A **signature prompt** appears with transaction details
-5. Tap **Sign** — the app SHA-256 hashes your tag UID, calls `device_registry.register()` on Soroban, and polls for confirmation
-6. Device is linked and registered on-chain
 
-## Screenshots
+## Team
 
-*Screenshots coming soon.*
+| Role | Name |
+|------|------|
+| Fullstack Developer | Richie Christian De Guzman |
+| Backend Developer | Johnrick Rabara |
+| UI/UX Designer | Jefferson Tuparan |
 
 ## License
 

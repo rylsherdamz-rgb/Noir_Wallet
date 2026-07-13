@@ -45,6 +45,7 @@ import { StyleSheet, AppState, Linking, Alert, AppStateStatus } from 'react-nati
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import * as SplashScreen from 'expo-splash-screen'
 import * as Notifications from 'expo-notifications'
+import { useFonts } from 'expo-font'
 import { nfcService } from '@/services/nfc'
 import { useAppStore } from '@/store/useAppStore'
 import { apiService } from '@/services/api'
@@ -58,6 +59,14 @@ const PIN_KEY = 'app_pin_hash'
 export default function RootLayout() {
   const router = useRouter()
   const [ready, setReady] = useState(false)
+  const [fontsLoaded, fontError] = useFonts({
+    'Jost-Regular': require('../assets/fonts/Jost-Regular.ttf'),
+    'Jost-Medium': require('../assets/fonts/Jost-Medium.ttf'),
+    'Jost-SemiBold': require('../assets/fonts/Jost-SemiBold.ttf'),
+  })
+  // Treat a font-load failure as "done" so the app still renders (system font
+  // fallback) rather than sitting on a blank screen behind the splash.
+  const fontsReady = fontsLoaded || !!fontError
   const setNfcSupported = useAppStore((s) => s.setNfcSupported)
   const pendingPayments = useAppStore((s) => s.pendingPayments)
   const removePendingPayment = useAppStore((s) => s.removePendingPayment)
@@ -106,10 +115,15 @@ export default function RootLayout() {
       } catch {}
 
       setReady(true)
-      await SplashScreen.hideAsync()
     }
     init()
   }, [])
+
+  // Hide the splash only once the app is ready AND the brand fonts have loaded,
+  // so the first frame the user sees is already typeset in Jost.
+  useEffect(() => {
+    if (ready && fontsReady) SplashScreen.hideAsync()
+  }, [ready, fontsReady])
 
   // Connectivity listener: flush pending payments on reconnect
   useEffect(() => {
@@ -155,7 +169,7 @@ export default function RootLayout() {
     return () => subscription.remove()
   }, [security.backgroundLockTimeoutSec])
 
-  if (!ready) return null
+  if (!ready || !fontsReady) return null
 
   return (
     <GestureHandlerRootView style={styles.root}>
