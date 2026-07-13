@@ -25,11 +25,11 @@
 
 <div align="center">
 
-<a href="https://youtu.be/vmZQq-p2PUk">
+<a href="https://x.com/ChichiCode0/status/2076692282452148572">
   <img src="https://img.youtube.com/vi/vmZQq-p2PUk/maxresdefault.jpg" width="100%" style="max-width:960px;border-radius:16px;border:1px solid #3A3A3A;box-shadow:0 8px 32px rgba(0,0,0,0.5)" alt="Noir Wallet Demo">
 </a>
 
-<em>▶ Click the image above to watch the 95-second product walkthrough on YouTube.</em>
+<em>▶ Click to watch the product walkthrough on X (Twitter).</em>
 
 <em>▶ A 95-second, Google-style product walkthrough — narrated voiceover, the x402 tap-to-pay flow, per-device agent wallets, and the full mobile app.</em>
 
