@@ -2,22 +2,32 @@
 
 **x402 — Contactless payments powered by Stellar. No app opens. No confirmation. Just tap and go.**
 
-**Live preview:** *Coming soon*
+**Hackathon Track:** Payment & Consumer Applications
+
+## Screenshots
+
+<div align="center">
+
+<img src="frontend/assets/screenshots/intro.png" width="32%" alt="Intro">
+<img src="frontend/assets/screenshots/dashboard.png" width="32%" alt="Dashboard">
+<img src="frontend/assets/screenshots/welcome.png" width="32%" alt="Welcome">
+<img src="frontend/assets/screenshots/link.png" width="32%" alt="Device Linking">
+<img src="frontend/assets/screenshots/agent.png" width="32%" alt="x402 Agent">
+<img src="frontend/assets/screenshots/taptopay.png" width="32%" alt="Tap to Pay">
+<img src="frontend/assets/screenshots/send.png" width="32%" alt="Send">
+<img src="frontend/assets/screenshots/receive.png" width="32%" alt="Receive">
+<img src="frontend/assets/screenshots/transactions.png" width="32%" alt="Transactions">
+
+</div>
 
 ## Demo
 
 <div align="center">
 
-https://github.com/rylsherdamz-rgb/Noir_Wallet/raw/main/assets/noir-demo.mp4
-
 <video src="https://github.com/rylsherdamz-rgb/Noir_Wallet/raw/main/assets/noir-demo.mp4" poster="assets/noir-demo-poster.jpg" controls muted width="820">
   Your browser can't play this video.
   <a href="https://github.com/rylsherdamz-rgb/Noir_Wallet/raw/main/assets/noir-demo.mp4">Download / watch the demo (MP4)</a>.
 </video>
-
-<a href="https://github.com/rylsherdamz-rgb/Noir_Wallet/raw/main/assets/noir-demo.mp4">
-  <img src="assets/noir-demo-poster.jpg" alt="Noir Wallet — product demo (click to play)" width="820">
-</a>
 
 <em>▶ A 95-second, Google-style product walkthrough — narrated voiceover, the x402 tap-to-pay flow, per-device agent wallets, and the full mobile app. Built with Remotion.</em>
 
@@ -199,33 +209,7 @@ cd frontend
 npm test
 ```
 
-## Screenshots
 
-<div align="center">
-
-### Title & Problem
-
-<img src="frontend/assets/screenshots/intro.png" width="48%" alt="Intro — Noir Wallet">
-<img src="frontend/assets/screenshots/problem.png" width="48%" alt="Problem — tap friction">
-
-### Walkthrough
-
-<img src="frontend/assets/screenshots/welcome.png" width="48%" alt="Welcome — wallet identity">
-<img src="frontend/assets/screenshots/dashboard.png" width="48%" alt="Dashboard — portfolio overview">
-<img src="frontend/assets/screenshots/link.png" width="48%" alt="Device linking — NFC provisioning">
-<img src="frontend/assets/screenshots/agent.png" width="48%" alt="x402 Agent — per-device wallets">
-<img src="frontend/assets/screenshots/send.png" width="48%" alt="Send — instant transfers">
-<img src="frontend/assets/screenshots/receive.png" width="48%" alt="Receive — QR payments">
-<img src="frontend/assets/screenshots/transactions.png" width="48%" alt="Transaction history">
-
-### Tap to Pay
-
-<img src="frontend/assets/screenshots/taptopay.png" width="48%" alt="Tap to Pay — x402 moment">
-<img src="frontend/assets/screenshots/outro.png" width="48%" alt="Outro — tap the future">
-
-</div>
-
-*Rendered from the [NoirDemo](./promotion) Remotion composition at 1920×1080.*
 
 ## Team
 
