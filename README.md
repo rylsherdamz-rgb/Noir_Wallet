@@ -25,10 +25,11 @@
 
 <div align="center">
 
-<video src="assets/noir-demo.mp4" poster="assets/noir-demo-poster.jpg" controls muted loop width="100%" style="max-width:960px;border-radius:16px;border:1px solid #3A3A3A;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
-  Your browser can't play this video.
-  <a href="assets/noir-demo.mp4">Download / watch the demo (MP4)</a>.
-</video>
+<a href="https://youtu.be/vmZQq-p2PUk">
+  <img src="assets/noir-demo-poster.jpg" width="100%" style="max-width:960px;border-radius:16px;border:1px solid #3A3A3A;box-shadow:0 8px 32px rgba(0,0,0,0.5)" alt="Noir Wallet Demo">
+</a>
+
+<em>▶ Click the image above to watch the 95-second product walkthrough on YouTube.</em>
 
 <em>▶ A 95-second, Google-style product walkthrough — narrated voiceover, the x402 tap-to-pay flow, per-device agent wallets, and the full mobile app. Built with Remotion.</em>
 
