@@ -26,7 +26,7 @@
 <div align="center">
 
 <a href="https://x.com/ChichiCode0/status/2076692282452148572">
-  <img src="assets/noir-demo-poster.jpg" width="100%" style="max-width:960px;border-radius:16px;border:1px solid #3A3A3A;box-shadow:0 8px 32px rgba(0,0,0,0.5)" alt="Noir Wallet Demo">
+  <img src="assets/noir-demo-preview.gif" width="100%" style="max-width:960px;border-radius:16px;border:1px solid #3A3A3A;box-shadow:0 8px 32px rgba(0,0,0,0.5)" alt="Noir Wallet Demo">
 </a>
 
 <em>▶ Click to watch the product walkthrough on X (Twitter).</em>
