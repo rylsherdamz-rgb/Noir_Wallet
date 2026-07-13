@@ -26,7 +26,7 @@
 <div align="center">
 
 <a href="https://youtu.be/vmZQq-p2PUk">
-  <img src="assets/noir-demo-poster.jpg" width="100%" style="max-width:960px;border-radius:16px;border:1px solid #3A3A3A;box-shadow:0 8px 32px rgba(0,0,0,0.5)" alt="Noir Wallet Demo">
+  <img src="https://img.youtube.com/vi/vmZQq-p2PUk/maxresdefault.jpg" width="100%" style="max-width:960px;border-radius:16px;border:1px solid #3A3A3A;box-shadow:0 8px 32px rgba(0,0,0,0.5)" alt="Noir Wallet Demo">
 </a>
 
 <em>▶ Click the image above to watch the 95-second product walkthrough on YouTube.</em>
