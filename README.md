@@ -10,15 +10,14 @@
 
 <div align="center">
 
-<img src="frontend/assets/screenshots/intro.png" width="32%" alt="Intro">
-<img src="frontend/assets/screenshots/dashboard.png" width="32%" alt="Dashboard">
-<img src="frontend/assets/screenshots/welcome.png" width="32%" alt="Welcome">
-<img src="frontend/assets/screenshots/link.png" width="32%" alt="Device Linking">
-<img src="frontend/assets/screenshots/agent.png" width="32%" alt="x402 Agent">
-<img src="frontend/assets/screenshots/taptopay.png" width="32%" alt="Tap to Pay">
-<img src="frontend/assets/screenshots/send.png" width="32%" alt="Send">
-<img src="frontend/assets/screenshots/receive.png" width="32%" alt="Receive">
-<img src="frontend/assets/screenshots/transactions.png" width="32%" alt="Transactions">
+<img src="frontend/assets/screenshots/dashboard.png" width="80%" alt="Dashboard">
+<img src="frontend/assets/screenshots/welcome.png" width="80%" alt="Welcome">
+<img src="frontend/assets/screenshots/link.png" width="80%" alt="Device Linking">
+<img src="frontend/assets/screenshots/agent.png" width="80%" alt="x402 Agent">
+<img src="frontend/assets/screenshots/taptopay.png" width="80%" alt="Tap to Pay">
+<img src="frontend/assets/screenshots/send.png" width="80%" alt="Send">
+<img src="frontend/assets/screenshots/receive.png" width="80%" alt="Receive">
+<img src="frontend/assets/screenshots/transactions.png" width="80%" alt="Transactions">
 
 </div>
 
