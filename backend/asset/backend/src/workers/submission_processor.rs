@@ -13,7 +13,7 @@ use tokio::time::sleep;
 ///   1. The client submitted a user-signed inner transaction (stored as
 ///      `signed_envelope_xdr`).
 ///   2. This worker wraps it in a fee-bump signed by the channel key and
-///      submits the fee-bump to Horizon.
+///      submits the fee-bump via Soroban RPC.
 pub struct SubmissionProcessor {
     db: Arc<DeviceRepository>,
     stellar: Arc<StellarClient>,
@@ -110,7 +110,7 @@ impl SubmissionProcessor {
         // Wrap in a channel-signed fee-bump.
         let fee_bump_xdr = self.builder.build_fee_bump(&signed_inner, channel_signer)?;
 
-        // Submit to Horizon.
+        // Submit via Soroban RPC.
         let tx_hash = self.stellar.submit_transaction(&fee_bump_xdr).await?;
 
         self.db

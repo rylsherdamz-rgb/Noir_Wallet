@@ -2,51 +2,36 @@ use crate::errors::{PaymentError, Result};
 use crate::transaction_builder::TransactionBuilder;
 use crate::transaction_signer::TransactionSigner;
 use reqwest::Client;
+use serde_json::{json, Value};
 use std::sync::Arc;
 
-/// Thin Horizon client for account lookups + transaction submission.
+/// Stellar client using Horizon REST for account lookups (reliable for all
+/// account types) and Soroban RPC for transaction submission.
 ///
-/// Submission uses Horizon's `POST /transactions` (form-encoded `tx=`), which
-/// is the correct endpoint for classic payments and fee-bumps — not the
-/// Soroban JSON-RPC. `rpc_url` (Soroban) is retained for contract calls.
+/// Horizon and Soroban RPC ingest the ledger independently — Horizon indexes
+/// accounts seconds before RPC does. For `get_account_sequence` and
+/// `get_account_balance` we use Horizon REST directly to avoid "account not
+/// found" errors on classic accounts that the RPC hasn't picked up yet.
+///
+/// Transaction submission goes through Soroban RPC's `sendTransaction`, which
+/// accepts all Stellar transaction types including classic payments and fee-bumps.
 #[derive(Clone)]
 #[allow(dead_code)]
 pub struct StellarClient {
     http_client: Arc<Client>,
-    rpc_url: String,
     horizon_url: String,
+    rpc_url: String,
     network: String,
     pub master_account: String,
     pub master_key: String,
 }
 
-#[derive(serde::Deserialize, Debug)]
-struct AccountResponse {
-    sequence: String,
-    balances: Vec<BalanceInfo>,
-}
-
-#[derive(serde::Deserialize, Debug)]
-struct BalanceInfo {
-    balance: String,
-    #[serde(rename = "asset_type")]
-    asset_type: String,
-}
-
 impl StellarClient {
-    pub fn new(rpc_url: String, network: String) -> Self {
-        let horizon_url = match network.as_str() {
-            "public" | "pubnet" | "mainnet" => "https://horizon.stellar.org".to_string(),
-            _ => "https://horizon-testnet.stellar.org".to_string(),
-        };
-        Self::with_horizon(rpc_url, horizon_url, network)
-    }
-
-    pub fn with_horizon(rpc_url: String, horizon_url: String, network: String) -> Self {
+    pub fn new(horizon_url: String, rpc_url: String, network: String) -> Self {
         StellarClient {
             http_client: Arc::new(Client::new()),
-            rpc_url,
             horizon_url,
+            rpc_url,
             network,
             master_account: String::new(),
             master_key: String::new(),
@@ -59,14 +44,48 @@ impl StellarClient {
         self
     }
 
+    async fn rpc_call(&self, method: &str, params: Value) -> Result<Value> {
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": method,
+            "params": params,
+        });
+
+        let resp = self
+            .http_client
+            .post(&self.rpc_url)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| {
+                PaymentError::StellarRpcError(format!("RPC request failed ({method}): {e}"))
+            })?;
+
+        let json: Value = resp.json().await.map_err(|e| {
+            PaymentError::StellarRpcError(format!("RPC response parse failed ({method}): {e}"))
+        })?;
+
+        if let Some(err) = json.get("error") {
+            return Err(PaymentError::StellarRpcError(format!(
+                "RPC error ({method}): {}",
+                err.get("message").and_then(|m| m.as_str()).unwrap_or("unknown")
+            )));
+        }
+
+        json.get("result")
+            .cloned()
+            .ok_or_else(|| PaymentError::StellarRpcError(format!("RPC returned no result ({method})")))
+    }
+
     /// Fund an account on testnet via Friendbot. No-op error on mainnet.
     pub async fn fund_testnet(&self, address: &str) -> Result<()> {
-        if !matches!(self.network.as_str(), "testnet" | "" ) {
+        if !matches!(self.network.as_str(), "testnet" | "") {
             return Err(PaymentError::ConfigError(
                 "Friendbot funding is only available on testnet".to_string(),
             ));
         }
-        let url = format!("https://friendbot.stellar.org/?addr={address}");
+        let url = format!("https://friendbot-testnet.stellar.org/?addr={address}");
         let resp = self
             .http_client
             .get(&url)
@@ -85,112 +104,130 @@ impl StellarClient {
         Ok(())
     }
 
-    /// Current sequence number of an account (from Horizon).
+    /// Fetch a raw Horizon account response. Returns `None` on 404, errors on
+    /// other HTTP failures.
+    async fn horizon_get_account(&self, address: &str) -> Result<Option<Value>> {
+        let url = format!("{}/accounts/{}", self.horizon_url.trim_end_matches('/'), address);
+        let resp = self.http_client.get(&url).send().await.map_err(|e| {
+            PaymentError::StellarRpcError(format!("Horizon request failed: {e}"))
+        })?;
+        match resp.status() {
+            reqwest::StatusCode::OK => {
+                let json: Value = resp.json().await.map_err(|e| {
+                    PaymentError::StellarRpcError(format!("Horizon parse failed: {e}"))
+                })?;
+                Ok(Some(json))
+            }
+            reqwest::StatusCode::NOT_FOUND => Ok(None),
+            status => {
+                let body = resp.text().await.unwrap_or_default();
+                Err(PaymentError::StellarRpcError(format!(
+                    "Horizon error ({}): {body}",
+                    status.as_u16()
+                )))
+            }
+        }
+    }
+
+    /// Current sequence number of an account from Horizon REST.
+    /// Uses Horizon because Soroban RPC does not reliably index classic accounts.
     pub async fn get_account_sequence(&self, address: &str) -> Result<u64> {
-        let account = self.load_account(address).await?;
-        account.sequence.parse::<u64>().map_err(|_| {
+        let account = self.horizon_get_account(address).await?
+            .ok_or_else(|| PaymentError::StellarRpcError(format!(
+                "Account {address} not found on Horizon"
+            )))?;
+        let seq_str = account
+            .get("sequence")
+            .and_then(|s| s.as_str())
+            .ok_or_else(|| PaymentError::StellarRpcError("No sequence in Horizon response".to_string()))?;
+        seq_str.parse::<u64>().map_err(|_| {
             PaymentError::StellarRpcError("Invalid sequence number format".to_string())
         })
     }
 
-    async fn load_account(&self, address: &str) -> Result<AccountResponse> {
-        let url = format!("{}/accounts/{}", self.horizon_url, address);
-        let response = self
-            .http_client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| PaymentError::StellarRpcError(format!("Failed to fetch account: {e}")))?;
-
-        if !response.status().is_success() {
-            return Err(PaymentError::StellarRpcError(format!(
-                "Account {address} not found on {}",
-                self.network
-            )));
-        }
-
-        response.json::<AccountResponse>().await.map_err(|e| {
-            PaymentError::StellarRpcError(format!("Failed to parse account response: {e}"))
-        })
+    /// Get native XLM balance in stroops from Horizon REST.
+    /// Uses Horizon for the same reason as `get_account_sequence`.
+    pub async fn get_account_balance(&self, address: &str) -> Result<i64> {
+        let account = self.horizon_get_account(address).await?
+            .ok_or_else(|| PaymentError::StellarRpcError(format!(
+                "Account {address} not found on Horizon"
+            )))?;
+        let balances = account
+            .get("balances")
+            .and_then(|b| b.as_array())
+            .ok_or_else(|| PaymentError::StellarRpcError("No balances in Horizon response".to_string()))?;
+        let native = balances
+            .iter()
+            .find(|b| b.get("asset_type").and_then(|t| t.as_str()) == Some("native"))
+            .ok_or_else(|| PaymentError::StellarRpcError("No native balance".to_string()))?;
+        let balance_str = native
+            .get("balance")
+            .and_then(|b| b.as_str())
+            .ok_or_else(|| PaymentError::StellarRpcError("No balance field".to_string()))?;
+        // Horizon returns XLM as a decimal string; convert to stroops.
+        let xlm: f64 = balance_str.parse().map_err(|e| {
+            PaymentError::StellarRpcError(format!("Invalid XLM balance: {e}"))
+        })?;
+        Ok((xlm * 10_000_000.0) as i64)
     }
 
-    /// Submit a base64 transaction envelope to Horizon. Returns the tx hash.
-    pub async fn submit_transaction(&self, envelope_xdr: &str) -> Result<String> {
-        let url = format!("{}/transactions", self.horizon_url);
-
-        let response = self
-            .http_client
-            .post(&url)
-            .form(&[("tx", envelope_xdr)])
-            .send()
-            .await
-            .map_err(|e| {
-                PaymentError::StellarRpcError(format!("Failed to submit transaction: {e}"))
-            })?;
-
-        let status = response.status();
-        let body: serde_json::Value = response.json().await.map_err(|e| {
-            PaymentError::StellarRpcError(format!("Failed to parse submit response: {e}"))
-        })?;
-
-        if status.is_success() {
-            return body
-                .get("hash")
-                .and_then(|h| h.as_str())
-                .map(|s| s.to_string())
-                .ok_or_else(|| {
-                    PaymentError::SubmissionFailed("No transaction hash in response".to_string())
-                });
+    /// Poll Horizon until the account is visible or timeout. Returns Ok(()) once
+    /// the account appears, Err if timeout expires. Uses 1s intervals.
+    pub async fn wait_for_account(&self, address: &str, max_attempts: u32) -> Result<()> {
+        for i in 0..max_attempts {
+            if self.horizon_get_account(address).await?.is_some() {
+                return Ok(());
+            }
+            if i < max_attempts - 1 {
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            }
         }
-
-        // Horizon problem+json: surface the transaction/operation result codes.
-        let codes = body
-            .get("extras")
-            .and_then(|e| e.get("result_codes"))
-            .map(|c| c.to_string())
-            .unwrap_or_else(|| body.to_string());
-        Err(PaymentError::SubmissionFailed(format!(
-            "Horizon rejected submission ({status}): {codes}"
+        Err(PaymentError::StellarRpcError(format!(
+            "Account {address} not found on Horizon after {max_attempts}s"
         )))
     }
 
-    pub async fn get_transaction_status(&self, tx_hash: &str) -> Result<String> {
-        let url = format!("{}/transactions/{}", self.horizon_url, tx_hash);
+    /// Submit a base64 transaction envelope to the Soroban RPC. Returns the tx hash.
+    pub async fn submit_transaction(&self, envelope_xdr: &str) -> Result<String> {
+        let result = self
+            .rpc_call("sendTransaction", json!({ "transaction": envelope_xdr }))
+            .await?;
 
-        let response = self.http_client.get(&url).send().await.map_err(|e| {
-            PaymentError::StellarRpcError(format!("Failed to fetch transaction: {e}"))
-        })?;
+        let status = result
+            .get("status")
+            .and_then(|s| s.as_str())
+            .unwrap_or("ERROR");
 
-        match response.status().as_u16() {
-            200 => {
-                let body: serde_json::Value = response.json().await.map_err(|e| {
-                    PaymentError::StellarRpcError(format!("Failed to parse tx response: {e}"))
-                })?;
-                if body.get("successful").and_then(|s| s.as_bool()).unwrap_or(false) {
-                    Ok("confirmed".to_string())
-                } else {
-                    Ok("failed".to_string())
-                }
-            }
-            404 => Ok("pending".to_string()),
-            _ => Err(PaymentError::StellarRpcError(
-                "Failed to check transaction status".to_string(),
-            )),
+        if status == "ERROR" {
+            let err_msg = result
+                .get("errorResult")
+                .and_then(|e| e.get("resultString"))
+                .and_then(|s| s.as_str())
+                .unwrap_or("Transaction rejected");
+            return Err(PaymentError::SubmissionFailed(err_msg.to_string()));
         }
+
+        result
+            .get("hash")
+            .and_then(|h| h.as_str())
+            .map(|s| s.to_string())
+            .ok_or_else(|| PaymentError::SubmissionFailed("No transaction hash in RPC response".to_string()))
     }
 
-    pub async fn get_account_balance(&self, address: &str) -> Result<i64> {
-        let account = self.load_account(address).await?;
-        let native = account
-            .balances
-            .iter()
-            .find(|b| b.asset_type == "native")
-            .ok_or_else(|| PaymentError::StellarRpcError("No native balance found".to_string()))?;
-        let xlm = native
-            .balance
-            .parse::<f64>()
-            .map_err(|e| PaymentError::StellarRpcError(format!("Invalid balance format: {e}")))?;
-        Ok((xlm * 10_000_000.0) as i64)
+    pub async fn get_transaction_status(&self, tx_hash: &str) -> Result<String> {
+        let result = self
+            .rpc_call("getTransaction", json!({ "hash": tx_hash }))
+            .await?;
+
+        match result
+            .get("status")
+            .and_then(|s| s.as_str())
+            .unwrap_or("NOT_FOUND")
+        {
+            "SUCCESS" => Ok("confirmed".to_string()),
+            "FAILED" => Ok("failed".to_string()),
+            _ => Ok("pending".to_string()),
+        }
     }
 
     /// Top up a channel from the configured master account with a real signed

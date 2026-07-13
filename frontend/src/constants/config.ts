@@ -6,6 +6,8 @@ const ENV = {
     networkPassphrase: 'Test SDF Network ; September 2015',
     apiBaseUrl: 'http://localhost:8080',
     pdaxApiBaseUrl: 'https://api-sandbox.pdax.ph',
+    // Use Stellar's public RPC. A third-party indexer can lag Horizon or omit
+    // classic-account entries, even when the account is confirmed on testnet.
     sorobanRpcUrl: 'https://soroban-testnet.stellar.org',
   },
   prod: {

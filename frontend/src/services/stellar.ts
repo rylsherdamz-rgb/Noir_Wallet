@@ -14,7 +14,7 @@ class StellarService {
   private networkPassphrase: string
 
   constructor() {
-    this.server = new Horizon.Server(Config.horizonUrl)
+    this.server = new Horizon.Server(Config.horizonUrl!)
     this.networkPassphrase = Config.networkPassphrase
   }
 
@@ -27,7 +27,6 @@ class StellarService {
   }
 
   async fundTestnetAccount(publicKey: string): Promise<boolean> {
-    // Check if already exists first
     try {
       await this.server.loadAccount(publicKey)
       console.log('Account already exists on-chain')
@@ -54,7 +53,6 @@ class StellarService {
 
       if (json.hash) {
         console.log('Account funded via Friendbot:', json.hash)
-        // Wait for the account to be visible on-chain
         for (let i = 0; i < 10; i++) {
           try {
             await this.server.loadAccount(publicKey)
@@ -88,9 +86,7 @@ class StellarService {
       const account = await this.server.loadAccount(publicKey)
       const balances = account.balances as any[]
       const xlmBalance = balances.find((b) => b.asset_type === 'native')
-      const usdcBalance = balances.find(
-        (b) => b.asset_code === 'USDC',
-      )
+      const usdcBalance = balances.find((b) => b.asset_code === 'USDC')
 
       return {
         xlm: parseFloat(xlmBalance?.balance ?? '0'),
@@ -147,13 +143,6 @@ class StellarService {
     }
   }
 
-  /**
-   * Build and sign a payment transaction with the user's wallet and return the
-   * base64 XDR **without submitting**. This is the non-custodial half of the
-   * fee-bump flow: the signed inner tx is sent to the backend (`/payment`),
-   * which wraps it in a channel-signed fee-bump and submits it — so the user
-   * never pays the network fee and never exposes their secret to the backend.
-   */
   async buildSignedPaymentXdr(params: {
     sourceSecret: string
     destination: string
@@ -183,7 +172,6 @@ class StellarService {
       )
 
       if (params.memo && params.memo.trim()) {
-        // Memo import kept local to avoid touching the module import list.
         const { Memo } = require('@stellar/stellar-sdk')
         builder = builder.addMemo(Memo.text(params.memo.slice(0, 28)))
       }
