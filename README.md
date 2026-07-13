@@ -31,7 +31,7 @@
 
 <em>▶ Click the image above to watch the 95-second product walkthrough on YouTube.</em>
 
-<em>▶ A 95-second, Google-style product walkthrough — narrated voiceover, the x402 tap-to-pay flow, per-device agent wallets, and the full mobile app. Built with Remotion.</em>
+<em>▶ A 95-second, Google-style product walkthrough — narrated voiceover, the x402 tap-to-pay flow, per-device agent wallets, and the full mobile app.</em>
 
 </div>
 
