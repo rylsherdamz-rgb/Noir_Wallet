@@ -56,7 +56,8 @@ A world where:
 - **Stellar-Powered**: Fast, low-cost settlement via the Stellar network
 - **Soroban Smart Contracts**: `device_registry` for hardware-to-wallet mapping
 - **Wallet-Authorized Registration**: Device owners sign their own registration via `wallet.require_auth()`
-- **PDAX Fiat Bridge**: Optional PHP cash-out via PDAX integration
+- **PDAX Fiat Bridge**: Two-way PHP ↔ USDC bridge — cash-in (PHP → USDC to wallet) and cash-out (USDC → PHP)
+- **Fee-Bump Channels**: Card wallets never hold XLM for fees — a rotating pool of channel accounts fee-bumps every tap
 - **Custom Agents**: Per-device agent wallets with independent balances
 - **NFC Provisioning**: Link new devices directly from the app
 - **Dark Theme**: Premium noir aesthetic with gold accents
@@ -112,6 +113,34 @@ Mobile App / POS Terminal
 | `unregister` | `device_hash: BytesN<32>` | Remove a device (admin only) |
 | `get_wallet` | `device_hash: BytesN<32>` | Look up wallet by device hash |
 
+## Settlement
+
+Every tap runs through the payment gateway (`backend/asset/backend`, Rust + actix-web) before it ever touches Stellar:
+
+1. **Hash & de-dupe** — the device serial is SHA-256 hashed, and the request's `idempotency_key` is checked against prior transactions first. A retried tap replays the stored result instead of double-charging.
+2. **Rate limit & spend check** — a per-device rate limiter and daily spend-limit validator reject taps that come in too fast or exceed the card's configured budget.
+3. **PIN step-up above 10 XLM** — cards with a PIN on file require it for any single payment over 10 XLM (`PIN_REQUIRED_ABOVE_STROOPS`), so a cloned or stolen UID alone can't move large sums.
+4. **Sign & fee-bump** — the card's Stellar keypair is decrypted from encrypted-at-rest custody and signs the payment; a rotating **fee channel** (`FeeChannelManager`) fee-bumps the transaction so the card wallet never needs to hold XLM for fees.
+5. **Submit & settle** — the fee-bumped envelope is submitted to Stellar and confirmed by a background poller (`workers/confirmation_poller.rs`); the frontend gets `202 Accepted` immediately and polls `/payment/{transaction_id}` for final status.
+
+### Endpoints
+
+| Route | Method | Description |
+|-------|--------|-------------|
+| `/payment/tap` | POST | The x402 tap-to-pay flow described above |
+| `/payment` | POST | Direct payment submission |
+| `/payment/{transaction_id}` | GET | Poll settlement status |
+| `/payments/initiate` | POST | Frontend-initiated payment (202 async) |
+| `/payments/batch` | POST | Batch submission for the offline queue |
+| `/channels` / `/channels/{address}` | GET | Fee channel pool status and balances |
+| `/pdax/cash-in` | POST | PHP → USDC: firm quote, order, withdraw to wallet |
+| `/pdax/cash-out` | POST | USDC → PHP: liquidate crypto back to fiat |
+| `/devices/register`, `/cards/provision`, `/cards/revoke` | POST | Device/card lifecycle |
+
+### PDAX Fiat Bridge
+
+Cash-in and cash-out both go through PDAX's quote → order → withdraw flow (`src/pdax.rs`): a firm quote is requested for the PHP/USDC pair, an order is placed with a fresh idempotency ID, and — for cash-in — USDC is withdrawn on-chain straight to the user's Stellar wallet.
+
 ## Project Structure
 
 ```
@@ -137,6 +166,26 @@ Noir_Wallet/
 ├── old/                     # Archived code (backward compat)
 └── contextimages/           # Design inspiration and moodboards
 ```
+
+## Security
+
+- **Hashed device identity** — raw NFC/RFID UIDs are never stored; every lookup uses a SHA-256 hash of the serial (`hash_device_serial`)
+- **Idempotency keys** — every tap carries a client-generated key; a replayed request returns the original result instead of re-charging
+- **Per-device rate limiting** — the gateway's `rate_limiter` rejects taps that arrive faster than the configured window, blocking double-tap and brute-force patterns
+- **Spend-limit enforcement** — `validator.validate_spend_limit()` checks each payment against the card's daily budget before it's signed
+- **PIN step-up** — a second factor is required for any single tap above 10 XLM
+- **Encrypted-at-rest custody** — card signing keys are decrypted on demand via a KMS-backed `KeyManager` (`crypto::decrypt_at_rest`), never stored in plaintext
+- **API key middleware** — every gateway request is authenticated at the HTTP layer before it reaches a handler
+- **Wallet-authorized on-chain registration** — device linking on Soroban requires `wallet.require_auth()`, so only the wallet owner can register their own device
+
+## Future Improvements
+
+Two additional Soroban contracts are scoped to close the remaining gaps between what the gateway already enforces off-chain and what's verifiable on-chain — and to give the deployed contract surface (currently just `device_registry`) more weight for a mainnet/production ask:
+
+- **`terminal_registry`** — on-chain whitelisting for POS terminals (`register_terminal`, `authorized_terminals`), so only approved hardware can trigger a payment resolution. Pairs with **signed NFC taps**: each tap includes a terminal-signed nonce that the contract verifies, moving replay protection from the gateway's in-memory rate limiter into an on-chain, auditable guarantee (`last_tx_at` per device). This is the feature most worth funding — it's the difference between "we trust our own backend" and "the chain itself rejects a replayed or spoofed tap."
+- **`settlement`** — on-chain merchant settlement/escrow that ties a batch of confirmed payments to a PDAX cash-out reference, so merchants can verify their payout on-chain instead of trusting the gateway's ledger alone.
+
+Together with `device_registry`, this brings the contract surface to three — each with a distinct, auditable responsibility (identity, terminal trust, settlement).
 
 ## Device Provisioning Flow
 
