@@ -4,19 +4,20 @@
 
 **Hackathon Track:** Payment & Consumer Applications
 
+> 📊 **[View Pitch Deck](ppt/Noir-Wallet-Pitch.pptx)** — Slide deck covering the product, architecture, market, and demo walkthrough.
+
 ## Screenshots
 
 <div align="center">
 
-<img src="frontend/assets/screenshots/intro.png" width="32%" alt="Intro">
-<img src="frontend/assets/screenshots/dashboard.png" width="32%" alt="Dashboard">
-<img src="frontend/assets/screenshots/welcome.png" width="32%" alt="Welcome">
-<img src="frontend/assets/screenshots/link.png" width="32%" alt="Device Linking">
-<img src="frontend/assets/screenshots/agent.png" width="32%" alt="x402 Agent">
-<img src="frontend/assets/screenshots/taptopay.png" width="32%" alt="Tap to Pay">
-<img src="frontend/assets/screenshots/send.png" width="32%" alt="Send">
-<img src="frontend/assets/screenshots/receive.png" width="32%" alt="Receive">
-<img src="frontend/assets/screenshots/transactions.png" width="32%" alt="Transactions">
+<img src="frontend/assets/screenshots/dashboard.png" width="80%" alt="Dashboard">
+<img src="frontend/assets/screenshots/welcome.png" width="80%" alt="Welcome">
+<img src="frontend/assets/screenshots/link.png" width="80%" alt="Device Linking">
+<img src="frontend/assets/screenshots/agent.png" width="80%" alt="x402 Agent">
+<img src="frontend/assets/screenshots/taptopay.png" width="80%" alt="Tap to Pay">
+<img src="frontend/assets/screenshots/send.png" width="80%" alt="Send">
+<img src="frontend/assets/screenshots/receive.png" width="80%" alt="Receive">
+<img src="frontend/assets/screenshots/transactions.png" width="80%" alt="Transactions">
 
 </div>
 
@@ -24,12 +25,13 @@
 
 <div align="center">
 
-<video src="https://github.com/rylsherdamz-rgb/Noir_Wallet/raw/main/assets/noir-demo.mp4" poster="assets/noir-demo-poster.jpg" controls muted width="820">
-  Your browser can't play this video.
-  <a href="https://github.com/rylsherdamz-rgb/Noir_Wallet/raw/main/assets/noir-demo.mp4">Download / watch the demo (MP4)</a>.
-</video>
+<a href="https://x.com/ChichiCode0/status/2076692282452148572">
+  <img src="assets/noir-demo-preview.gif" width="100%" style="max-width:960px;border-radius:16px;border:1px solid #3A3A3A;box-shadow:0 8px 32px rgba(0,0,0,0.5)" alt="Noir Wallet Demo">
+</a>
 
-<em>▶ A 95-second, Google-style product walkthrough — narrated voiceover, the x402 tap-to-pay flow, per-device agent wallets, and the full mobile app. Built with Remotion.</em>
+<em>▶ Click to watch the product walkthrough on X (Twitter).</em>
+
+<em>▶ A 95-second, Google-style product walkthrough — narrated voiceover, the x402 tap-to-pay flow, per-device agent wallets, and the full mobile app.</em>
 
 </div>
 
