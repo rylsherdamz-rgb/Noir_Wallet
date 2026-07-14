@@ -109,13 +109,13 @@ Mobile App / POS Terminal
 | **agent_registry** | On-chain agent authorization per device — allows wallet owner to authorize a signing key for tap-to-pay | `wallet.require_auth()` | `backend/asset/contracts/agent_registry/` |
 | **payment_escrow** | Escrow-based settlement — wallet pre-funds, agent authorizes payments instantly, merchants claim in batch | agent auth (via `agent_registry`) | `backend/asset/contracts/payment_escrow/` |
 
-**Testnet Contract IDs** (deploy after next push):
+**Testnet Contract IDs** (deployed 2025-07-14):
 
 | Contract | ID |
 |----------|----|
-| device_registry | `CC2EBXO3BGFSFCM3DKYI4VFT7DYFFEK7YAGIGFFNLSPFRJ2QKITAQIEC` |
-| agent_registry | TBD (run `cargo test` → `soroban contract deploy`) |
-| payment_escrow | TBD (run `cargo test` → `soroban contract deploy`) |
+| device_registry | `CBADSLL33OOYRG6CXHSEWVAZVHEIGEASQDX3LMPLFSBGOAMOSIONNFS4` |
+| agent_registry | `CCBFBZEN7OI2LQC7UXBPSFAPF2O4VSC3OMK4UFPJAQV2BVZWWG6MDOVV` |
+| payment_escrow | `CD3P47NXAAESXIWU4MZ4WSB6BIPSZ3MUKRNGYJA66PLDIQ254YJKE36K` |
 
 ### Contract Methods
 
@@ -218,9 +218,9 @@ Copy `.env.example` to `.env` and configure:
 
 | Variable | Description | Current Value |
 |----------|-------------|---------------|
-| `EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT` | Soroban device registry contract ID | `CC2EBXO3BGFSFCM3DKYI4VFT7DYFFEK7YAGIGFFNLSPFRJ2QKITAQIEC` |
-| `EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT` | Soroban agent registry contract ID | (deploy and configure) |
-| `EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT` | Soroban payment escrow contract ID | (deploy and configure) |
+| `EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT` | Soroban device registry contract ID | `CBADSLL33OOYRG6CXHSEWVAZVHEIGEASQDX3LMPLFSBGOAMOSIONNFS4` |
+| `EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT` | Soroban agent registry contract ID | `CCBFBZEN7OI2LQC7UXBPSFAPF2O4VSC3OMK4UFPJAQV2BVZWWG6MDOVV` |
+| `EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT` | Soroban payment escrow contract ID | `CD3P47NXAAESXIWU4MZ4WSB6BIPSZ3MUKRNGYJA66PLDIQ254YJKE36K` |
 | `EXPO_PUBLIC_STELLAR_MASTER_KEY_ID` | Stellar master key ID | (configure per deployment) |
 | `EXPO_PUBLIC_CHANNEL_SECRET_KEY` | Fee channel secret | (configure per deployment) |
 | `EXPO_PUBLIC_ISSUER_ADDRESS` | Asset issuer address | (configure per deployment) |
