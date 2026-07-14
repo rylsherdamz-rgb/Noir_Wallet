@@ -18,6 +18,7 @@ import { apiService } from '@/services/api'
 import { NFCTag, QueuedPayment } from '@/types'
 import { nfcService } from '@/services/nfc'
 import { x402 } from '@/domain/x402'
+import { AppConfig } from '@/constants/config'
 import { NumericKeypad } from '@/components/NumericKeypad'
 import { ReadyToTapIndicator } from '@/components/ReadyToTapIndicator'
 import { DesignTokens } from '@/constants/designTokens'
@@ -88,14 +89,32 @@ export function MerchantPosScreen() {
       let txHash: string | null = null
 
       if (hasAgent && linkedDevice?.agentPublicKey) {
-        console.log('Using agent payment')
-        setAgentMode(true)
-        const result = await x402.payWithAgent({
-          destination: user?.stellarPublicKey || '',
-          amount: (parseInt(amount) / 100).toFixed(2),
-        })
-        if ('error' in result) throw new Error(result.error)
-        txHash = result.hash
+        const agentSecret = await x402.getAgentSecret()
+        const escrowContractId = AppConfig.stellar.paymentEscrowContract
+
+        if (escrowContractId && agentSecret) {
+          console.log('Using escrow payment')
+          setAgentMode(true)
+          const amountStroops = parseInt(amount) * 1000
+          const merchantAddr = user?.stellarPublicKey || ''
+          if (!merchantAddr) throw new Error('No merchant wallet configured')
+
+          txHash = await x402.authorizePayment({
+            agentSecret,
+            deviceHashHex: linkedDevice.deviceUidHash,
+            merchantAddress: merchantAddr,
+            amountStroops,
+          })
+        } else {
+          console.log('Using classic agent payment (no escrow contract)')
+          setAgentMode(true)
+          const result = await x402.payWithAgent({
+            destination: user?.stellarPublicKey || '',
+            amount: (parseInt(amount) / 100).toFixed(2),
+          })
+          if ('error' in result) throw new Error(result.error)
+          txHash = result.hash
+        }
       } else {
         // Passive NFC card: it only carries a UID and cannot sign. The merchant
         // sends the UID + amount to the backend, which signs from the card's

@@ -1,13 +1,8 @@
-import { Keypair } from '@stellar/stellar-sdk'
+import { Keypair, xdr, Address } from '@stellar/stellar-sdk'
 import { secureGetItem, secureSetItem, secureDeleteItem } from '@/services/secureStorage'
-// The network-aware singleton (NOT the legacy '@/services/stellar', whose
-// network is frozen at startup). Keeps the agent wallet on the same network
-// as the rest of the app when the user toggles testnet/mainnet.
 import { stellarService } from '@/services/stellar-service'
+import { AppConfig } from '@/constants/config'
 
-// Platform-aware secure storage: expo-secure-store on native, localStorage on
-// web preview. Redirected here so the existing SecureStore.* call sites below
-// keep working without change.
 const SecureStore = {
   getItemAsync: secureGetItem,
   setItemAsync: secureSetItem,
@@ -26,8 +21,13 @@ export interface AgentWallet {
   balanceStroops: number
   spendingBudgetStroops: number
   totalSpentStroops: number
+  escrowBalanceStroops: number
   isActive: boolean
   createdAt: string
+}
+
+function addressScVal(addr: string): xdr.ScVal {
+  return Address.fromString(addr).toScVal()
 }
 
 export const x402 = {
@@ -41,6 +41,7 @@ export const x402 = {
         balanceStroops: 0,
         spendingBudgetStroops: DEFAULT_BUDGET_XLM * 10_000_000,
         totalSpentStroops: 0,
+        escrowBalanceStroops: 0,
         isActive: true,
         createdAt: created || new Date().toISOString(),
       }
@@ -52,10 +53,13 @@ export const x402 = {
     await SecureStore.setItemAsync(AGENT_BUDGET_KEY, String(DEFAULT_BUDGET_XLM * 10_000_000))
     await SecureStore.setItemAsync(AGENT_CREATED_KEY, new Date().toISOString())
 
-    // Fund agent account and wait for it to be created on-chain
     const funded = await stellarService.fundAccount(kp.publicKey())
     if (!funded) {
-      console.warn('Agent account funding failed - account may not be usable immediately')
+      await SecureStore.deleteItemAsync(AGENT_SECRET_KEY)
+      await SecureStore.deleteItemAsync(AGENT_PUBLIC_KEY)
+      await SecureStore.deleteItemAsync(AGENT_BUDGET_KEY)
+      await SecureStore.deleteItemAsync(AGENT_CREATED_KEY)
+      throw new Error('Agent funding failed — testnet friendbot may be unavailable')
     }
 
     return {
@@ -63,11 +67,13 @@ export const x402 = {
       balanceStroops: 0,
       spendingBudgetStroops: DEFAULT_BUDGET_XLM * 10_000_000,
       totalSpentStroops: 0,
+      escrowBalanceStroops: 0,
       isActive: true,
       createdAt: new Date().toISOString(),
     }
   },
 
+  /** Legacy: classic Stellar Horizon payment. Kept for fallback. */
   async payWithAgent(params: {
     destination: string
     amount: string
@@ -91,6 +97,131 @@ export const x402 = {
     return result
   },
 
+  /**
+   * Register agent on-chain via agent_registry contract.
+   * The wallet owner signs to authorize this agent for a device hash.
+   */
+  async registerAgentOnChain(params: {
+    walletSecret: string
+    deviceHashHex: string
+    agentPublicKey: string
+  }): Promise<string> {
+    const contractId = AppConfig.stellar.agentRegistryContract
+    if (!contractId) throw new Error('agentRegistryContract not configured')
+
+    return stellarService.invokeContract({
+      contractId,
+      method: 'register_agent',
+      args: [
+        stellarService.walletAddressScVal(Keypair.fromSecret(params.walletSecret).publicKey()),
+        stellarService.deviceHashScVal(params.deviceHashHex),
+        stellarService.walletAddressScVal(params.agentPublicKey),
+      ],
+      signerSecret: params.walletSecret,
+    })
+  },
+
+  /**
+   * Fund escrow for a device. Wallet owner deposits XLM into the escrow
+   * contract so the agent can authorize payments without per-tap submission.
+   */
+  async fundEscrow(params: {
+    walletSecret: string
+    deviceHashHex: string
+    amountStroops: number
+  }): Promise<string> {
+    const contractId = AppConfig.stellar.paymentEscrowContract
+    if (!contractId) throw new Error('paymentEscrowContract not configured')
+
+    const walletKp = Keypair.fromSecret(params.walletSecret)
+    // Native XLM token address on Soroban
+    const nativeToken = Address.fromString(
+      'CAA3SBTF2LWE35FPWKHBBQ6SHH2GBNE2I6P6JGX2LXZKEF3OIKNLPMZO'
+    )
+
+    return stellarService.invokeContract({
+      contractId,
+      method: 'fund_escrow',
+      args: [
+        addressScVal(nativeToken.toString()),
+        addressScVal(walletKp.publicKey()),
+        stellarService.deviceHashScVal(params.deviceHashHex),
+        xdr.ScVal.scvI128(new xdr.Int128Parts({ lo: new xdr.Uint64(params.amountStroops), hi: new xdr.Int64(0) })),
+      ],
+      signerSecret: params.walletSecret,
+    })
+  },
+
+  /**
+   * Authorize a payment from escrow. Agent signs — no per-tap Horizon
+   * submission needed. The merchant claims in batch later.
+   */
+  async authorizePayment(params: {
+    agentSecret: string
+    deviceHashHex: string
+    merchantAddress: string
+    amountStroops: number
+  }): Promise<string> {
+    const contractId = AppConfig.stellar.paymentEscrowContract
+    if (!contractId) throw new Error('paymentEscrowContract not configured')
+
+    return stellarService.invokeContract({
+      contractId,
+      method: 'authorize',
+      args: [
+        addressScVal(Keypair.fromSecret(params.agentSecret).publicKey()),
+        stellarService.deviceHashScVal(params.deviceHashHex),
+        addressScVal(params.merchantAddress),
+        xdr.ScVal.scvI128(new xdr.Int128Parts({ lo: new xdr.Uint64(params.amountStroops), hi: new xdr.Int64(0) })),
+      ],
+      signerSecret: params.agentSecret,
+    })
+  },
+
+  /**
+   * Claim pending escrow payments as a merchant.
+   */
+  async claimPayments(params: {
+    merchantSecret: string
+  }): Promise<string> {
+    const contractId = AppConfig.stellar.paymentEscrowContract
+    if (!contractId) throw new Error('paymentEscrowContract not configured')
+
+    const nativeToken = Address.fromString(
+      'CAA3SBTF2LWE35FPWKHBBQ6SHH2GBNE2I6P6JGX2LXZKEF3OIKNLPMZO'
+    )
+    const merchantKp = Keypair.fromSecret(params.merchantSecret)
+
+    return stellarService.invokeContract({
+      contractId,
+      method: 'claim',
+      args: [
+        addressScVal(nativeToken.toString()),
+        addressScVal(merchantKp.publicKey()),
+      ],
+      signerSecret: params.merchantSecret,
+    })
+  },
+
+  /**
+   * Read escrow balance for a device hash.
+   */
+  async getEscrowBalance(deviceHashHex: string): Promise<number> {
+    const contractId = AppConfig.stellar.paymentEscrowContract
+    if (!contractId) return 0
+
+    const source = await SecureStore.getItemAsync(AGENT_PUBLIC_KEY)
+    if (!source) return 0
+
+    const result = await stellarService.readContract({
+      contractId,
+      method: 'balance_of',
+      args: [stellarService.deviceHashScVal(deviceHashHex)],
+      source,
+    })
+    return Number(result)
+  },
+
   async hasAgent(): Promise<boolean> {
     return !!(await SecureStore.getItemAsync(AGENT_SECRET_KEY))
   },
@@ -110,9 +241,14 @@ export const x402 = {
       balanceStroops: Math.floor(onChain.xlm * 10_000_000),
       spendingBudgetStroops: budget,
       totalSpentStroops: Math.max(0, totalSpent),
+      escrowBalanceStroops: 0,
       isActive: true,
       createdAt: created || new Date().toISOString(),
     }
+  },
+
+  async getAgentSecret(): Promise<string | null> {
+    return SecureStore.getItemAsync(AGENT_SECRET_KEY)
   },
 
   async clearAgent(): Promise<void> {

@@ -44,6 +44,8 @@ export const AppConfig = {
     channelSecretKey: process.env.EXPO_PUBLIC_CHANNEL_SECRET_KEY ?? '',
     issuerAddress: process.env.EXPO_PUBLIC_ISSUER_ADDRESS ?? '',
     deviceRegistryContract: process.env.EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT ?? '',
+    agentRegistryContract: process.env.EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT ?? '',
+    paymentEscrowContract: process.env.EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT ?? '',
   },
   nfc: {
     readTimeout: 5000,

@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { Buffer } from 'buffer'
 import { useAppStore } from '@/store/useAppStore'
 import { x402 } from '@/domain/x402'
 import type { AgentWallet } from '@/domain/x402'
@@ -48,7 +50,9 @@ export function AgentDetailScreen() {
       const tag = await nfcService.readTag()
       if (!tag) { setIsProcessing(false); return }
 
-      if (tag.uid !== device.deviceUidHash) {
+      const hash = sha256(new TextEncoder().encode(tag.uid))
+      const hashHex = Buffer.from(hash).toString('hex')
+      if (hashHex !== device.deviceUidHash) {
         setToast({ visible: true, type: 'info', title: 'Wrong Tag', message: `Tap your "${device.label}" tag` })
         setIsProcessing(false)
         return
