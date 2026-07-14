@@ -62,3 +62,4 @@ expo-env.d.ts
 
 # --- ML models (large, not tracked) ---
 models/
+.mainnet-cost-estimate.json
