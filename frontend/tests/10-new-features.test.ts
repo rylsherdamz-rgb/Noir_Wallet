@@ -54,6 +54,7 @@ vi.mock('react-native-qrcode-svg', () => ({
 }))
 
 vi.mock('react-native', () => ({
+  Platform: { OS: 'ios', Version: 0, select: (obj: any) => obj.ios ?? obj.default },
   StyleSheet: { create: (s: any) => s },
   View: ({ children }: any) => null,
   Text: ({ children }: any) => null,
@@ -66,6 +67,7 @@ vi.mock('react-native', () => ({
   Linking: { openURL: vi.fn(), addEventListener: vi.fn(() => ({ remove: vi.fn() })) },
   AppState: { currentState: 'active', addEventListener: vi.fn(() => ({ remove: vi.fn() })) },
   Share: { share: vi.fn() },
+  Pressable: ({ children, onPress }: any) => null,
   Animated: {
     Value: class { constructor(v: number) { this._v = v }; _v: number },
     timing: () => ({ start: (cb: any) => cb?.({ finished: true }) }),
@@ -76,6 +78,7 @@ vi.mock('react-native', () => ({
   },
   Easing: { inOut: () => ({}), ease: () => ({}) },
   FlatList: ({ data, renderItem }: any) => null,
+  default: { Platform: { OS: 'ios' } },
 }))
 
 vi.mock('@expo/vector-icons', () => ({

@@ -136,7 +136,7 @@ export const x402 = {
     const walletKp = Keypair.fromSecret(params.walletSecret)
     // Native XLM token address on Soroban
     const nativeToken = Address.fromString(
-      'CAA3SBTF2LWE35FPWKHBBQ6SHH2GBNE2I6P6JGX2LXZKEF3OIKNLPMZO'
+      'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC'
     )
 
     return stellarService.invokeContract({
@@ -188,7 +188,7 @@ export const x402 = {
     if (!contractId) throw new Error('paymentEscrowContract not configured')
 
     const nativeToken = Address.fromString(
-      'CAA3SBTF2LWE35FPWKHBBQ6SHH2GBNE2I6P6JGX2LXZKEF3OIKNLPMZO'
+      'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC'
     )
     const merchantKp = Keypair.fromSecret(params.merchantSecret)
 

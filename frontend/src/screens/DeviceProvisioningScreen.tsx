@@ -604,6 +604,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.darkGrey,
     alignItems: 'center',
     paddingTop: 8,
+    position: 'relative',
   },
   phoneNotch: {
     width: 16,

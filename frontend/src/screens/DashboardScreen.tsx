@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.xxl,
+    paddingBottom: 96,
   },
 
   // Brand bar
@@ -515,6 +515,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderGrey,
     backgroundColor: '#141414',
     marginBottom: Spacing.sm,
+    overflow: 'hidden',
   },
   discTap: {
     borderColor: colorWithOpacity(Colors.goldHi, 0.45),

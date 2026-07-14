@@ -2,26 +2,36 @@ import { defineConfig } from 'vitest/config'
 import path from 'path'
 
 export default defineConfig({
-  plugins: [{
-    name: 'mock-binaries',
-    enforce: 'pre',
-    resolveId(id: string) {
-      if (id.endsWith('.jpg') || id.endsWith('.png') || id.endsWith('.jpeg')) return id
+  plugins: [
+    {
+      name: 'mock-img-require',
+      enforce: 'pre',
+      transform(code, id) {
+        if (id.includes('node_modules')) return
+        return code.replace(/require\((['"])([^'"]+\.(?:png|jpg|jpeg))['"]\)/g, (_, q, path) => {
+          return q + 'mocked.jpg' + q
+        })
+      },
     },
-    load(id: string) {
-      if (id.endsWith('.jpg') || id.endsWith('.png') || id.endsWith('.jpeg')) return 'export default "mocked.jpg"'
+    {
+      name: 'mock-binaries',
+      enforce: 'post',
+      resolveId(id: string) {
+        if (/\.(jpg|png|jpeg)$/.test(id)) return id
+      },
+      load(id: string) {
+        if (/\.(jpg|png|jpeg)$/.test(id)) return 'export default "mocked.jpg"'
+      },
     },
-  }],
+  ],
   test: {
     globals: true,
     environment: 'node',
     setupFiles: ['./tests/setup.ts'],
     include: ['tests/**/*.test.ts'],
     testTimeout: 30000,
-    server: {
-      deps: {
-        inline: ['@stellar/stellar-sdk'],
-      },
+    deps: {
+      inline: ['@stellar/stellar-sdk'],
     },
   },
   resolve: {

@@ -223,7 +223,7 @@ function SpendMeter({ pct }: { pct: number }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surfaceBg },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.xxl },
+  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: 96 },
   screenTitle: { fontFamily: Fonts.display, fontSize: 26, color: Colors.cream, letterSpacing: 0.2, paddingTop: Spacing.md },
   screenSub: { fontSize: FontSize.sm, color: Colors.mutedWhite, marginTop: 6, marginBottom: Spacing.lg, lineHeight: 20 },
 
