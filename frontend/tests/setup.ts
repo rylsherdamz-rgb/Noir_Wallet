@@ -154,23 +154,6 @@ vi.mock('@/components/brand/NoirLogo', () => ({
   NoirLogo: ({ variant, size }: any) => null,
 }))
 
-// Mock stellar-service (prevents real network calls in x402 tests)
-vi.mock('@/services/stellar-service', () => ({
-  stellarService: {
-    fundAccount: vi.fn().mockResolvedValue(true),
-    submitPayment: vi.fn().mockResolvedValue({ hash: 'mock-tx-hash' }),
-    getBalance: vi.fn().mockResolvedValue({ xlm: 500 }),
-    invokeContract: vi.fn().mockResolvedValue('mock-invoke-hash'),
-    readContract: vi.fn().mockResolvedValue('0'),
-    accountExists: vi.fn().mockResolvedValue(true),
-    registerDevice: vi.fn().mockResolvedValue('mock-register-hash'),
-    waitForAccount: vi.fn().mockResolvedValue(true),
-    setNetwork: vi.fn(),
-    walletAddressScVal: vi.fn().mockReturnValue({}),
-    deviceHashScVal: vi.fn().mockReturnValue({}),
-  },
-}))
-
 // Mock react-native-reanimated (prevents react-native-worklets import error)
 vi.mock('react-native-reanimated', () => ({
   default: { createAnimatedComponent: vi.fn() },
