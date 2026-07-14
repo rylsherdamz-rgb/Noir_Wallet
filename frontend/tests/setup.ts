@@ -121,6 +121,7 @@ vi.mock('react-native', () => {
   const Platform = { OS: 'ios', Version: 0, select: (obj: any) => obj.ios ?? obj.default }
   return {
     Platform,
+    Dimensions: { get: () => ({ width: 390, height: 844, scale: 3, fontScale: 1 }) },
     StyleSheet: { create: (s: any) => s, absoluteFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } },
     View: ({ children }: any) => null,
     Text: ({ children }: any) => null,

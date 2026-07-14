@@ -1,8 +1,12 @@
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, Platform, Dimensions } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { DesignTokens } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+
+const SCREEN_WIDTH = Dimensions.get('window').width
+const KEY_SIZE = Math.min(Math.floor((SCREEN_WIDTH - Spacing.lg * 2 - Spacing.md * 4) / 3), 80)
+const KEY_GAP = Math.max(Spacing.sm, (SCREEN_WIDTH - Spacing.lg * 2 - KEY_SIZE * 3) / 4)
 
 interface NumericKeypadProps {
   value: string
@@ -101,24 +105,25 @@ export function NumericKeypad({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
+    paddingBottom: Spacing.sm,
   },
   row: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: Spacing.md,
+    justifyContent: 'center',
+    gap: KEY_GAP,
+    marginBottom: KEY_GAP,
   },
   key: {
-    width: 72,
-    height: 72,
-    borderRadius: BorderRadius.full,
+    width: KEY_SIZE,
+    height: KEY_SIZE,
+    borderRadius: KEY_SIZE / 2,
     backgroundColor: Colors.lightGrey,
     alignItems: 'center',
     justifyContent: 'center',
     ...DesignTokens.shadows.card,
   },
   keyText: {
-    fontSize: FontSize.xxl,
+    fontSize: Math.min(FontSize.xxl, KEY_SIZE * 0.45),
     color: Colors.white,
     fontWeight: FontWeight.semibold,
   },

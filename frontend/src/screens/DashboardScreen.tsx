@@ -1,6 +1,6 @@
-import { useCallback, useState, ReactNode } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Linking, Image } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useCallback, useState, ReactNode, useRef } from 'react'
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Linking, Image, TextInput, Modal, Alert } from 'react-native'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import * as Clipboard from 'expo-clipboard'
@@ -29,8 +29,12 @@ function greetingForHour(): string {
 
 export function DashboardScreen() {
   const router = useRouter()
-  const { user, balance, devices, transactions, setTransactions, setBalance, network: storeNetwork, setNetwork: setStoreNetwork } = useAppStore()
+  const insets = useSafeAreaInsets()
+  const { user, balance, devices, transactions, setTransactions, setBalance, network: storeNetwork, setNetwork: setStoreNetwork, updateDevice } = useAppStore()
   const [refreshing, setRefreshing] = useState(false)
+  const [renameTarget, setRenameTarget] = useState<{ id: string; label: string } | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const renameInputRef = useRef<TextInput>(null)
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
@@ -73,13 +77,37 @@ export function DashboardScreen() {
     await Clipboard.setStringAsync(user.stellarPublicKey)
   }
 
-  const displayName = user?.displayName || user?.email?.split('@')[0] || ''
+  const handleRename = useCallback(() => {
+    if (renameTarget && renameValue.trim()) {
+      updateDevice(renameTarget.id, { label: renameValue.trim() })
+      setRenameTarget(null)
+      setRenameValue('')
+    }
+  }, [renameTarget, renameValue, updateDevice])
+
+  const confirmDeleteWallet = useCallback((device: { id: string; label: string }) => {
+    Alert.alert(
+      `Remove "${device.label}"?`,
+      'This will unlink this device from your wallet. NFC tag data and on-chain registration will remain.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            const { removeDevice } = useAppStore.getState()
+            removeDevice(device.id)
+          },
+        },
+      ],
+    )
+  }, [])
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -111,7 +139,7 @@ export function DashboardScreen() {
         {/* Greeting + wallet identity */}
         <View style={styles.greetBlock}>
           <Text style={styles.greeting} accessibilityRole="header">
-            {greetingForHour()}{displayName ? `, ${displayName}` : ''}
+            {greetingForHour()}
           </Text>
           <View style={styles.subRow}>
             <TouchableOpacity
@@ -120,6 +148,7 @@ export function DashboardScreen() {
               accessibilityRole="button"
               accessibilityLabel={`Wallet address: ${user?.stellarPublicKey || 'No wallet'}. Tap to copy`}
             >
+              <Ionicons name="wallet-outline" size={12} color={Colors.gold} />
               <Text style={styles.addrText}>
                 {user?.stellarPublicKey
                   ? `${user.stellarPublicKey.slice(0, 6)}…${user.stellarPublicKey.slice(-4)}`
@@ -229,13 +258,27 @@ export function DashboardScreen() {
               contentContainerStyle={styles.walletScrollContent}
             >
               {devices.map((device) => (
-                <View
+                <TouchableOpacity
                   key={device.id}
                   style={styles.walletCard}
+                  activeOpacity={0.8}
+                  onPress={() => {}}
+                  onLongPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+                    setRenameTarget({ id: device.id, label: device.label })
+                    setRenameValue(device.label)
+                  }}
                   accessibilityLabel={`${device.label}, ${device.status === 'active' ? 'Active' : 'Inactive'}, ${((device.dailySpendLimitCents - device.accumulatedTodayCents) / 100).toFixed(0)} pesos remaining today`}
                   accessibilityRole="summary"
                 >
                   <Image source={NOIR_MARK} style={styles.walletWatermark} resizeMode="contain" />
+                  <TouchableOpacity
+                    style={styles.walletMoreBtn}
+                    onPress={() => confirmDeleteWallet(device)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="trash-outline" size={14} color={Colors.mutedWhite} />
+                  </TouchableOpacity>
                   <View style={styles.walletCardHeader}>
                     <Ionicons name="radio" size={DesignTokens.iconSize.md} color={Colors.gold} />
                     <View
@@ -251,7 +294,7 @@ export function DashboardScreen() {
                   <Text style={styles.walletRemainingValue}>
                     ₱{((device.dailySpendLimitCents - device.accumulatedTodayCents) / 100).toFixed(0)}
                   </Text>
-                </View>
+                </TouchableOpacity>
               ))}
               <TouchableOpacity
                 style={styles.addWalletCard}
@@ -304,6 +347,36 @@ export function DashboardScreen() {
           )}
         </View>
       </ScrollView>
+
+      <Modal visible={renameTarget !== null} transparent animationType="fade" onRequestClose={() => setRenameTarget(null)}>
+        <TouchableOpacity style={styles.renameOverlay} activeOpacity={1} onPress={() => setRenameTarget(null)}>
+          <View style={styles.renameCard} onStartShouldSetResponder={() => true}>
+            <Text style={styles.renameTitle}>Rename Wallet</Text>
+            <TextInput
+              ref={renameInputRef}
+              style={styles.renameInput}
+              value={renameValue}
+              onChangeText={setRenameValue}
+              placeholder="Wallet name"
+              placeholderTextColor={Colors.mutedWhite}
+              autoFocus
+              maxLength={32}
+            />
+            <View style={styles.renameActions}>
+              <TouchableOpacity style={styles.renameCancel} onPress={() => setRenameTarget(null)}>
+                <Text style={styles.renameCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.renameConfirm, !renameValue.trim() && styles.renameDisabled]}
+                disabled={!renameValue.trim()}
+                onPress={handleRename}
+              >
+                <Text style={styles.renameConfirmText}>Rename</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -378,7 +451,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: Spacing.lg,
-    paddingBottom: 96,
+    paddingBottom: 24,
   },
 
   // Brand bar
@@ -697,5 +770,86 @@ const styles = StyleSheet.create({
     color: Colors.mutedWhite,
     fontSize: FontSize.sm,
     marginTop: Spacing.md,
+  },
+
+  // Wallet card extras
+  walletMoreBtn: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colorWithOpacity(Colors.danger, 0.15),
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+
+  // Rename Modal
+  renameOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
+  },
+  renameCard: {
+    width: '100%',
+    maxWidth: 320,
+    backgroundColor: Colors.cardBg,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderGrey,
+  },
+  renameTitle: {
+    fontSize: FontSize.lg,
+    color: Colors.white,
+    fontWeight: FontWeight.bold,
+    marginBottom: Spacing.md,
+  },
+  renameInput: {
+    backgroundColor: Colors.midGrey,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    fontSize: FontSize.md,
+    color: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.borderGrey,
+  },
+  renameActions: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginTop: Spacing.md,
+  },
+  renameCancel: {
+    flex: 1,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.borderGrey,
+    alignItems: 'center',
+  },
+  renameCancelText: {
+    fontSize: FontSize.md,
+    color: Colors.mutedWhite,
+    fontWeight: FontWeight.semibold,
+  },
+  renameConfirm: {
+    flex: 2,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.gold,
+    alignItems: 'center',
+  },
+  renameConfirmText: {
+    fontSize: FontSize.md,
+    color: Colors.black,
+    fontWeight: FontWeight.bold,
+  },
+  renameDisabled: {
+    backgroundColor: Colors.lightGrey,
   },
 })

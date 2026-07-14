@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
 import Animated, {
@@ -26,6 +26,7 @@ const NOIR_MARK = require('../../assets/noir-mark.png')
 
 export function AgentListScreen() {
   const router = useRouter()
+  const insets = useSafeAreaInsets()
   const { devices } = useAppStore()
   const [agent, setAgent] = useState<AgentWallet | null>(null)
   const [refreshing, setRefreshing] = useState(false)
@@ -47,7 +48,7 @@ export function AgentListScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.gold} />}
       >
         <Text style={styles.screenTitle}>Agents</Text>
@@ -223,7 +224,7 @@ function SpendMeter({ pct }: { pct: number }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surfaceBg },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: 96 },
+  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: 24 },
   screenTitle: { fontFamily: Fonts.display, fontSize: 26, color: Colors.cream, letterSpacing: 0.2, paddingTop: Spacing.md },
   screenSub: { fontSize: FontSize.sm, color: Colors.mutedWhite, marginTop: 6, marginBottom: Spacing.lg, lineHeight: 20 },
 
