@@ -197,7 +197,7 @@ export function MerchantPosScreen() {
   const recentTxs = transactions.slice(0, 5)
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -346,6 +346,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.surfaceBg,
+    paddingBottom: 0,
   },
   pinOverlay: {
     flex: 1,
@@ -467,8 +468,8 @@ const styles = StyleSheet.create({
   },
   recentSection: {
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
-    maxHeight: 200,
+    flexShrink: 0,
+    maxHeight: 180,
   },
   recentTitle: {
     fontSize: FontSize.xs,
