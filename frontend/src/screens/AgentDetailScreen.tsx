@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback } from 'react'
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { Buffer } from 'buffer'
 import { useAppStore } from '@/store/useAppStore'
 import { x402 } from '@/domain/x402'
 import type { AgentWallet } from '@/domain/x402'
@@ -14,6 +16,7 @@ import { Toast } from '@/components/Toast'
 
 export function AgentDetailScreen() {
   const router = useRouter()
+  const insets = useSafeAreaInsets()
   const { id } = useLocalSearchParams<{ id: string }>()
   const { devices, transactions, addTransaction } = useAppStore()
   const [agent, setAgent] = useState<AgentWallet | null>(null)
@@ -48,7 +51,9 @@ export function AgentDetailScreen() {
       const tag = await nfcService.readTag()
       if (!tag) { setIsProcessing(false); return }
 
-      if (tag.uid !== device.deviceUidHash) {
+      const hash = sha256(new TextEncoder().encode(tag.uid))
+      const hashHex = Buffer.from(hash).toString('hex')
+      if (hashHex !== device.deviceUidHash) {
         setToast({ visible: true, type: 'info', title: 'Wrong Tag', message: `Tap your "${device.label}" tag` })
         setIsProcessing(false)
         return
@@ -121,7 +126,7 @@ export function AgentDetailScreen() {
         <StatusPill status={device.status as TxStatus} />
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
         {/* Agent ID card */}
         <View style={styles.agentCard}>
           <View style={styles.agentIconRow}>
@@ -254,7 +259,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.white },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
+  scrollContent: { paddingHorizontal: Spacing.md, paddingBottom: 24 },
   agentCard: {
     backgroundColor: Colors.cardBg, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: Colors.borderGrey,
     padding: Spacing.lg, alignItems: 'center', marginTop: Spacing.md,

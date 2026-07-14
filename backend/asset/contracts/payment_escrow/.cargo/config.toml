@@ -1,0 +1,1 @@
+# Don't set a global target - tests need host target, WASM build uses explicit --target

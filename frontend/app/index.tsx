@@ -1,16 +1,17 @@
-import { useEffect, useRef } from 'react'
-import { View, ActivityIndicator, Animated, StyleSheet, Dimensions } from 'react-native'
+import { useEffect, useRef, useState } from 'react'
+import { View, ActivityIndicator, Animated, StyleSheet, Image } from 'react-native'
 import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useAppStore } from '@/store/useAppStore'
 import { Colors, Spacing } from '@/constants/theme'
 import { NoirLogo } from '@/components/brand/NoirLogo'
 
-const { width } = Dimensions.get('window')
+const NOIR_MARK = require('../assets/noir-mark.png')
 
 export default function Index() {
   const router = useRouter()
   const isOnboarded = useAppStore((s) => s.isOnboarded)
+  const [imgLoaded, setImgLoaded] = useState(false)
 
   const opacity = useRef(new Animated.Value(0)).current
   const scale = useRef(new Animated.Value(0.8)).current
@@ -20,16 +21,14 @@ export default function Index() {
 
   useEffect(() => {
     Animated.sequence([
-      // Logo entrance
       Animated.parallel([
-        Animated.timing(opacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 400, useNativeDriver: true }),
         Animated.spring(scale, { toValue: 1, friction: 6, useNativeDriver: true }),
-        Animated.timing(glow, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(glow, { toValue: 1, duration: 600, useNativeDriver: true }),
       ]),
-      // Brand text entrance
       Animated.parallel([
-        Animated.timing(brandOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.timing(brandSlide, { toValue: 0, duration: 400, useNativeDriver: true }),
+        Animated.timing(brandOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+        Animated.timing(brandSlide, { toValue: 0, duration: 300, useNativeDriver: true }),
       ]),
     ]).start()
   }, [opacity, scale, glow, brandOpacity, brandSlide])
@@ -60,7 +59,12 @@ export default function Index() {
         <Animated.View style={{ opacity, transform: [{ scale }] }}>
           <View style={styles.logoRing}>
             <Animated.View style={[styles.glow, { opacity: glowOpacity }]} />
-            <NoirLogo variant="mark" size={88} />
+            <Image
+              source={NOIR_MARK}
+              style={{ width: 88, height: 88 }}
+              resizeMode="contain"
+              onLoad={() => setImgLoaded(true)}
+            />
           </View>
         </Animated.View>
 

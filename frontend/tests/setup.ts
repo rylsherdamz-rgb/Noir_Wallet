@@ -121,6 +121,7 @@ vi.mock('react-native', () => {
   const Platform = { OS: 'ios', Version: 0, select: (obj: any) => obj.ios ?? obj.default }
   return {
     Platform,
+    Dimensions: { get: () => ({ width: 390, height: 844, scale: 3, fontScale: 1 }) },
     StyleSheet: { create: (s: any) => s, absoluteFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } },
     View: ({ children }: any) => null,
     Text: ({ children }: any) => null,
@@ -128,6 +129,7 @@ vi.mock('react-native', () => {
     TouchableOpacity: ({ children, onPress }: any) => null,
     TextInput: ({ value, onChangeText }: any) => null,
     RefreshControl: ({}: any) => null,
+    Pressable: ({ children, onPress }: any) => null,
     Animated: {
       Value: class { constructor(v: number) { this._v = v }; _v: number },
       timing: () => ({ start: () => {} }),
@@ -150,6 +152,62 @@ vi.mock('@expo/vector-icons', () => ({
 // Mock NoirLogo component (used by screens, requires jpg assets)
 vi.mock('@/components/brand/NoirLogo', () => ({
   NoirLogo: ({ variant, size }: any) => null,
+}))
+
+// Mock react-native-reanimated (prevents react-native-worklets import error)
+vi.mock('react-native-reanimated', () => ({
+  default: { createAnimatedComponent: vi.fn() },
+  useSharedValue: vi.fn(() => ({ value: 0 })),
+  useAnimatedStyle: vi.fn(() => ({})),
+  withRepeat: vi.fn((v: any) => v),
+  withTiming: vi.fn((v: any) => v),
+  cancelAnimation: vi.fn(),
+  Easing: { linear: vi.fn() },
+  useReducedMotion: vi.fn(() => false),
+}))
+
+// Mock expo-modules-core (used by expo-clipboard etc.)
+vi.mock('expo-modules-core', () => ({
+  EventEmitter: class MockEventEmitter {
+    constructor() {}
+    addListener = vi.fn()
+    removeListener = vi.fn()
+    emit = vi.fn()
+  },
+  ProxyNativeModule: class {},
+  requireNativeModule: vi.fn(() => ({})),
+  requireNativeViewManager: vi.fn(() => ({})),
+}))
+
+// Mock expo-clipboard
+vi.mock('expo-clipboard', () => ({
+  default: { setStringAsync: vi.fn(), getStringAsync: vi.fn() },
+  setStringAsync: vi.fn(),
+  getStringAsync: vi.fn(),
+}))
+
+// Mock expo-linear-gradient (native module used by BalanceCard, AgentListScreen)
+vi.mock('expo-linear-gradient', () => ({
+  LinearGradient: ({ children }: any) => children,
+  default: ({ children }: any) => children,
+}))
+
+// Mock react-native-gesture-handler (native module, bypasses expo-modules-core)
+vi.mock('react-native-gesture-handler', () => ({
+  Gesture: { Tap: () => ({ onBegin: vi.fn(), onEnd: vi.fn() }) },
+  GestureDetector: ({ children }: any) => children,
+  GestureHandlerRootView: ({ children }: any) => children,
+  State: { ACTIVE: 1, END: 2 },
+}))
+
+// Mock react-native-svg (used by BalanceCard)
+vi.mock('react-native-svg', () => ({
+  default: 'svg',
+  Svg: ({ children }: any) => null,
+  Polygon: ({}: any) => null,
+  Defs: ({ children }: any) => null,
+  LinearGradient: ({}: any) => null,
+  Stop: ({}: any) => null,
 }))
 
 // Mock global fetch

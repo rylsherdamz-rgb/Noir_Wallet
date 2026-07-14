@@ -6,8 +6,9 @@ import {
   TouchableOpacity,
   Platform,
   Modal,
+  KeyboardAvoidingView,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import * as Haptics from 'expo-haptics'
@@ -18,6 +19,7 @@ import { apiService } from '@/services/api'
 import { NFCTag, QueuedPayment } from '@/types'
 import { nfcService } from '@/services/nfc'
 import { x402 } from '@/domain/x402'
+import { AppConfig } from '@/constants/config'
 import { NumericKeypad } from '@/components/NumericKeypad'
 import { ReadyToTapIndicator } from '@/components/ReadyToTapIndicator'
 import { DesignTokens } from '@/constants/designTokens'
@@ -25,6 +27,7 @@ import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants
 
 export function MerchantPosScreen() {
   const router = useRouter()
+  const insets = useSafeAreaInsets()
   const { transactions, addTransaction, user, devices, addPendingPayment } = useAppStore()
   const [amount, setAmount] = useState('')
   const [paymentState, setPaymentState] = useState<'idle' | 'active' | 'processing' | 'success' | 'error'>('idle')
@@ -88,14 +91,32 @@ export function MerchantPosScreen() {
       let txHash: string | null = null
 
       if (hasAgent && linkedDevice?.agentPublicKey) {
-        console.log('Using agent payment')
-        setAgentMode(true)
-        const result = await x402.payWithAgent({
-          destination: user?.stellarPublicKey || '',
-          amount: (parseInt(amount) / 100).toFixed(2),
-        })
-        if ('error' in result) throw new Error(result.error)
-        txHash = result.hash
+        const agentSecret = await x402.getAgentSecret()
+        const escrowContractId = AppConfig.stellar.paymentEscrowContract
+
+        if (escrowContractId && agentSecret) {
+          console.log('Using escrow payment')
+          setAgentMode(true)
+          const amountStroops = parseInt(amount) * 1000
+          const merchantAddr = user?.stellarPublicKey || ''
+          if (!merchantAddr) throw new Error('No merchant wallet configured')
+
+          txHash = await x402.authorizePayment({
+            agentSecret,
+            deviceHashHex: linkedDevice.deviceUidHash,
+            merchantAddress: merchantAddr,
+            amountStroops,
+          })
+        } else {
+          console.log('Using classic agent payment (no escrow contract)')
+          setAgentMode(true)
+          const result = await x402.payWithAgent({
+            destination: user?.stellarPublicKey || '',
+            amount: (parseInt(amount) / 100).toFixed(2),
+          })
+          if ('error' in result) throw new Error(result.error)
+          txHash = result.hash
+        }
       } else {
         // Passive NFC card: it only carries a UID and cannot sign. The merchant
         // sends the UID + amount to the backend, which signs from the card's
@@ -177,7 +198,11 @@ export function MerchantPosScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.content}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      >
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
@@ -251,7 +276,7 @@ export function MerchantPosScreen() {
 
         {/* Recent Transactions */}
         {recentTxs.length > 0 && (
-          <View style={styles.recentSection}>
+          <View style={[styles.recentSection, { paddingBottom: Math.max(insets.bottom + 8, 16) }]}>
             <Text style={styles.recentTitle} accessibilityRole="header">
               Recent
             </Text>
@@ -269,7 +294,7 @@ export function MerchantPosScreen() {
             ))}
           </View>
         )}
-      </View>
+      </KeyboardAvoidingView>
 
       <Modal
         visible={pinModalVisible}
@@ -389,9 +414,8 @@ const styles = StyleSheet.create({
   pinDisabled: {
     backgroundColor: Colors.lightGrey,
   },
-  content: {
+  flex: {
     flex: 1,
-    justifyContent: 'space-between',
   },
   header: {
     flexDirection: 'row',
@@ -439,7 +463,7 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
   },
   keypadSection: {
-    marginBottom: Spacing.lg,
+    paddingBottom: Spacing.sm,
   },
   recentSection: {
     paddingHorizontal: Spacing.lg,

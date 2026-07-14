@@ -159,6 +159,17 @@ export function DeviceProvisioningScreen() {
             signerSecret: keys.stellarSecret,
           })
 
+          setStatusMessage('Writing to NFC tag...')
+          try {
+            await writeToTag({
+              walletAddress: keys.stellarPublic,
+              deviceLabel: displayLabel,
+              activationUrl: `noirwallet://device/${hashHex}`,
+            })
+          } catch {
+            // NFC write failure shouldn't block — tag can be written later
+          }
+
           setStatusMessage('Confirmed on-chain!')
 
           const newDevice: Device = {
@@ -593,6 +604,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.darkGrey,
     alignItems: 'center',
     paddingTop: 8,
+    position: 'relative',
   },
   phoneNotch: {
     width: 16,
