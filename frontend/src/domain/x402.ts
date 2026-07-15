@@ -55,11 +55,7 @@ export const x402 = {
 
     const funded = await stellarService.fundAccount(kp.publicKey())
     if (!funded) {
-      await SecureStore.deleteItemAsync(AGENT_SECRET_KEY)
-      await SecureStore.deleteItemAsync(AGENT_PUBLIC_KEY)
-      await SecureStore.deleteItemAsync(AGENT_BUDGET_KEY)
-      await SecureStore.deleteItemAsync(AGENT_CREATED_KEY)
-      throw new Error('Agent funding failed — testnet friendbot may be unavailable')
+      console.warn('Agent funding skipped — friendbot may be unavailable. Keypair created, usable after manual funding.')
     }
 
     return {

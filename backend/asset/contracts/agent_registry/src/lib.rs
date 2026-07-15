@@ -21,7 +21,7 @@ pub struct AgentRegistry;
 #[contractimpl]
 impl AgentRegistry {
     pub fn initialize(env: Env, admin: Address) {
-        let storage = env.storage().instance();
+        let storage = env.storage().persistent();
         if storage.has(&DataKey::Admin) {
             panic_with_error!(&env, Error::AlreadyInitialized);
         }

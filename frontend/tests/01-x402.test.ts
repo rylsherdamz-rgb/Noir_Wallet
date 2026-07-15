@@ -3,6 +3,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const STROOPS_PER_XLM = 10_000_000
 const DEFAULT_BUDGET_XLM = 500
 
+vi.mock('@/services/stellar-service', () => ({
+  stellarService: {
+    fundAccount: vi.fn().mockResolvedValue(true),
+    submitPayment: vi.fn().mockResolvedValue({ hash: 'test-mock-hash' }),
+    getBalance: vi.fn().mockResolvedValue({ xlm: 500 }),
+    invokeContract: vi.fn().mockResolvedValue('mock-invoke-hash'),
+    readContract: vi.fn().mockResolvedValue('0'),
+    accountExists: vi.fn().mockResolvedValue(true),
+    registerDevice: vi.fn().mockResolvedValue('mock-register-hash'),
+    waitForAccount: vi.fn().mockResolvedValue(true),
+    walletAddressScVal: vi.fn().mockReturnValue({}),
+    deviceHashScVal: vi.fn().mockReturnValue({}),
+  },
+}))
+
 // Pure logic extracted from x402 service
 function calcBudgetAfterPayment(remainingStroops: number, amountXlm: string): number {
   const cost = Math.ceil(parseFloat(amountXlm) * STROOPS_PER_XLM)
@@ -110,7 +125,7 @@ describe('x402 createAgent logic', () => {
     const agent = await x402.createAgent()
     expect(agent.publicKey).toMatch(/^G[A-Z0-9]{55}$/)
     expect(agent.isActive).toBe(true)
-    expect(agent.spendingBudgetStroops).toBe(DEFAULT_BUDGET_XLM * STROOPS_PER_XLM)
+    expect(agent.spendingBudgetStroops).toBe(500 * 10_000_000)
     expect(agent.totalSpentStroops).toBe(0)
   })
 

@@ -21,7 +21,7 @@ pub struct DeviceRegistry;
 #[contractimpl]
 impl DeviceRegistry {
     pub fn initialize(env: Env, admin: Address) {
-        let storage = env.storage().instance();
+        let storage = env.storage().persistent();
         if storage.has(&DataKey::Admin) {
             panic_with_error!(&env, Error::AlreadyInitialized);
         }
@@ -39,8 +39,7 @@ impl DeviceRegistry {
             .publish((symbol_short!("register"), device_hash), wallet);
     }
 
-    pub fn unregister(env: Env, device_hash: BytesN<32>) {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
+    pub fn unregister(env: Env, admin: Address, device_hash: BytesN<32>) {
         admin.require_auth();
 
         if !env

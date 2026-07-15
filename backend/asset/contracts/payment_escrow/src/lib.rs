@@ -34,7 +34,7 @@ pub struct PaymentEscrow;
 
 fn get_agent_registry(env: &Env) -> Address {
     env.storage()
-        .instance()
+        .persistent()
         .get(&DataKey::AgentRegistry)
         .unwrap()
 }
@@ -42,7 +42,7 @@ fn get_agent_registry(env: &Env) -> Address {
 #[contractimpl]
 impl PaymentEscrow {
     pub fn initialize(env: Env, admin: Address, agent_registry_id: Address) {
-        let storage = env.storage().instance();
+        let storage = env.storage().persistent();
         if storage.has(&DataKey::Admin) {
             panic_with_error!(&env, Error::AlreadyInitialized);
         }
