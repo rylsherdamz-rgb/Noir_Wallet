@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native'
+import { View, Text, StyleSheet, TextInput, ScrollView } from 'react-native'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
@@ -29,8 +30,14 @@ export function ImportWalletScreen({ onComplete, onBack }: ImportWalletScreenPro
 
     setLoading(true)
     try {
-      const keys = await walletService.deriveKeys(phrase)
+      const label = `Wallet ${1 + (await walletService.getWalletList()).length}`
+      const keys = await walletService.deriveKeys(phrase, label)
       await walletService.saveKeys(keys)
+      await walletService.addWalletToList({
+        label: keys.label || 'Imported Wallet',
+        stellarPublic: keys.stellarPublic,
+        createdAt: new Date().toISOString(),
+      })
       await onComplete(keys)
     } catch (e: any) {
       setError(e.message || 'Failed to import wallet')
@@ -41,9 +48,9 @@ export function ImportWalletScreen({ onComplete, onBack }: ImportWalletScreenPro
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+        <PressableScale onPress={onBack} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
-        </TouchableOpacity>
+        </PressableScale>
 
         <NoirLogo variant="mark" size={48} />
         <Text style={styles.title}>Import Wallet</Text>
@@ -64,9 +71,11 @@ export function ImportWalletScreen({ onComplete, onBack }: ImportWalletScreenPro
           <Text style={styles.wordCount}>{input.trim().split(/\s+/).filter(Boolean).length} words</Text>
         </View>
 
-        {error && <ErrorMessage message={error} variant="card" onRetry={handleImport} />}
+        {error ? <ErrorMessage message={error} variant="card" onRetry={handleImport} /> : null}
 
         <Button
+
+          style={{ marginTop: 20 }}
           label={loading ? 'Importing...' : 'Import Wallet'}
           onPress={handleImport}
           disabled={input.trim().split(/\s+/).filter(Boolean).length < 12 || loading}

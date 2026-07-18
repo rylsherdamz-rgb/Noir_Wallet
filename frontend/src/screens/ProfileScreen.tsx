@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, TextInput, Alert } from 'react-native'
+import * as Clipboard from 'expo-clipboard'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
@@ -8,6 +10,7 @@ import { Button } from '@/components/Button'
 import { Avatar } from '@/components/Avatar'
 import { Card } from '@/components/Card'
 import { Toast } from '@/components/Toast'
+import { WalletSwitcher } from '@/components/WalletSwitcher'
 import { useAppStore } from '@/store/useAppStore'
 
 export function ProfileScreen() {
@@ -40,22 +43,33 @@ export function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
-        </TouchableOpacity>
+        </PressableScale>
         <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity onPress={() => setEditing(!editing)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <PressableScale onPress={() => setEditing(!editing)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name={editing ? 'close' : 'create-outline'} size={22} color={Colors.gold} />
-        </TouchableOpacity>
+        </PressableScale>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <View style={styles.avatarSection}>
           <Avatar name={user?.displayName} size={80} />
           <Text style={styles.displayName}>{user?.displayName || 'Your Name'}</Text>
-          <Text style={styles.walletAddress} numberOfLines={1}>
-            {user?.stellarPublicKey ? `${user.stellarPublicKey.slice(0, 8)}...${user.stellarPublicKey.slice(-4)}` : 'No wallet'}
-          </Text>
+          <PressableScale
+            style={styles.addressCopyBtn}
+            onPress={async () => {
+              if (user?.stellarPublicKey) {
+                await Clipboard.setStringAsync(user.stellarPublicKey)
+                Alert.alert('Copied', 'Wallet address copied to clipboard')
+              }
+            }}
+          >
+            <Text style={styles.walletAddress} numberOfLines={1}>
+              {user?.stellarPublicKey ? `${user.stellarPublicKey.slice(0, 12)}…${user.stellarPublicKey.slice(-8)}` : '—'}
+            </Text>
+            <Ionicons name="copy-outline" size={13} color={Colors.mutedWhite} style={{ marginLeft: 4 }} />
+          </PressableScale>
         </View>
 
         <Card>
@@ -120,27 +134,34 @@ export function ProfileScreen() {
                 />
               ))}
             </View>
-            <TouchableOpacity style={styles.kycAction} onPress={() => showToast('KYC Upgrade', 'KYC verification flow coming soon. Please check back later.')}>
+            <PressableScale style={styles.kycAction} onPress={() => showToast('KYC Upgrade', 'KYC verification flow coming soon. Please check back later.')}>
               <Text style={styles.kycActionLabel}>
                 {kycLevel < 3 ? 'Upgrade KYC for higher limits' : 'Verification complete'}
               </Text>
               {kycLevel < 3 && <Ionicons name="chevron-forward" size={16} color={Colors.gold} />}
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Wallet Management</Text>
+          <WalletSwitcher
+            onImportRequest={() => router.push('/import-wallet')}
+          />
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Preferences</Text>
-          <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/settings/notifications')}>
+          <PressableScale style={styles.settingRow} onPress={() => router.push('/settings/notifications')}>
             <Ionicons name="notifications-outline" size={20} color={Colors.white} />
             <Text style={styles.settingLabel}>Notification Preferences</Text>
             <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/settings/security')}>
+          </PressableScale>
+          <PressableScale style={styles.settingRow} onPress={() => router.push('/settings/security')}>
             <Ionicons name="shield-checkmark-outline" size={20} color={Colors.white} />
             <Text style={styles.settingLabel}>Security Settings</Text>
             <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       </ScrollView>
 
@@ -216,6 +237,10 @@ const styles = StyleSheet.create({
     color: Colors.mutedWhite,
     fontFamily: 'monospace',
     marginTop: Spacing.xs,
+  },
+  addressCopyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   editContent: {
     gap: Spacing.md,

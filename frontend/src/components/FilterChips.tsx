@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native'
+import { View, Text, StyleSheet, ScrollView } from 'react-native'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { TxFilter } from '@/types'
 
@@ -23,14 +24,13 @@ export function FilterChips({ options, selected, onSelect }: FilterChipsProps) {
       {options.map((opt) => {
         const isActive = selected === opt.key
         return (
-          <TouchableOpacity
+          <PressableScale
             key={opt.key}
             style={[styles.chip, isActive && styles.chipActive]}
             onPress={() => onSelect(opt.key)}
-            activeOpacity={0.7}
           >
             <Text style={[styles.label, isActive && styles.labelActive]}>{opt.label}</Text>
-          </TouchableOpacity>
+          </PressableScale>
         )
       })}
     </ScrollView>
@@ -41,11 +41,11 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     gap: Spacing.sm,
-    paddingVertical: Spacing.sm,
+    paddingVertical: 8,
   },
   chip: {
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: 6,
     borderRadius: BorderRadius.full,
     backgroundColor: Colors.lightGrey,
     borderWidth: 1,

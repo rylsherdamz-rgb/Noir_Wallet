@@ -6,9 +6,17 @@ import { stellarService } from '@/services/stellar-service'
 
 export default function ImportWalletRoute() {
   const router = useRouter()
-  const { setUser, setIsOnboarded } = useAppStore()
+  const { setUser, setIsOnboarded, isOnboarded } = useAppStore()
 
   const handleComplete = async (keys: WalletKeys) => {
+    // Already onboarded — just adding another wallet. Go back.
+    if (isOnboarded) {
+      const funded = await stellarService.fundAccount(keys.stellarPublic)
+      if (!funded) console.warn('Account funding failed for additional wallet')
+      router.back()
+      return
+    }
+
     setUser({
       id: Math.random().toString(36).slice(2),
       email: '',
@@ -19,13 +27,10 @@ export default function ImportWalletRoute() {
       displayName: 'My Wallet',
     })
     setIsOnboarded(true)
-    
+
     const funded = await stellarService.fundAccount(keys.stellarPublic)
-    
-    if (!funded) {
-      console.warn('Account funding failed — will retry on dashboard')
-    }
-    
+    if (!funded) console.warn('Account funding failed — will retry on dashboard')
+
     router.replace('/(tabs)')
   }
 

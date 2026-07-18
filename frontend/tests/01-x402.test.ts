@@ -18,6 +18,21 @@ vi.mock('@/services/stellar-service', () => ({
   },
 }))
 
+import { Keypair } from '@stellar/stellar-sdk'
+
+const mockAgentKp = Keypair.random()
+
+vi.mock('@/services/wallet', () => ({
+  walletService: {
+    loadKeys: vi.fn().mockResolvedValue({
+      stellarSecret: Keypair.random().secret(),
+      stellarPublic: Keypair.random().publicKey(),
+      agentSecret: mockAgentKp.secret(),
+      agentPublic: mockAgentKp.publicKey(),
+    }),
+  },
+}))
+
 // Pure logic extracted from x402 service
 function calcBudgetAfterPayment(remainingStroops: number, amountXlm: string): number {
   const cost = Math.ceil(parseFloat(amountXlm) * STROOPS_PER_XLM)
@@ -136,18 +151,16 @@ describe('x402 createAgent logic', () => {
     expect(second.publicKey).toBe(first.publicKey)
   })
 
-  it('hasAgent returns true after creation', async () => {
+  it('hasAgent returns true when wallet has HD-derived keys', async () => {
     const { x402 } = await import('@/domain/x402')
-    expect(await x402.hasAgent()).toBe(false)
-    await x402.createAgent()
     expect(await x402.hasAgent()).toBe(true)
   })
 
-  it('clearAgent removes agent', async () => {
+  it('clearAgent does not prevent re-derivation from wallet seed', async () => {
     const { x402 } = await import('@/domain/x402')
     await x402.createAgent()
     await x402.clearAgent()
-    expect(await x402.hasAgent()).toBe(false)
+    expect(await x402.hasAgent()).toBe(true)
   })
 
   it('payWithAgent returns error when no agent', async () => {
@@ -166,12 +179,14 @@ describe('x402 createAgent logic', () => {
     expect('hash' in result).toBe(true)
   })
 
-  it('getAgent returns null before creation', async () => {
+  it('getAgent returns agent data when wallet has HD-derived keys', async () => {
     const { x402 } = await import('@/domain/x402')
-    expect(await x402.getAgent()).toBe(null)
+    const a = await x402.getAgent()
+    expect(a?.publicKey).toMatch(/^G[A-Z0-9]{55}$/)
+    expect(a?.isActive).toBe(true)
   })
 
-  it('getAgent returns agent data after creation', async () => {
+  it('getAgent returns agent data after createAgent', async () => {
     const { x402 } = await import('@/domain/x402')
     const created = await x402.createAgent()
     const fetched = await x402.getAgent()

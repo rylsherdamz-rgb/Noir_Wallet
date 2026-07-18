@@ -45,11 +45,12 @@ import { StyleSheet, AppState, Linking, Alert, AppStateStatus } from 'react-nati
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import * as SplashScreen from 'expo-splash-screen'
 import * as Notifications from 'expo-notifications'
-import { useFonts } from 'expo-font'
 import { nfcService } from '@/services/nfc'
 import { useAppStore } from '@/store/useAppStore'
 import { apiService } from '@/services/api'
+import { x402 } from '@/domain/x402'
 import { getItem } from '@/services/storage'
+import { Device } from '@/types'
 import NetInfo from '@react-native-community/netinfo'
 
 SplashScreen.preventAutoHideAsync()
@@ -59,14 +60,6 @@ const PIN_KEY = 'app_pin_hash'
 export default function RootLayout() {
   const router = useRouter()
   const [ready, setReady] = useState(false)
-  const [fontsLoaded, fontError] = useFonts({
-    'Jost-Regular': require('../assets/fonts/Jost-Regular.ttf'),
-    'Jost-Medium': require('../assets/fonts/Jost-Medium.ttf'),
-    'Jost-SemiBold': require('../assets/fonts/Jost-SemiBold.ttf'),
-  })
-  // Treat a font-load failure as "done" so the app still renders (system font
-  // fallback) rather than sitting on a blank screen behind the splash.
-  const fontsReady = fontsLoaded || !!fontError
   const setNfcSupported = useAppStore((s) => s.setNfcSupported)
   const pendingPayments = useAppStore((s) => s.pendingPayments)
   const removePendingPayment = useAppStore((s) => s.removePendingPayment)
@@ -105,6 +98,47 @@ export default function RootLayout() {
       const nfcOk = await nfcService.isSupported()
       setNfcSupported(nfcOk)
 
+      // Sync devices against the on-chain device_registry contract.
+      // Remove stale local devices that no longer exist on-chain, and add
+      // any on-chain devices that aren't yet in local storage.
+      try {
+        const { devices, setDevices, user } = useAppStore.getState()
+        if (user?.stellarPublicKey) {
+          const onChain = await x402.getOnChainDevices(user.stellarPublicKey)
+          const chainHashes = new Set(onChain.map((d) => d.deviceUidHash))
+          console.log(`[on-chain sync] ${onChain.length} devices on chain, ${devices.length} local`)
+
+          // Drop local devices whose hash is gone from the chain
+          const validLocal = devices.filter((d) => chainHashes.has(d.deviceUidHash))
+
+          // Add on-chain devices missing locally
+          const localHashes = new Set(validLocal.map((d) => d.deviceUidHash))
+          const missing = onChain.filter((d) => !localHashes.has(d.deviceUidHash))
+          const added = missing.map((d) => ({
+            id: d.deviceUidHash.slice(0, 16),
+            userId: user.id ?? 'restored',
+            deviceUidHash: d.deviceUidHash,
+            label: `Device ${d.deviceUidHash.slice(0, 6)}`,
+            status: 'active' as const,
+            agentPublicKey: d.agentPublicKey,
+            dailySpendLimitCents: 500_000,
+            accumulatedTodayCents: 0,
+            lastTapAt: null,
+            createdAt: d.createdAt || new Date().toISOString(),
+          }))
+
+          const merged = [...validLocal, ...added]
+          if (merged.length !== devices.length) {
+            console.log(`[on-chain sync] updating devices: ${devices.length} → ${merged.length}`)
+            setDevices(merged)
+          } else {
+            console.log(`[on-chain sync] devices unchanged (${devices.length})`)
+          }
+        }
+      } catch (e: any) {
+        console.warn('[on-chain sync] failed:', e?.message)
+      }
+
       // Push notification registration
       try {
         const { status } = await Notifications.requestPermissionsAsync()
@@ -119,11 +153,11 @@ export default function RootLayout() {
     init()
   }, [])
 
-  // Hide the splash only once the app is ready AND the brand fonts have loaded,
-  // so the first frame the user sees is already typeset in Jost.
+  // Hide the native splash as soon as the store is ready — fonts load in the
+  // background behind the custom animated splash (index.tsx).
   useEffect(() => {
-    if (ready && fontsReady) SplashScreen.hideAsync()
-  }, [ready, fontsReady])
+    if (ready) SplashScreen.hideAsync()
+  }, [ready])
 
   // Connectivity listener: flush pending payments on reconnect
   useEffect(() => {
@@ -169,7 +203,7 @@ export default function RootLayout() {
     return () => subscription.remove()
   }, [security.backgroundLockTimeoutSec])
 
-  if (!ready || !fontsReady) return null
+  if (!ready) return null
 
   return (
     <GestureHandlerRootView style={styles.root}>

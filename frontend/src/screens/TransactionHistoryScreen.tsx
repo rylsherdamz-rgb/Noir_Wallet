@@ -1,17 +1,17 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
   RefreshControl,
   Platform,
 } from 'react-native'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
-import { useRouter } from 'expo-router'
+import { useRouter, useFocusEffect } from 'expo-router'
 import { DesignTokens } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { TransactionItem } from '@/components/TransactionItem'
@@ -23,7 +23,13 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { ScreenHeader } from '@/components/ScreenHeader'
 import { useAppStore } from '@/store/useAppStore'
 import { apiService } from '@/services/api'
-import { TxFilter } from '@/types'
+import { TxFilter, Transaction } from '@/types'
+
+const keyExtractor = (item: Transaction) => item.id
+
+const renderItem = ({ item }: { item: Transaction }) => (
+  <TransactionItem transaction={item} />
+)
 
 const FILTERS = [
   { key: 'all' as TxFilter, label: 'All' },
@@ -64,7 +70,11 @@ export function TransactionHistoryScreen() {
     try {
       const res = await apiService.getTransactions()
       if (res?.transactions) {
-        setTransactions(res.transactions)
+        const backendIds = new Set(res.transactions.map((t: Transaction) => t.id))
+        // Keep locally-created txs that aren't yet in the backend
+        const current = useAppStore.getState().transactions
+        const localOnly = current.filter((t) => !backendIds.has(t.id))
+        setTransactions([...res.transactions, ...localOnly])
         if (Platform.OS !== 'web') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
         }
@@ -79,6 +89,14 @@ export function TransactionHistoryScreen() {
     }
   }, [setTransactions])
 
+  useFocusEffect(
+    useCallback(() => {
+      if (transactions.length === 0) {
+        onRefresh()
+      }
+    }, [transactions.length, onRefresh])
+  )
+
   const handleExport = () => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -91,14 +109,14 @@ export function TransactionHistoryScreen() {
       <ScreenHeader
         title="Transactions"
         rightAction={
-          <TouchableOpacity
+          <PressableScale
             onPress={handleExport}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             accessibilityRole="button"
             accessibilityLabel="Export transactions"
           >
             <Ionicons name="download-outline" size={22} color={Colors.gold} />
-          </TouchableOpacity>
+          </PressableScale>
         }
       />
 
@@ -108,14 +126,14 @@ export function TransactionHistoryScreen() {
 
       <FilterChips options={FILTERS} selected={filter} onSelect={setFilter} />
 
-      {error && (
-        <View style={{ paddingHorizontal: Spacing.md }}>
+      {error ? (
+        <View style={styles.errorContainer}>
           <ErrorMessage message={error} variant="card" onRetry={() => setError(null)} />
         </View>
-      )}
+      ) : null}
 
       {loading ? (
-        <View style={{ paddingHorizontal: Spacing.md }}>
+        <View style={styles.loadingContainer}>
           {[1, 2, 3, 4].map((i) => (
             <SkeletonLoader key={i} variant="list" />
           ))}
@@ -129,8 +147,8 @@ export function TransactionHistoryScreen() {
       ) : (
         <FlatList
           data={displayTxs}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <TransactionItem transaction={item} />}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -159,5 +177,11 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.xxl,
+  },
+  errorContainer: {
+    paddingHorizontal: Spacing.md,
+  },
+  loadingContainer: {
+    paddingHorizontal: Spacing.md,
   },
 })

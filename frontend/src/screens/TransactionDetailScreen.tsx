@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, Linking } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, Share, Linking } from 'react-native'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter, useLocalSearchParams } from 'expo-router'
@@ -54,11 +55,11 @@ export function TransactionDetailScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="arrow-back" size={24} color={Colors.white} />
-          </TouchableOpacity>
+          </PressableScale>
           <Text style={styles.headerTitle}>Transaction Details</Text>
-          <View style={{ width: 22 }} />
+          <View style={styles.spacer22} />
         </View>
         <View style={styles.notFound}>
           <Ionicons name="alert-circle-outline" size={48} color={Colors.mutedWhite} />
@@ -71,20 +72,22 @@ export function TransactionDetailScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
-        </TouchableOpacity>
+        </PressableScale>
         <Text style={styles.headerTitle}>Transaction Details</Text>
-        <TouchableOpacity onPress={shareTx} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <PressableScale onPress={shareTx} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="share-outline" size={22} color={Colors.gold} />
-        </TouchableOpacity>
+        </PressableScale>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <View style={styles.heroSection}>
           <Avatar name={tx.merchantName} size={64} variant="user" />
           <Text style={styles.merchantName}>{tx.merchantName}</Text>
-          <StatusPill status={tx.status} />
+          <View style={{ alignSelf: 'center', marginBottom: Spacing.sm }}>
+            <StatusPill status={tx.status} />
+          </View>
           <Text style={[styles.amount, tx.status === 'failed' && styles.amountFailed]}>
             {tx.status === 'failed' ? '' : '-'}{formattedAmount} {tx.assetCode}
           </Text>
@@ -104,12 +107,12 @@ export function TransactionDetailScreen() {
           {tx.stellarTxHash && (
             <View style={styles.hashRow}>
               <Text style={styles.detailLabel}>Stellar Tx Hash</Text>
-              <TouchableOpacity style={styles.hashValueRow} onPress={copyHash}>
+              <PressableScale style={styles.hashValueRow} onPress={copyHash}>
                 <Text style={styles.hashValue} numberOfLines={1}>
                   {tx.stellarTxHash.slice(0, 16)}...{tx.stellarTxHash.slice(-8)}
                 </Text>
                 <Ionicons name="copy-outline" size={16} color={Colors.gold} />
-              </TouchableOpacity>
+              </PressableScale>
             </View>
           )}
           {tx.errorMessage && (
@@ -118,20 +121,20 @@ export function TransactionDetailScreen() {
         </View>
 
         <View style={styles.actionsCard}>
-          <TouchableOpacity style={styles.actionRow} onPress={shareTx} activeOpacity={0.7}>
+          <PressableScale style={styles.actionRow} onPress={shareTx}>
             <Ionicons name="share-outline" size={18} color={Colors.gold} />
             <Text style={styles.actionLabel}>Share Receipt</Text>
-          </TouchableOpacity>
+          </PressableScale>
           {tx.stellarTxHash && explorerUrl && (
-            <TouchableOpacity style={styles.actionRow} onPress={openExplorer} activeOpacity={0.7}>
+            <PressableScale style={styles.actionRow} onPress={openExplorer}>
               <Ionicons name="open-outline" size={18} color={Colors.gold} />
               <Text style={styles.actionLabel}>View on Stellar Explorer</Text>
-            </TouchableOpacity>
+            </PressableScale>
           )}
-          <TouchableOpacity style={styles.actionRow} activeOpacity={0.7}>
+          <PressableScale style={styles.actionRow}>
             <Ionicons name="chatbubble-ellipses-outline" size={18} color={Colors.gold} />
             <Text style={styles.actionLabel}>Report an Issue</Text>
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       </ScrollView>
 
@@ -212,20 +215,20 @@ const styles = StyleSheet.create({
   },
   heroSection: {
     alignItems: 'center',
-    paddingVertical: Spacing.xl,
+    paddingVertical: Spacing.lg,
   },
   merchantName: {
     fontSize: FontSize.xl,
     fontWeight: FontWeight.bold,
     color: Colors.white,
-    marginTop: Spacing.md,
-    marginBottom: Spacing.sm,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xs,
   },
   amount: {
     fontSize: FontSize.xxxl,
     fontWeight: FontWeight.heavy,
     color: Colors.white,
-    marginTop: Spacing.md,
+    marginTop: Spacing.sm,
   },
   amountFailed: {
     color: Colors.danger,
@@ -315,4 +318,5 @@ const styles = StyleSheet.create({
     color: Colors.gold,
     fontWeight: FontWeight.medium,
   },
+  spacer22: { width: 22 },
 })

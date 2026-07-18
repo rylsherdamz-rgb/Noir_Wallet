@@ -69,7 +69,6 @@ describe('Config Constants', () => {
   it('AppConfig has terminal config keys', async () => {
     const { AppConfig } = await import('@/constants/config')
     expect(AppConfig.terminal).toHaveProperty('id')
-    expect(AppConfig.terminal).toHaveProperty('apiKey')
     expect(AppConfig.terminal).toHaveProperty('publicKey')
   })
 
@@ -82,20 +81,18 @@ describe('Config Constants', () => {
 
   it('AppConfig has stellar config keys', async () => {
     const { AppConfig } = await import('@/constants/config')
-    expect(AppConfig.stellar).toHaveProperty('masterKeyId')
-    expect(AppConfig.stellar).toHaveProperty('channelSecretKey')
     expect(AppConfig.stellar).toHaveProperty('issuerAddress')
     expect(AppConfig.stellar).toHaveProperty('deviceRegistryContract')
+    expect(AppConfig.stellar).toHaveProperty('agentRegistryContract')
+    expect(AppConfig.stellar).toHaveProperty('paymentEscrowContract')
   })
 })
 
 describe('Type Validation', () => {
   it('AssetCode matches expected values', () => {
-    type AssetCode = 'USDC' | 'XLM' | 'PHP'
-    const isValidAsset = (c: string): c is AssetCode => ['USDC', 'XLM', 'PHP'].includes(c)
-    expect(isValidAsset('USDC')).toBe(true)
+    type AssetCode = 'XLM'
+    const isValidAsset = (c: string): c is AssetCode => ['XLM'].includes(c)
     expect(isValidAsset('XLM')).toBe(true)
-    expect(isValidAsset('PHP')).toBe(true)
     expect(isValidAsset('BTC')).toBe(false)
   })
 

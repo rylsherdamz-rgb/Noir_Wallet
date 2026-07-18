@@ -1,4 +1,6 @@
-import { View, Text, StyleSheet, TouchableOpacity, LayoutChangeEvent } from 'react-native'
+import { useState } from 'react'
+import { View, Text, StyleSheet, LayoutChangeEvent } from 'react-native'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
 import Svg, { Polygon, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg'
@@ -11,37 +13,10 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { DesignTokens } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
-import { useState, useEffect } from 'react'
-import { fxRateService } from '@/services/fxRates'
 import { SkeletonLoader } from './SkeletonLoader'
 import { CurrencyToken } from './brand/CurrencyToken'
 import { useCountUp } from '@/hooks/useCountUp'
-import { AssetCode } from '@/types'
 
-interface AssetRowProps {
-  asset: AssetCode
-  label: string
-  amount: string
-  value: string
-  testID?: string
-}
-
-function AssetRow({ asset, label, amount, value, testID }: AssetRowProps) {
-  return (
-    <View style={styles.assetRow} testID={testID}>
-      <CurrencyToken asset={asset} size={38} />
-      <View style={styles.assetInfo}>
-        <Text style={styles.assetLabel}>{label}</Text>
-        <Text style={styles.assetAmount}>{amount}</Text>
-      </View>
-      <View style={styles.assetValueWrap}>
-        <Text style={styles.assetValue}>{value}</Text>
-      </View>
-    </View>
-  )
-}
-
-/** Refined faceted shard — original shape, now with per-facet gradients + edges. */
 function HeroFacets() {
   return (
     <View style={styles.facets} pointerEvents="none">
@@ -70,36 +45,22 @@ function HeroFacets() {
 }
 
 interface BalanceCardProps {
-  phpBalance: number
-  usdcBalance: number
   xlmBalance: number
-  localTokens?: Record<string, number>
   loading?: boolean
   testID?: string
 }
 
 const MASK = '••••••'
-
-function formatPhp(n: number): string {
-  return n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
-const TILT_MAX = 6 // degrees
+const TILT_MAX = 6
 
 export function BalanceCard({
-  phpBalance,
-  usdcBalance,
   xlmBalance,
-  localTokens,
   loading = false,
   testID,
 }: BalanceCardProps) {
-  const [rates, setRates] = useState({ usdToPhp: 58, xlmToUsd: 0.12 })
-  const [loadingRates, setLoadingRates] = useState(true)
   const [hidden, setHidden] = useState(false)
   const reducedMotion = useReducedMotion()
 
-  // Tilt-toward-touch state (UI thread)
   const rx = useSharedValue(0)
   const ry = useSharedValue(0)
   const sx = useSharedValue(0)
@@ -107,22 +68,11 @@ export function BalanceCard({
   const w = useSharedValue(0)
   const h = useSharedValue(0)
 
-  useEffect(() => {
-    fxRateService
-      .getRates()
-      .then(setRates)
-      .catch(() => {
-        // Use default rates on error
-      })
-      .finally(() => setLoadingRates(false))
-  }, [])
-
   const onLayout = (e: LayoutChangeEvent) => {
     w.value = e.nativeEvent.layout.width
     h.value = e.nativeEvent.layout.height
   }
 
-  // Horizontal-drag tilt that yields to the vertical scroll of the parent list.
   const tilt = Gesture.Pan()
     .activeOffsetX([-8, 8])
     .failOffsetY([-10, 10])
@@ -156,13 +106,9 @@ export function BalanceCard({
     transform: [{ translateX: sx.value }, { translateY: sy.value }],
   }))
 
-  const xlmValueInPhp = xlmBalance * rates.xlmToUsd * rates.usdToPhp
-  const usdcValueInPhp = usdcBalance * rates.usdToPhp
-  const totalPhp = phpBalance + usdcValueInPhp + xlmValueInPhp
+  const shownXlm = useCountUp(xlmBalance, { enabled: !hidden })
 
-  const shownTotal = useCountUp(totalPhp, { enabled: !hidden && !loadingRates })
-
-  if (loading || loadingRates) {
+  if (loading) {
     return <SkeletonLoader variant="balance" testID={`${testID}-skeleton`} />
   }
 
@@ -185,7 +131,6 @@ export function BalanceCard({
           >
             <HeroFacets />
 
-            {/* thin warm ray of light — glints off the top-right facet corner, clear of the balance text */}
             <Animated.View style={[styles.sheenWrap, sheenStyle]} pointerEvents="none">
               <LinearGradient
                 colors={['transparent', 'rgba(255,246,228,0.04)', 'rgba(255,248,236,0.16)', 'rgba(255,246,228,0.04)', 'transparent']}
@@ -196,18 +141,16 @@ export function BalanceCard({
               />
             </Animated.View>
 
-            {/* beveled edges: lit top highlight + shadowed bottom lip (fakes the inset bevel RN lacks) */}
             <View style={styles.topHighlight} pointerEvents="none" />
             <View style={styles.bottomShadow} pointerEvents="none" />
 
-            {/* Portfolio Total */}
             <View
-              accessibilityLabel={`Total portfolio value: ${hidden ? 'hidden' : totalPhp.toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })}`}
+              accessibilityLabel={`XLM balance: ${hidden ? 'hidden' : xlmBalance.toFixed(2)}`}
               accessibilityRole="summary"
             >
               <View style={styles.totalHeader}>
-                <Text style={styles.totalLabel}>PORTFOLIO VALUE</Text>
-                <TouchableOpacity
+                <Text style={styles.totalLabel}>XLM BALANCE</Text>
+                <PressableScale
                   onPress={() => setHidden((v) => !v)}
                   hitSlop={10}
                   accessibilityRole="button"
@@ -219,39 +162,25 @@ export function BalanceCard({
                     size={18}
                     color={Colors.mutedWhite}
                   />
-                </TouchableOpacity>
+                </PressableScale>
               </View>
 
               <Text style={styles.totalAmount} accessibilityRole="text">
-                <Text style={styles.currency}>₱</Text>
-                {hidden ? MASK : formatPhp(shownTotal)}
+                {hidden ? MASK : shownXlm.toFixed(2)}
               </Text>
-
-              {!hidden && totalPhp > 0 && (
-                <Text style={styles.totalSub}>
-                  ${(totalPhp / rates.usdToPhp).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD available
-                </Text>
-              )}
+              <Text style={styles.totalSub}>Stellar Lumens</Text>
             </View>
 
             <View style={styles.divider} />
 
-            <View style={styles.assetList} accessibilityRole="list">
-              <AssetRow asset="PHP" label="PHP · CASH" amount={`₱${formatPhp(phpBalance)}`} value="Fiat" testID="balance-card-php" />
-              <AssetRow
-                asset="USDC"
-                label="USDC · STABLECOIN"
-                amount={usdcBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
-                value={`₱${formatPhp(usdcValueInPhp)}`}
-                testID="balance-card-usdc"
-              />
-              <AssetRow
-                asset="XLM"
-                label="XLM · STELLAR"
-                amount={xlmBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
-                value={`₱${formatPhp(xlmValueInPhp)}`}
-                testID="balance-card-xlm"
-              />
+            <View style={styles.assetRow}>
+              <CurrencyToken asset="XLM" size={38} />
+              <View style={styles.assetInfo}>
+                <Text style={styles.assetLabel}>XLM · STELLAR</Text>
+                <Text style={styles.assetAmount}>
+                  {xlmBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                </Text>
+              </View>
             </View>
           </LinearGradient>
         </LinearGradient>
@@ -264,7 +193,6 @@ const styles = StyleSheet.create({
   heroBorder: {
     borderRadius: 22,
     padding: 1.5,
-    // stronger, softer depth so the card reads as raised
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 16 },
     shadowOpacity: 0.6,
@@ -305,7 +233,6 @@ const styles = StyleSheet.create({
     height: 1.5,
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
-
   totalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -319,16 +246,11 @@ const styles = StyleSheet.create({
   },
   totalAmount: {
     fontFamily: Fonts.display,
-    fontSize: 38,
+    fontSize: FontSize.xxxl,
     color: Colors.cream,
     marginTop: Spacing.sm,
     letterSpacing: -0.5,
     fontVariant: ['tabular-nums'],
-  },
-  currency: {
-    fontFamily: Fonts.display,
-    fontSize: 29,
-    color: Colors.gold,
   },
   totalSub: {
     fontSize: FontSize.sm,
@@ -338,15 +260,10 @@ const styles = StyleSheet.create({
     minHeight: 18,
     fontVariant: ['tabular-nums'],
   },
-
   divider: {
     height: 1,
     backgroundColor: Colors.borderGrey,
     marginVertical: Spacing.lg,
-  },
-
-  assetList: {
-    gap: Spacing.md,
   },
   assetRow: {
     flexDirection: 'row',
@@ -360,7 +277,7 @@ const styles = StyleSheet.create({
   },
   assetLabel: {
     fontFamily: Fonts.displayMd,
-    fontSize: 10,
+    fontSize: FontSize.xs,
     color: Colors.mutedWhite,
     letterSpacing: 1.4,
   },
@@ -369,15 +286,6 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontWeight: FontWeight.semibold,
     marginTop: 3,
-    fontVariant: ['tabular-nums'],
-  },
-  assetValueWrap: {
-    alignItems: 'flex-end',
-  },
-  assetValue: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    fontWeight: FontWeight.medium,
     fontVariant: ['tabular-nums'],
   },
 })

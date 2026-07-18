@@ -64,7 +64,7 @@ impl Config {
                 .map_err(|_| PaymentError::ConfigError("DATABASE_URL not set".to_string()))?,
             stellar_network: env::var("STELLAR_NETWORK").unwrap_or_else(|_| "testnet".to_string()),
             stellar_rpc_url: env::var("STELLAR_RPC_URL")
-                .unwrap_or_else(|_| "https://stellar-testnet.g.alchemy.com/v2/8bi-1e9YaEqKhk7rC6lEE".to_string()),
+                .map_err(|_| PaymentError::ConfigError("STELLAR_RPC_URL not set".to_string()))?,
             stellar_horizon_url: env::var("STELLAR_HORIZON_URL")
                 .unwrap_or_else(|_| "https://horizon-testnet.stellar.org".to_string()),
             api_port: env::var("API_PORT")
@@ -143,6 +143,14 @@ impl Config {
                 "CHANNEL_MIN_BALANCE_STROOPS must be less than CHANNEL_TOPUP_TARGET_STROOPS"
                     .to_string(),
             ));
+        }
+        if self.api_key.is_empty() {
+            return Err(PaymentError::ConfigError(
+                "API_KEY cannot be empty — required for request authentication".to_string(),
+            ));
+        }
+        if self.pdax_webhook_secret.is_empty() {
+            log::warn!("PDAX_WEBHOOK_SECRET is empty — webhook signing verification will reject all webhooks");
         }
         Ok(())
     }

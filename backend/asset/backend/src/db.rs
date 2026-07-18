@@ -99,6 +99,15 @@ impl DeviceRepository {
         Ok(res.rows_affected())
     }
 
+    pub async fn get_all_devices(&self) -> Result<Vec<Device>> {
+        sqlx::query_as::<_, Device>(
+            "SELECT id, device_hash, wallet_address, registration_date, status, daily_limit_stroops, last_synced_on_chain FROM devices ORDER BY registration_date DESC"
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))
+    }
+
     /// Store (or clear) a card's PIN hash.
     pub async fn set_device_pin(&self, device_hash: &str, pin_hash: Option<&str>) -> Result<()> {
         sqlx::query("UPDATE devices SET pin_hash = $1 WHERE device_hash = $2")
@@ -532,6 +541,28 @@ impl DeviceRepository {
         .ok_or(PaymentError::DatabaseError("Merchant not found".to_string()))
     }
 
+    pub async fn update_merchant_fields(
+        &self,
+        merchant_uuid: &str,
+        business_name: Option<&str>,
+        settlement_wallet: Option<&str>,
+    ) -> Result<u64> {
+        let res = sqlx::query(
+            "UPDATE merchants
+             SET business_name = COALESCE($2, business_name),
+                 settlement_wallet = COALESCE($3, settlement_wallet),
+                 updated_at = NOW()
+             WHERE merchant_uuid = $1"
+        )
+        .bind(merchant_uuid)
+        .bind(business_name)
+        .bind(settlement_wallet)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+        Ok(res.rows_affected())
+    }
+
     // ── App user queries ─────────────────────────────────────────────────
     // `entropy_seed_encrypted` is bound as raw bytes here and never selected
     // back into the AppUser model, matching the merchant config pattern above.
@@ -570,6 +601,15 @@ impl DeviceRepository {
         .await
         .map_err(|e| PaymentError::DatabaseError(e.to_string()))?
         .ok_or(PaymentError::DatabaseError("App user not found".to_string()))
+    }
+
+    pub async fn mark_app_user_deleted(&self, wallet_address: &str) -> Result<u64> {
+        let res = sqlx::query("UPDATE app_users SET status = 'deleted' WHERE wallet_address = $1")
+            .bind(wallet_address)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| PaymentError::DatabaseError(e.to_string()))?;
+        Ok(res.rows_affected())
     }
 
     // ── Transaction notification (ephemeral UI cache) queries ───────────

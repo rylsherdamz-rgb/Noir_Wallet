@@ -1,5 +1,6 @@
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native'
+import { View, Text, StyleSheet, Platform } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { PressableScale } from '@/components/brand/PressableScale'
 import * as Haptics from 'expo-haptics'
 import { useRouter } from 'expo-router'
 import { DesignTokens } from '@/constants/designTokens'
@@ -54,7 +55,7 @@ export function ScreenHeader({
     <View style={containerStyle} testID={testID}>
       <View style={styles.leftSection}>
         {showBack ? (
-          <TouchableOpacity
+          <PressableScale
             style={styles.backButton}
             onPress={handleBack}
             hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
@@ -62,7 +63,7 @@ export function ScreenHeader({
             accessibilityLabel="Go back"
           >
             <Ionicons name="arrow-back" size={24} color={Colors.white} />
-          </TouchableOpacity>
+          </PressableScale>
         ) : (
           <View style={styles.backButton} />
         )}

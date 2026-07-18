@@ -1,5 +1,6 @@
-import { View, Text, StyleSheet, Modal, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet, Modal } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 
 interface ConfirmDialogProps {
@@ -43,17 +44,16 @@ export function ConfirmDialog({
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} disabled={loading}>
+            <PressableScale style={styles.cancelBtn} onPress={onCancel} disabled={loading}>
               <Text style={styles.cancelLabel}>{cancelLabel}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </PressableScale>
+            <PressableScale
               style={[styles.confirmBtn, variant === 'danger' && styles.confirmDanger]}
               onPress={onConfirm}
               disabled={loading}
-              activeOpacity={0.8}
             >
               <Text style={styles.confirmLabel}>{loading ? 'Please wait...' : confirmLabel}</Text>
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         </View>
       </View>

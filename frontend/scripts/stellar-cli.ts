@@ -26,10 +26,6 @@ async function cmdBalance(args: string[]) {
   if (!address) { console.error('Usage: stellar balance <address>'); process.exit(1) }
   const bal = await svc.getBalance(address)
   console.log(`XLM: ${bal.xlm.toFixed(7)}`)
-  if (bal.usdc > 0) console.log(`USDC: ${bal.usdc}`)
-  for (const a of bal.assets) {
-    console.log(`${a.code}: ${a.balance} (${a.issuer.slice(0, 8)}...)`)
-  }
 }
 
 async function cmdCreateWallet() {

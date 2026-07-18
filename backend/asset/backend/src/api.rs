@@ -527,32 +527,11 @@ pub async fn get_channel_details(
 
 // ── Frontend API handlers ───────────────────────────────────────────────────
 
-/// Wraps the internal payment endpoint with the frontend's expected format.
-pub async fn initiate_payment_frontend(
-    req: web::Json<crate::models::InitiatePaymentRequest>,
-    state: web::Data<AppState>,
-) -> Result<HttpResponse> {
-    // Convert frontend request to internal PaymentRequest
-    let idempotency_key = req
-        .nonce
-        .clone()
-        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-    // 1 cent ≈ 1000 stroops for USDC
-    let amount_stroops = req.amount_cents * 1000;
-
-    let internal_req = crate::models::PaymentRequest {
-        device_serial: req.raw_device_uid.clone(),
-        destination_wallet: req.merchant_public_key.clone(),
-        amount_stroops,
-        memo: Some(format!("POS payment via {}", req.asset_code)),
-        idempotency_key,
-        signed_xdr: None,
-    };
-
-    // Call the existing internal handler logic — we inline it to avoid
-    // double-JSON wrapping issues with actix.
-    state.metrics.record_payment_received();
-    state.validator.validate_request_payload(&internal_req)?;
+async fn process_internal_payment(
+    internal_req: &crate::models::PaymentRequest,
+    state: &web::Data<AppState>,
+) -> Result<crate::models::InitiatePaymentResponse> {
+    state.validator.validate_request_payload(internal_req)?;
 
     let device_hash = crate::crypto::hash_device_serial(&internal_req.device_serial)?;
 
@@ -562,14 +541,11 @@ pub async fn initiate_payment_frontend(
         .await
     {
         state.metrics.record_idempotency_hit();
-        let status = existing.status.clone();
-        return Ok(
-            HttpResponse::Ok().json(crate::models::InitiatePaymentResponse {
-                status: status.clone(),
-                message: status,
-                tx_hash: existing.stellar_tx_hash,
-            }),
-        );
+        return Ok(crate::models::InitiatePaymentResponse {
+            status: existing.status.clone(),
+            message: existing.status,
+            tx_hash: existing.stellar_tx_hash,
+        });
     }
 
     if !state.rate_limiter.check_and_record(&device_hash).await {
@@ -619,20 +595,96 @@ pub async fn initiate_payment_frontend(
         .await?;
     state.metrics.record_payment_accepted();
 
-    Ok(
-        HttpResponse::Accepted().json(crate::models::InitiatePaymentResponse {
-            status: "accepted".to_string(),
-            message: "Payment accepted for processing".to_string(),
-            tx_hash: None,
-        }),
-    )
+    Ok(crate::models::InitiatePaymentResponse {
+        status: "accepted".to_string(),
+        message: "Payment accepted for processing".to_string(),
+        tx_hash: None,
+    })
+}
+
+/// Wraps the internal payment endpoint with the frontend's expected format.
+pub async fn initiate_payment_frontend(
+    req: web::Json<crate::models::InitiatePaymentRequest>,
+    state: web::Data<AppState>,
+) -> Result<HttpResponse> {
+    let idempotency_key = req
+        .nonce
+        .clone()
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    let amount_stroops = req.amount_cents * 1000;
+
+    let internal_req = crate::models::PaymentRequest {
+        device_serial: req.raw_device_uid.clone(),
+        destination_wallet: req.merchant_public_key.clone(),
+        amount_stroops,
+        memo: Some(format!("POS payment via {}", req.asset_code)),
+        idempotency_key,
+        signed_xdr: None,
+    };
+
+    state.metrics.record_payment_received();
+    let result = process_internal_payment(&internal_req, &state).await?;
+
+    Ok(HttpResponse::Accepted().json(result))
 }
 
 pub async fn batch_payments(
     req: web::Json<crate::models::BatchPaymentRequest>,
+    state: web::Data<AppState>,
+    _channel_manager: web::Data<Arc<ChannelManager>>,
 ) -> Result<HttpResponse> {
-    let count = req.payments.len();
-    Ok(HttpResponse::Ok().json(crate::models::BatchPaymentResponse { processed: count }))
+    let total = req.payments.len();
+    let mut processed = 0usize;
+    let mut failures = 0usize;
+
+    for payment in &req.payments {
+        let device_uid = payment
+            .get("raw_device_uid")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let merchant_key = payment
+            .get("merchant_public_key")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let amount_cents = payment
+            .get("amount_cents")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        let asset_code = payment
+            .get("asset_code")
+            .and_then(|v| v.as_str())
+            .unwrap_or("USDC");
+        let nonce = payment
+            .get("nonce")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        let idempotency_key = nonce.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+        let amount_stroops = amount_cents * 1000;
+
+        let internal_req = crate::models::PaymentRequest {
+            device_serial: device_uid.to_string(),
+            destination_wallet: merchant_key.to_string(),
+            amount_stroops,
+            memo: Some(format!("Batch POS payment via {}", asset_code)),
+            idempotency_key,
+            signed_xdr: None,
+        };
+
+        match process_internal_payment(&internal_req, &state).await {
+            Ok(_) => processed += 1,
+            Err(e) => {
+                log::warn!("Batch payment failed: {}", e);
+                failures += 1;
+            }
+        }
+    }
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "processed": processed,
+        "total": total,
+        "failures": failures,
+    })))
 }
 
 pub async fn list_transactions(state: web::Data<AppState>) -> Result<HttpResponse> {
@@ -679,7 +731,16 @@ pub async fn register_push_token(
     Ok(HttpResponse::Ok().json(crate::models::OkResponse { ok: true }))
 }
 
-pub async fn delete_account(_state: web::Data<AppState>) -> Result<HttpResponse> {
+pub async fn delete_account(state: web::Data<AppState>) -> Result<HttpResponse> {
+    // Soft-delete: mark the app user as deleted in the database.
+    // We use a placeholder wallet address since the real user identity would
+    // come from an auth session in a production flow.
+    let wallet = "pending"; // In production, extract from auth context
+    let affected = state.db.mark_app_user_deleted(wallet).await?;
+    log::info!(
+        "Account deletion requested: {} rows marked deleted",
+        affected
+    );
     Ok(HttpResponse::Ok().json(crate::models::OkResponse { ok: true }))
 }
 
@@ -724,6 +785,57 @@ pub async fn pdax_cash_in(
 
     let ref_id = order["data"]["order_id"].as_i64().unwrap_or(0);
     log::info!("PDAX cash-in order placed: order_id={}", ref_id);
+
+    // Register the incoming fiat deposit so PDAX knows to expect the bank transfer
+    let deposit_identifier = uuid::Uuid::new_v4().to_string();
+    match state
+        .pdax_client
+        .fiat_deposit(&crate::pdax::FiatDepositRequest {
+            amount: amount_php.clone(),
+            method: "bank_transfer".to_string(),
+            identifier: deposit_identifier.clone(),
+            sender_first_name: "Noir".to_string(),
+            sender_middle_name: "".to_string(),
+            sender_last_name: "Wallet".to_string(),
+            sender_country_origin: "PH".to_string(),
+            sender_address_line_one: None,
+            sender_address_line_two: None,
+            sender_city: None,
+            sender_province: None,
+            sender_country: None,
+            sender_zip_code: None,
+            sender_phone_number: None,
+            sender_nationality: None,
+            sender_national_identity_number: None,
+            sender_dob: None,
+            sender_place_of_birth: None,
+            source_of_funds: "salary".to_string(),
+            sender_email: None,
+            beneficiary_first_name: "Noir".to_string(),
+            beneficiary_middle_name: "".to_string(),
+            beneficiary_last_name: "Wallet".to_string(),
+            beneficiary_sex: None,
+            beneficiary_nationality: None,
+            beneficiary_dob: None,
+            beneficiary_address_line_one: None,
+            beneficiary_address_line_two: None,
+            beneficiary_barangay: None,
+            beneficiary_city: None,
+            beneficiary_province: None,
+            beneficiary_country: None,
+            beneficiary_zip_code: None,
+            beneficiary_government_issued_id: None,
+            beneficiary_phone_number: None,
+            purpose: "Cash-in from Noir Wallet".to_string(),
+            relationship_of_sender_to_beneficiary: "self".to_string(),
+            currency: "PHP".to_string(),
+            nature_of_business: None,
+        })
+        .await
+    {
+        Ok(deposit) => log::info!("PDAX fiat deposit registered: {:?}", deposit),
+        Err(e) => log::warn!("PDAX fiat deposit failed (non-blocking): {}", e),
+    }
 
     // Withdraw USDC to user's Stellar wallet if wallet_address provided
     if let Some(wallet) = &req.wallet_address {
@@ -795,4 +907,218 @@ pub async fn pdax_cash_out(
         "reference": format!("CASH-OUT-{}", ref_id),
         "order": order,
     })))
+}
+
+// ── Auth ────────────────────────────────────────────────────────────────────
+
+pub async fn auth_signup(
+    req: web::Json<crate::models::SignupRequest>,
+    state: web::Data<AppState>,
+) -> Result<HttpResponse> {
+    let user_uuid = uuid::Uuid::new_v4().to_string();
+    let wallet = req
+        .wallet_address
+        .as_deref()
+        .unwrap_or("pending")
+        .to_string();
+    let identity_hash = req.identity_hash.clone();
+
+    state
+        .db
+        .create_app_user(&user_uuid, &wallet, &identity_hash, &[], 1)
+        .await?;
+
+    let token = uuid::Uuid::new_v4().to_string();
+    Ok(HttpResponse::Created().json(crate::models::AuthResponse {
+        user_id: user_uuid,
+        token,
+    }))
+}
+
+pub async fn auth_login(
+    req: web::Json<crate::models::LoginRequest>,
+    state: web::Data<AppState>,
+) -> Result<HttpResponse> {
+    let user = state
+        .db
+        .get_app_user_by_wallet(&req.identity_hash)
+        .await?;
+
+    let token = uuid::Uuid::new_v4().to_string();
+    Ok(HttpResponse::Ok().json(crate::models::AuthResponse {
+        user_id: user.user_uuid,
+        token,
+    }))
+}
+
+// ── Devices (frontend-facing) ────────────────────────────────────────────────
+
+pub async fn get_devices(state: web::Data<AppState>) -> Result<HttpResponse> {
+    let devices = state.db.get_all_devices().await?;
+    let entries: Vec<crate::models::DeviceListEntry> = devices
+        .into_iter()
+        .map(|d| crate::models::DeviceListEntry {
+            id: d.id,
+            device_hash: d.device_hash,
+            wallet_address: d.wallet_address,
+            status: d.status,
+            daily_limit_stroops: d.daily_limit_stroops,
+            registration_date: d.registration_date.to_rfc3339(),
+        })
+        .collect();
+
+    Ok(HttpResponse::Ok().json(crate::models::DeviceListResponse { devices: entries }))
+}
+
+/// Frontend-facing device registration: accepts `{deviceUidHash, label}`,
+/// mapping them directly to the DB without a `device_serial` step.
+pub async fn register_device_frontend(
+    req: web::Json<crate::models::FrontendRegisterDeviceRequest>,
+    state: web::Data<AppState>,
+) -> Result<HttpResponse> {
+    if req.device_uid_hash.is_empty() {
+        return Err(PaymentError::InvalidPayload(
+            "deviceUidHash is required".to_string(),
+        ));
+    }
+    let wallet = format!("wallet-{}", &req.device_uid_hash[..8.min(req.device_uid_hash.len())]);
+    let limit: i64 = 1_000_000_000;
+    state
+        .db
+        .upsert_device(&req.device_uid_hash, &wallet, limit)
+        .await?;
+
+    Ok(HttpResponse::Ok().json(crate::models::FrontendRegisterDeviceResponse {
+        device_hash: req.device_uid_hash.clone(),
+        label: req.label.clone(),
+        status: "active".to_string(),
+    }))
+}
+
+pub async fn update_device_status(
+    device_id: web::Path<String>,
+    req: web::Json<crate::models::UpdateDeviceStatusRequest>,
+    state: web::Data<AppState>,
+) -> Result<HttpResponse> {
+    let affected = state
+        .db
+        .update_device_status(&device_id.into_inner(), &req.status)
+        .await?;
+    if affected == 0 {
+        return Err(PaymentError::DeviceNotFound);
+    }
+    Ok(HttpResponse::Ok().json(crate::models::OkResponse { ok: true }))
+}
+
+// ── Balance ──────────────────────────────────────────────────────────────────
+
+pub async fn get_balance(state: web::Data<AppState>) -> Result<HttpResponse> {
+    let channels = state.db.get_all_active_fee_channels().await?;
+    let total: i64 = channels.iter().map(|c| c.balance_stroops).sum();
+    let xlm = total as f64 / 10_000_000.0;
+    Ok(HttpResponse::Ok().json(crate::models::BalanceResponse {
+        balance_stroops: total,
+        balance_xlm: format!("{:.7}", xlm),
+    }))
+}
+
+// ── Merchant settings ────────────────────────────────────────────────────────
+
+pub async fn get_merchant_settings(state: web::Data<AppState>) -> Result<HttpResponse> {
+    Ok(HttpResponse::Ok().json(crate::models::MerchantSettings {
+        business_name: Some("Noir Wallet Merchant".to_string()),
+        settlement_wallet: Some("GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX".to_string()),
+        config: Some(serde_json::json!({ "assetCode": "USDC", "assetScale": 2 })),
+    }))
+}
+
+pub async fn update_merchant_settings(
+    req: web::Json<crate::models::MerchantSettings>,
+) -> Result<HttpResponse> {
+    log::info!("Merchant settings update requested: {:?}", req);
+    Ok(HttpResponse::Ok().json(crate::models::OkResponse { ok: true }))
+}
+
+// ── PDAX balance ─────────────────────────────────────────────────────────────
+
+pub async fn pdax_balance(
+    state: web::Data<AppState>,
+    query: web::Query<std::collections::HashMap<String, String>>,
+) -> Result<HttpResponse> {
+    ensure_pdax_session(&state.pdax_client).await?;
+    let currency = query.get("currency").map(|s| s.as_str());
+    let balances = state.pdax_client.get_balances(currency).await?;
+    Ok(HttpResponse::Ok().json(balances))
+}
+
+// ── PDAX quote (frontend-facing) ─────────────────────────────────────────────
+
+/// Accepts the frontend's simple format { amountCents, fromAsset, toAsset }
+/// and translates to PDAX API parameters.
+pub async fn pdax_quote_frontend(
+    req: web::Json<crate::models::PdaxQuoteFrontendRequest>,
+    state: web::Data<AppState>,
+) -> Result<HttpResponse> {
+    ensure_pdax_session(&state.pdax_client).await?;
+
+    let amount = format!("{:.2}", req.amount_cents as f64 / 100.0);
+    let (quote_currency, base_currency, side) = match (req.from_asset.as_str(), req.to_asset.as_str()) {
+        ("PHP", "USDC") => ("USDC", "PHP", "sell"),
+        ("USDC", "PHP") => ("USDC", "PHP", "buy"),
+        _ => return Err(PaymentError::PdaxApiError(
+            format!("Unsupported pair: {}-{}", req.from_asset, req.to_asset)
+        )),
+    };
+
+    let quote = state
+        .pdax_client
+        .indicative_price(quote_currency, base_currency, side, &amount)
+        .await?;
+    Ok(HttpResponse::Ok().json(quote))
+}
+
+pub async fn pdax_quote(
+    req: web::Json<crate::models::PdaxQuoteRequest>,
+    state: web::Data<AppState>,
+) -> Result<HttpResponse> {
+    ensure_pdax_session(&state.pdax_client).await?;
+    let quote = state
+        .pdax_client
+        .indicative_price(&req.quote_currency, &req.base_currency, &req.side, &req.base_quantity)
+        .await?;
+    Ok(HttpResponse::Ok().json(quote))
+}
+
+// ── PDAX settlement webhook ──────────────────────────────────────────────────
+
+pub async fn pdax_webhook(
+    body: String,
+    req: actix_web::HttpRequest,
+) -> Result<HttpResponse> {
+    let signature = req
+        .headers()
+        .get("X-PDAX-Signature")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+
+    let secret = std::env::var("PDAX_WEBHOOK_SECRET").unwrap_or_default();
+
+    if secret.is_empty() || !crate::pdax::PdaxClient::verify_webhook_signature(&body, signature, &secret)
+    {
+        log::warn!("PDAX webhook signature verification failed (secret {}configured)", if secret.is_empty() { "not " } else { "" });
+        return Err(PaymentError::Unauthorized);
+    }
+
+    let Ok(event): std::result::Result<serde_json::Value, _> = serde_json::from_str(&body) else {
+        return Err(PaymentError::InvalidPayload("Invalid webhook JSON".to_string()));
+    };
+
+    let event_id = event
+        .get("event_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown");
+
+    log::info!("PDAX webhook received: event_id={}, payload={}", event_id, body.chars().take(200).collect::<String>());
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({ "status": "received" })))
 }

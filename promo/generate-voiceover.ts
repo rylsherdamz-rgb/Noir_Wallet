@@ -1,7 +1,11 @@
 import { writeFileSync, mkdirSync } from "fs";
 import { resolve } from "path";
 
-const ELEVENLABS_API_KEY = "1ab45543b6cb3044ffe18a88e9102b885fdbc0fe24ca3dae531c5d6631c23a81";
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+if (!ELEVENLABS_API_KEY) {
+  console.error("ELEVENLABS_API_KEY env var must be set");
+  process.exit(1);
+}
 
 const VOICE_ID = "XrExE9yKIg1WjnnlVkGX";
 const COMPOSITION_ID = "noir-promo";

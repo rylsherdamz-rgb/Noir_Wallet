@@ -20,6 +20,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "actix-cors"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "daa239b93927be1ff123eebada5a3ff23e89f0124ccb8609234e5103d5a5ae6d"
+dependencies = [
+ "actix-utils",
+ "actix-web",
+ "derive_more",
+ "futures-util",
+ "log",
+ "once_cell",
+ "smallvec",
+]
+
+[[package]]
 name = "actix-http"
 version = "3.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2177,6 +2192,7 @@ dependencies = [
 name = "noir-backend"
 version = "0.1.0"
 dependencies = [
+ "actix-cors",
  "actix-web",
  "aes-gcm",
  "anyhow",
@@ -2386,7 +2402,6 @@ checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 name = "payment-escrow"
 version = "0.1.0"
 dependencies = [
- "agent-registry",
  "rand 0.8.6",
  "serde_json",
  "soroban-sdk",

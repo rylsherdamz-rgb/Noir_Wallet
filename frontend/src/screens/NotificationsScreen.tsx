@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react'
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native'
+import { memo, useState, useEffect } from 'react'
+import { View, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-native'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { colorWithOpacity } from '@/constants/designTokens'
 import { EmptyState } from '@/components/EmptyState'
 import { Notification } from '@/types'
 import { apiService } from '@/services/api'
@@ -20,6 +22,18 @@ const TYPE_COLORS: Record<string, string> = {
   security: Colors.danger,
   system: Colors.mutedWhite,
   promo: Colors.gold,
+}
+
+function timeAgo(iso: string): string {
+  const d = new Date(iso)
+  const now = new Date()
+  const diffMs = now.getTime() - d.getTime()
+  const mins = Math.floor(diffMs / 60000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return `${mins}m ago`
+  if (mins < 1440) return `${Math.floor(mins / 60)}h ago`
+  if (mins < 1440 * 7) return d.toLocaleDateString('en-US', { weekday: 'short' })
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
 export function NotificationsScreen() {
@@ -56,9 +70,9 @@ export function NotificationsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
-        </TouchableOpacity>
+        </PressableScale>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Notifications</Text>
           {unreadCount > 0 && (
@@ -68,36 +82,26 @@ export function NotificationsScreen() {
           )}
         </View>
         {unreadCount > 0 && (
-          <TouchableOpacity onPress={markAllRead}>
+          <PressableScale
+            onPress={markAllRead}
+            accessibilityRole="button"
+            accessibilityLabel="Mark all read"
+          >
             <Text style={styles.markAllText}>Mark All Read</Text>
-          </TouchableOpacity>
+          </PressableScale>
         )}
       </View>
 
-      {loading ? null : (
+      {loading ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={Colors.gold} />
+        </View>
+      ) : (
         <FlatList
           data={notifications}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[styles.notifRow, !item.read && styles.notifUnread]}
-              onPress={() => markRead(item.id)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.notifIcon, { backgroundColor: TYPE_COLORS[item.type] + '15' }]}>
-                <Ionicons name={TYPE_ICONS[item.type]} size={20} color={TYPE_COLORS[item.type]} />
-              </View>
-              <View style={styles.notifContent}>
-                <View style={styles.notifHeader}>
-                  <Text style={styles.notifTitle}>{item.title}</Text>
-                  {!item.read && <View style={styles.unreadDot} />}
-                </View>
-                <Text style={styles.notifBody} numberOfLines={2}>{item.body}</Text>
-                <Text style={styles.notifTime}>
-                  {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                </Text>
-              </View>
-            </TouchableOpacity>
+            <NotificationRow item={item} onPress={() => markRead(item.id)} />
           )}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
@@ -108,6 +112,35 @@ export function NotificationsScreen() {
     </SafeAreaView>
   )
 }
+
+const NotificationRow = memo(function NotificationRow({
+  item,
+  onPress,
+}: {
+  item: Notification
+  onPress: () => void
+}) {
+  return (
+    <PressableScale
+      style={[styles.notifRow, !item.read && styles.notifUnread]}
+      onPress={onPress}
+    >
+      <View style={[styles.notifIcon, { backgroundColor: TYPE_COLORS[item.type] + '15' }]}>
+        <Ionicons name={TYPE_ICONS[item.type]} size={20} color={TYPE_COLORS[item.type]} />
+      </View>
+      <View style={styles.notifContent}>
+        <View style={styles.notifHeader}>
+          <Text style={styles.notifTitle}>{item.title}</Text>
+          {!item.read && <View style={styles.unreadDot} />}
+        </View>
+        <Text style={styles.notifBody} numberOfLines={2}>{item.body}</Text>
+        <Text style={styles.notifTime}>
+          {timeAgo(item.createdAt)}
+        </Text>
+      </View>
+    </PressableScale>
+  )
+})
 
 const styles = StyleSheet.create({
   container: {
@@ -166,6 +199,9 @@ const styles = StyleSheet.create({
   },
   notifUnread: {
     borderColor: Colors.gold + '40',
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.gold,
+    backgroundColor: colorWithOpacity(Colors.gold, 0.05),
   },
   notifIcon: {
     width: 40,

@@ -237,3 +237,105 @@ pub struct FiatCashRequest {
 pub struct FiatCashResponse {
     pub reference: String,
 }
+
+// ── Frontend-facing device registration ──────────────────────────────────────
+// The frontend sends `{deviceUidHash, label}` instead of the backend's internal
+// `{device_serial, wallet_address}`. This handler accepts the frontend format.
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FrontendRegisterDeviceRequest {
+    #[serde(rename = "deviceUidHash")]
+    pub device_uid_hash: String,
+    pub label: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FrontendRegisterDeviceResponse {
+    pub device_hash: String,
+    pub label: Option<String>,
+    pub status: String,
+}
+
+// ── Device status update ─────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpdateDeviceStatusRequest {
+    pub status: String,
+}
+
+// ── Device list ──────────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DeviceListEntry {
+    pub id: i32,
+    pub device_hash: String,
+    pub wallet_address: String,
+    pub status: String,
+    pub daily_limit_stroops: i64,
+    pub registration_date: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DeviceListResponse {
+    pub devices: Vec<DeviceListEntry>,
+}
+
+// ── Balance ──────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BalanceResponse {
+    pub balance_stroops: i64,
+    pub balance_xlm: String,
+}
+
+// ── Merchant settings ────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MerchantSettings {
+    pub business_name: Option<String>,
+    pub settlement_wallet: Option<String>,
+    pub config: Option<serde_json::Value>,
+}
+
+// ── PDAX quote request (frontend-facing) ─────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PdaxQuoteRequest {
+    pub quote_currency: String,
+    pub base_currency: String,
+    pub side: String,
+    pub base_quantity: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PdaxQuoteFrontendRequest {
+    pub amount_cents: u64,
+    pub from_asset: String,
+    pub to_asset: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PdaxBalanceResponse {
+    pub balances: Vec<serde_json::Value>,
+}
+
+// ── Auth (lightweight identity for frontend sessions) ────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SignupRequest {
+    pub email: Option<String>,
+    pub wallet_address: Option<String>,
+    pub identity_hash: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LoginRequest {
+    pub identity_hash: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AuthResponse {
+    pub user_id: String,
+    pub token: String,
+}

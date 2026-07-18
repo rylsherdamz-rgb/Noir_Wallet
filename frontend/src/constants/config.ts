@@ -40,8 +40,6 @@ export const AppConfig = {
   appName: 'Noir Wallet',
   appVersion: Constants.expoConfig?.version ?? '1.0.0',
   stellar: {
-    masterKeyId: process.env.EXPO_PUBLIC_STELLAR_MASTER_KEY_ID ?? '',
-    channelSecretKey: process.env.EXPO_PUBLIC_CHANNEL_SECRET_KEY ?? '',
     issuerAddress: process.env.EXPO_PUBLIC_ISSUER_ADDRESS ?? '',
     deviceRegistryContract: process.env.EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT ?? '',
     agentRegistryContract: process.env.EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT ?? '',
@@ -51,13 +49,8 @@ export const AppConfig = {
     readTimeout: 5000,
     writeTimeout: 10000,
   },
-  pdax: {
-    apiKey: process.env.EXPO_PUBLIC_PDAX_API_KEY ?? '',
-    webhookSecret: process.env.EXPO_PUBLIC_PDAX_WEBHOOK_SECRET ?? '',
-  },
   terminal: {
     id: process.env.EXPO_PUBLIC_TERMINAL_ID ?? '',
-    apiKey: process.env.EXPO_PUBLIC_TERMINAL_API_KEY ?? '',
     publicKey: process.env.EXPO_PUBLIC_TERMINAL_PUBLIC_KEY ?? '',
   },
   limits: {

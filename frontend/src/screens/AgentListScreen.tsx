@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
+import { PressableScale } from '@/components/brand/PressableScale'
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -21,6 +22,7 @@ import { DesignTokens, colorWithOpacity } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
 import { SignalRipple } from '@/components/brand/SignalRipple'
 import { TapGlyph } from '@/components/brand/BrandGlyph'
+import { StatusPill } from '@/components/StatusPill'
 
 const NOIR_MARK = require('../../assets/noir-mark.png')
 
@@ -44,6 +46,16 @@ export function AgentListScreen() {
     setRefreshing(false)
   }
 
+  const xlmBalance = agent ? (agent.balanceStroops / 10_000_000).toFixed(2) : '—'
+  const budget = agent ? (agent.spendingBudgetStroops / 10_000_000).toFixed(2) : '—'
+  const spent = agent ? (agent.totalSpentStroops / 10_000_000).toFixed(2) : '—'
+  const remaining = agent
+    ? Math.max(0, (agent.spendingBudgetStroops - agent.totalSpentStroops) / 10_000_000).toFixed(2) : '—'
+  const pct = agent && agent.spendingBudgetStroops > 0
+    ? Math.round((agent.totalSpentStroops / agent.spendingBudgetStroops) * 100) : 0
+
+  const agentExists = agent !== null
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
@@ -51,88 +63,125 @@ export function AgentListScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.gold} />}
       >
-        <Text style={styles.screenTitle}>Agents</Text>
-        <Text style={styles.screenSub}>Autonomous wallets linked to your NFC devices for tap-and-go payments.</Text>
+        <Text style={styles.screenTitle}>Payment Agent</Text>
+        <Text style={styles.screenSub}>
+          Your x402 agent wallet signs and pays for NFC taps — no manual confirmation needed.
+        </Text>
+
+        {!agentExists && devices.length > 0 && (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="small" color={Colors.gold} />
+            <Text style={styles.loadingText}>Loading agent wallet…</Text>
+          </View>
+        )}
+
+        {/* Shared Agent Wallet Card */}
+        <LinearGradient
+          colors={['#1a1a1a', '#101010']}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={styles.agentWalletCard}
+        >
+          <View style={styles.walletHeader}>
+            <View style={styles.walletIcon}>
+              <Ionicons name="flash" size={20} color={Colors.goldHi} />
+            </View>
+            <View style={styles.walletTitleArea}>
+              <Text style={styles.walletTitle}>x402 Agent Wallet</Text>
+              {agent?.publicKey && (
+                <Text style={styles.walletSub}>
+                  {agent.publicKey.slice(0, 8)}…{agent.publicKey.slice(-6)}
+                </Text>
+              )}
+            </View>
+            {agent?.createdAt && (
+              <Text style={styles.walletCreated}>
+                {new Date(agent.createdAt).toLocaleDateString()}
+              </Text>
+            )}
+          </View>
+
+          <Text style={styles.balanceAmount}>{xlmBalance}<Text style={styles.balanceUnit}> XLM</Text></Text>
+
+          <View style={styles.budgetRow}>
+            <View style={styles.budgetTile}>
+              <Text style={styles.budgetLabel}>SPENT</Text>
+              <Text style={styles.budgetValue}>{spent}<Text style={styles.budgetUnit}> XLM</Text></Text>
+            </View>
+            <View style={styles.budgetTile}>
+              <Text style={styles.budgetLabel}>REMAINING</Text>
+              <Text style={[styles.budgetValue, { color: Colors.gold }]}>{remaining}<Text style={styles.budgetUnit}> XLM</Text></Text>
+            </View>
+            <View style={styles.budgetTile}>
+              <Text style={styles.budgetLabel}>BUDGET</Text>
+              <Text style={styles.budgetValue}>{budget}<Text style={styles.budgetUnit}> XLM</Text></Text>
+            </View>
+          </View>
+
+          {agent && agent.spendingBudgetStroops > 0 && (
+            <View style={styles.meterWrap}>
+              <View style={styles.meterTrack}>
+                <LinearGradient
+                  colors={[Colors.goldDeep, Colors.gold, Colors.goldHi]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[styles.meterFill, { width: `${Math.min(pct, 100)}%` }]}
+                >
+                  <View style={styles.meterEndpoint} />
+                </LinearGradient>
+              </View>
+              <Text style={styles.meterLabel}>{pct}% of budget used</Text>
+            </View>
+          )}
+        </LinearGradient>
+
+        {/* Device List */}
+        {devices.length > 0 && (
+          <View style={styles.devicesSection}>
+            <Text style={styles.sectionTitle}>Linked Devices</Text>
+            {devices.map((device) => (
+              <PressableScale
+                key={device.id}
+                onPress={() => router.push(`/agent/${device.id}`)}
+                accessibilityRole="button"
+                accessibilityLabel={`${device.label}, ${device.status}`}
+              >
+                <LinearGradient
+                  colors={['#161616', '#101010']}
+                  start={{ x: 0.5, y: 0 }}
+                  end={{ x: 0.5, y: 1 }}
+                  style={styles.deviceCard}
+                >
+                  <View style={styles.deviceRow}>
+                    <View style={styles.deviceIcon}>
+                      <TapGlyph size={16} color={Colors.goldHi} />
+                    </View>
+                    <View style={styles.deviceInfo}>
+                      <Text style={styles.deviceLabel}>{device.label}</Text>
+                      {device.agentPublicKey && (
+                        <Text style={styles.deviceKey}>
+                          {device.agentPublicKey.slice(0, 8)}…{device.agentPublicKey.slice(-6)}
+                        </Text>
+                      )}
+                    </View>
+                    <StatusPill status={device.status} />
+                  </View>
+                </LinearGradient>
+              </PressableScale>
+            ))}
+          </View>
+        )}
 
         {devices.length === 0 ? (
           <EmptyAgents onLink={() => router.push('/(tabs)/devices')} />
         ) : (
-          <>
-            {devices.filter((d) => d.status === 'active').map((device) => {
-              const xlmBalance = agent ? (agent.balanceStroops / 10_000_000).toFixed(2) : '—'
-              const remaining = agent ? ((agent.spendingBudgetStroops - agent.totalSpentStroops) / 10_000_000).toFixed(2) : '—'
-              const spent = agent ? (agent.totalSpentStroops / 10_000_000).toFixed(2) : '—'
-              const budget = agent ? (agent.spendingBudgetStroops / 10_000_000).toFixed(2) : '—'
-              const pct = agent && agent.spendingBudgetStroops > 0
-                ? Math.round((agent.totalSpentStroops / agent.spendingBudgetStroops) * 100)
-                : 0
-
-              return (
-                <TouchableOpacity
-                  key={device.id}
-                  onPress={() => router.push(`/agent/${device.id}`)}
-                  activeOpacity={0.85}
-                >
-                  <LinearGradient
-                    colors={['#161616', '#101010']}
-                    start={{ x: 0.5, y: 0 }}
-                    end={{ x: 0.5, y: 1 }}
-                    style={styles.agentCard}
-                  >
-                    <View style={styles.cardTop}>
-                      <View style={styles.cardHeader}>
-                        <View style={styles.cardIcon}>
-                          <TapGlyph size={20} color={Colors.goldHi} />
-                        </View>
-                        <View style={styles.cardTitleArea}>
-                          <Text style={styles.cardTitle}>{device.label}</Text>
-                          <Text style={styles.cardSub}>
-                            {device.agentPublicKey
-                              ? `${device.agentPublicKey.slice(0, 8)}…${device.agentPublicKey.slice(-6)}`
-                              : 'No agent'}
-                          </Text>
-                        </View>
-                      </View>
-                      <View style={[styles.statusBadge, { backgroundColor: colorWithOpacity(device.status === 'active' ? Colors.success : Colors.danger, 0.14), borderColor: colorWithOpacity(device.status === 'active' ? Colors.success : Colors.danger, 0.3) }]}>
-                        <Text style={[styles.statusText, { color: device.status === 'active' ? Colors.success : Colors.danger }]}>
-                          {device.status}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.statsRow}>
-                      <View style={styles.tile}>
-                        <Text style={styles.tileLabel}>BALANCE</Text>
-                        <Text style={styles.tileValue}>{xlmBalance} XLM</Text>
-                      </View>
-                      <View style={styles.tile}>
-                        <Text style={styles.tileLabel}>REMAINING</Text>
-                        <Text style={[styles.tileValue, styles.tileValueGold]}>{remaining} XLM</Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.meterWrap}>
-                      <SpendMeter pct={pct} />
-                      <Text style={styles.meterLabel}>{spent} XLM spent of {budget} XLM budget</Text>
-                    </View>
-                  </LinearGradient>
-                </TouchableOpacity>
-              )
-            })}
-
-            <TouchableOpacity
-              style={styles.addBtn}
-              onPress={() => router.push('/(tabs)/devices')}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="add" size={20} color={Colors.gold} />
-              <Text style={styles.addBtnLabel}>Link Another Device</Text>
-            </TouchableOpacity>
-          </>
-        )}
-
-        {!agent && devices.length > 0 && (
-          <Text style={styles.loadingText}>Loading agent data…</Text>
+          <PressableScale
+            style={styles.addBtn}
+            onPress={() => router.push('/(tabs)/devices')}
+          >
+            <Ionicons name="add" size={20} color={Colors.gold} />
+            <Text style={styles.addBtnLabel}>Link Another Device</Text>
+          </PressableScale>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -178,7 +227,7 @@ function EmptyAgents({ onLink }: { onLink: () => void }) {
         <StepRow n="3" text="Tap to pay — the agent signs automatically" />
       </View>
 
-      <TouchableOpacity onPress={onLink} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Link a device">
+      <PressableScale onPress={onLink} accessibilityRole="button" accessibilityLabel="Link a device">
         <LinearGradient
           colors={[Colors.goldHi, Colors.gold]}
           start={{ x: 0, y: 0 }}
@@ -188,7 +237,7 @@ function EmptyAgents({ onLink }: { onLink: () => void }) {
           <TapGlyph size={18} color="#151107" />
           <Text style={styles.ctaText}>Link a Device</Text>
         </LinearGradient>
-      </TouchableOpacity>
+      </PressableScale>
     </View>
   )
 }
@@ -204,28 +253,11 @@ function StepRow({ n, text }: { n: string; text: string }) {
   )
 }
 
-/** Gold-gradient spend meter with an emphasized endpoint. */
-function SpendMeter({ pct }: { pct: number }) {
-  const w = Math.max(3, Math.min(pct, 100))
-  return (
-    <View style={styles.meterTrack}>
-      <LinearGradient
-        colors={[Colors.goldDeep, Colors.gold, Colors.goldHi]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={[styles.meterFill, { width: `${w}%` }]}
-      >
-        <View style={styles.meterEndpoint} />
-      </LinearGradient>
-    </View>
-  )
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surfaceBg },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: 24 },
-  screenTitle: { fontFamily: Fonts.display, fontSize: 26, color: Colors.cream, letterSpacing: 0.2, paddingTop: Spacing.md },
+  screenTitle: { fontFamily: Fonts.display, fontSize: FontSize.xxl, color: Colors.cream, letterSpacing: 0.2, paddingTop: Spacing.md },
   screenSub: { fontSize: FontSize.sm, color: Colors.mutedWhite, marginTop: 6, marginBottom: Spacing.lg, lineHeight: 20 },
 
   // Empty state
@@ -236,7 +268,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colorWithOpacity(Colors.gold, 0.18),
   },
   emptyMark: { width: 82, height: 86 },
-  emptyTitle: { fontFamily: Fonts.display, fontSize: 20, color: Colors.white, marginTop: Spacing.xs },
+  emptyTitle: { fontFamily: Fonts.display, fontSize: FontSize.lg, color: Colors.white, marginTop: Spacing.xs },
   emptyDesc: { fontSize: FontSize.sm, color: Colors.silver, textAlign: 'center', lineHeight: 21, marginTop: Spacing.sm, maxWidth: 300 },
   steps: { width: '100%', gap: Spacing.md, marginTop: Spacing.xl, marginBottom: Spacing.xl },
   step: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
@@ -244,40 +276,45 @@ const styles = StyleSheet.create({
     width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: colorWithOpacity(Colors.gold, 0.4), backgroundColor: colorWithOpacity(Colors.gold, 0.08),
   },
-  stepNum: { fontFamily: Fonts.display, fontSize: 11, color: Colors.gold },
-  stepText: { flex: 1, fontSize: 13, color: Colors.silver, lineHeight: 19 },
+  stepNum: { fontFamily: Fonts.display, fontSize: FontSize.xs, color: Colors.gold },
+  stepText: { flex: 1, fontSize: FontSize.sm, color: Colors.silver, lineHeight: 19 },
   cta: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
     paddingVertical: Spacing.md, paddingHorizontal: Spacing.xl, borderRadius: BorderRadius.md, minHeight: 52,
     ...DesignTokens.shadows.goldGlow,
   },
-  ctaText: { fontFamily: Fonts.display, fontSize: 14, color: '#151107', letterSpacing: 1, textTransform: 'uppercase' },
+  ctaText: { fontFamily: Fonts.display, fontSize: FontSize.md, color: '#151107', letterSpacing: 1, textTransform: 'uppercase' },
 
-  // Agent cards
-  agentCard: {
+  // Loading
+  loadingBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, paddingVertical: Spacing.lg },
+  loadingText: { fontSize: FontSize.sm, color: Colors.mutedWhite },
+
+  // Agent wallet card (shared)
+  agentWalletCard: {
     borderRadius: BorderRadius.xl, borderWidth: 1, borderColor: Colors.borderGrey,
-    padding: Spacing.md, marginBottom: Spacing.md, overflow: 'hidden',
+    padding: Spacing.lg, marginBottom: Spacing.xl, overflow: 'hidden',
     ...DesignTokens.shadows.card,
   },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.md },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, flex: 1 },
-  cardIcon: {
-    width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
+  walletHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md },
+  walletIcon: {
+    width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
     backgroundColor: colorWithOpacity(Colors.goldHi, 0.12), borderWidth: 1, borderColor: colorWithOpacity(Colors.goldHi, 0.35),
+    marginRight: Spacing.md,
   },
-  cardTitleArea: { flex: 1 },
-  cardTitle: { fontFamily: Fonts.display, fontSize: FontSize.md, color: Colors.cream },
-  cardSub: { fontFamily: Fonts.mono, fontSize: FontSize.xs, color: Colors.mutedWhite, marginTop: 3 },
-  statusBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: BorderRadius.full, borderWidth: 1 },
-  statusText: { fontFamily: Fonts.displayMd, fontSize: 9.5, letterSpacing: 1, textTransform: 'uppercase' },
-  statsRow: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.md },
-  tile: {
+  walletTitleArea: { flex: 1 },
+  walletTitle: { fontFamily: Fonts.display, fontSize: FontSize.md, color: Colors.cream },
+  walletSub: { fontFamily: Fonts.mono, fontSize: FontSize.xs, color: Colors.mutedWhite, marginTop: 2 },
+  walletCreated: { fontSize: FontSize.xs, color: Colors.mutedWhite },
+  balanceAmount: { fontSize: FontSize.xxxl, fontFamily: Fonts.display, color: Colors.white, marginBottom: Spacing.md },
+  balanceUnit: { fontSize: FontSize.lg, color: Colors.mutedWhite },
+  budgetRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
+  budgetTile: {
     flex: 1, backgroundColor: '#0E0E0E', borderRadius: BorderRadius.md,
-    borderWidth: 1, borderColor: Colors.borderGrey, padding: Spacing.md,
+    borderWidth: 1, borderColor: Colors.borderGrey, padding: Spacing.sm, alignItems: 'center',
   },
-  tileLabel: { fontFamily: Fonts.displayMd, fontSize: 9, color: Colors.mutedWhite, letterSpacing: 1.4 },
-  tileValue: { fontFamily: Fonts.display, fontSize: 17, color: Colors.white, marginTop: 4, fontVariant: ['tabular-nums'] },
-  tileValueGold: { color: Colors.gold },
+  budgetLabel: { fontSize: FontSize.xs, color: Colors.mutedWhite, letterSpacing: 1, marginBottom: 2 },
+  budgetValue: { fontFamily: Fonts.display, fontSize: FontSize.md, color: Colors.white, fontVariant: ['tabular-nums'] },
+  budgetUnit: { fontSize: FontSize.xs, color: Colors.mutedWhite },
   meterWrap: { marginTop: Spacing.xs },
   meterTrack: { height: 7, borderRadius: 4, backgroundColor: '#1B1B1B', marginBottom: Spacing.sm },
   meterFill: { height: 7, borderRadius: 4, position: 'relative' },
@@ -286,7 +323,23 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.goldHi, ...DesignTokens.shadows.goldGlow,
   },
   meterLabel: { fontSize: FontSize.xs, color: Colors.mutedWhite, fontVariant: ['tabular-nums'] },
-  loadingText: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', paddingVertical: Spacing.xl },
+
+  // Device list
+  devicesSection: { marginBottom: Spacing.md },
+  sectionTitle: { fontFamily: Fonts.display, fontSize: FontSize.lg, color: Colors.cream, marginBottom: Spacing.md },
+  deviceCard: {
+    borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: Colors.borderGrey,
+    padding: Spacing.md, marginBottom: Spacing.sm,
+  },
+  deviceRow: { flexDirection: 'row', alignItems: 'center' },
+  deviceIcon: {
+    width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colorWithOpacity(Colors.goldHi, 0.1), borderWidth: 1, borderColor: colorWithOpacity(Colors.goldHi, 0.25),
+    marginRight: Spacing.md,
+  },
+  deviceInfo: { flex: 1 },
+  deviceLabel: { fontFamily: Fonts.display, fontSize: FontSize.sm, color: Colors.cream },
+  deviceKey: { fontFamily: Fonts.mono, fontSize: FontSize.xs, color: Colors.mutedWhite, marginTop: 2 },
 
   // Add button
   addBtn: {

@@ -3,12 +3,12 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
   TextInput,
   ActivityIndicator,
   Platform,
 } from 'react-native'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
@@ -87,13 +87,13 @@ export function CardsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
-        </TouchableOpacity>
+        </PressableScale>
         <Text style={styles.headerTitle} accessibilityRole="header">
           Cards
         </Text>
-        <View style={{ width: 24 }} />
+        <View style={styles.spacer24} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -114,11 +114,10 @@ export function CardsScreen() {
             secureTextEntry
             maxLength={6}
           />
-          <TouchableOpacity
+          <PressableScale
             style={[styles.primaryBtn, busy && styles.btnDisabled]}
             onPress={addCard}
             disabled={busy}
-            activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel="Add a card"
           >
@@ -130,7 +129,7 @@ export function CardsScreen() {
                 <Text style={styles.primaryBtnText}>Add a Card</Text>
               </>
             )}
-          </TouchableOpacity>
+          </PressableScale>
         </View>
 
         {status && (
@@ -156,7 +155,7 @@ export function CardsScreen() {
                 <View style={styles.cardIcon}>
                   <Ionicons name="card-outline" size={22} color={revoked ? Colors.mutedWhite : Colors.gold} />
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={styles.flexOne}>
                   <Text style={[styles.cardLabel, revoked && styles.cardLabelRevoked]}>{card.label}</Text>
                   <Text style={styles.cardWallet} numberOfLines={1}>
                     {card.agentPublicKey?.slice(0, 8)}…{card.agentPublicKey?.slice(-4)}
@@ -165,7 +164,7 @@ export function CardsScreen() {
                 {revoked ? (
                   <Text style={styles.revokedTag}>Revoked</Text>
                 ) : (
-                  <TouchableOpacity
+                  <PressableScale
                     style={styles.revokeBtn}
                     onPress={() => revokeCard(card)}
                     disabled={busy}
@@ -173,7 +172,7 @@ export function CardsScreen() {
                     accessibilityLabel={`Revoke ${card.label}`}
                   >
                     <Text style={styles.revokeBtnText}>Revoke</Text>
-                  </TouchableOpacity>
+                  </PressableScale>
                 )}
               </View>
             )
@@ -269,4 +268,6 @@ const styles = StyleSheet.create({
   },
   revokeBtnText: { fontSize: FontSize.sm, color: Colors.danger, fontWeight: FontWeight.semibold },
   revokedTag: { fontSize: FontSize.xs, color: Colors.mutedWhite, fontStyle: 'italic' },
+  spacer24: { width: 24 },
+  flexOne: { flex: 1 },
 })

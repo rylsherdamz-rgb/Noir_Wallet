@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { Ionicons } from '@expo/vector-icons'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 
@@ -57,16 +58,16 @@ export function SmartTip({
           <Text style={styles.description}>{description}</Text>
         </View>
         {dismissible && (
-          <TouchableOpacity onPress={() => setDismissed(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <PressableScale onPress={() => setDismissed(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="close" size={16} color={Colors.mutedWhite} />
-          </TouchableOpacity>
+          </PressableScale>
         )}
       </View>
       {action && (
-        <TouchableOpacity style={styles.actionBtn} onPress={action.onPress} activeOpacity={0.7}>
+        <PressableScale style={styles.actionBtn} onPress={action.onPress}>
           <Text style={[styles.actionLabel, { color: v.iconColor }]}>{action.label}</Text>
           <Ionicons name="chevron-forward" size={14} color={v.iconColor} />
-        </TouchableOpacity>
+        </PressableScale>
       )}
     </View>
   )

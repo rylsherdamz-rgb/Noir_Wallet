@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, Switch } from 'react-native'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
@@ -56,11 +57,11 @@ export function SecurityScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
-        </TouchableOpacity>
+        </PressableScale>
         <Text style={styles.headerTitle}>Security</Text>
-        <View style={{ width: 24 }} />
+        <View style={styles.spacer24} />
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
@@ -108,7 +109,7 @@ export function SecurityScreen() {
             </View>
             <View style={styles.timeoutOptions}>
               {TIMEOUT_OPTIONS.map((sec) => (
-                <TouchableOpacity
+                <PressableScale
                   key={sec}
                   style={[
                     styles.timeoutChip,
@@ -124,7 +125,7 @@ export function SecurityScreen() {
                   >
                     {sec < 60 ? `${sec}s` : `${sec / 60}m`}
                   </Text>
-                </TouchableOpacity>
+                </PressableScale>
               ))}
             </View>
           </View>
@@ -133,7 +134,7 @@ export function SecurityScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Passphrase & Keys</Text>
           <View style={styles.card}>
-            <TouchableOpacity style={styles.settingRow} onPress={handleShowRecoveryPhrase}>
+            <PressableScale style={styles.settingRow} onPress={handleShowRecoveryPhrase}>
               <View style={styles.settingInfo}>
                 <Ionicons name="key-outline" size={20} color={Colors.white} />
                 <View style={styles.settingText}>
@@ -142,11 +143,11 @@ export function SecurityScreen() {
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
-            </TouchableOpacity>
+            </PressableScale>
 
             <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.settingRow} onPress={handleShowPrivateKey}>
+            <PressableScale style={styles.settingRow} onPress={handleShowPrivateKey}>
               <View style={styles.settingInfo}>
                 <Ionicons name="eye-off-outline" size={20} color={Colors.white} />
                 <View style={styles.settingText}>
@@ -155,14 +156,14 @@ export function SecurityScreen() {
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Session Management</Text>
           <View style={styles.card}>
-            <TouchableOpacity style={styles.settingRow}>
+            <PressableScale style={styles.settingRow}>
               <View style={styles.settingInfo}>
                 <Ionicons name="laptop-outline" size={20} color={Colors.white} />
                 <View style={styles.settingText}>
@@ -171,32 +172,32 @@ export function SecurityScreen() {
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
-            </TouchableOpacity>
+            </PressableScale>
 
             <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.settingRow}>
+            <PressableScale style={styles.settingRow}>
               <View style={styles.settingInfo}>
                 <Ionicons name="log-out-outline" size={20} color={Colors.danger} />
                 <View style={styles.settingText}>
-                  <Text style={[styles.settingLabel, { color: Colors.danger }]}>Sign Out All Devices</Text>
+                  <Text style={[styles.settingLabel, styles.settingLabelDanger]}>Sign Out All Devices</Text>
                   <Text style={styles.settingDesc}>Revoke all sessions except this one</Text>
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={18} color={Colors.danger} />
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         </View>
 
         <View style={styles.dangerZone}>
           <Text style={styles.dangerTitle}>Danger Zone</Text>
-          <TouchableOpacity
+          <PressableScale
             style={styles.deleteBtn}
             onPress={() => setShowDeleteConfirm(true)}
           >
             <Ionicons name="trash-outline" size={20} color={Colors.danger} />
             <Text style={styles.deleteLabel}>Delete Account</Text>
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       </ScrollView>
 
@@ -386,4 +387,6 @@ const styles = StyleSheet.create({
     color: Colors.danger,
     fontWeight: FontWeight.semibold,
   },
+  spacer24: { width: 24 },
+  settingLabelDanger: { color: Colors.danger },
 })

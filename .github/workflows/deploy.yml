@@ -65,10 +65,11 @@ jobs:
             STELLAR_NETWORK=testnet
             PDAX_ENVIRONMENT=uat
             API_PORT=8080
-            API_KEY=dev-key-not-secure
           secrets: |
             DATABASE_URL=DATABASE_URL:latest
             PDAX_USERNAME=PDAX_USERNAME:latest
             PDAX_PASSWORD=PDAX_PASSWORD:latest
             CHANNEL_SECRET_KEY=CHANNEL_SECRET_KEY:latest
             MASTER_KEY_ID=MASTER_KEY_ID:latest
+            PDAX_WEBHOOK_SECRET=PDAX_WEBHOOK_SECRET:latest
+            API_KEY=API_KEY:latest

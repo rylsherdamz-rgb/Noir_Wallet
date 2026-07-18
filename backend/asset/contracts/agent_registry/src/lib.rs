@@ -13,6 +13,7 @@ pub enum DataKey {
 pub enum Error {
     AlreadyInitialized = 1,
     AgentNotFound = 2,
+    AlreadyRegistered = 3,
 }
 
 #[contract]
@@ -21,6 +22,7 @@ pub struct AgentRegistry;
 #[contractimpl]
 impl AgentRegistry {
     pub fn initialize(env: Env, admin: Address) {
+        admin.require_auth();
         let storage = env.storage().persistent();
         if storage.has(&DataKey::Admin) {
             panic_with_error!(&env, Error::AlreadyInitialized);
@@ -31,9 +33,13 @@ impl AgentRegistry {
     pub fn register_agent(env: Env, wallet: Address, device_hash: BytesN<32>, agent: Address) {
         wallet.require_auth();
 
+        let map_key = DataKey::AgentMap(device_hash.clone());
+        if env.storage().persistent().has(&map_key) {
+            panic_with_error!(&env, Error::AlreadyRegistered);
+        }
         env.storage()
             .persistent()
-            .set(&DataKey::AgentMap(device_hash.clone()), &agent);
+            .set(&map_key, &agent);
 
         env.events()
             .publish((symbol_short!("agent_reg"), device_hash), agent);

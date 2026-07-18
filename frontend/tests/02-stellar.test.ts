@@ -31,8 +31,6 @@ describe('Stellar Service', () => {
     const { stellarService } = await import('@/services/stellar')
     const balance = await stellarService.getBalance('GABC')
     expect(balance).toHaveProperty('xlm')
-    expect(balance).toHaveProperty('usdc')
-    expect(balance).toHaveProperty('assets')
   })
 
   it('fundTestnetAccount returns boolean', async () => {
@@ -62,15 +60,14 @@ describe('Stellar Service', () => {
     expect('hash' in result).toBe(true)
   })
 
-  it('submitPayment handles USDC asset param', async () => {
+  it('submitPayment handles XLM asset param', async () => {
     const { stellarService } = await import('@/services/stellar')
     const kp = Keypair.random()
     const result = await stellarService.submitPayment({
       sourceSecret: kp.secret(),
       destination: 'GABC',
       amount: '1',
-      assetCode: 'USDC',
-      assetIssuer: 'GAQ5QNOP3BER6QFKJ7G6JLPK7GQ6D5QYSS5YVU5J7WX5Y4Q2HKLU4JY',
+      assetCode: 'XLM',
     })
     expect('hash' in result).toBe(true)
   })

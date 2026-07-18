@@ -14,11 +14,16 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /build
 
-# Copy ALL source (no fake main trick — just build the real thing)
+# Build dependencies separately for Docker layer caching
+# If Cargo.toml/Cargo.lock don't change, this step is re-used from cache
 COPY Cargo.toml Cargo.lock ./
+RUN mkdir -p src && touch src/lib.rs src/main.rs
+RUN cargo fetch
+RUN mkdir migrations
+
+# Now copy real source
 COPY src ./src
 COPY migrations ./migrations
-
 RUN cargo build --release
 
 # ── Stage 2: runtime ─────────────────────────────────────────────────────────

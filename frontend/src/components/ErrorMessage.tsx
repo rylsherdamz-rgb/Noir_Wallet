@@ -1,5 +1,6 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 
 interface ErrorMessageProps {
@@ -35,10 +36,10 @@ export function ErrorMessage({
         <Text style={styles.fullTitle}>{title}</Text>
         <Text style={styles.fullMessage}>{message}</Text>
         {onRetry && (
-          <TouchableOpacity style={styles.retryBtn} onPress={onRetry} activeOpacity={0.8}>
+          <PressableScale style={styles.retryBtn} onPress={onRetry}>
             <Ionicons name="refresh" size={18} color={Colors.black} />
             <Text style={styles.retryLabel}>{retryLabel}</Text>
-          </TouchableOpacity>
+          </PressableScale>
         )}
       </View>
     )
@@ -56,10 +57,10 @@ export function ErrorMessage({
         </View>
       </View>
       {onRetry && (
-        <TouchableOpacity style={styles.cardRetry} onPress={onRetry} activeOpacity={0.7}>
+        <PressableScale style={styles.cardRetry} onPress={onRetry}>
           <Text style={styles.cardRetryText}>{retryLabel}</Text>
           <Ionicons name="refresh" size={14} color={Colors.gold} />
-        </TouchableOpacity>
+        </PressableScale>
       )}
     </View>
   )

@@ -1,5 +1,6 @@
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Platform } from 'react-native'
+import { View, Text, TextInput, StyleSheet, Platform } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { PressableScale } from '@/components/brand/PressableScale'
 import * as Haptics from 'expo-haptics'
 import { useState } from 'react'
 import { DesignTokens } from '@/constants/designTokens'
@@ -109,16 +110,15 @@ export function AmountInput({
         />
         
         {maxAmount && (
-          <TouchableOpacity
+          <PressableScale
             style={styles.maxButton}
             onPress={handleMaxPress}
             disabled={!editable}
-            activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel="Set maximum amount"
           >
             <Text style={styles.maxLabel}>MAX</Text>
-          </TouchableOpacity>
+          </PressableScale>
         )}
       </View>
 

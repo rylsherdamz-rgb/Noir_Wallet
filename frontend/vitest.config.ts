@@ -30,9 +30,9 @@ export default defineConfig({
     setupFiles: ['./tests/setup.ts'],
     include: ['tests/**/*.test.ts'],
     testTimeout: 30000,
-    deps: {
-      inline: ['@stellar/stellar-sdk'],
-    },
+    server: {
+      deps: { inline: ['@stellar/stellar-sdk'] },
+    } as any,
   },
   resolve: {
     alias: {

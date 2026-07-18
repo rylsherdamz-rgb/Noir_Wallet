@@ -4,12 +4,14 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   RefreshControl,
+  Alert,
 } from 'react-native'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as Clipboard from 'expo-clipboard'
+import { useRouter } from 'expo-router'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { NoirLogo } from '@/components/brand/NoirLogo'
 import { Card } from '@/components/Card'
@@ -18,9 +20,9 @@ import { useAppStore } from '@/store/useAppStore'
 import { AppConfig } from '@/constants/config'
 import { apiService } from '@/services/api'
 import { stellarService } from '@/services/stellar-service'
-import { fxRateService } from '@/services/fxRates'
 
 export function BlockchainScreen() {
+  const router = useRouter()
   const { user, balance, network, setNetwork, transactions, setTransactions, setBalance } = useAppStore()
   const [refreshing, setRefreshing] = useState(false)
   const [funding, setFunding] = useState(false)
@@ -35,13 +37,7 @@ export function BlockchainScreen() {
   const refreshBalances = useCallback(async () => {
     if (!user?.stellarPublicKey) return
     const onChain = await stellarService.getBalance(user.stellarPublicKey)
-    const rates = await fxRateService.getRates()
-    setBalance({
-      xlm: onChain.xlm,
-      usdc: onChain.usdc,
-      php: onChain.usdc * rates.usdToPhp,
-      localTokens: {},
-    })
+    setBalance({ xlm: onChain.xlm })
   }, [user?.stellarPublicKey, setBalance])
 
   const onRefresh = useCallback(async () => {
@@ -66,7 +62,12 @@ export function BlockchainScreen() {
     setFunding(true)
     const success = await stellarService.fundAccount(user.stellarPublicKey)
     if (success) {
-      setToast({ visible: true, type: 'success', title: 'Funded!', message: '10,000 XLM sent to your wallet' })
+      let msg = 'Wallet funded!'
+      try {
+        const bal = await stellarService.getBalance(user.stellarPublicKey!)
+        msg = `${bal.xlm.toFixed(2)} XLM balance`
+      } catch { /* non-critical */ }
+      setToast({ visible: true, type: 'success', title: 'Funded!', message: msg })
       await refreshBalances()
     } else {
       setToast({ visible: true, type: 'info', title: 'Failed', message: 'Friendbot request failed. Are you on testnet?' })
@@ -77,15 +78,37 @@ export function BlockchainScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <NoirLogo variant="mark" size={24} />
-        <Text style={styles.headerTitle}>Blockchain</Text>
-        <TouchableOpacity
-          onPress={() => setNetwork(network === 'testnet' ? 'mainnet' : 'testnet')}
+        <PressableScale
+          onPress={() => router.back()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="Back"
+        >
+          <Ionicons name="chevron-back" size={26} color={Colors.white} />
+        </PressableScale>
+        <View style={styles.headerTitleGroup}>
+          <NoirLogo variant="mark" size={24} />
+          <Text style={styles.headerTitle}>Blockchain</Text>
+        </View>
+        <PressableScale
+          onPress={() => {
+            if (network === 'testnet') {
+              Alert.alert(
+                'Switch to Mainnet?',
+                'This will connect to the Stellar Public Network with real asset value.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Switch', style: 'destructive', onPress: () => setNetwork('mainnet') },
+                ]
+              )
+            } else {
+              setNetwork('testnet')
+            }
+          }}
           style={styles.netBtn}
         >
           <View style={[styles.netDot, { backgroundColor: network === 'testnet' ? Colors.warning : Colors.success }]} />
           <Text style={styles.netText}>{network === 'testnet' ? 'TESTNET' : 'MAINNET'}</Text>
-        </TouchableOpacity>
+        </PressableScale>
       </View>
 
       <ScrollView
@@ -102,10 +125,10 @@ export function BlockchainScreen() {
             </View>
             <View style={styles.walletInfo}>
               <Text style={styles.walletLabel}>Stellar Address</Text>
-              <TouchableOpacity onPress={() => copyAddr(pubKey)} style={styles.addrRow}>
+              <PressableScale onPress={() => copyAddr(pubKey)} style={styles.addrRow}>
                 <Text style={styles.addrText} numberOfLines={1}>{pubKey}</Text>
                 <Ionicons name="copy-outline" size={14} color={Colors.gold} />
-              </TouchableOpacity>
+              </PressableScale>
             </View>
           </View>
 
@@ -114,22 +137,19 @@ export function BlockchainScreen() {
               <Text style={styles.balanceLabel}>XLM</Text>
               <Text style={styles.balanceValue}>{balance.xlm.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</Text>
             </View>
-            <View style={styles.balanceRow}>
-              <Text style={styles.balanceLabel}>USDC</Text>
-              <Text style={styles.balanceValue}>{balance.usdc.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
-            </View>
+
           </View>
 
           {network === 'testnet' && (
-            <TouchableOpacity
+            <PressableScale
               style={styles.fundBtn}
               onPress={handleFund}
               disabled={funding}
-              activeOpacity={0.7}
+             
             >
               <Ionicons name="water-outline" size={18} color={Colors.black} />
               <Text style={styles.fundBtnLabel}>{funding ? 'Funding...' : 'Fund with Testnet XLM'}</Text>
-            </TouchableOpacity>
+            </PressableScale>
           )}
         </Card>
 
@@ -169,10 +189,13 @@ export function BlockchainScreen() {
               </View>
             ))
           )}
-          <TouchableOpacity style={styles.viewAll}>
+          <PressableScale
+            style={styles.viewAll}
+            onPress={() => router.push('/transactions')}
+          >
             <Text style={styles.viewAllText}>View All Transactions</Text>
             <Ionicons name="chevron-forward" size={16} color={Colors.gold} />
-          </TouchableOpacity>
+          </PressableScale>
         </Card>
       </ScrollView>
 
@@ -189,6 +212,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
   },
   headerTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.white },
+  headerTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   netBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: BorderRadius.full, backgroundColor: Colors.lightGrey },
   netDot: { width: 6, height: 6, borderRadius: 3 },
   netText: { fontSize: FontSize.xs, color: Colors.mutedWhite, fontWeight: FontWeight.bold },

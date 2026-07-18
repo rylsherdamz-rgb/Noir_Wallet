@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   TextInput,
   Animated,
   Easing,
@@ -11,6 +10,7 @@ import {
   Linking,
   ActivityIndicator,
 } from 'react-native'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { sha256 } from '@noble/hashes/sha2.js'
@@ -39,6 +39,8 @@ export function DeviceProvisioningScreen() {
   const [label, setLabel] = useState('')
   const [customName, setCustomName] = useState('')
   const [agentCreated, setAgentCreated] = useState(false)
+
+  const [nfcWritten, setNfcWritten] = useState<boolean | null>(null)
   const [displayLabel, setDisplayLabel] = useState('')
   const [agentPubKey, setAgentPubKey] = useState('')
   const [tagUid, setTagUid] = useState('')
@@ -85,13 +87,14 @@ export function DeviceProvisioningScreen() {
         const ok = await stellarService.fundAccount(user.stellarPublicKey, 3)
         if (ok) {
           await stellarService.waitForAccount(user.stellarPublicKey)
-          setBalanceXlm('10,000')
-        } else {
-          setBalanceXlm('0')
         }
         setFunding(false)
-      } else {
-        setBalanceXlm('10,000')
+      }
+      try {
+        const bal = await stellarService.getBalance(user.stellarPublicKey)
+        setBalanceXlm(bal.xlm.toFixed(2))
+      } catch {
+        setBalanceXlm('—')
       }
     })()
   }, [step, user?.stellarPublicKey])
@@ -122,78 +125,71 @@ export function DeviceProvisioningScreen() {
     setRegisterError('')
 
     try {
-      setStatusMessage('Creating payment agent...')
-      let _agentPubKey = ''
+      setStatusMessage('Loading wallet keys...')
+      const keys = await walletService.loadKeys()
+      if (!keys?.stellarSecret) {
+        setStep('error')
+        setRegisterError('No wallet loaded.')
+        return
+      }
+
+      // HD-derived agent is the source of truth — never trust the x402 cache
+      // for which pubkey to register, since it may be stale from a prior wallet.
+      const derivedAgentPub = keys.agentPublic
+      let _agentPubKey = derivedAgentPub
+      setAgentPubKey(_agentPubKey)
+      setAgentCreated(true)
       try {
-        const hasAgent = await x402.hasAgent()
-        if (!hasAgent) {
-          const agent = await x402.createAgent()
-          _agentPubKey = agent.publicKey
-          setAgentCreated(true)
-        } else {
-          const agent = await x402.getAgent()
-          _agentPubKey = agent?.publicKey || ''
-        }
+        // Sync the x402 SecureStore cache to the HD-derived agent keys.
+        await x402.createAgent()
       } catch {
         // x402 failure shouldn't block device linking
       }
-      setAgentPubKey(_agentPubKey)
 
-      const contractId = AppConfig.stellar.deviceRegistryContract
-      if (contractId) {
-        setStatusMessage('Loading wallet keys...')
-        const keys = await walletService.loadKeys()
-        if (keys?.stellarSecret) {
-          setStatusMessage('Hashing device UID...')
-          const hash = sha256(new TextEncoder().encode(tagUid))
-          const hashHex = Buffer.from(hash.buffer, hash.byteOffset, hash.byteLength).toString('hex')
+      setStatusMessage('Hashing device UID...')
+      const hash = sha256(new TextEncoder().encode(tagUid))
+      const hashHex = Buffer.from(hash.buffer, hash.byteOffset, hash.byteLength).toString('hex')
 
-          setStatusMessage('Submitting to Stellar...')
-          await stellarService.invokeContract({
-            contractId,
-            method: 'register',
-            args: [
-              stellarService.deviceHashScVal(hashHex),
-              stellarService.walletAddressScVal(keys.stellarPublic),
-            ],
-            signerSecret: keys.stellarSecret,
-          })
+      if (!_agentPubKey) {
+        setStep('error')
+        setRegisterError('No agent public key — wallet may be uninitialized.')
+        return
+      }
 
-          setStatusMessage('Writing to NFC tag...')
-          try {
-            await writeToTag({
-              walletAddress: keys.stellarPublic,
-              deviceLabel: displayLabel,
-              activationUrl: `noirwallet://device/${hashHex}`,
-            })
-          } catch {
-            // NFC write failure shouldn't block — tag can be written later
-          }
-
-          setStatusMessage('Confirmed on-chain!')
-
-          const newDevice: Device = {
-            id: hashHex,
-            userId: user?.id || 'local',
-            deviceUidHash: hashHex,
-            label: displayLabel,
-            agentPublicKey: _agentPubKey,
-            status: 'active',
-            dailySpendLimitCents: 500000,
-            accumulatedTodayCents: 0,
-            lastTapAt: null,
-            createdAt: new Date().toISOString(),
-          }
-          addDevice(newDevice)
-          setStep('success')
-          return
+      // ── Register device + agent sharing one Horizon account load ──
+      setStatusMessage('Registering device and agent on Stellar...')
+      try {
+        await x402.registerDeviceAndAgentOnChain({
+          walletSecret: keys.stellarSecret,
+          deviceHashHex: hashHex,
+          agentPublicKey: _agentPubKey,
+        })
+      } catch (e: any) {
+        const msg = (e as any)?.message ?? ''
+        if (!msg.includes('Error(Contract, #4)') && !msg.includes('Error(Contract, #3)') && !msg.includes('AlreadyRegistered')) {
+          throw e
         }
       }
 
+      setStatusMessage('Writing to NFC tag...')
+      try {
+        await writeToTag({
+          walletAddress: keys.stellarPublic,
+          deviceLabel: displayLabel,
+          activationUrl: `noirwallet://device/${hashHex}`,
+        })
+        setNfcWritten(true)
+      } catch (e: any) {
+        setNfcWritten(false)
+        console.warn('NFC write failure (non-blocking):', e?.message)
+      }
+
+      setStatusMessage('Confirmed on-chain!')
+
       const newDevice: Device = {
-        id: Math.random().toString(36).slice(2),
+        id: hashHex,
         userId: user?.id || 'local',
-        deviceUidHash: '',
+        deviceUidHash: hashHex,
         label: displayLabel,
         agentPublicKey: _agentPubKey,
         status: 'active',
@@ -203,6 +199,10 @@ export function DeviceProvisioningScreen() {
         createdAt: new Date().toISOString(),
       }
       addDevice(newDevice)
+      try {
+        const { apiService } = await import('@/services/api')
+        await apiService.registerDevice(hashHex, displayLabel)
+      } catch { /* non-critical */ }
       setStep('success')
     } catch (err: any) {
       setRegisterError(err?.message ?? 'Registration failed')
@@ -217,7 +217,12 @@ export function DeviceProvisioningScreen() {
     const ok = await stellarService.fundAccount(pk, 5)
     if (ok) {
       await stellarService.waitForAccount(pk)
-      setBalanceXlm('10,000')
+      try {
+        const bal = await stellarService.getBalance(pk)
+        setBalanceXlm(bal.xlm.toFixed(2))
+      } catch {
+        setBalanceXlm('—')
+      }
       setStatusMessage('Wallet funded!')
     } else {
       setStatusMessage('Funding failed — check network connection')
@@ -278,15 +283,15 @@ export function DeviceProvisioningScreen() {
               <View style={styles.scanCenter}>
                 <Ionicons name="radio" size={40} color={Colors.gold} />
               </View>
-              <Text style={styles.scanText}>Scanning...</Text>
+              <Text style={styles.scanText}>Tap your NFC tag against the phone</Text>
             </View>
           )}
 
           {step === 'confirm' && (
             <View style={styles.resultWrap}>
               <Ionicons name="checkmark-circle" size={72} color={Colors.success} />
-              <Text style={styles.successTitle}>Tag Written!</Text>
-              <Text style={styles.successSub}>{displayLabel} data saved to NFC tag</Text>
+              <Text style={styles.successTitle}>Tag Read</Text>
+              <Text style={styles.successSub}>Ready to register {displayLabel} on Stellar</Text>
             </View>
           )}
 
@@ -309,13 +314,30 @@ export function DeviceProvisioningScreen() {
               <Text style={styles.successTitle}>Linked!</Text>
               <Text style={styles.successSub}>{displayLabel} is now paired and registered on-chain</Text>
               <View style={styles.successDetail}>
-                <Ionicons name="checkmark" size={14} color={Colors.success} />
-                <Text style={styles.successDetailText}>NFC tag written</Text>
+                {nfcWritten === true
+                  ? <Ionicons name="checkmark" size={14} color={Colors.success} />
+                  : nfcWritten === false
+                    ? <Ionicons name="close-circle" size={14} color={Colors.danger} />
+                    : <Ionicons name="remove-circle-outline" size={14} color={Colors.mutedWhite} />}
+                <Text style={[styles.successDetailText, nfcWritten === false && { color: Colors.danger }]}>
+                  {nfcWritten === true
+                    ? 'NFC tag written'
+                    : nfcWritten === false
+                      ? 'NFC tag write FAILED — retry from settings'
+                      : 'NFC tag write skipped'}
+                </Text>
               </View>
               <View style={styles.successDetail}>
                 <Ionicons name="checkmark" size={14} color={Colors.success} />
                 <Text style={styles.successDetailText}>Device registered on Stellar</Text>
               </View>
+              {agentCreated && (
+                <View style={styles.successDetail}>
+                  <Ionicons name="checkmark" size={14} color={Colors.success} />
+                  <Text style={styles.successDetailText}>Payment agent enrolled</Text>
+                </View>
+              )}
+
               {agentCreated && (
                 <View style={styles.agentBadge}>
                   <Ionicons name="flash-outline" size={14} color={Colors.gold} />
@@ -339,21 +361,21 @@ export function DeviceProvisioningScreen() {
             <Text style={styles.labelTitle}>Name this device</Text>
             <View style={styles.labelRow}>
               {LABELS.map((l) => (
-                <TouchableOpacity
+                <PressableScale
                   key={l}
                   style={[styles.chip, label === l && styles.chipActive]}
                   onPress={() => { setLabel(l); setCustomName('') }}
                 >
                   <Text style={[styles.chipText, label === l && styles.chipTextActive]}>{l}</Text>
-                </TouchableOpacity>
+                </PressableScale>
               ))}
-              <TouchableOpacity
+              <PressableScale
                 style={[styles.chip, label === OTHER && styles.chipActive]}
                 onPress={() => { setLabel(OTHER); setCustomName(''); inputRef.current?.focus() }}
               >
                 <Ionicons name="pencil-outline" size={13} color={label === OTHER ? Colors.gold : Colors.mutedWhite} />
                 <Text style={[styles.chipText, label === OTHER && styles.chipTextActive, { marginLeft: 4 }]}>Other</Text>
-              </TouchableOpacity>
+              </PressableScale>
             </View>
             {label === OTHER && (
               <TextInput
@@ -374,62 +396,62 @@ export function DeviceProvisioningScreen() {
 
         <View style={styles.actions}>
           {step === 'intro' && !isEnabled && (
-            <TouchableOpacity
+            <PressableScale
               style={[styles.primaryBtn, !isSupported && styles.btnDisabled]}
               onPress={goToNfcSettings}
               disabled={!isSupported}
-              activeOpacity={0.8}
+             
             >
               <Ionicons name="settings-outline" size={20} color={Colors.black} />
               <Text style={styles.primaryBtnText}>Open NFC Settings</Text>
-            </TouchableOpacity>
+            </PressableScale>
           )}
           {step === 'intro' && isEnabled && (
-            <TouchableOpacity
+            <PressableScale
               style={styles.primaryBtn}
               onPress={handleScan}
-              activeOpacity={0.8}
+             
             >
               <Ionicons name="radio" size={20} color={Colors.black} />
               <Text style={styles.primaryBtnText}>Scan My Tag</Text>
-            </TouchableOpacity>
+            </PressableScale>
           )}
           {step === 'registering' && (
-            <TouchableOpacity
+            <PressableScale
               style={[styles.primaryBtn, styles.btnDisabled]}
               disabled
-              activeOpacity={0.8}
+             
             >
               <Ionicons name="sync" size={20} color={Colors.gold} />
               <Text style={[styles.primaryBtnText, { color: Colors.gold }]}>Registering...</Text>
-            </TouchableOpacity>
+            </PressableScale>
           )}
           {step === 'success' && (
             <>
-              <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.push('/fiat')} activeOpacity={0.8}>
+              <PressableScale style={styles.secondaryBtn} onPress={() => router.push('/fiat')}>
                 <Ionicons name="cash-outline" size={20} color={Colors.white} />
                 <Text style={styles.secondaryBtnText}>Cash In via PDAX</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.primaryBtn} onPress={reset} activeOpacity={0.8}>
+              </PressableScale>
+              <PressableScale style={styles.primaryBtn} onPress={reset}>
                 <Text style={styles.primaryBtnText}>Done</Text>
-              </TouchableOpacity>
+              </PressableScale>
             </>
           )}
           {step === 'error' && registerError?.includes('does not exist on-chain') && (
             <>
-              <TouchableOpacity style={styles.secondaryBtn} onPress={fundWallet} activeOpacity={0.8}>
+              <PressableScale style={styles.secondaryBtn} onPress={fundWallet}>
                 <Ionicons name="water-outline" size={20} color={Colors.white} />
                 <Text style={styles.secondaryBtnText}>Fund Wallet (Friendbot)</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.primaryBtn} onPress={reset} activeOpacity={0.8}>
+              </PressableScale>
+              <PressableScale style={styles.primaryBtn} onPress={reset}>
                 <Text style={styles.primaryBtnText}>Try Again</Text>
-              </TouchableOpacity>
+              </PressableScale>
             </>
           )}
           {step === 'error' && !registerError?.includes('does not exist on-chain') && (
-            <TouchableOpacity style={styles.primaryBtn} onPress={reset} activeOpacity={0.8}>
+            <PressableScale style={styles.primaryBtn} onPress={reset}>
               <Text style={styles.primaryBtnText}>Try Again</Text>
-            </TouchableOpacity>
+            </PressableScale>
           )}
         </View>
       </View>
@@ -497,24 +519,24 @@ export function DeviceProvisioningScreen() {
             </View>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity
+              <PressableScale
                 style={styles.modalCancelBtn}
                 onPress={() => setStep('error')}
-                activeOpacity={0.7}
+               
               >
                 <Text style={styles.modalCancelText}>Reject</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </PressableScale>
+              <PressableScale
                 style={[styles.modalSignBtn, (balanceXlm === '0' || funding) && styles.btnDisabled]}
                 onPress={handleRegister}
                 disabled={balanceXlm === '0' || funding}
-                activeOpacity={0.8}
+               
               >
                 <Ionicons name="pencil-outline" size={18} color={balanceXlm === '0' || funding ? Colors.mutedWhite : Colors.black} />
                 <Text style={[styles.modalSignText, (balanceXlm === '0' || funding) && { color: Colors.mutedWhite }]}>
                   {funding ? 'Funding...' : balanceXlm === '0' ? 'No XLM' : 'Sign'}
                 </Text>
-              </TouchableOpacity>
+              </PressableScale>
             </View>
           </View>
         </View>
@@ -644,8 +666,12 @@ const styles = StyleSheet.create({
   },
   scanRing: {
     position: 'absolute',
+    left: '50%',
+    top: '50%',
     width: 140,
     height: 140,
+    marginLeft: -70,
+    marginTop: -70,
     borderRadius: 70,
     borderWidth: 2,
     borderColor: Colors.gold,

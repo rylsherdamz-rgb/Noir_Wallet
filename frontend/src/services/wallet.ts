@@ -2,7 +2,9 @@ import * as bip39 from 'bip39'
 import { derivePath } from 'ed25519-hd-key'
 import { Keypair } from '@stellar/stellar-sdk'
 import { Buffer } from 'buffer'
-import { StorageKeys, getItem, setItem, removeItem } from './storage'
+import { StorageKeys, WalletListItem, getItem, setItem, removeItem } from './storage'
+
+export type { WalletListItem }
 
 const STELLAR_PATH = "m/44'/148'/0'"
 
@@ -12,6 +14,7 @@ export interface WalletKeys {
   stellarPublic: string
   agentSecret: string
   agentPublic: string
+  label?: string
 }
 
 function toHex(bytes: Uint8Array): string {
@@ -27,7 +30,7 @@ export class WalletService {
     return bip39.validateMnemonic(phrase.trim().toLowerCase())
   }
 
-  async deriveKeys(mnemonic: string): Promise<WalletKeys> {
+  async deriveKeys(mnemonic: string, label?: string): Promise<WalletKeys> {
     const cleaned = mnemonic.trim().toLowerCase()
     const seed = await bip39.mnemonicToSeed(cleaned)
     const seedHex = toHex(new Uint8Array(seed.buffer, seed.byteOffset, seed.byteLength))
@@ -45,6 +48,7 @@ export class WalletService {
       stellarPublic: mainKp.publicKey(),
       agentSecret: agentKp.secret(),
       agentPublic: agentKp.publicKey(),
+      label,
     }
   }
 
@@ -58,6 +62,37 @@ export class WalletService {
 
   async clearKeys(): Promise<void> {
     await removeItem(StorageKeys.WALLET_KEYS)
+  }
+
+  // ── Multi-wallet management ─────────────────────────────────────
+
+  async getWalletList(): Promise<WalletListItem[]> {
+    return (await getItem<WalletListItem[]>(StorageKeys.WALLET_LIST)) ?? []
+  }
+
+  async getActiveWalletIndex(): Promise<number> {
+    return (await getItem<number>(StorageKeys.ACTIVE_WALLET_INDEX)) ?? 0
+  }
+
+  async addWalletToList(wallet: WalletListItem): Promise<void> {
+    const list = await this.getWalletList()
+    const exists = list.find((w) => w.stellarPublic === wallet.stellarPublic)
+    if (!exists) list.push(wallet)
+    await setItem(StorageKeys.WALLET_LIST, list)
+  }
+
+  async removeWalletFromList(publicKey: string): Promise<void> {
+    let list = await this.getWalletList()
+    list = list.filter((w) => w.stellarPublic !== publicKey)
+    await setItem(StorageKeys.WALLET_LIST, list)
+    const activeIndex = await this.getActiveWalletIndex()
+    if (activeIndex >= list.length) {
+      await setItem(StorageKeys.ACTIVE_WALLET_INDEX, Math.max(0, list.length - 1))
+    }
+  }
+
+  async switchToWallet(index: number): Promise<void> {
+    await setItem(StorageKeys.ACTIVE_WALLET_INDEX, index)
   }
 }
 

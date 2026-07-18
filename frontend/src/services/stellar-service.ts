@@ -14,6 +14,11 @@ import {
 } from '@stellar/stellar-sdk/axios'
 import { Buffer } from 'buffer'
 import { TransactionBase } from '@stellar/stellar-sdk/axios'
+import type { Transaction, AssetCode } from '@/types'
+
+declare const __DEV__: boolean | undefined
+
+const IS_DEV = typeof __DEV__ !== 'undefined' ? __DEV__ : false
 
 TransactionBase.prototype.toXDR = function () {
   const raw = this.toEnvelope().toXDR()
@@ -48,8 +53,6 @@ export interface StellarServiceOptions {
 
 export interface BalanceResult {
   xlm: number
-  usdc: number
-  assets: Array<{ code: string; issuer: string; balance: string }>
 }
 
 export interface InvokeParams {
@@ -57,6 +60,8 @@ export interface InvokeParams {
   method: string
   args: xdr.ScVal[]
   signerSecret: string
+  /** Pre-loaded Horizon account — skips the Horizon loadAccount call. */
+  sourceAccount?: any
 }
 
 export interface ReadParams {
@@ -144,14 +149,9 @@ export class StellarService {
       const account = await this.horizon.loadAccount(publicKey)
       const balances = account.balances as any[]
       const xlmBalance = balances.find((b: any) => b.asset_type === 'native')
-      const usdcBalance = balances.find((b: any) => b.asset_code === 'USDC')
 
       return {
         xlm: parseFloat(xlmBalance?.balance ?? '0'),
-        usdc: parseFloat(usdcBalance?.balance ?? '0'),
-        assets: balances
-          .filter((b: any) => b.asset_type !== 'native')
-          .map((b: any) => ({ code: b.asset_code, issuer: b.asset_issuer, balance: b.balance })),
       }
     } catch (e: any) {
       const status = e?.response?.status ?? e?.response?.statusCode
@@ -162,7 +162,7 @@ export class StellarService {
           e?.message ?? e,
         )
       }
-      return { xlm: 0, usdc: 0, assets: [] }
+      return { xlm: 0 }
     }
   }
 
@@ -312,15 +312,16 @@ export class StellarService {
       )
     }
 
-    // Obtain the sequence from Horizon. `rpc.getAccount` is an optional RPC
-    // convenience lookup and some providers do not index classic accounts
-    // reliably. The RPC simulation below is the authoritative preflight for
-    // the contract transaction.
+    // Obtain the sequence from Horizon, or use a pre-loaded account.
     let account
-    try {
-      account = await this.horizon.loadAccount(sourcePub)
-    } catch (e: any) {
-      throw new Error(`Could not load source account from Horizon: ${e?.message || 'unknown error'}`)
+    if (params.sourceAccount) {
+      account = params.sourceAccount
+    } else {
+      try {
+        account = await this.horizon.loadAccount(sourcePub)
+      } catch (e: any) {
+        throw new Error(`Could not load source account from Horizon: ${e?.message || 'unknown error'}`)
+      }
     }
 
     const contract = new Contract(params.contractId)
@@ -333,19 +334,24 @@ export class StellarService {
       .build()
 
     const txXdr = tx.toXDR()
-    if (__DEV__) {
+    if (IS_DEV) {
       console.log(`[invokeContract] tx XDR: ${txXdr.substring(0, 80)}...`)
     }
 
-    let prepared: any
+    // ── Simulate + Assemble (dApp skill pattern) ───────────────────
+    // Use simulateTransaction + assembleTransaction instead of the legacy
+    // prepareTransaction flow.  This avoids the TimeBounds conflict that
+    // occurs when cloneFrom + setTimeout try to overwrite bounds already
+    // present on the prepared transaction.
+    let simulation: any
     try {
-      prepared = await this.soroban.prepareTransaction(tx)
-      if (__DEV__) {
-        console.log(`[invokeContract] prepareTransaction OK for ${params.method}`)
+      simulation = await this.soroban.simulateTransaction(tx)
+      if (IS_DEV) {
+        console.log(`[invokeContract] simulateTransaction OK for ${params.method}`)
       }
     } catch (e: any) {
       const errMsg = typeof e === 'object' ? (e?.message ?? e?.data ?? JSON.stringify(e)) : String(e)
-      console.error(`[invokeContract] prepareTransaction failed for ${params.method}`, {
+      console.error(`[invokeContract] simulateTransaction failed for ${params.method}`, {
         error: errMsg,
         xdrPrefix: txXdr.substring(0, 80),
         source: params.signerSecret.slice(0, 8) + '...',
@@ -353,44 +359,64 @@ export class StellarService {
       throw new Error(`Transaction simulation failed: ${errMsg}`)
     }
 
+    if (rpc.Api.isSimulationError(simulation)) {
+      console.error(`[invokeContract] simulation error for ${params.method}`, simulation.error)
+      throw new Error(`Simulation error: ${simulation.error}`)
+    }
+
+    let prepared: any
     try {
-      // Sign the auth entries on the prepared transaction.
-      // The RPC simulation returns unsigned placeholder auth entries that need
-      // the wallet's signature before submission, or the contract's
-      // `require_auth()` call will reject the transaction.
+      const assembled = rpc.assembleTransaction(tx, simulation)
+      prepared = assembled.build()
+      if (IS_DEV) {
+        console.log(`[invokeContract] assembleTransaction OK for ${params.method}`)
+      }
+    } catch (e: any) {
+      const errMsg = typeof e === 'object' ? (e?.message ?? e?.data ?? JSON.stringify(e)) : String(e)
+      console.error(`[invokeContract] assembleTransaction failed for ${params.method}`, {
+        error: errMsg,
+      })
+      throw new Error(`Transaction assembly failed: ${errMsg}`)
+    }
+
+    // ── Sign auth entries (if any) ─────────────────────────────────
+    // The simulation may return unsigned auth entries for contracts that
+    // call require_auth().  We sign them with the source keypair, then
+    // rebuild the operation with the signed auth entries — WITHOUT calling
+    // setTimeout or cloneFrom (which caused the TimeBounds conflict).
+    try {
       const env = xdr.TransactionEnvelope.fromXDR(prepared.toXDR(), 'base64')
       const ops = env.v1().tx().operations()
       const invokeBody = ops[0].body().value() as xdr.InvokeHostFunctionOp
       const authEntries = Array.from(invokeBody.auth())
-      if (__DEV__) console.log(`[invokeContract] auth entries:`, authEntries.length)
+      if (IS_DEV) console.log(`[invokeContract] auth entries:`, authEntries.length)
       if (authEntries.length > 0) {
         const { sequence } = await this.soroban.getLatestLedger()
         const validUntil = sequence + 10
-        if (__DEV__) console.log(`[invokeContract] signing ${authEntries.length} auth entries, validUntil=${validUntil}`)
+        if (IS_DEV) console.log(`[invokeContract] signing ${authEntries.length} auth entries, validUntil=${validUntil}`)
         const signed = await Promise.all(
           authEntries.map((entry: any) =>
             authorizeEntry(entry, sourceKp, validUntil, this.networkPassphrase)
           )
         )
-        // Extract sorobanData (resource fees, footprint) from the prepared
-        // transaction's envelope to preserve it through the rebuild.
-        const sorobanData = env.v1().tx().ext().sorobanData()
 
-        // Build a new operation with signed auth, then rebuild the transaction
-        // preserving fee, sorobanData, and other fields from the prepared tx.
+        // Rebuild with signed auth — use the *original* TransactionBuilder
+        // (not cloneFrom) and attach the sorobanData from the assembled tx.
+        const sorobanData = env.v1().tx().ext().sorobanData()
         const newOp = Operation.invokeHostFunction({
           func: invokeBody.hostFunction(),
           auth: signed,
         })
-        const builder = TransactionBuilder.cloneFrom(prepared, {
+        const freshAccount = params.sourceAccount ?? await this.horizon.loadAccount(sourcePub)
+        prepared = new TransactionBuilder(freshAccount, {
+          fee: BASE_FEE,
           networkPassphrase: this.networkPassphrase,
           sorobanData,
         })
-        builder.clearOperations()
-        builder.addOperation(newOp)
-        builder.setTimeout(30)
-        prepared = builder.build()
-        if (__DEV__) {
+          .addOperation(newOp)
+          .setTimeout(30)
+          .build()
+        if (IS_DEV) {
           console.log(`[invokeContract] signed ${signed.length} auth entr${signed.length === 1 ? 'y' : 'ies'} for ${params.method}`)
         }
       }
@@ -422,40 +448,23 @@ export class StellarService {
 
     if (sendResult.status === 'ERROR') {
       const errXdr = sendResult.errorResultXdr
-      console.error(`[invokeContract] sendTransaction ERROR for ${params.method}`, {
+      console.warn(`[invokeContract] sendTransaction ERROR for ${params.method}`, {
         hash,
         errorResultXdr: errXdr,
-        sendResult: JSON.stringify(sendResult),
       })
-      try {
-        if (errXdr) {
-          const txResult: any = xdr.TransactionResult.fromXDR(errXdr, 'base64')
-          const result: any = txResult.result()
-          console.error(`[invokeContract] decoded result:`, {
-            outerCode: result.switch().name,
-            innerCode: result.value()?.switch?.()?.name,
-          })
-        }
-      } catch (parseErr: any) {
-        console.error(`[invokeContract] could not decode errorResultXdr:`, parseErr.message)
-      }
-      // Some RPCs return ERROR from sendTransaction but still include the tx;
-      // poll getTransaction briefly as a fallback to confirm failure.
-      for (let i = 0; i < 10; i++) {
-        await new Promise(r => setTimeout(r, 1000))
-        const check: any = await this.soroban.getTransaction(hash)
-        if (check.status === 'SUCCESS') return hash
-        if (check.status === 'FAILED') {
-          console.error(`[invokeContract] tx FAILED via poll for ${params.method}`, {
-            resultString: check.resultString,
-            resultXdr: check.resultXdr,
-            hash,
-          })
-          throw new Error(check.resultString || 'Transaction failed')
-        }
-      }
-      throw new Error(`Transaction rejected by network (hash: ${hash})`)
+      // Network rejected at submission stage — still return hash so the caller
+      // (invokeContractAndWait or txMonitor) can poll getTransaction for the
+      // final result or retry if needed.
+      return hash
     }
+
+    // Fire-and-forget: returns hash immediately, no polling.
+    // Callers that need finality should use invokeContractAndWait or txMonitor.
+    return hash
+  }
+
+  async invokeContractAndWait(params: InvokeParams): Promise<string> {
+    const hash = await this.invokeContract(params)
 
     for (let i = 0; i < 60; i++) {
       const result: any = await this.soroban.getTransaction(hash)
@@ -477,7 +486,7 @@ export class StellarService {
             msg = `Operation error: ${opCode}`
           }
         } catch (_) {}
-        console.error(`[invokeContract] transaction FAILED for ${params.method}`, { hash, msg })
+        console.error(`[invokeContractAndWait] transaction FAILED for ${params.method}`, { hash, msg })
         throw new Error(msg)
       }
       await new Promise(r => setTimeout(r, 1000))
@@ -496,6 +505,21 @@ export class StellarService {
       status: r.status,
       returnValue: r.returnValue,
       error: r.status === 'FAILED' ? (r.resultString || 'Transaction failed') : undefined,
+    }
+  }
+
+  async loadSourceAccount(publicKey: string): Promise<any> {
+    return this.horizon.loadAccount(publicKey)
+  }
+
+  async getPaymentStatus(hash: string): Promise<'confirmed' | 'failed' | 'not_found'> {
+    try {
+      const tx: any = await this.horizon.transactions().transaction(hash)
+      if (!tx) return 'not_found'
+      return tx.successful ? 'confirmed' : 'failed'
+    } catch (e: any) {
+      if (e?.response?.status === 404) return 'not_found'
+      return 'not_found'
     }
   }
 
@@ -520,7 +544,7 @@ export class StellarService {
       .build()
 
     const txXdr = tx.toXDR()
-    if (__DEV__) {
+    if (IS_DEV) {
       console.log(`[readContract] tx XDR: ${txXdr.substring(0, 80)}...`)
     }
 
@@ -537,13 +561,42 @@ export class StellarService {
     return sim.result.retval
   }
 
+  async getAccountTransactions(publicKey: string, limit = 20): Promise<Transaction[]> {
+    try {
+      const records: any[] = []
+      let cursor: string | undefined
+      for (let i = 0; i < 3 && records.length < limit; i++) {
+        const builder = this.horizon.transactions().forAccount(publicKey).order('desc').limit(limit)
+        if (cursor) builder.cursor(cursor)
+        const page: any = await builder.call()
+        records.push(...page.records)
+        cursor = page.records[page.records.length - 1]?.paging_token
+      }
+      return records.slice(0, limit).map((tx: any) => ({
+        id: tx.hash,
+        stellarTxHash: tx.hash,
+        merchantId: tx.source_account,
+        merchantName: tx.memo_type === 'text' ? (tx.memo || 'Stellar TX') : 'Stellar TX',
+        userId: publicKey,
+        deviceId: tx.source_account,
+        amountCents: 0,
+        assetCode: 'XLM' as AssetCode,
+        status: tx.successful ? 'confirmed' : 'failed',
+        errorMessage: tx.successful ? null : 'Transaction failed',
+        createdAt: tx.created_at,
+      }))
+    } catch {
+      return []
+    }
+  }
+
   async registerDevice(params: RegisterDeviceParams): Promise<string> {
     const sourceKp = Keypair.fromSecret(params.walletSecret)
     const sourcePub = sourceKp.publicKey()
     const walletScVal = Address.fromString(sourcePub).toScVal()
     const hashScVal = xdr.ScVal.scvBytes(Buffer.from(params.deviceHashHex, 'hex'))
 
-    return this.invokeContract({
+    return this.invokeContractAndWait({
       contractId: params.contractId,
       method: 'register',
       args: [hashScVal, walletScVal],

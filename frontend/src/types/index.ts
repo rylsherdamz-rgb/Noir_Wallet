@@ -6,7 +6,7 @@ export type ToastType = 'success' | 'error' | 'info' | 'warning'
 
 export type TxFilter = 'all' | 'pending' | 'confirmed' | 'failed'
 
-export type AssetCode = 'USDC' | 'XLM' | 'PHP'
+export type AssetCode = 'XLM'
 
 export interface SecuritySettings {
   biometricLockEnabled: boolean
@@ -52,17 +52,14 @@ export interface Transaction {
 }
 
 export interface Balance {
-  php: number
-  usdc: number
   xlm: number
-  localTokens: Record<string, number>
 }
 
 export interface MerchantSettings {
   autoConvertToFiat: boolean
   autoConvertThresholdCents: number
   dailyBankSweep: boolean
-  payoutPreference: 'crypto_usdc' | 'crypto_xlm' | 'fiat_php'
+  payoutPreference: 'crypto_xlm'
 }
 
 export interface NFCTag {
@@ -128,6 +125,7 @@ export interface Registration {
 export interface QueuedPayment {
   id: string
   rawDeviceUid: string
+  deviceUidHash?: string
   merchantPublicKey: string
   amountCents: number
   assetCode: AssetCode

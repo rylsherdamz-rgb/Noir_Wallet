@@ -1181,6 +1181,45 @@ impl PdaxClient {
             PaymentError::PdaxApiError(format!("Failed to parse place order response: {}", e))
         })
     }
+
+    /// Verify a PDAX settlement webhook signature using HMAC-SHA256.
+    /// PDAX signs the raw JSON payload with a shared secret. The signature
+    /// header is typically `X-PDAX-Signature` and is hex-encoded.
+    pub fn verify_webhook_signature(payload: &str, signature: &str, secret: &str) -> bool {
+        use sha2::{Digest, Sha256};
+
+        const BLOCK_SIZE: usize = 64;
+        let mut key = [0u8; BLOCK_SIZE];
+        let secret_bytes = secret.as_bytes();
+        let len = secret_bytes.len().min(BLOCK_SIZE);
+        key[..len].copy_from_slice(&secret_bytes[..len]);
+
+        let ipad_key: [u8; BLOCK_SIZE] = std::array::from_fn(|i| key[i] ^ 0x36);
+        let opad_key: [u8; BLOCK_SIZE] = std::array::from_fn(|i| key[i] ^ 0x5c);
+
+        let inner = {
+            let mut hasher = Sha256::new();
+            hasher.update(&ipad_key);
+            hasher.update(payload.as_bytes());
+            hasher.finalize()
+        };
+
+        let computed = {
+            let mut hasher = Sha256::new();
+            hasher.update(&opad_key);
+            hasher.update(&inner);
+            hex::encode(hasher.finalize())
+        };
+
+        let Ok(expected) = hex::decode(signature) else {
+            return false;
+        };
+        let Ok(computed_bytes) = hex::decode(&computed) else {
+            return false;
+        };
+
+        computed_bytes.as_slice() == expected.as_slice()
+    }
 }
 
 #[cfg(test)]

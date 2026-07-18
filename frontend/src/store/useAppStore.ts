@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { secureGetItem, secureSetItem, secureDeleteItem } from '@/services/secureStorage'
 import { stellarService } from '@/services/stellar-service'
-import { stellarNetwork } from '@/constants/config'
+import { stellarNetwork, AppConfig } from '@/constants/config'
 import {
   User,
   Device,
@@ -14,11 +14,31 @@ import {
   QueuedPayment,
 } from '@/types'
 
+// Bump this when contracts are redeployed to invalidate stale local state.
+// Computed from the current contract IDs so a config change auto-clears old data.
+const STORE_VERSION_HASH = hashContractIds()
+
+function hashContractIds(): string {
+  const ids = [
+    AppConfig.stellar.deviceRegistryContract,
+    AppConfig.stellar.agentRegistryContract,
+  ].filter(Boolean).join('|')
+  // Simple short hash — not cryptographic, just a cache-buster
+  let h = 0
+  for (let i = 0; i < ids.length; i++) {
+    const c = ids.charCodeAt(i)
+    h = ((h << 5) - h) + c
+    h |= 0
+  }
+  return 'v1_' + Math.abs(h).toString(36)
+}
+
 interface AppState {
   user: User | null
   devices: Device[]
   transactions: Transaction[]
   pendingPayments: QueuedPayment[]
+  pendingTxHashes: string[]
   balance: Balance
   merchantSettings: MerchantSettings | null
   isOnboarded: boolean
@@ -29,6 +49,7 @@ interface AppState {
   network: StellarNetwork
   security: SecuritySettings
   balanceStale: boolean
+  storeVersion: string
 
   setUser: (user: User | null) => void
   setDevices: (devices: Device[]) => void
@@ -51,6 +72,9 @@ interface AppState {
   addPendingPayment: (payment: QueuedPayment) => void
   removePendingPayment: (id: string) => void
   clearPendingPayments: () => void
+  addPendingTxHash: (hash: string) => void
+  removePendingTxHash: (hash: string) => void
+  clearDeviceData: () => void
   reset: () => void
 }
 
@@ -59,7 +83,8 @@ const initialState = {
   devices: [] as Device[],
   transactions: [] as Transaction[],
   pendingPayments: [] as QueuedPayment[],
-  balance: { php: 0, usdc: 0, xlm: 0, localTokens: {} } as Balance,
+  pendingTxHashes: [] as string[],
+  balance: { xlm: 0 } as Balance,
   merchantSettings: null as MerchantSettings | null,
   isOnboarded: false,
   isWalletCreated: false,
@@ -71,6 +96,7 @@ const initialState = {
     backgroundLockTimeoutSec: 60,
   } as SecuritySettings,
   balanceStale: false,
+  storeVersion: STORE_VERSION_HASH,
 }
 
 export const useAppStore = create<AppState>()(
@@ -80,7 +106,16 @@ export const useAppStore = create<AppState>()(
 
       setUser: (user) => set({ user }),
       setDevices: (devices) => set({ devices }),
-      addDevice: (device) => set((s) => ({ devices: [...s.devices, device] })),
+      addDevice: (device) =>
+        set((s) => {
+          const idx = s.devices.findIndex(
+            (d) => d.id === device.id || d.deviceUidHash === device.deviceUidHash
+          )
+          if (idx >= 0) {
+            return { devices: s.devices.map((d, i) => (i === idx ? { ...d, ...device } : d)) }
+          }
+          return { devices: [...s.devices, device] }
+        }),
       updateDevice: (id, updates) =>
         set((s) => ({
           devices: s.devices.map((d) => (d.id === id ? { ...d, ...updates } : d)),
@@ -114,6 +149,11 @@ export const useAppStore = create<AppState>()(
       removePendingPayment: (id) =>
         set((s) => ({ pendingPayments: s.pendingPayments.filter((p) => p.id !== id) })),
       clearPendingPayments: () => set({ pendingPayments: [] }),
+      addPendingTxHash: (hash) =>
+        set((s) => ({ pendingTxHashes: s.pendingTxHashes.includes(hash) ? s.pendingTxHashes : [...s.pendingTxHashes, hash] })),
+      removePendingTxHash: (hash) =>
+        set((s) => ({ pendingTxHashes: s.pendingTxHashes.filter((h) => h !== hash) })),
+      clearDeviceData: () => set({ devices: [], transactions: [], pendingPayments: [], pendingTxHashes: [] }),
       reset: () => set(initialState),
     }),
     {
@@ -127,15 +167,35 @@ export const useAppStore = create<AppState>()(
         user: state.user,
         devices: state.devices,
         pendingPayments: state.pendingPayments,
+        pendingTxHashes: state.pendingTxHashes,
         isOnboarded: state.isOnboarded,
         isWalletCreated: state.isWalletCreated,
         network: state.network,
         security: state.security,
+        storeVersion: state.storeVersion,
       }) as unknown as AppState,
       onRehydrateStorage: () => (state) => {
-        // The persisted network must be re-applied to the singleton service,
-        // which was constructed from env before this state was restored.
         if (state?.network) stellarService.setNetwork(state.network)
+        if (state && state.storeVersion !== STORE_VERSION_HASH) {
+          useAppStore.setState({
+            devices: [],
+            transactions: [],
+            pendingPayments: [],
+            pendingTxHashes: [],
+            storeVersion: STORE_VERSION_HASH,
+          })
+        } else if (state) {
+          // Deduplicate devices by deviceUidHash — keep the last entry for each hash
+          const seen = new Set<string>()
+          const deduped = state.devices.filter((d) => {
+            if (seen.has(d.deviceUidHash)) return false
+            seen.add(d.deviceUidHash)
+            return true
+          })
+          if (deduped.length !== state.devices.length) {
+            useAppStore.setState({ devices: deduped })
+          }
+        }
       },
     },
   ),

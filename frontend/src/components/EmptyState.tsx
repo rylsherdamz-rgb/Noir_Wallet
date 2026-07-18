@@ -1,5 +1,6 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { DesignTokens, colorWithOpacity } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 
@@ -27,18 +28,17 @@ export function EmptyState({
         <Ionicons name={icon} size={DesignTokens.iconSize.xxl} color={Colors.gold} />
       </View>
       <Text style={styles.title}>{title}</Text>
-      {description && <Text style={styles.desc}>{description}</Text>}
+      {description ? <Text style={styles.desc}>{description}</Text> : null}
       {actionLabel && onAction && (
-        <TouchableOpacity
+        <PressableScale
           style={styles.actionButton}
           onPress={onAction}
-          activeOpacity={0.7}
           accessibilityRole="button"
           accessibilityLabel={actionLabel}
         >
           <Text style={styles.actionLabel}>{actionLabel}</Text>
           <Ionicons name="arrow-forward" size={16} color={Colors.gold} />
-        </TouchableOpacity>
+        </PressableScale>
       )}
     </View>
   )

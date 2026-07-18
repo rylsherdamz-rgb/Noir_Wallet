@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use actix_cors::Cors;
 use actix_web::{web, App, HttpServer};
 use auth::ApiKeyMiddleware;
 use log::{info, warn};
@@ -225,7 +226,7 @@ async fn main() -> std::io::Result<()> {
             .route("/payment/tap", web::post().to(api::tap_payment))
             .route("/cards/provision", web::post().to(api::provision_card))
             .route("/cards/revoke", web::post().to(api::revoke_card))
-            .route("/devices/register", web::post().to(api::register_device))
+            .route("/devices/register", web::post().to(api::register_device_frontend))
             .route(
                 "/payment/{transaction_id}",
                 web::get().to(api::get_transaction_status),
@@ -234,6 +235,23 @@ async fn main() -> std::io::Result<()> {
                 "/device/{device_serial}/transactions",
                 web::get().to(api::get_device_transactions),
             )
+            // Device management (frontend)
+            .route("/devices", web::get().to(api::get_devices))
+            .route(
+                "/devices/{device_id}/status",
+                web::patch().to(api::update_device_status),
+            )
+            .route("/balance", web::get().to(api::get_balance))
+            .route("/merchant/settings", web::get().to(api::get_merchant_settings))
+            .route(
+                "/merchant/settings",
+                web::put().to(api::update_merchant_settings),
+            )
+            .route("/pdax/quote", web::post().to(api::pdax_quote))
+            .route("/pdax/quote-frontend", web::post().to(api::pdax_quote_frontend))
+            .route("/pdax/balance", web::get().to(api::pdax_balance))
+            .route("/auth/signup", web::post().to(api::auth_signup))
+            .route("/auth/login", web::post().to(api::auth_login))
             .route("/channels", web::get().to(api::list_fee_channels))
             .route(
                 "/channels/{channel_address}",

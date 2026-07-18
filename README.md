@@ -109,13 +109,21 @@ Mobile App / POS Terminal
 | **agent_registry** | On-chain agent authorization per device — allows wallet owner to authorize a signing key for tap-to-pay | `wallet.require_auth()` | `backend/asset/contracts/agent_registry/` |
 | **payment_escrow** | Escrow-based settlement — wallet pre-funds, agent authorizes payments instantly, merchants claim in batch | agent auth (via `agent_registry`) | `backend/asset/contracts/payment_escrow/` |
 
-**Testnet Contract IDs** (deployed 2025-07-14):
+**Testnet Contract IDs** (deployed 2026-07-17):
 
 | Contract | ID |
 |----------|----|
-| device_registry | `CA5GE7F2IT5Y76B5OA5QNIWHVU6DVLQKA4YFYW2LTPILVNGOUPEE6WNS` |
-| agent_registry | `CAPD2KNDGW2O3RDNSL5DN4B5VQDMRMBWXLJKQLJJKLFXMSTHN4X7YLT5` |
-| payment_escrow | `CDGR4ZBSRQDXF7TLDHWGOFQXH6S5SQUA2HZQDBQ7T5O6B2NLU5CS5XVB` |
+| device_registry | `CDRP5QCCRCV7TURFWH6NEQIVM3UGTONT65YKV5XNZ3457OULD4GE6YZZ` |
+| agent_registry | `CDWRQV4RBKOY4VHKSWEQWF3VV25VAUDCJJZ7344GVVD7HMQOQYMMROJN` |
+| payment_escrow | `CB633774OHLBHDB7HRYFAOUU2WOFZEBA5FR75HQEKDD32DW4NIUCEC4V` |
+
+**Mainnet Contract IDs** (deployed 2026-07-18):
+
+| Contract | ID |
+|----------|----|
+| device_registry | `CDSURGM4LYYRZ6U4RKBRUQPA7SGLAJZ5XXS65ACYCIU6QOO2NEEA2S45` |
+| agent_registry | `CDE2Q22BNKHLRNHUXHNL4TYRN5YPCOCO2XD53MAVYG7K2C4KZ2T6NI5T` |
+| payment_escrow | `CCEIB2BLMHK7N7OX23HJ3RCMJBP2NLBMMBGUA6SB5IWJJ6JEWH6ZZPK3` |
 
 ### Contract Methods
 
@@ -218,9 +226,9 @@ Copy `.env.example` to `.env` and configure:
 
 | Variable | Description | Current Value |
 |----------|-------------|---------------|
-| `EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT` | Soroban device registry contract ID | `CA5GE7F2IT5Y76B5OA5QNIWHVU6DVLQKA4YFYW2LTPILVNGOUPEE6WNS` |
-| `EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT` | Soroban agent registry contract ID | `CAPD2KNDGW2O3RDNSL5DN4B5VQDMRMBWXLJKQLJJKLFXMSTHN4X7YLT5` |
-| `EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT` | Soroban payment escrow contract ID | `CDGR4ZBSRQDXF7TLDHWGOFQXH6S5SQUA2HZQDBQ7T5O6B2NLU5CS5XVB` |
+| `EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT` | Soroban device registry contract ID | `CDRP5QCCRCV7TURFWH6NEQIVM3UGTONT65YKV5XNZ3457OULD4GE6YZZ` |
+| `EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT` | Soroban agent registry contract ID | `CDWRQV4RBKOY4VHKSWEQWF3VV25VAUDCJJZ7344GVVD7HMQOQYMMROJN` |
+| `EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT` | Soroban payment escrow contract ID | `CB633774OHLBHDB7HRYFAOUU2WOFZEBA5FR75HQEKDD32DW4NIUCEC4V` |
 | `EXPO_PUBLIC_STELLAR_MASTER_KEY_ID` | Stellar master key ID | (configure per deployment) |
 | `EXPO_PUBLIC_CHANNEL_SECRET_KEY` | Fee channel secret | (configure per deployment) |
 | `EXPO_PUBLIC_ISSUER_ADDRESS` | Asset issuer address | (configure per deployment) |

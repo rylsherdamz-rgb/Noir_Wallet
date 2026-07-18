@@ -15,7 +15,7 @@ describe('TestnetFaucetBanner visibility logic', () => {
 
   it('hides when xlm balance > 0', async () => {
     const store = await import('@/store/useAppStore')
-    store.useAppStore.getState().setBalance({ php: 0, usdc: 0, xlm: 100, localTokens: {} })
+    store.useAppStore.getState().setBalance({ xlm: 100 })
     store.useAppStore.getState().setNetwork('testnet')
     store.useAppStore.getState().setUser({ id: '1', email: 't', phoneNumber: '+63', stellarPublicKey: 'GABC', kycLevel: 1, role: 'consumer', displayName: 'T' })
     const mod = await import('@/components/TestnetFaucetBanner')
@@ -24,7 +24,7 @@ describe('TestnetFaucetBanner visibility logic', () => {
 
   it('hides on mainnet even with 0 XLM', async () => {
     const store = await import('@/store/useAppStore')
-    store.useAppStore.getState().setBalance({ php: 0, usdc: 0, xlm: 0, localTokens: {} })
+    store.useAppStore.getState().setBalance({ xlm: 0 })
     store.useAppStore.getState().setNetwork('mainnet')
     const mod = await import('@/components/TestnetFaucetBanner')
     expect(mod.TestnetFaucetBanner).toBeDefined()
@@ -32,7 +32,7 @@ describe('TestnetFaucetBanner visibility logic', () => {
 
   it('shows on testnet with 0 XLM', async () => {
     const store = await import('@/store/useAppStore')
-    store.useAppStore.getState().setBalance({ php: 0, usdc: 0, xlm: 0, localTokens: {} })
+    store.useAppStore.getState().setBalance({ xlm: 0 })
     store.useAppStore.getState().setNetwork('testnet')
     store.useAppStore.getState().setUser({ id: '1', email: 't', phoneNumber: '+63', stellarPublicKey: 'GABC', kycLevel: 1, role: 'consumer', displayName: 'T' })
     const mod = await import('@/components/TestnetFaucetBanner')

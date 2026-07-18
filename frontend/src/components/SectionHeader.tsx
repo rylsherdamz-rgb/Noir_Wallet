@@ -1,5 +1,6 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
 import { Colors, Spacing, FontSize, FontWeight } from '@/constants/theme'
+import { PressableScale } from '@/components/brand/PressableScale'
 
 interface SectionHeaderProps {
   title: string
@@ -13,13 +14,13 @@ export function SectionHeader({ title, actionLabel, onAction }: SectionHeaderPro
     <View style={styles.row}>
       <Text style={styles.title}>{title}</Text>
       {actionLabel && (
-        <TouchableOpacity
+        <PressableScale
           onPress={onAction}
           accessibilityRole="button"
           accessibilityLabel={actionLabel}
         >
           <Text style={styles.action}>{actionLabel}</Text>
-        </TouchableOpacity>
+        </PressableScale>
       )}
     </View>
   )

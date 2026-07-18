@@ -1,5 +1,6 @@
-import { Text, StyleSheet, TouchableOpacity, ActivityIndicator, View, StyleProp, ViewStyle, Animated } from 'react-native'
+import { Text, StyleSheet, ActivityIndicator, View, StyleProp, ViewStyle, Animated } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { PressableScale } from '@/components/brand/PressableScale'
 import * as Haptics from 'expo-haptics'
 import { useRef } from 'react'
 import { DesignTokens } from '@/constants/designTokens'
@@ -100,7 +101,7 @@ export function Button({
 
   return (
     <Animated.View style={[{ transform: [{ scale: scaleAnim }] }, fullWidth && { width: '100%' }]}>
-      <TouchableOpacity
+      <PressableScale
         style={[
           styles.base,
           styles[variant],
@@ -113,7 +114,6 @@ export function Button({
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         disabled={isDisabled}
-        activeOpacity={0.85}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel ?? label}
         accessibilityHint={accessibilityHint}
@@ -138,7 +138,7 @@ export function Button({
             )}
           </View>
         )}
-      </TouchableOpacity>
+      </PressableScale>
     </Animated.View>
   )
 }

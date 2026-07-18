@@ -249,7 +249,7 @@ class ApiService {
 
   // PDAX
   async pdaxQuote(amountCents: number, fromAsset: string, toAsset: string) {
-    return this.request<{ quote: any }>('/pdax/quote', {
+    return this.request<{ quote: any }>('/pdax/quote-frontend', {
       method: 'POST',
       body: JSON.stringify({ amountCents, fromAsset, toAsset }),
     })
@@ -262,10 +262,17 @@ class ApiService {
     })
   }
 
-  async pdaxCashOut(amountCents: number) {
+  async pdaxCashOut(amountCents: number, beneficiary?: { bankName: string; accountName: string; accountNumber: string }) {
     return this.request<{ reference: string }>('/pdax/cash-out', {
       method: 'POST',
-      body: JSON.stringify({ amountCents }),
+      body: JSON.stringify({ amountCents, beneficiary }),
+    })
+  }
+
+  async pdaxBalance(currency?: string) {
+    const query = currency ? `?currency=${currency}` : ''
+    return this.request<{ balances: any[] }>(`/pdax/balance${query}`, {
+      method: 'GET',
     })
   }
 }

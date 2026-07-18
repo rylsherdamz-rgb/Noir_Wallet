@@ -40,22 +40,20 @@ describe('useAppStore', () => {
 
   it('addTransaction prepends to transactions', async () => {
     const { useAppStore } = await import('@/store/useAppStore')
-    useAppStore.getState().addTransaction({ id: 'tx1', stellarTxHash: null, merchantId: 'm1', merchantName: 'Test', userId: 'u1', deviceId: 'd1', amountCents: 1000, assetCode: 'PHP', status: 'confirmed', errorMessage: null, createdAt: new Date().toISOString() })
+    useAppStore.getState().addTransaction({ id: 'tx1', stellarTxHash: null, merchantId: 'm1', merchantName: 'Test', userId: 'u1', deviceId: 'd1', amountCents: 1000, assetCode: 'XLM', status: 'confirmed', errorMessage: null, createdAt: new Date().toISOString() })
     expect(useAppStore.getState().transactions).toHaveLength(1)
   })
 
   it('setBalance updates balance', async () => {
     const { useAppStore } = await import('@/store/useAppStore')
-    useAppStore.getState().setBalance({ php: 1000, usdc: 100, xlm: 50, localTokens: {} })
-    expect(useAppStore.getState().balance.php).toBe(1000)
+    useAppStore.getState().setBalance({ xlm: 50 })
     expect(useAppStore.getState().balance.xlm).toBe(50)
   })
 
   it('updateBalance merges partial', async () => {
     const { useAppStore } = await import('@/store/useAppStore')
-    useAppStore.getState().setBalance({ php: 1000, usdc: 100, xlm: 50, localTokens: {} })
+    useAppStore.getState().setBalance({ xlm: 50 })
     useAppStore.getState().updateBalance({ xlm: 75 })
-    expect(useAppStore.getState().balance.php).toBe(1000)
     expect(useAppStore.getState().balance.xlm).toBe(75)
   })
 
@@ -111,7 +109,7 @@ describe('useAppStore', () => {
 
   it('setTransactions replaces transaction list', async () => {
     const { useAppStore } = await import('@/store/useAppStore')
-    const txs: Array<import('@/types').Transaction> = [{ id: 'tx1', stellarTxHash: null, merchantId: 'm1', merchantName: 'M', userId: 'u1', deviceId: 'd1', amountCents: 100, assetCode: 'PHP' as const, status: 'confirmed' as const, errorMessage: null, createdAt: '' }]
+    const txs: Array<import('@/types').Transaction> = [{ id: 'tx1', stellarTxHash: null, merchantId: 'm1', merchantName: 'M', userId: 'u1', deviceId: 'd1', amountCents: 100, assetCode: 'XLM' as const, status: 'confirmed' as const, errorMessage: null, createdAt: '' }]
     useAppStore.getState().setTransactions(txs)
     expect(useAppStore.getState().transactions).toHaveLength(1)
   })

@@ -77,7 +77,7 @@ describe('Agent screens', () => {
     const agentDeviceUid = 'uid-agent-1'
     const allTxs = [
       { id: '1', deviceId: 'uid-agent-1', status: 'confirmed', amountCents: 100, assetCode: 'XLM', merchantName: 'Card A' },
-      { id: '2', deviceId: 'uid-other', status: 'confirmed', amountCents: 200, assetCode: 'PHP', merchantName: 'Other' },
+      { id: '2', deviceId: 'uid-other', status: 'confirmed', amountCents: 200, assetCode: 'XLM', merchantName: 'Other' },
       { id: '3', deviceId: 'uid-agent-1', status: 'confirmed', amountCents: 50, assetCode: 'XLM', merchantName: 'Card A' },
     ]
     const agentTxs = allTxs.filter((tx) => tx.deviceId === agentDeviceUid)

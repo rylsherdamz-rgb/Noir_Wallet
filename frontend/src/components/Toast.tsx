@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { View, Text, StyleSheet, Animated, TouchableOpacity, Platform } from 'react-native'
+import { View, Text, StyleSheet, Animated, Platform } from 'react-native'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { DesignTokens, colorWithOpacity } from '@/constants/designTokens'
@@ -125,10 +126,10 @@ export function Toast({
       ]}
       testID={testID}
     >
-      <TouchableOpacity
+      <PressableScale
         style={[styles.inner, { borderLeftWidth: 3, borderLeftColor: backgroundColor }]}
         onPress={handleDismiss}
-        activeOpacity={0.9}
+       
         accessibilityRole="alert"
         accessibilityLabel={`${type}: ${title}${message ? `. ${message}` : ''}`}
         accessibilityHint="Tap to dismiss"
@@ -138,17 +139,17 @@ export function Toast({
         </View>
         <View style={styles.textWrap}>
           <Text style={styles.title}>{title}</Text>
-          {message && <Text style={styles.message}>{message}</Text>}
+          {message ? <Text style={styles.message}>{message}</Text> : null}
         </View>
-        <TouchableOpacity
+        <PressableScale
           onPress={handleDismiss}
           hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
           accessibilityLabel="Dismiss notification"
           accessibilityRole="button"
         >
           <Ionicons name="close" size={18} color={Colors.mutedWhite} />
-        </TouchableOpacity>
-      </TouchableOpacity>
+        </PressableScale>
+      </PressableScale>
     </Animated.View>
   )
 }

@@ -1,4 +1,5 @@
-import { View, TextInput, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, TextInput, StyleSheet } from 'react-native'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { Ionicons } from '@expo/vector-icons'
 import { Colors, Spacing, FontSize, BorderRadius } from '@/constants/theme'
 
@@ -28,9 +29,9 @@ export function SearchBar({
         autoCorrect={false}
       />
       {value.length > 0 && (
-        <TouchableOpacity onPress={() => { onChangeText(''); onClear?.() }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <PressableScale onPress={() => { onChangeText(''); onClear?.() }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="close-circle" size={18} color={Colors.mutedWhite} />
-        </TouchableOpacity>
+        </PressableScale>
       )}
     </View>
   )

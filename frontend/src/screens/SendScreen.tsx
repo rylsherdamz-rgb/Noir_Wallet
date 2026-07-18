@@ -1,12 +1,12 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TextInput,
-  TouchableOpacity,
 } from 'react-native'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter, useGlobalSearchParams } from 'expo-router'
@@ -20,7 +20,6 @@ import { SmartTip } from '@/components/SmartTip'
 import { useAppStore } from '@/store/useAppStore'
 import { walletService } from '@/services/wallet'
 import { stellarService } from '@/services/stellar-service'
-import { AssetCode } from '@/types'
 
 export function SendScreen() {
   const router = useRouter()
@@ -28,7 +27,6 @@ export function SendScreen() {
   const { balance, devices } = useAppStore()
   const [amount, setAmount] = useState('')
   const [recipient, setRecipient] = useState((params?.scannedAddress as string) || '')
-  const [asset, setAsset] = useState<AssetCode>('USDC')
   const [note, setNote] = useState('')
   const [step, setStep] = useState<'amount' | 'recipient' | 'review'>('amount')
   const [showRecipients, setShowRecipients] = useState(false)
@@ -41,9 +39,16 @@ export function SendScreen() {
     setAmount(val)
   }, [])
 
+  useEffect(() => {
+    if (params?.scannedAddress) {
+      setRecipient(params.scannedAddress as string)
+      setStep('recipient')
+      router.setParams({ scannedAddress: undefined })
+    }
+  }, [params?.scannedAddress])
+
   const amountNum = parseFloat(amount) || 0
-  const maxBalance = asset === 'USDC' ? balance.usdc : asset === 'XLM' ? balance.xlm : balance.php
-  const insufficientFunds = amountNum > maxBalance
+  const insufficientFunds = amountNum > balance.xlm
 
   const handleContinue = () => {
     if (amountNum <= 0) {
@@ -51,7 +56,7 @@ export function SendScreen() {
       return
     }
     if (insufficientFunds) {
-      setError(`Insufficient ${asset} balance`)
+      setError('Insufficient XLM balance')
       return
     }
     setStep('recipient')
@@ -75,7 +80,6 @@ export function SendScreen() {
         sourceSecret: keys.stellarSecret,
         destination: recipient,
         amount: amount,
-        assetCode: asset === 'PHP' ? 'USDC' : asset,
       })
       if ('error' in result) {
         throw new Error(result.error)
@@ -93,35 +97,22 @@ export function SendScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="close" size={24} color={Colors.white} />
-          </TouchableOpacity>
+          </PressableScale>
           <Text style={styles.headerTitle}>Send</Text>
-          <View style={{ width: 24 }} />
+          <View style={styles.spacer24} />
         </View>
 
         <View style={styles.amountSection}>
-          <View style={styles.assetRow}>
-            {(['USDC', 'XLM', 'PHP'] as AssetCode[]).map((a) => (
-              <TouchableOpacity
-                key={a}
-                style={[styles.assetChip, asset === a && styles.assetChipActive]}
-                onPress={() => setAsset(a)}
-              >
-                <Text style={[styles.assetChipLabel, asset === a && styles.assetChipLabelActive]}>
-                  {a}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <Text style={styles.balanceLabel}>XLM · Stellar Lumens</Text>
           <Text style={styles.amountDisplay}>
             {amount || '0'}
-            <Text style={styles.amountCursor}>|</Text>
           </Text>
           <Text style={styles.balanceLabel}>
-            Balance: {maxBalance.toLocaleString()} {asset}
+            Balance: {balance.xlm.toLocaleString()} XLM
           </Text>
-          {error && <ErrorMessage message={error} variant="inline" />}
+          {error ? <ErrorMessage message={error} variant="inline" /> : null}
         </View>
 
         <View style={styles.keypadSection}>
@@ -144,11 +135,11 @@ export function SendScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => setStep('amount')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <PressableScale onPress={() => setStep('amount')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="arrow-back" size={24} color={Colors.white} />
-          </TouchableOpacity>
+          </PressableScale>
           <Text style={styles.headerTitle}>Send to</Text>
-          <View style={{ width: 24 }} />
+          <View style={styles.spacer24} />
         </View>
 
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
@@ -162,9 +153,9 @@ export function SendScreen() {
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <TouchableOpacity style={styles.scanBtn} onPress={() => router.push('/scan-qr')}>
+            <PressableScale style={styles.scanBtn} onPress={() => router.push('/scan-qr')}>
               <Ionicons name="qr-code-outline" size={20} color={Colors.gold} />
-            </TouchableOpacity>
+            </PressableScale>
           </View>
 
           <SmartTip
@@ -177,20 +168,23 @@ export function SendScreen() {
           {devices.length === 0 ? (
             <Text style={styles.noDevices}>No linked devices. Link one in the Devices tab.</Text>
           ) : (
-            devices.map((device) => (
-              <TouchableOpacity
+            devices
+              .filter((device) => !!device.agentPublicKey)
+              .map((device) => (
+              <PressableScale
                 key={device.id}
                 style={styles.recipientRow}
-                onPress={() => handleSelectRecipient(device.deviceUidHash)}
-                activeOpacity={0.7}
+                onPress={() => device.agentPublicKey && handleSelectRecipient(device.agentPublicKey)}
               >
                 <Avatar name={device.label} size={44} variant="device" />
                 <View style={styles.recipientInfo}>
                   <Text style={styles.recipientName}>{device.label}</Text>
-                  <Text style={styles.recipientAddress}>{device.deviceUidHash.slice(0, 12)}...</Text>
+                  <Text style={styles.recipientAddress}>
+                    {device.agentPublicKey?.slice(0, 8)}…{device.agentPublicKey?.slice(-6)}
+                  </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
-              </TouchableOpacity>
+              </PressableScale>
             ))
           )}
         </ScrollView>
@@ -209,9 +203,9 @@ export function SendScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => setStep('recipient')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <PressableScale onPress={() => setStep('recipient')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
-        </TouchableOpacity>
+        </PressableScale>
         <Text style={styles.headerTitle}>Review Send</Text>
         <View style={{ width: 24 }} />
       </View>
@@ -221,7 +215,7 @@ export function SendScreen() {
           <View style={styles.reviewRow}>
             <Text style={styles.reviewLabel}>Amount</Text>
             <Text style={styles.reviewValue}>
-              {amount} {asset}
+              {amount} XLM
             </Text>
           </View>
           <View style={styles.divider} />
@@ -238,7 +232,7 @@ export function SendScreen() {
           <View style={styles.reviewRow}>
             <Text style={styles.reviewLabel}>Total</Text>
             <Text style={styles.reviewValueGold}>
-              {amount} {asset} + fee
+              {amount} XLM + fee
             </Text>
           </View>
         </View>
@@ -253,7 +247,7 @@ export function SendScreen() {
           />
         </View>
 
-        {error && <ErrorMessage message={error} variant="card" onRetry={() => setError(null)} />}
+        {error ? <ErrorMessage message={error} variant="card" onRetry={() => setError(null)} /> : null}
       </ScrollView>
 
       <View style={styles.bottomActions}>
@@ -263,7 +257,7 @@ export function SendScreen() {
       <ConfirmDialog
         visible={showConfirm}
         title="Confirm Send"
-        message={`Send ${amount} ${asset} to ${recipient}? This cannot be undone.`}
+        message={`Send ${amount} XLM to ${recipient}? This cannot be undone.`}
         confirmLabel={sending ? 'Sending...' : 'Send'}
         icon="send-outline"
         onConfirm={handleSend}
@@ -327,9 +321,6 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.heavy,
     color: Colors.white,
     letterSpacing: -1,
-  },
-  amountCursor: {
-    color: Colors.gold,
   },
   balanceLabel: {
     fontSize: FontSize.sm,
@@ -471,4 +462,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.lg,
   },
+  spacer24: { width: 24 },
 })

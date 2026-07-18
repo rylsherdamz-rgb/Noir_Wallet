@@ -10,8 +10,6 @@ interface CurrencyTokenProps {
 }
 
 const CONFIG: Record<AssetCode, { color: string; glyph?: string }> = {
-  PHP: { color: Colors.gold, glyph: '₱' },
-  USDC: { color: Colors.silver, glyph: '$' },
   XLM: { color: Colors.goldDim },
 }
 

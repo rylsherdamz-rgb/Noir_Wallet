@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet, ScrollView } from 'react-native'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
@@ -32,8 +33,13 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
   const handleConfirm = async () => {
     setLoading(true)
     try {
-      const keys = await walletService.deriveKeys(phrase.join(' '))
+      const keys = await walletService.deriveKeys(phrase.join(' '), 'My Wallet')
       await walletService.saveKeys(keys)
+      await walletService.addWalletToList({
+        label: keys.label || 'My Wallet',
+        stellarPublic: keys.stellarPublic,
+        createdAt: new Date().toISOString(),
+      })
       await onNext(keys)
     } catch (e) {
       console.error('Failed to save keys:', e)
@@ -44,9 +50,9 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+        <PressableScale onPress={onBack} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
-        </TouchableOpacity>
+        </PressableScale>
 
         <NoirLogo variant="mark" size={48} />
         <Text style={styles.title}>Your Recovery Phrase</Text>
@@ -63,10 +69,10 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
 
         <View style={styles.phraseBox}>
           {!revealed ? (
-            <TouchableOpacity style={styles.revealBtn} onPress={() => setRevealed(true)}>
+            <PressableScale style={styles.revealBtn} onPress={() => setRevealed(true)}>
               <Ionicons name="eye-outline" size={24} color={Colors.gold} />
               <Text style={styles.revealText}>Tap to reveal phrase</Text>
-            </TouchableOpacity>
+            </PressableScale>
           ) : (
             <View style={styles.phraseGrid}>
               {phrase.map((word, i) => (
@@ -80,12 +86,12 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
         </View>
 
         {revealed && (
-          <TouchableOpacity style={styles.copyBtn} onPress={handleCopy}>
+          <PressableScale style={styles.copyBtn} onPress={handleCopy}>
             <Ionicons name="copy-outline" size={18} color={copied ? Colors.success : Colors.gold} />
             <Text style={[styles.copyText, copied && { color: Colors.success }]}>
               {copied ? 'Copied!' : 'Copy to Clipboard'}
             </Text>
-          </TouchableOpacity>
+          </PressableScale>
         )}
 
         <View style={styles.actions}>

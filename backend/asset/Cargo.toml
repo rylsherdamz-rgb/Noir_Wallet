@@ -1,7 +1,7 @@
 [workspace]
 members = [
-    "contracts/device_registry",
     "contracts/agent_registry",
+    "contracts/device_registry",
     "contracts/payment_escrow",
     "backend",
 ]

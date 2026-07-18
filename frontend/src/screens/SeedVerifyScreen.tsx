@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native'
+import { View, Text, StyleSheet, ScrollView } from 'react-native'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
@@ -67,9 +68,9 @@ export function SeedVerifyScreen({ phrase, onComplete, onBack }: SeedVerifyScree
 
   return (
     <SafeAreaView style={styles.container}>
-      <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+      <PressableScale onPress={onBack} style={styles.backBtn}>
         <Ionicons name="arrow-back" size={24} color={Colors.white} />
-      </TouchableOpacity>
+      </PressableScale>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -88,9 +89,9 @@ export function SeedVerifyScreen({ phrase, onComplete, onBack }: SeedVerifyScree
                 {answers[idx] || '______'}
               </Text>
               {answers[idx] && (
-                <TouchableOpacity onPress={() => removeAnswer(idx)}>
+                <PressableScale onPress={() => removeAnswer(idx)}>
                   <Ionicons name="close-circle" size={18} color={Colors.danger} />
-                </TouchableOpacity>
+                </PressableScale>
               )}
             </View>
           ))}
@@ -100,14 +101,14 @@ export function SeedVerifyScreen({ phrase, onComplete, onBack }: SeedVerifyScree
           {shuffledWords.map((word, i) => {
             const used = Object.values(answers).includes(word)
             return (
-              <TouchableOpacity
+              <PressableScale
                 key={`${word}-${i}`}
                 style={[styles.wordChip, used && styles.wordChipUsed]}
                 onPress={() => !used && handleWordPress(word)}
                 disabled={used}
               >
                 <Text style={[styles.wordChipText, used && styles.wordChipTextUsed]}>{word}</Text>
-              </TouchableOpacity>
+              </PressableScale>
             )
           })}
         </View>

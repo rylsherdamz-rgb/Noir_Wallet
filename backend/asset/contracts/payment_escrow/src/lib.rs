@@ -1,14 +1,27 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, contracterror, panic_with_error, symbol_short, Address, BytesN, Env, Symbol, Val, Vec, IntoVal};
+use soroban_sdk::{contract, contractimpl, contracttype, contracterror, panic_with_error, symbol_short, Address, BytesN, Env, Vec};
+
+mod agent_registry {
+    soroban_sdk::contractimport!(
+        file = "../../target/wasm32v1-none/release/agent_registry.wasm"
+    );
+}
+
+mod device_registry {
+    soroban_sdk::contractimport!(
+        file = "../../target/wasm32v1-none/release/device_registry.wasm"
+    );
+}
 
 #[contracttype]
 pub enum DataKey {
     Admin,
     AgentRegistry,
+    DeviceRegistry,
     EscrowBalance(BytesN<32>),
-    PendingIndex,
+    PendingIndex(Address),
     PendingPayment((Address, u32)),
-    DeviceOwner(BytesN<32>),
+    AuthNonce((BytesN<32>, Address)),
 }
 
 #[contracttype]
@@ -27,27 +40,23 @@ pub enum Error {
     AgentNotAuthorized = 3,
     NotDeviceOwner = 4,
     NothingToClaim = 5,
+    DuplicateAuth = 6,
 }
 
 #[contract]
 pub struct PaymentEscrow;
 
-fn get_agent_registry(env: &Env) -> Address {
-    env.storage()
-        .persistent()
-        .get(&DataKey::AgentRegistry)
-        .unwrap()
-}
-
 #[contractimpl]
 impl PaymentEscrow {
-    pub fn initialize(env: Env, admin: Address, agent_registry_id: Address) {
+    pub fn initialize(env: Env, admin: Address, agent_registry_id: Address, device_registry_id: Address) {
+        admin.require_auth();
         let storage = env.storage().persistent();
         if storage.has(&DataKey::Admin) {
             panic_with_error!(&env, Error::AlreadyInitialized);
         }
         storage.set(&DataKey::Admin, &admin);
         storage.set(&DataKey::AgentRegistry, &agent_registry_id);
+        storage.set(&DataKey::DeviceRegistry, &device_registry_id);
     }
 
     pub fn fund_escrow(
@@ -70,13 +79,6 @@ impl PaymentEscrow {
             .unwrap_or(0);
         env.storage().persistent().set(&key, &(current + amount));
 
-        let owner_key = DataKey::DeviceOwner(device_hash.clone());
-        if !env.storage().persistent().has(&owner_key) {
-            env.storage()
-                .persistent()
-                .set(&owner_key, &wallet);
-        }
-
         env.events()
             .publish((symbol_short!("fund"), device_hash), amount);
     }
@@ -87,17 +89,25 @@ impl PaymentEscrow {
         device_hash: BytesN<32>,
         merchant: Address,
         amount: i128,
+        nonce: u64,
     ) {
         agent.require_auth();
 
-        let agent_registry_id = get_agent_registry(&env);
-        let args: Vec<Val> = (device_hash.clone(), agent.clone()).into_val(&env);
-        let is_auth: bool = env.invoke_contract(
-            &agent_registry_id,
-            &Symbol::new(&env, "is_auth"),
-            args,
-        );
-        if !is_auth {
+        let nonce_key = DataKey::AuthNonce((device_hash.clone(), agent.clone()));
+        let last_nonce: u64 = env.storage().persistent().get(&nonce_key).unwrap_or(0);
+        if nonce <= last_nonce {
+            panic_with_error!(&env, Error::DuplicateAuth);
+        }
+        env.storage().persistent().set(&nonce_key, &nonce);
+
+        let agent_registry_id: Address = env
+            .storage()
+            .persistent()
+            .get(&DataKey::AgentRegistry)
+            .unwrap_or_else(|| panic_with_error!(&env, Error::AgentNotAuthorized));
+
+        let reg = agent_registry::Client::new(&env, &agent_registry_id);
+        if !reg.is_auth(&device_hash, &agent) {
             panic_with_error!(&env, Error::AgentNotAuthorized);
         }
 
@@ -115,26 +125,23 @@ impl PaymentEscrow {
             .persistent()
             .set(&balance_key, &(balance - amount));
 
-        let pending_index_key = DataKey::PendingIndex;
-        let mut pending_idx: u32 = env
+        let idx_key = DataKey::PendingIndex(merchant.clone());
+        let mut idx: u32 = env
             .storage()
-            .instance()
-            .get(&pending_index_key)
+            .persistent()
+            .get(&idx_key)
             .unwrap_or(0);
-        pending_idx += 1;
-        env.storage()
-            .instance()
-            .set(&pending_index_key, &pending_idx);
+        idx += 1;
+        env.storage().persistent().set(&idx_key, &idx);
 
         let payment = Payment {
             device_hash: device_hash.clone(),
             amount,
             timestamp: env.ledger().timestamp(),
         };
-        let payment_key = DataKey::PendingPayment((merchant.clone(), pending_idx));
         env.storage()
             .temporary()
-            .set(&payment_key, &payment);
+            .set(&DataKey::PendingPayment((merchant.clone(), idx)), &payment);
 
         env.events()
             .publish(
@@ -146,11 +153,11 @@ impl PaymentEscrow {
     pub fn claim(env: Env, token: Address, merchant: Address) {
         merchant.require_auth();
 
-        let pending_index_key = DataKey::PendingIndex;
+        let idx_key = DataKey::PendingIndex(merchant.clone());
         let max_idx: u32 = env
             .storage()
-            .instance()
-            .get(&pending_index_key)
+            .persistent()
+            .get(&idx_key)
             .unwrap_or(0);
 
         let mut total: i128 = 0;
@@ -177,6 +184,8 @@ impl PaymentEscrow {
             env.storage().temporary().remove(&key);
         }
 
+        env.storage().persistent().set(&idx_key, &0u32);
+
         let token_client = soroban_sdk::token::Client::new(&env, &token);
         token_client.transfer(
             &env.current_contract_address(),
@@ -194,12 +203,14 @@ impl PaymentEscrow {
         device_hash: BytesN<32>,
         amount: i128,
     ) {
-        let owner_key = DataKey::DeviceOwner(device_hash.clone());
-        let owner: Address = env
+        let device_registry_id: Address = env
             .storage()
             .persistent()
-            .get(&owner_key)
+            .get(&DataKey::DeviceRegistry)
             .unwrap_or_else(|| panic_with_error!(&env, Error::NotDeviceOwner));
+
+        let reg = device_registry::Client::new(&env, &device_registry_id);
+        let owner = reg.get_owner(&device_hash);
         owner.require_auth();
 
         let balance_key = DataKey::EscrowBalance(device_hash.clone());
@@ -235,11 +246,11 @@ impl PaymentEscrow {
     }
 
     pub fn pending_balance(env: Env, merchant: Address) -> i128 {
-        let pending_index_key = DataKey::PendingIndex;
+        let idx_key = DataKey::PendingIndex(merchant.clone());
         let max_idx: u32 = env
             .storage()
-            .instance()
-            .get(&pending_index_key)
+            .persistent()
+            .get(&idx_key)
             .unwrap_or(0);
 
         let mut total: i128 = 0;

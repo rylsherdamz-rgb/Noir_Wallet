@@ -168,7 +168,7 @@ vi.mock('@/components/TransactionItem', () => ({
 vi.mock('@/services/stellar', () => ({
   stellarService: {
     fundTestnetAccount: vi.fn(),
-    getBalance: vi.fn(() => Promise.resolve({ xlm: 100, usdc: 50, php: 0 })),
+    getBalance: vi.fn(() => Promise.resolve({ xlm: 100 })),
     submitPayment: vi.fn(() => Promise.resolve({ hash: 'mock-hash' })),
   },
 }))
@@ -442,7 +442,7 @@ describe('11 — Offline payment queue', () => {
       rawDeviceUid: 'uid1',
       merchantPublicKey: 'G1',
       amountCents: 5000,
-      assetCode: 'PHP',
+      assetCode: 'XLM',
       createdAt: new Date().toISOString(),
       retryCount: 0,
     })
@@ -489,10 +489,10 @@ describe('12 — Account deletion', () => {
   it('reset clears all store state', async () => {
     const { useAppStore } = await import('@/store/useAppStore')
     useAppStore.getState().setUser({ id: '1', email: 't', phoneNumber: '+63', stellarPublicKey: 'G', kycLevel: 1, role: 'consumer', displayName: 'T' })
-    useAppStore.getState().setBalance({ php: 100, usdc: 0, xlm: 0, localTokens: {} })
+    useAppStore.getState().setBalance({ xlm: 0 })
     useAppStore.getState().reset()
     expect(useAppStore.getState().user).toBeNull()
-    expect(useAppStore.getState().balance.php).toBe(0)
+    expect(useAppStore.getState().balance.xlm).toBe(0)
   })
 })
 

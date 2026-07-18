@@ -1,4 +1,5 @@
-import { View, Text, TouchableOpacity, StyleSheet, Platform, Dimensions } from 'react-native'
+import { View, Text, StyleSheet, Platform, Dimensions } from 'react-native'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { DesignTokens } from '@/constants/designTokens'
@@ -57,43 +58,43 @@ export function NumericKeypad({
           {row.map((key) => {
             if (key === 'clear') {
               return (
-                <TouchableOpacity
+                <PressableScale
                   key={key}
                   style={[styles.key, styles.specialKey]}
                   onPress={() => handlePress(key)}
-                  activeOpacity={0.6}
+
                   accessibilityRole="button"
                   accessibilityLabel="Clear all"
                 >
                   <Text style={styles.specialKeyText}>Clear</Text>
-                </TouchableOpacity>
+                </PressableScale>
               )
             }
             if (key === 'backspace') {
               return (
-                <TouchableOpacity
+                <PressableScale
                   key={key}
                   style={styles.key}
                   onPress={() => handlePress(key)}
-                  activeOpacity={0.6}
+
                   accessibilityRole="button"
                   accessibilityLabel="Delete last digit"
                 >
                   <Ionicons name="backspace-outline" size={28} color={Colors.white} />
-                </TouchableOpacity>
+                </PressableScale>
               )
             }
             return (
-              <TouchableOpacity
+              <PressableScale
                 key={key}
                 style={styles.key}
                 onPress={() => handlePress(key)}
-                activeOpacity={0.6}
+
                 accessibilityRole="button"
                 accessibilityLabel={`Digit ${key}`}
               >
                 <Text style={styles.keyText}>{key}</Text>
-              </TouchableOpacity>
+              </PressableScale>
             )
           })}
         </View>

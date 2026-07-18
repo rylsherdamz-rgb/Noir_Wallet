@@ -1,5 +1,7 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { memo } from 'react'
+import { View, Text, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { PressableScale } from '@/components/brand/PressableScale'
 import * as Haptics from 'expo-haptics'
 import { useRouter } from 'expo-router'
 import { Transaction } from '@/types'
@@ -12,7 +14,7 @@ interface TransactionItemProps {
   testID?: string
 }
 
-export function TransactionItem({ transaction, onPress, testID }: TransactionItemProps) {
+export const TransactionItem = memo(function TransactionItem({ transaction, onPress, testID }: TransactionItemProps) {
   const router = useRouter()
   
   const statusConfig = {
@@ -21,12 +23,11 @@ export function TransactionItem({ transaction, onPress, testID }: TransactionIte
     failed: { color: Colors.danger, icon: 'close-circle-outline' as const, label: 'Failed' },
   }
 
-  const config = statusConfig[transaction.status]
-  const isOutgoing = transaction.assetCode !== 'PHP'
-  const amountStr =
-    transaction.assetCode === 'PHP'
-      ? `₱${(transaction.amountCents / 100).toFixed(2)}`
-      : `${(transaction.amountCents / 100).toFixed(2)} ${transaction.assetCode}`
+  const FALLBACK_CONFIG = { color: Colors.mutedWhite, icon: 'help-circle-outline' as const, label: 'Unknown' }
+
+  const config = statusConfig[transaction.status] ?? FALLBACK_CONFIG
+  const amountStr = `${(transaction.amountCents / 100).toFixed(2)} ${transaction.assetCode}`
+  const isIncoming = transaction.merchantName === 'NFC Receive' || transaction.merchantName === 'NFC Payment'
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -38,10 +39,9 @@ export function TransactionItem({ transaction, onPress, testID }: TransactionIte
   }
 
   return (
-    <TouchableOpacity
+    <PressableScale
       style={styles.container}
       onPress={handlePress}
-      activeOpacity={0.7}
       accessibilityRole="button"
       accessibilityLabel={`Transaction ${transaction.merchantName}, ${amountStr}, ${config.label}`}
       accessibilityHint="Tap to view details"
@@ -65,8 +65,8 @@ export function TransactionItem({ transaction, onPress, testID }: TransactionIte
       </View>
 
       <View style={styles.amountSection}>
-        <Text style={[styles.amount, isOutgoing && styles.outgoing]}>
-          {isOutgoing ? '-' : '+'}
+        <Text style={[styles.amount, !isIncoming && styles.outgoing]}>
+          {isIncoming ? '+' : '-'}
           {amountStr}
         </Text>
         {transaction.stellarTxHash && (
@@ -77,9 +77,9 @@ export function TransactionItem({ transaction, onPress, testID }: TransactionIte
       </View>
 
       <Ionicons name="chevron-forward" size={20} color={Colors.borderGrey} />
-    </TouchableOpacity>
+    </PressableScale>
   )
-}
+})
 
 const styles = StyleSheet.create({
   container: {

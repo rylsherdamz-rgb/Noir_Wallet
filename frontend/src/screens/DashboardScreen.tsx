@@ -1,13 +1,15 @@
-import { useCallback, useState, ReactNode, useRef } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Linking, Image, TextInput, Modal, Alert } from 'react-native'
+import { memo, useCallback, useState, ReactNode, useRef } from 'react'
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Linking, Image, TextInput, Modal, Alert } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import * as Clipboard from 'expo-clipboard'
 import { useRouter } from 'expo-router'
+import { useFocusEffect } from 'expo-router'
 import { useAppStore } from '@/store/useAppStore'
 import { BalanceCard } from '@/components/BalanceCard'
 import { TestnetFaucetBanner } from '@/components/TestnetFaucetBanner'
+import { SkeletonLoader } from '@/components/SkeletonLoader'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SignalRipple } from '@/components/brand/SignalRipple'
 import { TapGlyph } from '@/components/brand/BrandGlyph'
@@ -15,10 +17,17 @@ import { DesignTokens, colorWithOpacity } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
 import { apiService } from '@/services/api'
 import { stellarService } from '@/services/stellar-service'
-import { fxRateService } from '@/services/fxRates'
 import { Transaction } from '@/types'
 
 const NOIR_MARK = require('../../assets/noir-mark.png')
+
+const DEVICE_STATUS: Record<string, { color: string; label: string }> = {
+  active: { color: Colors.success, label: 'Active' },
+  frozen: { color: Colors.warning, label: 'Frozen' },
+  lost: { color: Colors.danger, label: 'Lost' },
+  deactivated: { color: Colors.mutedWhite, label: 'Deactivated' },
+}
+const DEVICE_STATUS_FALLBACK = { color: Colors.mutedWhite, label: 'Unknown' }
 
 function greetingForHour(): string {
   const h = new Date().getHours()
@@ -42,21 +51,34 @@ export function DashboardScreen() {
 
     try {
       const txRes = await apiService.getTransactions()
-      if (txRes?.transactions) setTransactions(txRes.transactions)
+      if (txRes?.transactions) {
+        const backendIds = new Set(txRes.transactions.map((t: Transaction) => t.id))
+        const current = useAppStore.getState().transactions
+        const localOnly = current.filter((t) => !backendIds.has(t.id))
+        setTransactions([...txRes.transactions, ...localOnly])
+      }
     } catch {
       // backend unavailable
+    }
+
+    // Merge Horizon transaction history (filter out 0-amount records — old contracts,
+    // non-payment transactions with no amount data from Horizon)
+    if (user?.stellarPublicKey) {
+      try {
+        const horizonTxs = await stellarService.getAccountTransactions(user.stellarPublicKey, 10)
+        if (horizonTxs.length) {
+          const existing = useAppStore.getState().transactions
+          const existingIds = new Set(existing.map((t) => t.id))
+          const missing = horizonTxs.filter((t) => !existingIds.has(t.id) && t.amountCents > 0)
+          if (missing.length) setTransactions([...missing, ...existing])
+        }
+      } catch { /* non-critical */ }
     }
 
     if (user?.stellarPublicKey) {
       try {
         const onChain = await stellarService.getBalance(user.stellarPublicKey)
-        const rates = await fxRateService.getRates()
-        setBalance({
-          xlm: onChain.xlm,
-          usdc: onChain.usdc,
-          php: onChain.usdc * rates.usdToPhp,
-          localTokens: {},
-        })
+        setBalance({ xlm: onChain.xlm })
       } catch {
         // horizon unavailable
       }
@@ -64,6 +86,13 @@ export function DashboardScreen() {
 
     setRefreshing(false)
   }, [setTransactions, setBalance, user?.stellarPublicKey])
+
+  // Prefetch on-chain balances + txs every time dashboard gains focus
+  useFocusEffect(
+    useCallback(() => {
+      onRefresh()
+    }, [onRefresh])
+  )
 
   const handleNetworkSwitch = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -123,7 +152,7 @@ export function DashboardScreen() {
             <Image source={NOIR_MARK} style={styles.markImg} resizeMode="contain" />
             <Text style={styles.wordmark}>NOIR</Text>
           </View>
-          <TouchableOpacity
+          <PressableScale
             style={styles.avatarBtn}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -133,7 +162,7 @@ export function DashboardScreen() {
             accessibilityRole="button"
           >
             <Ionicons name="person-outline" size={20} color={Colors.cream} />
-          </TouchableOpacity>
+          </PressableScale>
         </View>
 
         {/* Greeting + wallet identity */}
@@ -142,7 +171,7 @@ export function DashboardScreen() {
             {greetingForHour()}
           </Text>
           <View style={styles.subRow}>
-            <TouchableOpacity
+            <PressableScale
               style={styles.addrChip}
               onPress={copyAddress}
               accessibilityRole="button"
@@ -157,9 +186,9 @@ export function DashboardScreen() {
               {user?.stellarPublicKey && (
                 <Ionicons name="copy-outline" size={12} color={Colors.mutedWhite} />
               )}
-            </TouchableOpacity>
+            </PressableScale>
 
-            <TouchableOpacity
+            <PressableScale
               style={[styles.networkBadge, storeNetwork === 'mainnet' && styles.networkBadgeMainnet]}
               onPress={handleNetworkSwitch}
               accessibilityRole="button"
@@ -169,11 +198,11 @@ export function DashboardScreen() {
               <Text style={[styles.networkText, storeNetwork === 'mainnet' && styles.networkTextMainnet]}>
                 {storeNetwork === 'mainnet' ? 'MAINNET' : 'TESTNET'}
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
           </View>
 
           {user?.stellarPublicKey && (
-            <TouchableOpacity
+            <PressableScale
               style={styles.expertLink}
               onPress={() => {
                 const baseUrl = storeNetwork === 'testnet'
@@ -186,7 +215,7 @@ export function DashboardScreen() {
             >
               <Ionicons name="open-outline" size={13} color={Colors.gold} />
               <Text style={styles.expertLinkText}>View on Stellar Expert</Text>
-            </TouchableOpacity>
+            </PressableScale>
           )}
         </View>
 
@@ -195,10 +224,7 @@ export function DashboardScreen() {
 
         {/* Balance Card */}
         <BalanceCard
-          phpBalance={balance.php}
-          usdcBalance={balance.usdc}
           xlmBalance={balance.xlm}
-          localTokens={balance.localTokens}
           testID="dashboard-balance-card"
         />
 
@@ -213,10 +239,10 @@ export function DashboardScreen() {
           <QuickAction label="Tap" tap onPress={() => router.push('/tap')} testID="quick-action-tap">
             <TapGlyph size={22} color={Colors.goldHi} />
           </QuickAction>
-          <QuickAction label="Cash In" onPress={() => router.push('/fiat')} testID="quick-action-cashin" tint={Colors.success}>
+          <QuickAction label="Cash In" onPress={() => router.push('/fiat?mode=cash-in')} testID="quick-action-cashin" tint={Colors.success}>
             <Ionicons name="wallet-outline" size={21} color={Colors.success} />
           </QuickAction>
-          <QuickAction label="Cash Out" onPress={() => router.push('/fiat')} testID="quick-action-cashout" tint={Colors.warning}>
+          <QuickAction label="Cash Out" onPress={() => router.push('/fiat?mode=cash-out')} testID="quick-action-cashout" tint={Colors.warning}>
             <Ionicons name="cash-outline" size={21} color={Colors.warning} />
           </QuickAction>
         </View>
@@ -225,7 +251,7 @@ export function DashboardScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle} accessibilityRole="header">MY WALLETS</Text>
-            <TouchableOpacity
+            <PressableScale
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
                 router.push('/(tabs)/devices')
@@ -234,11 +260,11 @@ export function DashboardScreen() {
               accessibilityRole="button"
             >
               <Text style={styles.seeAll}>Manage</Text>
-            </TouchableOpacity>
+            </PressableScale>
           </View>
 
           {devices.length === 0 ? (
-            <TouchableOpacity
+            <PressableScale
               style={styles.emptyWalletCard}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -249,7 +275,7 @@ export function DashboardScreen() {
             >
               <Ionicons name="add-outline" size={30} color={Colors.gold} />
               <Text style={styles.emptyWalletText}>Link your first NFC wallet</Text>
-            </TouchableOpacity>
+            </PressableScale>
           ) : (
             <ScrollView
               horizontal
@@ -258,33 +284,36 @@ export function DashboardScreen() {
               contentContainerStyle={styles.walletScrollContent}
             >
               {devices.map((device) => (
-                <TouchableOpacity
+                <PressableScale
                   key={device.id}
                   style={styles.walletCard}
-                  activeOpacity={0.8}
-                  onPress={() => {}}
+                 
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                    router.push(`/agent/${device.id}`)
+                  }}
                   onLongPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
                     setRenameTarget({ id: device.id, label: device.label })
                     setRenameValue(device.label)
                   }}
-                  accessibilityLabel={`${device.label}, ${device.status === 'active' ? 'Active' : 'Inactive'}, ${((device.dailySpendLimitCents - device.accumulatedTodayCents) / 100).toFixed(0)} pesos remaining today`}
+                  accessibilityLabel={`${device.label}, ${(DEVICE_STATUS[device.status] ?? DEVICE_STATUS_FALLBACK).label}, ${((device.dailySpendLimitCents - device.accumulatedTodayCents) / 100).toFixed(0)} XLM remaining today`}
                   accessibilityRole="summary"
                 >
                   <Image source={NOIR_MARK} style={styles.walletWatermark} resizeMode="contain" />
-                  <TouchableOpacity
+                  <PressableScale
                     style={styles.walletMoreBtn}
                     onPress={() => confirmDeleteWallet(device)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
                     <Ionicons name="trash-outline" size={14} color={Colors.mutedWhite} />
-                  </TouchableOpacity>
+                  </PressableScale>
                   <View style={styles.walletCardHeader}>
                     <Ionicons name="radio" size={DesignTokens.iconSize.md} color={Colors.gold} />
                     <View
                       style={[
                         styles.statusDot,
-                        { backgroundColor: device.status === 'active' ? Colors.success : Colors.danger },
+                        { backgroundColor: (DEVICE_STATUS[device.status] ?? DEVICE_STATUS_FALLBACK).color },
                       ]}
                       accessibilityLabel={device.status}
                     />
@@ -292,11 +321,11 @@ export function DashboardScreen() {
                   <Text style={styles.walletLabelText} numberOfLines={1}>{device.label}</Text>
                   <Text style={styles.walletRemainingLabel}>DAILY REMAINING</Text>
                   <Text style={styles.walletRemainingValue}>
-                    ₱{((device.dailySpendLimitCents - device.accumulatedTodayCents) / 100).toFixed(0)}
+                    {((device.dailySpendLimitCents - device.accumulatedTodayCents) / 100).toFixed(0)} XLM
                   </Text>
-                </TouchableOpacity>
+                </PressableScale>
               ))}
-              <TouchableOpacity
+              <PressableScale
                 style={styles.addWalletCard}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -306,7 +335,7 @@ export function DashboardScreen() {
                 accessibilityRole="button"
               >
                 <Ionicons name="add" size={24} color={Colors.mutedWhite} />
-              </TouchableOpacity>
+              </PressableScale>
             </ScrollView>
           )}
         </View>
@@ -315,7 +344,7 @@ export function DashboardScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle} accessibilityRole="header">RECENT ACTIVITY</Text>
-            <TouchableOpacity
+            <PressableScale
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
                 router.push('/transactions')
@@ -324,32 +353,44 @@ export function DashboardScreen() {
               accessibilityRole="button"
             >
               <Text style={styles.seeAll}>See All</Text>
-            </TouchableOpacity>
+            </PressableScale>
           </View>
-          {transactions.length === 0 ? (
+          {refreshing && (!Array.isArray(transactions) || transactions.length === 0) ? (
+            <View style={styles.activityList}>
+              {[1, 2, 3].map((i) => (
+                <SkeletonLoader key={i} variant="transaction" />
+              ))}
+            </View>
+          ) : !Array.isArray(transactions) || transactions.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="receipt-outline" size={44} color={Colors.mutedWhite} />
               <Text style={styles.emptyStateText}>No transactions yet</Text>
             </View>
           ) : (
-            <View style={styles.activityList}>
-              {transactions.slice(0, 5).map((tx) => (
-                <ActivityRow
-                  key={tx.id}
-                  tx={tx}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                    router.push(`/transaction/${tx.id}`)
-                  }}
-                />
-              ))}
+<View style={styles.activityList}>
+              {Array.isArray(transactions) && transactions.length > 0 ? transactions.slice(0, 5).map((tx, i) => (
+                tx ? (
+                  <ActivityRow
+                    key={tx.id || `tx-${i}`}
+                    tx={tx}
+                    onPress={() => {
+                      try {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                      } catch (_) {}
+                      try {
+                        router.push(`/transaction/${tx.id || 'unknown'}`)
+                      } catch (_) {}
+                    }}
+                  />
+                ) : null
+              )) : null}
             </View>
           )}
         </View>
       </ScrollView>
 
       <Modal visible={renameTarget !== null} transparent animationType="fade" onRequestClose={() => setRenameTarget(null)}>
-        <TouchableOpacity style={styles.renameOverlay} activeOpacity={1} onPress={() => setRenameTarget(null)}>
+        <PressableScale style={styles.renameOverlay} onPress={() => setRenameTarget(null)}>
           <View style={styles.renameCard} onStartShouldSetResponder={() => true}>
             <Text style={styles.renameTitle}>Rename Wallet</Text>
             <TextInput
@@ -363,19 +404,19 @@ export function DashboardScreen() {
               maxLength={32}
             />
             <View style={styles.renameActions}>
-              <TouchableOpacity style={styles.renameCancel} onPress={() => setRenameTarget(null)}>
+              <PressableScale style={styles.renameCancel} onPress={() => setRenameTarget(null)}>
                 <Text style={styles.renameCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </PressableScale>
+              <PressableScale
                 style={[styles.renameConfirm, !renameValue.trim() && styles.renameDisabled]}
                 disabled={!renameValue.trim()}
                 onPress={handleRename}
               >
                 <Text style={styles.renameConfirmText}>Rename</Text>
-              </TouchableOpacity>
+              </PressableScale>
             </View>
           </View>
-        </TouchableOpacity>
+        </PressableScale>
       </Modal>
     </SafeAreaView>
   )
@@ -390,7 +431,7 @@ interface QuickActionProps {
   testID?: string
 }
 
-function QuickAction({ children, label, onPress, tap, tint, testID }: QuickActionProps) {
+const QuickAction = memo(function QuickAction({ children, label, onPress, tap, tint, testID }: QuickActionProps) {
   return (
     <PressableScale
       style={styles.qbtn}
@@ -406,40 +447,40 @@ function QuickAction({ children, label, onPress, tap, tint, testID }: QuickActio
       <Text style={styles.qlabel}>{label}</Text>
     </PressableScale>
   )
-}
+})
 
-function ActivityRow({ tx, onPress }: { tx: Transaction; onPress: () => void }) {
-  const isOutgoing = tx.assetCode !== 'PHP'
-  const amountStr =
-    tx.assetCode === 'PHP'
-      ? `₱${(tx.amountCents / 100).toFixed(2)}`
-      : `${(tx.amountCents / 100).toFixed(2)} ${tx.assetCode}`
-  const statusLabel = tx.status.charAt(0).toUpperCase() + tx.status.slice(1)
-  const time = new Date(tx.createdAt).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })
-  const accent = isOutgoing ? Colors.cream : Colors.success
+const ActivityRow = memo(function ActivityRow({ tx, onPress }: { tx: Transaction; onPress: () => void }) {
+  if (!tx || typeof tx !== 'object') return null
+  const assetCode = tx.assetCode || 'XLM'
+  const isIncoming = tx.merchantName === 'NFC Receive' || tx.merchantName === 'NFC Payment'
+  const amountStr = `${((tx.amountCents ?? 0) / 100).toFixed(2)} ${assetCode}`
+  const statusStr = tx.status || 'failed'
+  const statusLabel = statusStr.charAt(0).toUpperCase() + statusStr.slice(1)
+  const createdAt = tx.createdAt || new Date().toISOString()
+  const time = new Date(createdAt).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })
+  const accent = isIncoming ? Colors.success : Colors.danger
 
   return (
-    <TouchableOpacity
+    <PressableScale
       style={styles.txRow}
       onPress={onPress}
-      activeOpacity={0.7}
       accessibilityRole="button"
-      accessibilityLabel={`Transaction ${tx.merchantName}, ${isOutgoing ? 'sent' : 'received'} ${amountStr}, ${statusLabel}`}
+      accessibilityLabel={`Transaction ${tx.merchantName}, ${isIncoming ? 'received' : 'sent'} ${amountStr}, ${statusLabel}`}
       accessibilityHint="Tap to view details"
     >
       <View style={[styles.txIcon, { backgroundColor: colorWithOpacity(accent, 0.13) }]}>
-        <Ionicons name={isOutgoing ? 'arrow-up' : 'arrow-down'} size={17} color={accent} />
+        <Ionicons name={isIncoming ? 'arrow-down' : 'arrow-up'} size={17} color={accent} />
       </View>
       <View style={styles.txInfo}>
         <Text style={styles.txTitle} numberOfLines={1}>{tx.merchantName}</Text>
         <Text style={styles.txMeta} numberOfLines={1}>{time} · {statusLabel}</Text>
       </View>
       <Text style={[styles.txAmount, { color: accent }]}>
-        {isOutgoing ? '−' : '+'}{amountStr}
+        {isIncoming ? '+' : '−'}{amountStr}
       </Text>
-    </TouchableOpacity>
+    </PressableScale>
   )
-}
+})
 
 const styles = StyleSheet.create({
   container: {
@@ -473,7 +514,7 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     fontFamily: Fonts.display,
-    fontSize: 15,
+    fontSize: FontSize.md,
     color: Colors.cream,
     letterSpacing: 5,
   },
@@ -495,7 +536,7 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontFamily: Fonts.display,
-    fontSize: 22,
+    fontSize: FontSize.xl,
     color: Colors.cream,
     letterSpacing: 0.2,
   },
@@ -518,7 +559,7 @@ const styles = StyleSheet.create({
   },
   addrText: {
     fontFamily: Fonts.mono,
-    fontSize: 12,
+    fontSize: FontSize.xs,
     color: Colors.silver,
   },
   networkBadge: {
@@ -547,7 +588,7 @@ const styles = StyleSheet.create({
   },
   networkText: {
     fontFamily: Fonts.displayMd,
-    fontSize: 10,
+    fontSize: FontSize.xs,
     color: Colors.gold,
     letterSpacing: 1.2,
   },
@@ -595,7 +636,7 @@ const styles = StyleSheet.create({
   },
   qlabel: {
     fontFamily: Fonts.displayMd,
-    fontSize: 10,
+    fontSize: FontSize.xs,
     color: Colors.offWhite,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
@@ -670,13 +711,13 @@ const styles = StyleSheet.create({
   },
   walletRemainingLabel: {
     fontFamily: Fonts.displayMd,
-    fontSize: 9.5,
+    fontSize: FontSize.xs,
     color: Colors.mutedWhite,
     letterSpacing: 1.2,
   },
   walletRemainingValue: {
     fontFamily: Fonts.display,
-    fontSize: 19,
+    fontSize: FontSize.lg,
     color: Colors.gold,
     marginTop: 3,
     fontVariant: ['tabular-nums'],
@@ -746,7 +787,7 @@ const styles = StyleSheet.create({
   },
   txMeta: {
     fontFamily: Fonts.mono,
-    fontSize: 11.5,
+    fontSize: FontSize.xs,
     color: Colors.mutedWhite,
     marginTop: 3,
   },

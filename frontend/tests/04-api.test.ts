@@ -63,7 +63,7 @@ describe('API Service', () => {
       rawDeviceUid: 'uid-123',
       merchantPublicKey: 'GABC',
       amountCents: 5000,
-      assetCode: 'PHP',
+      assetCode: 'XLM',
     })
     expect(result.status).toBe('accepted')
   })
@@ -82,11 +82,11 @@ describe('API Service', () => {
   it('getBalance returns balance', async () => {
     global.fetch = vi.fn().mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({ balance: { php: 1000, usdc: 100, xlm: 50, localTokens: {} } }),
+      json: () => Promise.resolve({ balance: { xlm: 50 } }),
     })
     const { apiService } = await import('@/services/api')
     const result = await apiService.getBalance()
-    expect(result.balance.php).toBe(1000)
+    expect(result.balance.xlm).toBe(50)
   })
 
   it('throws on non-ok response', async () => {
@@ -135,7 +135,7 @@ describe('API Service', () => {
       json: () => Promise.resolve({ quote: { rate: 58.5 } }),
     })
     const { apiService } = await import('@/services/api')
-    const result = await apiService.pdaxQuote(10000, 'PHP', 'USDC')
+    const result = await apiService.pdaxQuote(10000, 'XLM', 'XLM')
     expect(result.quote.rate).toBe(58.5)
   })
 })

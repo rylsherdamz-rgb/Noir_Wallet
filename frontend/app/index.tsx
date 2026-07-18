@@ -1,23 +1,27 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { View, ActivityIndicator, Animated, StyleSheet, Image } from 'react-native'
 import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useAppStore } from '@/store/useAppStore'
-import { Colors, Spacing } from '@/constants/theme'
-import { NoirLogo } from '@/components/brand/NoirLogo'
+import { Colors, Spacing, FontSize } from '@/constants/theme'
 
 const NOIR_MARK = require('../assets/noir-mark.png')
+const MIN_SPLASH_MS = 600
 
 export default function Index() {
   const router = useRouter()
   const isOnboarded = useAppStore((s) => s.isOnboarded)
-  const [imgLoaded, setImgLoaded] = useState(false)
+  const [readyToRoute, setReadyToRoute] = useState(false)
 
   const opacity = useRef(new Animated.Value(0)).current
   const scale = useRef(new Animated.Value(0.8)).current
   const glow = useRef(new Animated.Value(0)).current
   const brandOpacity = useRef(new Animated.Value(0)).current
   const brandSlide = useRef(new Animated.Value(20)).current
+
+  const navigate = useCallback(() => {
+    router.replace(isOnboarded ? '/(tabs)' : '/onboarding')
+  }, [isOnboarded, router])
 
   useEffect(() => {
     Animated.sequence([
@@ -30,19 +34,15 @@ export default function Index() {
         Animated.timing(brandOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
         Animated.timing(brandSlide, { toValue: 0, duration: 300, useNativeDriver: true }),
       ]),
-    ]).start()
+    ]).start(() => setReadyToRoute(true))
   }, [opacity, scale, glow, brandOpacity, brandSlide])
 
+  // Route once the animation finishes AND the minimum splash time elapses
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (isOnboarded) {
-        router.replace('/(tabs)')
-      } else {
-        router.replace('/onboarding')
-      }
-    }, 1400)
+    if (!readyToRoute) return
+    const timer = setTimeout(navigate, MIN_SPLASH_MS)
     return () => clearTimeout(timer)
-  }, [isOnboarded, router])
+  }, [readyToRoute, navigate])
 
   const glowOpacity = glow.interpolate({ inputRange: [0, 1], outputRange: [0, 0.5] })
 
@@ -63,7 +63,6 @@ export default function Index() {
               source={NOIR_MARK}
               style={{ width: 88, height: 88 }}
               resizeMode="contain"
-              onLoad={() => setImgLoaded(true)}
             />
           </View>
         </Animated.View>
@@ -93,14 +92,14 @@ const styles = StyleSheet.create({
   },
   brandText: {
     color: Colors.cream,
-    fontSize: 36,
+    fontSize: FontSize.xxxl,
     fontWeight: '800',
     letterSpacing: 14,
     textAlign: 'center',
   },
   tagline: {
     color: Colors.gold,
-    fontSize: 11,
+    fontSize: FontSize.xs,
     letterSpacing: 6,
     textAlign: 'center',
     marginTop: Spacing.md,

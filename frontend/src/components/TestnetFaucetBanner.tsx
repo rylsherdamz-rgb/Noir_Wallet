@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { useAppStore } from '@/store/useAppStore'
 import { stellarService } from '@/services/stellar-service'
-import { fxRateService } from '@/services/fxRates'
 
 export function TestnetFaucetBanner() {
   const { user, balance, network, setBalance } = useAppStore()
@@ -21,13 +21,7 @@ export function TestnetFaucetBanner() {
     const success = await stellarService.fundAccount(user.stellarPublicKey)
     if (success) {
       const onChain = await stellarService.getBalance(user.stellarPublicKey)
-      const rates = await fxRateService.getRates()
-      setBalance({
-        xlm: onChain.xlm,
-        usdc: onChain.usdc,
-        php: onChain.usdc * rates.usdToPhp,
-        localTokens: {},
-      })
+      setBalance({ xlm: onChain.xlm })
     }
     setFunding(false)
     setDismissed(true)
@@ -43,14 +37,13 @@ export function TestnetFaucetBanner() {
           <Text style={styles.title}>Testnet Account</Text>
           <Text style={styles.subtitle}>Fund with free test XLM to get started</Text>
         </View>
-        <TouchableOpacity
+        <PressableScale
           style={styles.fundBtn}
           onPress={handleFund}
           disabled={funding}
-          activeOpacity={0.7}
         >
           <Text style={styles.fundLabel}>{funding ? '...' : 'Fund'}</Text>
-        </TouchableOpacity>
+        </PressableScale>
       </View>
     </View>
   )

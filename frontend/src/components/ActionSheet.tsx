@@ -4,12 +4,12 @@ import {
   Text,
   StyleSheet,
   Modal,
-  TouchableOpacity,
   TouchableWithoutFeedback,
   Animated,
   Dimensions,
   Platform,
 } from 'react-native'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { DesignTokens } from '@/constants/designTokens'
@@ -129,17 +129,17 @@ export function ActionSheet({
                   {title}
                 </Text>
               )}
-              {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+              {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
             </View>
           )}
 
           {/* Custom Content */}
-          {children && <View style={styles.content}>{children}</View>}
+          {children ? <View style={styles.content}>{children}</View> : null}
 
           {/* Actions */}
           <View style={styles.actions}>
             {actions.map((action, index) => (
-              <TouchableOpacity
+              <PressableScale
                 key={index}
                 style={[
                   styles.actionButton,
@@ -147,7 +147,7 @@ export function ActionSheet({
                 ]}
                 onPress={() => handleActionPress(action)}
                 disabled={action.disabled}
-                activeOpacity={0.7}
+               
                 accessibilityRole="button"
                 accessibilityLabel={action.label}
                 accessibilityState={{ disabled: action.disabled }}
@@ -174,20 +174,20 @@ export function ActionSheet({
                 >
                   {action.label}
                 </Text>
-              </TouchableOpacity>
+              </PressableScale>
             ))}
           </View>
 
           {/* Cancel Button */}
-          <TouchableOpacity
+          <PressableScale
             style={styles.cancelButton}
             onPress={handleClose}
-            activeOpacity={0.7}
+           
             accessibilityRole="button"
             accessibilityLabel="Cancel"
           >
             <Text style={styles.cancelLabel}>Cancel</Text>
-          </TouchableOpacity>
+          </PressableScale>
         </Animated.View>
       </View>
     </Modal>

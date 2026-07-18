@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { View, Text, StyleSheet, Animated, ScrollView, Image, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet, Animated, ScrollView, Image } from 'react-native'
+import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import Svg, { Defs, RadialGradient, Stop, Circle, Polygon } from 'react-native-svg'
@@ -138,15 +139,15 @@ export function WelcomeScreen({ onCreateWallet, onImportWallet }: WelcomeScreenP
             </Animated.View>
 
             <Animated.View style={[styles.actions, { transform: [{ translateY: slideUp }], opacity: fadeIn }]}>
-              <TouchableOpacity onPress={onCreateWallet} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Register my card">
+              <PressableScale onPress={onCreateWallet} accessibilityRole="button" accessibilityLabel="Register my card">
                 <LinearGradient colors={[Colors.goldHi, Colors.gold]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.primaryBtn}>
                   <TapGlyph size={18} color="#151107" />
                   <Text style={styles.primaryText}>Register My Card</Text>
                 </LinearGradient>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={onImportWallet} activeOpacity={0.7} style={styles.ghostBtn} accessibilityRole="button" accessibilityLabel="I already have a wallet">
+              </PressableScale>
+              <PressableScale onPress={onImportWallet} style={styles.ghostBtn} accessibilityRole="button" accessibilityLabel="I already have a wallet">
                 <Text style={styles.ghostText}>I already have a wallet</Text>
-              </TouchableOpacity>
+              </PressableScale>
             </Animated.View>
           </Animated.View>
         </ScrollView>
@@ -170,7 +171,7 @@ const styles = StyleSheet.create({
 
   brand: {
     fontFamily: Fonts.display,
-    fontSize: 42,
+    fontSize: FontSize.xxxl,
     color: Colors.cream,
     letterSpacing: 10,
     marginTop: Spacing.md,

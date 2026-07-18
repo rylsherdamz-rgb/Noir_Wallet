@@ -2,6 +2,8 @@ import { secureGetItem, secureSetItem, secureDeleteItem } from './secureStorage'
 
 export const StorageKeys = {
   WALLET_KEYS: 'wallet_keys',
+  WALLET_LIST: 'wallet_list',
+  ACTIVE_WALLET_INDEX: 'active_wallet_index',
   IS_ONBOARDED: 'is_onboarded',
   WALLET_CREATED: 'wallet_created',
   NETWORK: 'network',
@@ -9,6 +11,12 @@ export const StorageKeys = {
   DEVICES: 'devices',
   USER: 'user',
 } as const
+
+export interface WalletListItem {
+  label: string
+  stellarPublic: string
+  createdAt: string
+}
 
 export async function getItem<T>(key: string): Promise<T | null> {
   const data = await secureGetItem(key)

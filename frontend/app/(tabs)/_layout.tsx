@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { View, StyleSheet, ColorValue } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Colors, Fonts } from '@/constants/theme'
+import { Colors, Fonts, FontSize } from '@/constants/theme'
 
 type IoniconName = keyof typeof Ionicons.glyphMap
 
@@ -36,7 +36,7 @@ export default function TabLayout() {
         tabBarInactiveTintColor: Colors.mutedWhite,
         tabBarLabelStyle: {
           fontFamily: Fonts.displayMd,
-          fontSize: 9.5,
+          fontSize: FontSize.xs,
           letterSpacing: 0.8,
           textTransform: 'uppercase',
           marginBottom: 4,
