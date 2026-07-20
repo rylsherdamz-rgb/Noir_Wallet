@@ -63,6 +63,7 @@ jobs:
           env_vars: |
             ENVIRONMENT=development
             STELLAR_NETWORK=testnet
+            STELLAR_RPC_URL=https://soroban-testnet.stellar.org
             PDAX_ENVIRONMENT=uat
             API_PORT=8080
           secrets: |
