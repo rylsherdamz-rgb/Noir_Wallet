@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { View, StyleSheet, ColorValue } from 'react-native'
+import { View, ColorValue } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Colors, Fonts, FontSize } from '@/constants/theme'
 
@@ -8,9 +8,9 @@ type IoniconName = keyof typeof Ionicons.glyphMap
 
 function TabIcon({ name, color, focused }: { name: IoniconName; color: ColorValue; focused: boolean }) {
   return (
-    <View style={styles.tabIcon}>
-      <View style={styles.signalSlot}>
-        {focused && <View style={styles.signalDot} />}
+    <View className="items-center justify-center">
+      <View className="h-[5px] mb-[3px] justify-center">
+        {focused && <View className="w-[5px] h-[5px] rounded-full bg-gold" />}
       </View>
       <Ionicons name={name} size={22} color={color} />
     </View>
@@ -74,21 +74,3 @@ export default function TabLayout() {
     </Tabs>
   )
 }
-
-const styles = StyleSheet.create({
-  tabIcon: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  signalSlot: {
-    height: 5,
-    marginBottom: 3,
-    justifyContent: 'center',
-  },
-  signalDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: Colors.gold,
-  },
-})

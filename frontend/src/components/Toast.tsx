@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react'
-import { View, Text, StyleSheet, Animated, Platform } from 'react-native'
+import { View, Text, Animated, Platform } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { DesignTokens, colorWithOpacity } from '@/constants/designTokens'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors } from '@/constants/theme'
 import { ToastType } from '@/types'
 
 interface ToastProps {
@@ -55,12 +55,10 @@ export function Toast({
 
   useEffect(() => {
     if (visible) {
-      // Provide haptic feedback
       if (hapticFeedback && Platform.OS !== 'web') {
         Haptics.notificationAsync(HAPTIC_TYPES[type])
       }
 
-      // Animate in
       Animated.parallel([
         Animated.spring(translateY, {
           toValue: 0,
@@ -81,7 +79,6 @@ export function Toast({
         }),
       ]).start()
 
-      // Auto dismiss
       const timer = setTimeout(() => {
         dismiss()
       }, duration)
@@ -117,9 +114,10 @@ export function Toast({
 
   return (
     <Animated.View
+      className="absolute z-[500] left-4 right-4"
       style={[
-        styles.container,
         {
+          top: Platform.OS === 'ios' ? 60 : 20,
           transform: [{ translateY }, { scale }],
           opacity,
         },
@@ -127,19 +125,19 @@ export function Toast({
       testID={testID}
     >
       <PressableScale
-        style={[styles.inner, { borderLeftWidth: 3, borderLeftColor: backgroundColor }]}
+        className="flex-row items-center bg-cardBg rounded-xl p-4 border border-borderGrey gap-2"
+        style={[{ borderLeftWidth: 3, borderLeftColor: backgroundColor }, DesignTokens.shadows.card]}
         onPress={handleDismiss}
-       
         accessibilityRole="alert"
         accessibilityLabel={`${type}: ${title}${message ? `. ${message}` : ''}`}
         accessibilityHint="Tap to dismiss"
       >
-        <View style={[styles.iconWrap, { backgroundColor: colorWithOpacity(backgroundColor, 0.15) }]}>
+        <View className="w-9 h-9 rounded-full items-center justify-center" style={{ backgroundColor: colorWithOpacity(backgroundColor, 0.15) }}>
           <Ionicons name={ICONS[type]} size={DesignTokens.iconSize.sm} color={backgroundColor} />
         </View>
-        <View style={styles.textWrap}>
-          <Text style={styles.title}>{title}</Text>
-          {message ? <Text style={styles.message}>{message}</Text> : null}
+        <View className="flex-1">
+          <Text className="text-sm font-semibold text-white">{title}</Text>
+          {message ? <Text className="text-xs text-mutedWhite mt-0.5" style={{ lineHeight: DesignTokens.typography.size.xs * DesignTokens.typography.lineHeight.normal }}>{message}</Text> : null}
         </View>
         <PressableScale
           onPress={handleDismiss}
@@ -153,45 +151,3 @@ export function Toast({
     </Animated.View>
   )
 }
-
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 60 : 20,
-    left: Spacing.md,
-    right: Spacing.md,
-    zIndex: DesignTokens.zIndex.toast,
-  },
-  inner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    gap: Spacing.sm,
-    ...DesignTokens.shadows.card,
-  },
-  iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: BorderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  textWrap: {
-    flex: 1,
-  },
-  title: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
-    color: Colors.white,
-  },
-  message: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    marginTop: 2,
-    lineHeight: FontSize.xs * DesignTokens.typography.lineHeight.normal,
-  },
-})

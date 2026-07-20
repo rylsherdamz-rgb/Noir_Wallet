@@ -1,6 +1,4 @@
-import { View, Text, StyleSheet } from 'react-native'
-import { DesignTokens, colorWithOpacity } from '@/constants/designTokens'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { View, Text } from 'react-native'
 
 interface ProgressIndicatorProps {
   currentStep: number
@@ -20,7 +18,7 @@ export function ProgressIndicator({
   if (variant === 'dots') {
     return (
       <View
-        style={styles.dotsContainer}
+        className="flex-row items-center justify-center gap-2 py-4"
         testID={testID}
         accessibilityRole="progressbar"
         accessibilityLabel={`Step ${currentStep} of ${totalSteps}`}
@@ -29,11 +27,7 @@ export function ProgressIndicator({
         {Array.from({ length: totalSteps }, (_, i) => i + 1).map((step) => (
           <View
             key={step}
-            style={[
-              styles.dot,
-              step === currentStep && styles.dotActive,
-              step < currentStep && styles.dotCompleted,
-            ]}
+            className={`w-2 h-2 rounded-full ${step === currentStep ? 'w-6 bg-gold' : step < currentStep ? 'bg-gold/50' : 'bg-borderGrey'}`}
           />
         ))}
       </View>
@@ -44,168 +38,47 @@ export function ProgressIndicator({
     const progress = (currentStep / totalSteps) * 100
 
     return (
-      <View style={styles.lineContainer} testID={testID}>
-        <View style={styles.lineBackground}>
-          <View style={[styles.lineProgress, { width: `${progress}%` }]} />
+      <View className="py-4 gap-2" testID={testID}>
+        <View className="h-1 bg-borderGrey rounded-full overflow-hidden">
+          <View className="h-full bg-gold rounded-full" style={{ width: `${progress}%` }} />
         </View>
-        <Text style={styles.lineText}>
+        <Text className="text-xs text-mutedWhite text-center font-medium">
           Step {currentStep} of {totalSteps}
         </Text>
       </View>
     )
   }
 
-  // Numbered variant
   return (
-    <View style={styles.numberedContainer} testID={testID}>
+    <View className="flex-row items-center py-4 px-4" testID={testID}>
       {Array.from({ length: totalSteps }, (_, i) => i + 1).map((step) => {
         const isActive = step === currentStep
         const isCompleted = step < currentStep
         const label = stepLabels[step - 1]
 
         return (
-          <View key={step} style={styles.numberedStep}>
+          <View key={step} className="flex-1 items-center relative">
             <View
-              style={[
-                styles.numberedCircle,
-                isActive && styles.numberedCircleActive,
-                isCompleted && styles.numberedCircleCompleted,
-              ]}
+              className={`w-8 h-8 rounded-full items-center justify-center mb-1 border-2 ${isActive ? 'bg-gold border-gold' : isCompleted ? 'bg-gold/20 border-gold' : 'bg-midGrey border-borderGrey'}`}
             >
-              <Text
-                style={[
-                  styles.numberedText,
-                  isActive && styles.numberedTextActive,
-                  isCompleted && styles.numberedTextCompleted,
-                ]}
-              >
+              <Text className={`text-sm font-bold ${isActive ? 'text-black' : isCompleted ? 'text-gold' : 'text-mutedWhite'}`}>
                 {step}
               </Text>
             </View>
             {label && (
               <Text
-                style={[
-                  styles.numberedLabel,
-                  isActive && styles.numberedLabelActive,
-                ]}
+                className={`text-xs text-center max-w-[80] ${isActive ? 'text-gold font-semibold' : 'text-mutedWhite'}`}
                 numberOfLines={1}
               >
                 {label}
               </Text>
             )}
-            {step < totalSteps && <View style={styles.numberedConnector} />}
+            {step < totalSteps && (
+              <View className="absolute top-4 left-1/2 right-[-50%] h-0.5 bg-borderGrey z-[-1]" />
+            )}
           </View>
         )
       })}
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  // Dots variant
-  dotsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    paddingVertical: Spacing.md,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.borderGrey,
-  },
-  dotActive: {
-    width: 24,
-    backgroundColor: Colors.gold,
-  },
-  dotCompleted: {
-    backgroundColor: colorWithOpacity(Colors.gold, 0.5),
-  },
-
-  // Line variant
-  lineContainer: {
-    paddingVertical: Spacing.md,
-    gap: Spacing.sm,
-  },
-  lineBackground: {
-    height: 4,
-    backgroundColor: Colors.borderGrey,
-    borderRadius: BorderRadius.full,
-    overflow: 'hidden',
-  },
-  lineProgress: {
-    height: '100%',
-    backgroundColor: Colors.gold,
-    borderRadius: BorderRadius.full,
-  },
-  lineText: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    textAlign: 'center',
-    fontWeight: FontWeight.medium,
-  },
-
-  // Numbered variant
-  numberedContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.md,
-  },
-  numberedStep: {
-    flex: 1,
-    alignItems: 'center',
-    position: 'relative',
-  },
-  numberedCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.midGrey,
-    borderWidth: 2,
-    borderColor: Colors.borderGrey,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.xs,
-  },
-  numberedCircleActive: {
-    backgroundColor: Colors.gold,
-    borderColor: Colors.gold,
-  },
-  numberedCircleCompleted: {
-    backgroundColor: colorWithOpacity(Colors.gold, 0.2),
-    borderColor: Colors.gold,
-  },
-  numberedText: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.bold,
-    color: Colors.mutedWhite,
-  },
-  numberedTextActive: {
-    color: Colors.black,
-  },
-  numberedTextCompleted: {
-    color: Colors.gold,
-  },
-  numberedLabel: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    textAlign: 'center',
-    maxWidth: 80,
-  },
-  numberedLabelActive: {
-    color: Colors.gold,
-    fontWeight: FontWeight.semibold,
-  },
-  numberedConnector: {
-    position: 'absolute',
-    top: 16,
-    left: '50%',
-    right: '-50%',
-    height: 2,
-    backgroundColor: Colors.borderGrey,
-    zIndex: -1,
-  },
-})

@@ -1,9 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { View, Text, StyleSheet, ScrollView } from 'react-native'
+import { View, Text, ScrollView } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { NoirLogo } from '@/components/brand/NoirLogo'
 import { Button } from '@/components/Button'
 
@@ -67,54 +66,60 @@ export function SeedVerifyScreen({ phrase, onComplete, onBack }: SeedVerifyScree
   const isCorrect = indices.every((i) => answers[i] === phrase[i])
 
   return (
-    <SafeAreaView style={styles.container}>
-      <PressableScale onPress={onBack} style={styles.backBtn}>
-        <Ionicons name="arrow-back" size={24} color={Colors.white} />
+    <SafeAreaView className="flex-1 bg-surfaceBg">
+      <PressableScale className="w-10 h-10 items-center justify-center ml-4 mt-2" onPress={onBack}>
+        <Ionicons name="arrow-back" size={24} color="white" />
       </PressableScale>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={{ padding: 24, paddingBottom: 48 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         <NoirLogo variant="mark" size={40} />
-        <Text style={styles.title}>Verify Your Phrase</Text>
-        <Text style={styles.subtitle}>Select the correct word for each position</Text>
+        <Text className="text-xl text-white font-bold text-center mt-4">Verify Your Phrase</Text>
+        <Text className="text-sm text-mutedWhite text-center mt-1">Select the correct word for each position</Text>
 
-        <View style={styles.prompts}>
+        <View className="gap-2 my-8">
           {indices.map((idx) => (
-            <View key={idx} style={[styles.promptRow, answers[idx] && styles.promptRowFilled]}>
-              <Text style={styles.promptNum}>Word #{idx + 1}</Text>
-              <Text style={[styles.promptAnswer, !answers[idx] && styles.promptEmpty]}>
+            <View
+              key={idx}
+              className="flex-row items-center bg-cardBg rounded-xl p-4 border gap-4"
+              style={answers[idx] ? { borderColor: '#C6A15B66' } : { borderColor: '#3A3A3A' }}
+            >
+              <Text className="text-xs text-mutedWhite w-[60]">Word #{idx + 1}</Text>
+              <Text
+                className={`flex-1 text-base ${answers[idx] ? 'text-white font-semibold' : 'text-mutedWhite tracking-[2]'}`}
+              >
                 {answers[idx] || '______'}
               </Text>
               {answers[idx] && (
                 <PressableScale onPress={() => removeAnswer(idx)}>
-                  <Ionicons name="close-circle" size={18} color={Colors.danger} />
+                  <Ionicons name="close-circle" size={18} color="#FF5A5F" />
                 </PressableScale>
               )}
             </View>
           ))}
         </View>
 
-        <View style={styles.wordPool}>
+        <View className="flex-row flex-wrap gap-2 mb-8 justify-center">
           {shuffledWords.map((word, i) => {
             const used = Object.values(answers).includes(word)
             return (
               <PressableScale
                 key={`${word}-${i}`}
-                style={[styles.wordChip, used && styles.wordChipUsed]}
+                className={`px-4 py-2 rounded-full border ${used ? 'opacity-30 bg-midGrey' : 'bg-[#2C2C2C]'} border-borderGrey`}
                 onPress={() => !used && handleWordPress(word)}
                 disabled={used}
               >
-                <Text style={[styles.wordChipText, used && styles.wordChipTextUsed]}>{word}</Text>
+                <Text className={`text-sm font-medium ${used ? 'text-mutedWhite' : 'text-white'}`}>{word}</Text>
               </PressableScale>
             )
           })}
         </View>
 
         {allAnswered && !isCorrect && (
-          <Text style={styles.errorText}>Some words are incorrect. Try again.</Text>
+          <Text className="text-sm text-[#FF5A5F] text-center mb-4">Some words are incorrect. Try again.</Text>
         )}
 
         <Button
@@ -126,24 +131,3 @@ export function SeedVerifyScreen({ phrase, onComplete, onBack }: SeedVerifyScree
     </SafeAreaView>
   )
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surfaceBg },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginLeft: Spacing.md, marginTop: Spacing.sm },
-  scrollContent: { padding: Spacing.lg, paddingBottom: Spacing.xxl },
-
-  title: { fontSize: FontSize.xl, color: Colors.white, fontWeight: FontWeight.bold, textAlign: 'center', marginTop: Spacing.md },
-  subtitle: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', marginTop: Spacing.xs },
-  prompts: { gap: Spacing.sm, marginVertical: Spacing.xl },
-  promptRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.cardBg, borderRadius: BorderRadius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.borderGrey, gap: Spacing.md },
-  promptRowFilled: { borderColor: Colors.gold + '40' },
-  promptNum: { fontSize: FontSize.xs, color: Colors.mutedWhite, width: 60 },
-  promptAnswer: { flex: 1, fontSize: FontSize.md, color: Colors.white, fontWeight: FontWeight.semibold },
-  promptEmpty: { color: Colors.mutedWhite, letterSpacing: 2 },
-  wordPool: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.xl, justifyContent: 'center' },
-  wordChip: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full, backgroundColor: Colors.lightGrey, borderWidth: 1, borderColor: Colors.borderGrey },
-  wordChipUsed: { opacity: 0.3, backgroundColor: Colors.midGrey },
-  wordChipText: { fontSize: FontSize.sm, color: Colors.white, fontWeight: FontWeight.medium },
-  wordChipTextUsed: { color: Colors.mutedWhite },
-  errorText: { fontSize: FontSize.sm, color: Colors.danger, textAlign: 'center', marginBottom: Spacing.md },
-})

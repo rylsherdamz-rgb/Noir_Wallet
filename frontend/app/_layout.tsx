@@ -41,7 +41,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { Stack, useRouter } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { StyleSheet, AppState, Linking, Alert, AppStateStatus } from 'react-native'
+import { AppState, Linking, Alert, AppStateStatus } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import * as SplashScreen from 'expo-splash-screen'
 import * as Notifications from 'expo-notifications'
@@ -206,7 +206,7 @@ export default function RootLayout() {
   if (!ready) return null
 
   return (
-    <GestureHandlerRootView style={styles.root}>
+    <GestureHandlerRootView className="flex-1 bg-black">
       <SafeAreaProvider>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
@@ -232,7 +232,3 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   )
 }
-
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#000000' },
-})

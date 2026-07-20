@@ -1,5 +1,5 @@
-import { View, Text, Image, StyleSheet, StyleProp, ViewStyle } from 'react-native'
-import { Colors, FontSize, FontWeight, Spacing } from '@/constants/theme'
+import { View, Text, Image, StyleProp, ViewStyle } from 'react-native'
+import { Colors, Spacing } from '@/constants/theme'
 
 type NoirLogoVariant = 'mark' | 'wordmark' | 'lockup'
 
@@ -23,7 +23,7 @@ export function NoirLogo({
 }: NoirLogoProps) {
   if (variant === 'wordmark') {
     return (
-      <View style={[styles.center, style]}>
+      <View className="items-center justify-center" style={style}>
         <Wordmark color={color} showTagline={showTagline} />
       </View>
     )
@@ -31,7 +31,7 @@ export function NoirLogo({
 
   if (variant === 'mark') {
     return (
-      <View style={[styles.center, style]}>
+      <View className="items-center justify-center" style={style}>
         <Image
           source={LOGO_MARK}
           style={{ width: size, height: size }}
@@ -42,14 +42,14 @@ export function NoirLogo({
   }
 
   return (
-    <View style={[styles.center, style]}>
+    <View className="items-center justify-center" style={style}>
       <Image
         source={LOGO_FULL}
         style={{ width: size * 2.5, height: size * 1.2 }}
         resizeMode="contain"
       />
       {showTagline && (
-        <Text style={[styles.tagline, { color, marginTop: Spacing.sm }]}>
+        <Text className="text-xs font-medium uppercase tracking-[4]" style={{ color, marginTop: Spacing.sm }}>
           TAP INTO TRUST
         </Text>
       )}
@@ -59,30 +59,17 @@ export function NoirLogo({
 
 function Wordmark({ color, showTagline }: { color: string; showTagline: boolean }) {
   return (
-    <View style={styles.center}>
+    <View className="items-center justify-center">
       <Image
         source={LOGO_FULL}
         style={{ width: 160, height: 48 }}
         resizeMode="contain"
       />
       {showTagline && (
-        <Text style={[styles.tagline, { color }]}>TAP INTO TRUST</Text>
+        <Text className="text-xs font-medium uppercase tracking-[4]" style={{ color }}>TAP INTO TRUST</Text>
       )}
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  center: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tagline: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
-    letterSpacing: 4,
-    textTransform: 'uppercase',
-  },
-})
 
 export default NoirLogo

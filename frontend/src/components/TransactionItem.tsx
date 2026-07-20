@@ -1,12 +1,12 @@
 import { memo } from 'react'
-import { View, Text, StyleSheet } from 'react-native'
+import { View, Text } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { PressableScale } from '@/components/brand/PressableScale'
 import * as Haptics from 'expo-haptics'
 import { useRouter } from 'expo-router'
 import { Transaction } from '@/types'
 import { DesignTokens, colorWithOpacity } from '@/constants/designTokens'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors, FontSize } from '@/constants/theme'
 
 interface TransactionItemProps {
   transaction: Transaction
@@ -40,22 +40,22 @@ export const TransactionItem = memo(function TransactionItem({ transaction, onPr
 
   return (
     <PressableScale
-      style={styles.container}
+      className="flex-row items-center py-4 px-4 bg-cardBg rounded-xl mb-2 border border-borderGrey min-h-[72]"
       onPress={handlePress}
       accessibilityRole="button"
       accessibilityLabel={`Transaction ${transaction.merchantName}, ${amountStr}, ${config.label}`}
       accessibilityHint="Tap to view details"
       testID={testID}
     >
-      <View style={[styles.iconWrap, { backgroundColor: colorWithOpacity(config.color, 0.15) }]}>
-        <Ionicons name={config.icon} size={DesignTokens.iconSize.sm} color={config.color} />
+      <View className="w-10 h-10 rounded-xl items-center justify-center border border-borderGrey" style={{ backgroundColor: colorWithOpacity(config.color, 0.15) }}>
+        <Ionicons name={config.icon} size={20} color={config.color} />
       </View>
 
-      <View style={styles.info}>
-        <Text style={styles.merchant} numberOfLines={1}>
+      <View className="flex-1 ml-4 mr-2">
+        <Text className="text-base text-white font-semibold" numberOfLines={1} style={{ lineHeight: FontSize.md * DesignTokens.typography.lineHeight.tight }}>
           {transaction.merchantName}
         </Text>
-        <Text style={styles.meta} numberOfLines={1}>
+        <Text className="text-xs text-mutedWhite mt-1 capitalize" numberOfLines={1}>
           {new Date(transaction.createdAt).toLocaleTimeString('en-PH', {
             hour: '2-digit',
             minute: '2-digit',
@@ -64,13 +64,13 @@ export const TransactionItem = memo(function TransactionItem({ transaction, onPr
         </Text>
       </View>
 
-      <View style={styles.amountSection}>
-        <Text style={[styles.amount, !isIncoming && styles.outgoing]}>
+      <View className="items-end mr-2">
+        <Text className="text-base font-bold" style={{ color: isIncoming ? Colors.success : Colors.danger, lineHeight: FontSize.md * DesignTokens.typography.lineHeight.tight }}>
           {isIncoming ? '+' : '-'}
           {amountStr}
         </Text>
         {transaction.stellarTxHash && (
-          <Text style={styles.txHash} numberOfLines={1}>
+          <Text className="text-xs text-mutedWhite mt-0.5 max-w-20 font-mono" numberOfLines={1}>
             {transaction.stellarTxHash.slice(0, 8)}...
           </Text>
         )}
@@ -79,66 +79,4 @@ export const TransactionItem = memo(function TransactionItem({ transaction, onPr
       <Ionicons name="chevron-forward" size={20} color={Colors.borderGrey} />
     </PressableScale>
   )
-})
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    minHeight: DesignTokens.touchTarget.large,
-    ...DesignTokens.shadows.card,
-  },
-  iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  info: {
-    flex: 1,
-    marginLeft: Spacing.md,
-    marginRight: Spacing.sm,
-  },
-  merchant: {
-    fontSize: FontSize.md,
-    color: Colors.white,
-    fontWeight: FontWeight.semibold,
-    lineHeight: FontSize.md * DesignTokens.typography.lineHeight.tight,
-  },
-  meta: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    marginTop: Spacing.xs,
-    textTransform: 'capitalize',
-  },
-  amountSection: {
-    alignItems: 'flex-end',
-    marginRight: Spacing.sm,
-  },
-  amount: {
-    fontSize: FontSize.md,
-    color: Colors.success,
-    fontWeight: FontWeight.bold,
-    lineHeight: FontSize.md * DesignTokens.typography.lineHeight.tight,
-  },
-  outgoing: {
-    color: Colors.danger,
-  },
-  txHash: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    marginTop: 2,
-    maxWidth: 80,
-    fontFamily: 'monospace',
-  },
 })

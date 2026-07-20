@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { View, Text, StyleSheet, Animated, ScrollView, Image } from 'react-native'
+import { View, Text, Animated, ScrollView, Image } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -7,7 +7,7 @@ import Svg, { Defs, RadialGradient, Stop, Circle, Polygon } from 'react-native-s
 import { Ionicons } from '@expo/vector-icons'
 import { useReducedMotion } from 'react-native-reanimated'
 import { DesignTokens, colorWithOpacity } from '@/constants/designTokens'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
+import { Colors } from '@/constants/theme'
 import { TapGlyph } from '@/components/brand/BrandGlyph'
 
 interface WelcomeScreenProps {
@@ -63,21 +63,21 @@ export function WelcomeScreen({ onCreateWallet, onImportWallet }: WelcomeScreenP
   const glowOpacity = glow.interpolate({ inputRange: [0, 1], outputRange: [0.28, 0.6] })
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={['#000000', '#0A0A0A', '#141414']} style={StyleSheet.absoluteFill} />
-      <LinearGradient colors={['transparent', colorWithOpacity(Colors.gold, 0.04)]} locations={[0.5, 1]} style={StyleSheet.absoluteFill} />
-      <SafeAreaView edges={['top', 'bottom']} style={styles.safe}>
+    <View className="flex-1 bg-surfaceBg">
+      <LinearGradient colors={['#000000', '#0A0A0A', '#141414']} className="absolute inset-0" />
+      <LinearGradient colors={['transparent', colorWithOpacity(Colors.gold, 0.04)]} locations={[0.5, 1]} className="absolute inset-0" />
+      <SafeAreaView edges={['top', 'bottom']} className="flex-1">
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 32 }}
           showsVerticalScrollIndicator={false}
           bounces={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Animated.View style={[styles.content, { opacity: fadeIn }]}>
-            <Animated.View style={[styles.hero, { transform: [{ scale: scaleIn }] }]}>
+          <Animated.View className="gap-6" style={{ opacity: fadeIn }}>
+            <Animated.View className="items-center" style={{ transform: [{ scale: scaleIn }] }}>
               {/* Logo — transparent mark over a soft radial glow + faint facet frame */}
-              <View style={styles.logoBlock}>
-                <Animated.View style={[styles.glowLayer, { opacity: glowOpacity }]} pointerEvents="none">
+              <View className="w-[150] h-[150] items-center justify-center relative">
+                <Animated.View className="absolute inset-0 items-center justify-center" style={{ opacity: glowOpacity }} pointerEvents="none">
                   <Svg width={210} height={210} viewBox="0 0 100 100">
                     <Defs>
                       <RadialGradient id="heroGlow" cx="50%" cy="50%" r="50%">
@@ -88,7 +88,7 @@ export function WelcomeScreen({ onCreateWallet, onImportWallet }: WelcomeScreenP
                     <Circle cx="50" cy="50" r="50" fill="url(#heroGlow)" />
                   </Svg>
                 </Animated.View>
-                <View style={styles.facetFrame} pointerEvents="none">
+                <View className="absolute inset-0 items-center justify-center" pointerEvents="none">
                   <Svg width={148} height={148} viewBox="0 0 100 100">
                     <Polygon
                       points="50,4 90,27 90,73 50,96 10,73 10,27"
@@ -99,54 +99,62 @@ export function WelcomeScreen({ onCreateWallet, onImportWallet }: WelcomeScreenP
                     />
                   </Svg>
                 </View>
-                <Image source={NOIR_MARK} style={styles.heroMark} resizeMode="contain" />
+                <Image source={NOIR_MARK} className="w-24 h-[100]" resizeMode="contain" />
               </View>
 
-              <Text style={styles.brand}>NOIR</Text>
-              <Text style={styles.tagline}>TAP INTO TRUST</Text>
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <View style={styles.dividerDot} />
-                <View style={styles.dividerLine} />
+              <Text className="text-5xl text-cream mt-4 tracking-[10px]" style={{ fontFamily: 'Jost-SemiBold', textShadowColor: colorWithOpacity(Colors.gold, 0.3), textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 10 }}>
+                NOIR
+              </Text>
+              <Text className="text-xs text-gold mt-4 tracking-[6px] uppercase" style={{ fontFamily: 'Jost-Medium' }}>
+                TAP INTO TRUST
+              </Text>
+              <View className="flex-row items-center mt-6 w-[60%] self-center">
+                <View className="flex-1 h-px" style={{ backgroundColor: colorWithOpacity(Colors.gold, 0.25) }} />
+                <View className="w-[5] h-[5] mx-4 rounded-full" style={{ backgroundColor: Colors.gold }} />
+                <View className="flex-1 h-px" style={{ backgroundColor: colorWithOpacity(Colors.gold, 0.25) }} />
               </View>
-              <Text style={styles.subtitle}>
+              <Text className="text-base text-silver text-center mt-6 px-4 leading-[24px]">
                 The first NFC-powered wallet on Stellar. Tap your card. Pay with agents. Own your assets.
               </Text>
             </Animated.View>
 
-            <Animated.View style={[styles.features, { transform: [{ translateY: slideUp }], opacity: fadeIn }]}>
+            <Animated.View className="gap-4" style={{ transform: [{ translateY: slideUp }], opacity: fadeIn }}>
               {features.map((f, i) => (
                 <LinearGradient
                   key={i}
                   colors={['#161616', '#101010']}
                   start={{ x: 0.5, y: 0 }}
                   end={{ x: 0.5, y: 1 }}
-                  style={styles.featureRow}
+                  className="flex-row items-center gap-4 p-4 rounded-2xl border border-borderGrey"
                 >
-                  <View style={styles.featureIcon}>
+                  <View className="w-11 h-11 items-center justify-center rounded-full border" style={{ backgroundColor: colorWithOpacity(Colors.gold, 0.12), borderColor: colorWithOpacity(Colors.gold, 0.28) }}>
                     {f.contactless ? (
                       <TapGlyph size={20} color={Colors.gold} />
                     ) : (
                       <Ionicons name={f.icon as keyof typeof Ionicons.glyphMap} size={20} color={Colors.gold} />
                     )}
                   </View>
-                  <View style={styles.featureText}>
-                    <Text style={styles.featureLabel}>{f.label}</Text>
-                    <Text style={styles.featureDesc}>{f.desc}</Text>
+                  <View className="flex-1">
+                    <Text style={{ fontFamily: 'Jost-SemiBold' }} className="text-base text-cream">{f.label}</Text>
+                    <Text className="text-xs text-mutedWhite mt-[3] leading-[17px]">{f.desc}</Text>
                   </View>
                 </LinearGradient>
               ))}
             </Animated.View>
 
-            <Animated.View style={[styles.actions, { transform: [{ translateY: slideUp }], opacity: fadeIn }]}>
+            <Animated.View className="gap-4 mt-2" style={{ transform: [{ translateY: slideUp }], opacity: fadeIn }}>
               <PressableScale onPress={onCreateWallet} accessibilityRole="button" accessibilityLabel="Register my card">
-                <LinearGradient colors={[Colors.goldHi, Colors.gold]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.primaryBtn}>
+                <LinearGradient colors={[Colors.goldHi, Colors.gold]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} className="flex-row items-center justify-center gap-2 py-4 rounded-xl min-h-[54]" style={DesignTokens.shadows.goldGlow}>
                   <TapGlyph size={18} color="#151107" />
-                  <Text style={styles.primaryText}>Register My Card</Text>
+                  <Text className="text-base text-[#151107] tracking-[1px] uppercase" style={{ fontFamily: 'Jost-SemiBold' }}>
+                    Register My Card
+                  </Text>
                 </LinearGradient>
               </PressableScale>
-              <PressableScale onPress={onImportWallet} style={styles.ghostBtn} accessibilityRole="button" accessibilityLabel="I already have a wallet">
-                <Text style={styles.ghostText}>I already have a wallet</Text>
+              <PressableScale onPress={onImportWallet} className="items-center justify-center py-4 min-h-[48]" accessibilityRole="button" accessibilityLabel="I already have a wallet">
+                <Text className="text-sm text-gold tracking-[0.6px]" style={{ fontFamily: 'Jost-Medium' }}>
+                  I already have a wallet
+                </Text>
               </PressableScale>
             </Animated.View>
           </Animated.View>
@@ -155,72 +163,3 @@ export function WelcomeScreen({ onCreateWallet, onImportWallet }: WelcomeScreenP
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surfaceBg },
-  safe: { flex: 1 },
-  scrollContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.xl },
-
-  content: { gap: Spacing.lg },
-
-  hero: { alignItems: 'center' },
-  logoBlock: { width: 150, height: 150, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  glowLayer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
-  facetFrame: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
-  heroMark: { width: 96, height: 100 },
-
-  brand: {
-    fontFamily: Fonts.display,
-    fontSize: FontSize.xxxl,
-    color: Colors.cream,
-    letterSpacing: 10,
-    marginTop: Spacing.md,
-    textShadowColor: colorWithOpacity(Colors.gold, 0.3),
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 10,
-  },
-  tagline: {
-    fontFamily: Fonts.displayMd,
-    fontSize: FontSize.xs,
-    color: Colors.gold,
-    letterSpacing: 6,
-    marginTop: Spacing.md,
-    textTransform: 'uppercase',
-  },
-  divider: { flexDirection: 'row', alignItems: 'center', marginTop: Spacing.lg, width: '60%', alignSelf: 'center' },
-  dividerLine: { flex: 1, height: 1, backgroundColor: colorWithOpacity(Colors.gold, 0.25) },
-  dividerDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: Colors.gold, marginHorizontal: Spacing.md },
-  subtitle: {
-    fontSize: FontSize.md,
-    color: Colors.silver,
-    textAlign: 'center',
-    marginTop: Spacing.lg,
-    lineHeight: 24,
-    paddingHorizontal: Spacing.md,
-  },
-
-  features: { gap: Spacing.md },
-  featureRow: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    borderRadius: BorderRadius.lg, padding: Spacing.md,
-    borderWidth: 1, borderColor: Colors.borderGrey,
-  },
-  featureIcon: {
-    width: 44, height: 44, borderRadius: BorderRadius.full,
-    backgroundColor: colorWithOpacity(Colors.gold, 0.12), alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: colorWithOpacity(Colors.gold, 0.28),
-  },
-  featureText: { flex: 1 },
-  featureLabel: { fontFamily: Fonts.display, fontSize: FontSize.md, color: Colors.cream },
-  featureDesc: { fontSize: FontSize.xs, color: Colors.mutedWhite, marginTop: 3, lineHeight: 17 },
-
-  actions: { gap: Spacing.md, marginTop: Spacing.sm },
-  primaryBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
-    paddingVertical: Spacing.md, borderRadius: BorderRadius.md, minHeight: 54,
-    ...DesignTokens.shadows.goldGlow,
-  },
-  primaryText: { fontFamily: Fonts.display, fontSize: FontSize.md, color: '#151107', letterSpacing: 1, textTransform: 'uppercase' },
-  ghostBtn: { alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, minHeight: 48 },
-  ghostText: { fontFamily: Fonts.displayMd, fontSize: FontSize.sm, color: Colors.gold, letterSpacing: 0.6 },
-})

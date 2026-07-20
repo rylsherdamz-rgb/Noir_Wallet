@@ -49,7 +49,8 @@ export function SignalRipple({
   return (
     <View
       pointerEvents="none"
-      style={[{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }, style]}
+      className="absolute inset-0 items-center justify-center"
+      style={style}
     >
       {Array.from({ length: rings }).map((_, i) => (
         <Ring key={i} progress={progress} index={i} rings={rings} size={size} color={color} />
@@ -83,17 +84,14 @@ function Ring({
   return (
     <Animated.View
       pointerEvents="none"
+      className="absolute left-1/2 top-1/2 border-[1.5]"
       style={[
         {
-          position: 'absolute',
-          left: '50%',
-          top: '50%',
           width: size,
           height: size,
           marginLeft: -size / 2,
           marginTop: -size / 2,
           borderRadius: size / 2,
-          borderWidth: 1.5,
           borderColor: color,
         },
         style,

@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect } from 'react'
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TextInput,
 } from 'react-native'
@@ -10,7 +9,7 @@ import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter, useGlobalSearchParams } from 'expo-router'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors } from '@/constants/theme'
 import { Button } from '@/components/Button'
 import { NumericKeypad } from '@/components/NumericKeypad'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -95,35 +94,35 @@ export function SendScreen() {
 
   if (step === 'amount') {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <SafeAreaView className="flex-1 bg-surfaceBg">
+        <View className="flex-row items-center justify-between px-4 py-4">
           <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="close" size={24} color={Colors.white} />
           </PressableScale>
-          <Text style={styles.headerTitle}>Send</Text>
-          <View style={styles.spacer24} />
+          <Text className="text-xl font-bold text-white">Send</Text>
+          <View className="w-[24]" />
         </View>
 
-        <View style={styles.amountSection}>
-          <Text style={styles.balanceLabel}>XLM · Stellar Lumens</Text>
-          <Text style={styles.amountDisplay}>
+        <View className="flex-1 items-center justify-center px-4">
+          <Text className="text-sm text-mutedWhite mt-2">XLM · Stellar Lumens</Text>
+          <Text className="text-[64px] font-extrabold text-white tracking-[-1]">
             {amount || '0'}
           </Text>
-          <Text style={styles.balanceLabel}>
+          <Text className="text-sm text-mutedWhite mt-2">
             Balance: {balance.xlm.toLocaleString()} XLM
           </Text>
           {error ? <ErrorMessage message={error} variant="inline" /> : null}
         </View>
 
-        <View style={styles.keypadSection}>
+        <View className="px-4 pb-4">
           <NumericKeypad value={amount} onChangeValue={handleChangeValue} />
-          <View style={styles.amountActions}>
+          <View className="flex-row gap-2 mt-4">
             <Button variant="ghost" label="Cancel" onPress={() => router.back()} />
             <Button
               label="Continue"
               onPress={handleContinue}
               disabled={amountNum <= 0 || insufficientFunds}
-              style={styles.halfBtn}
+              style={{ flex: 1 }}
             />
           </View>
         </View>
@@ -133,19 +132,19 @@ export function SendScreen() {
 
   if (step === 'recipient') {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <SafeAreaView className="flex-1 bg-surfaceBg">
+        <View className="flex-row items-center justify-between px-4 py-4">
           <PressableScale onPress={() => setStep('amount')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="arrow-back" size={24} color={Colors.white} />
           </PressableScale>
-          <Text style={styles.headerTitle}>Send to</Text>
-          <View style={styles.spacer24} />
+          <Text className="text-xl font-bold text-white">Send to</Text>
+          <View className="w-[24]" />
         </View>
 
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-          <View style={styles.inputWrap}>
+        <ScrollView className="flex-1" contentContainerClassName="px-4 pb-8">
+          <View className="flex-row items-center bg-cardBg rounded-xl border border-borderGrey pl-4 mb-4">
             <TextInput
-              style={styles.addressInput}
+              className="flex-1 h-[52] text-base text-white font-mono"
               value={recipient}
               onChangeText={setRecipient}
               placeholder="Enter Stellar address or scan NFC"
@@ -153,7 +152,7 @@ export function SendScreen() {
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <PressableScale style={styles.scanBtn} onPress={() => router.push('/scan-qr')}>
+            <PressableScale className="w-[52] h-[52] items-center justify-center border-l border-borderGrey" onPress={() => router.push('/scan-qr')}>
               <Ionicons name="qr-code-outline" size={20} color={Colors.gold} />
             </PressableScale>
           </View>
@@ -164,22 +163,22 @@ export function SendScreen() {
             variant="tip"
           />
 
-          <Text style={styles.sectionLabel}>Saved Devices</Text>
+          <Text className="text-sm text-mutedWhite font-semibold uppercase tracking-[0.5] mb-2 mt-4">Saved Devices</Text>
           {devices.length === 0 ? (
-            <Text style={styles.noDevices}>No linked devices. Link one in the Devices tab.</Text>
+            <Text className="text-sm text-mutedWhite text-center py-6">No linked devices. Link one in the Devices tab.</Text>
           ) : (
             devices
               .filter((device) => !!device.agentPublicKey)
               .map((device) => (
               <PressableScale
                 key={device.id}
-                style={styles.recipientRow}
+                className="flex-row items-center bg-cardBg p-4 rounded-xl mb-2 border border-borderGrey gap-4"
                 onPress={() => device.agentPublicKey && handleSelectRecipient(device.agentPublicKey)}
               >
                 <Avatar name={device.label} size={44} variant="device" />
-                <View style={styles.recipientInfo}>
-                  <Text style={styles.recipientName}>{device.label}</Text>
-                  <Text style={styles.recipientAddress}>
+                <View className="flex-1">
+                  <Text className="text-base text-white font-semibold">{device.label}</Text>
+                  <Text className="text-xs text-mutedWhite font-mono mt-0.5">
                     {device.agentPublicKey?.slice(0, 8)}…{device.agentPublicKey?.slice(-6)}
                   </Text>
                 </View>
@@ -189,7 +188,7 @@ export function SendScreen() {
           )}
         </ScrollView>
 
-        <View style={styles.bottomActions}>
+        <View className="px-4 pb-6">
           <Button
             label="Review Send"
             onPress={() => setStep('review')}
@@ -201,45 +200,45 @@ export function SendScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView className="flex-1 bg-surfaceBg">
+      <View className="flex-row items-center justify-between px-4 py-4">
         <PressableScale onPress={() => setStep('recipient')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
         </PressableScale>
-        <Text style={styles.headerTitle}>Review Send</Text>
+        <Text className="text-xl font-bold text-white">Review Send</Text>
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.reviewCard}>
-          <View style={styles.reviewRow}>
-            <Text style={styles.reviewLabel}>Amount</Text>
-            <Text style={styles.reviewValue}>
+      <ScrollView className="flex-1" contentContainerClassName="px-4 pb-8">
+        <View className="bg-cardBg rounded-2xl p-6 border border-borderGrey mt-4">
+          <View className="flex-row justify-between items-center py-2">
+            <Text className="text-sm text-mutedWhite">Amount</Text>
+            <Text className="text-base text-white font-semibold">
               {amount} XLM
             </Text>
           </View>
-          <View style={styles.divider} />
-          <View style={styles.reviewRow}>
-            <Text style={styles.reviewLabel}>To</Text>
-            <Text style={styles.reviewValueMono}>{recipient}</Text>
+          <View className="h-px bg-borderGrey" />
+          <View className="flex-row justify-between items-center py-2">
+            <Text className="text-sm text-mutedWhite">To</Text>
+            <Text className="text-sm text-white font-mono max-w-[60%] text-right">{recipient}</Text>
           </View>
-          <View style={styles.divider} />
-          <View style={styles.reviewRow}>
-            <Text style={styles.reviewLabel}>Fee</Text>
-            <Text style={styles.reviewValue}>~0.00001 XLM</Text>
+          <View className="h-px bg-borderGrey" />
+          <View className="flex-row justify-between items-center py-2">
+            <Text className="text-sm text-mutedWhite">Fee</Text>
+            <Text className="text-base text-white font-semibold">~0.00001 XLM</Text>
           </View>
-          <View style={styles.divider} />
-          <View style={styles.reviewRow}>
-            <Text style={styles.reviewLabel}>Total</Text>
-            <Text style={styles.reviewValueGold}>
+          <View className="h-px bg-borderGrey" />
+          <View className="flex-row justify-between items-center py-2">
+            <Text className="text-sm text-mutedWhite">Total</Text>
+            <Text className="text-base text-gold font-bold">
               {amount} XLM + fee
             </Text>
           </View>
         </View>
 
-        <View style={styles.noteSection}>
+        <View className="mt-4">
           <TextInput
-            style={styles.noteInput}
+            className="bg-cardBg rounded-xl p-4 text-base text-white border border-borderGrey h-[52]"
             value={note}
             onChangeText={setNote}
             placeholder="Add a note (optional)"
@@ -250,7 +249,7 @@ export function SendScreen() {
         {error ? <ErrorMessage message={error} variant="card" onRetry={() => setError(null)} /> : null}
       </ScrollView>
 
-      <View style={styles.bottomActions}>
+      <View className="px-4 pb-6">
           <Button label="Confirm Send" onPress={() => setShowConfirm(true)} />
       </View>
 
@@ -267,200 +266,3 @@ export function SendScreen() {
     </SafeAreaView>
   )
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.surfaceBg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-  },
-  headerTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-  },
-  amountSection: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.md,
-  },
-  assetRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.lg,
-  },
-  assetChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.lightGrey,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  assetChipActive: {
-    backgroundColor: Colors.gold + '20',
-    borderColor: Colors.gold,
-  },
-  assetChipLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    fontWeight: FontWeight.semibold,
-  },
-  assetChipLabelActive: {
-    color: Colors.gold,
-  },
-  amountDisplay: {
-    fontSize: FontSize.hero,
-    fontWeight: FontWeight.heavy,
-    color: Colors.white,
-    letterSpacing: -1,
-  },
-  balanceLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    marginTop: Spacing.sm,
-  },
-  keypadSection: {
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.md,
-  },
-  amountActions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
-  },
-  halfBtn: {
-    flex: 1,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.xl,
-  },
-  inputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    paddingLeft: Spacing.md,
-    marginBottom: Spacing.md,
-  },
-  noDevices: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', paddingVertical: Spacing.lg },
-  addressInput: {
-    flex: 1,
-    height: 52,
-    fontSize: FontSize.md,
-    color: Colors.white,
-    fontFamily: 'monospace',
-  },
-  scanBtn: {
-    width: 52,
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderLeftWidth: 1,
-    borderLeftColor: Colors.borderGrey,
-  },
-  sectionLabel: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
-    color: Colors.mutedWhite,
-    marginBottom: Spacing.sm,
-    marginTop: Spacing.md,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  recipientRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.cardBg,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    gap: Spacing.md,
-  },
-  recipientInfo: {
-    flex: 1,
-  },
-  recipientName: {
-    fontSize: FontSize.md,
-    color: Colors.white,
-    fontWeight: FontWeight.semibold,
-  },
-  recipientAddress: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    fontFamily: 'monospace',
-    marginTop: 2,
-  },
-  reviewCard: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    marginTop: Spacing.md,
-  },
-  reviewRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-  },
-  reviewLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-  },
-  reviewValue: {
-    fontSize: FontSize.md,
-    color: Colors.white,
-    fontWeight: FontWeight.semibold,
-  },
-  reviewValueMono: {
-    fontSize: FontSize.sm,
-    color: Colors.white,
-    fontFamily: 'monospace',
-    maxWidth: '60%',
-    textAlign: 'right',
-  },
-  reviewValueGold: {
-    fontSize: FontSize.md,
-    color: Colors.gold,
-    fontWeight: FontWeight.bold,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.borderGrey,
-  },
-  noteSection: {
-    marginTop: Spacing.md,
-  },
-  noteInput: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    fontSize: FontSize.md,
-    color: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    height: 52,
-  },
-  bottomActions: {
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.lg,
-  },
-  spacer24: { width: 24 },
-})

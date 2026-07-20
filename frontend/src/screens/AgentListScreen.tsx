@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator } from 'react-native'
+import { View, Text, ScrollView, RefreshControl, ActivityIndicator } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -57,21 +57,22 @@ export function AgentListScreen() {
   const agentExists = agent !== null
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView className="flex-1 bg-surfaceBg" edges={['top']}>
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}
+        className="flex-1"
+        contentContainerClassName="px-6"
+        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 16, 24) }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.gold} />}
       >
-        <Text style={styles.screenTitle}>Payment Agent</Text>
-        <Text style={styles.screenSub}>
+        <Text className="font-['Jost-SemiBold'] text-[32] text-cream tracking-[0.2] pt-4">Payment Agent</Text>
+        <Text className="text-sm text-mutedWhite mt-1.5 mb-6 leading-5">
           Your x402 agent wallet signs and pays for NFC taps — no manual confirmation needed.
         </Text>
 
         {!agentExists && devices.length > 0 && (
-          <View style={styles.loadingBox}>
+          <View className="flex-row items-center justify-center gap-2 py-6">
             <ActivityIndicator size="small" color={Colors.gold} />
-            <Text style={styles.loadingText}>Loading agent wallet…</Text>
+            <Text className="text-sm text-mutedWhite">Loading agent wallet…</Text>
           </View>
         )}
 
@@ -80,65 +81,67 @@ export function AgentListScreen() {
           colors={['#1a1a1a', '#101010']}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
-          style={styles.agentWalletCard}
+          className="rounded-3xl border border-borderGrey p-6 mb-8 overflow-hidden"
+          style={DesignTokens.shadows.card}
         >
-          <View style={styles.walletHeader}>
-            <View style={styles.walletIcon}>
+          <View className="flex-row items-center mb-4">
+            <View className="w-10 h-10 rounded-full items-center justify-center bg-[rgba(212,169,100,0.12)] border border-[rgba(212,169,100,0.35)] mr-4">
               <Ionicons name="flash" size={20} color={Colors.goldHi} />
             </View>
-            <View style={styles.walletTitleArea}>
-              <Text style={styles.walletTitle}>x402 Agent Wallet</Text>
+            <View className="flex-1">
+              <Text className="font-['Jost-SemiBold'] text-base text-cream">x402 Agent Wallet</Text>
               {agent?.publicKey && (
-                <Text style={styles.walletSub}>
+                <Text className="font-mono text-xs text-mutedWhite mt-0.5">
                   {agent.publicKey.slice(0, 8)}…{agent.publicKey.slice(-6)}
                 </Text>
               )}
             </View>
             {agent?.createdAt && (
-              <Text style={styles.walletCreated}>
+              <Text className="text-xs text-mutedWhite">
                 {new Date(agent.createdAt).toLocaleDateString()}
               </Text>
             )}
           </View>
 
-          <Text style={styles.balanceAmount}>{xlmBalance}<Text style={styles.balanceUnit}> XLM</Text></Text>
+          <Text className="text-[48px] font-['Jost-SemiBold'] text-white mb-4">{xlmBalance}<Text className="text-xl text-mutedWhite"> XLM</Text></Text>
 
-          <View style={styles.budgetRow}>
-            <View style={styles.budgetTile}>
-              <Text style={styles.budgetLabel}>SPENT</Text>
-              <Text style={styles.budgetValue}>{spent}<Text style={styles.budgetUnit}> XLM</Text></Text>
+          <View className="flex-row gap-2 mb-4">
+            <View className="flex-1 bg-[#0E0E0E] rounded-xl border border-borderGrey p-2 items-center">
+              <Text className="text-xs text-mutedWhite tracking-[1px] mb-0.5">SPENT</Text>
+              <Text className="font-['Jost-SemiBold'] text-base text-white" style={{ fontVariant: ['tabular-nums'] }}>{spent}<Text className="text-xs text-mutedWhite"> XLM</Text></Text>
             </View>
-            <View style={styles.budgetTile}>
-              <Text style={styles.budgetLabel}>REMAINING</Text>
-              <Text style={[styles.budgetValue, { color: Colors.gold }]}>{remaining}<Text style={styles.budgetUnit}> XLM</Text></Text>
+            <View className="flex-1 bg-[#0E0E0E] rounded-xl border border-borderGrey p-2 items-center">
+              <Text className="text-xs text-mutedWhite tracking-[1px] mb-0.5">REMAINING</Text>
+              <Text className="font-['Jost-SemiBold'] text-base text-gold" style={{ fontVariant: ['tabular-nums'] }}>{remaining}<Text className="text-xs text-mutedWhite"> XLM</Text></Text>
             </View>
-            <View style={styles.budgetTile}>
-              <Text style={styles.budgetLabel}>BUDGET</Text>
-              <Text style={styles.budgetValue}>{budget}<Text style={styles.budgetUnit}> XLM</Text></Text>
+            <View className="flex-1 bg-[#0E0E0E] rounded-xl border border-borderGrey p-2 items-center">
+              <Text className="text-xs text-mutedWhite tracking-[1px] mb-0.5">BUDGET</Text>
+              <Text className="font-['Jost-SemiBold'] text-base text-white" style={{ fontVariant: ['tabular-nums'] }}>{budget}<Text className="text-xs text-mutedWhite"> XLM</Text></Text>
             </View>
           </View>
 
           {agent && agent.spendingBudgetStroops > 0 && (
-            <View style={styles.meterWrap}>
-              <View style={styles.meterTrack}>
+            <View className="mt-1">
+              <View className="h-[7px] rounded-[4px] bg-[#1B1B1B] mb-2">
                 <LinearGradient
                   colors={[Colors.goldDeep, Colors.gold, Colors.goldHi]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  style={[styles.meterFill, { width: `${Math.min(pct, 100)}%` }]}
+                  className="h-[7px] rounded-[4px] relative"
+                  style={{ width: `${Math.min(pct, 100)}%` }}
                 >
-                  <View style={styles.meterEndpoint} />
+                  <View className="absolute -right-0.5 -top-0.5 -bottom-0.5 w-[3px] rounded-[2px] bg-[#D4A964]" style={DesignTokens.shadows.goldGlow} />
                 </LinearGradient>
               </View>
-              <Text style={styles.meterLabel}>{pct}% of budget used</Text>
+              <Text className="text-xs text-mutedWhite" style={{ fontVariant: ['tabular-nums'] }}>{pct}% of budget used</Text>
             </View>
           )}
         </LinearGradient>
 
         {/* Device List */}
         {devices.length > 0 && (
-          <View style={styles.devicesSection}>
-            <Text style={styles.sectionTitle}>Linked Devices</Text>
+          <View className="mb-4">
+            <Text className="font-['Jost-SemiBold'] text-xl text-cream mb-4">Linked Devices</Text>
             {devices.map((device) => (
               <PressableScale
                 key={device.id}
@@ -150,16 +153,16 @@ export function AgentListScreen() {
                   colors={['#161616', '#101010']}
                   start={{ x: 0.5, y: 0 }}
                   end={{ x: 0.5, y: 1 }}
-                  style={styles.deviceCard}
+                  className="rounded-2xl border border-borderGrey p-4 mb-2"
                 >
-                  <View style={styles.deviceRow}>
-                    <View style={styles.deviceIcon}>
+                  <View className="flex-row items-center">
+                    <View className="w-9 h-9 rounded-full items-center justify-center bg-[rgba(212,169,100,0.1)] border border-[rgba(212,169,100,0.25)] mr-4">
                       <TapGlyph size={16} color={Colors.goldHi} />
                     </View>
-                    <View style={styles.deviceInfo}>
-                      <Text style={styles.deviceLabel}>{device.label}</Text>
+                    <View className="flex-1">
+                      <Text className="font-['Jost-SemiBold'] text-sm text-cream">{device.label}</Text>
                       {device.agentPublicKey && (
-                        <Text style={styles.deviceKey}>
+                        <Text className="font-mono text-xs text-mutedWhite mt-0.5">
                           {device.agentPublicKey.slice(0, 8)}…{device.agentPublicKey.slice(-6)}
                         </Text>
                       )}
@@ -176,11 +179,11 @@ export function AgentListScreen() {
           <EmptyAgents onLink={() => router.push('/(tabs)/devices')} />
         ) : (
           <PressableScale
-            style={styles.addBtn}
+            className="flex-row items-center justify-center gap-2 py-4 rounded-xl border-[1.5px] border-borderGrey border-dashed mt-2"
             onPress={() => router.push('/(tabs)/devices')}
           >
             <Ionicons name="add" size={20} color={Colors.gold} />
-            <Text style={styles.addBtnLabel}>Link Another Device</Text>
+            <Text className="font-['Jost-Medium'] text-sm text-gold tracking-[0.6px] uppercase">Link Another Device</Text>
           </PressableScale>
         )}
       </ScrollView>
@@ -209,19 +212,19 @@ function EmptyAgents({ onLink }: { onLink: () => void }) {
   const markStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }))
 
   return (
-    <View style={styles.empty}>
-      <View style={styles.sigStage}>
-        <View style={styles.staticRing} />
+    <View className="items-center pt-8">
+      <View className="w-[170] h-[170] items-center justify-center mb-2">
+        <View className="absolute w-[104] h-[104] rounded-full border border-[rgba(198,161,91,0.18)]" />
         <SignalRipple size={104} rings={3} color={Colors.gold} duration={2900} />
-        <Animated.Image source={NOIR_MARK} style={[styles.emptyMark, markStyle]} resizeMode="contain" />
+        <Animated.Image source={NOIR_MARK} style={[markStyle, { width: 82, height: 86 }]} resizeMode="contain" />
       </View>
 
-      <Text style={styles.emptyTitle}>No agents yet</Text>
-      <Text style={styles.emptyDesc}>
+      <Text className="font-['Jost-SemiBold'] text-xl text-white mt-1">No agents yet</Text>
+      <Text className="text-sm text-silver text-center leading-[21] mt-2 max-w-[300]">
         Link an NFC device to create its payment agent — it signs your taps automatically.
       </Text>
 
-      <View style={styles.steps}>
+      <View className="w-full gap-4 mt-8 mb-8">
         <StepRow n="1" text="Provision an NFC tag as your wallet key" />
         <StepRow n="2" text="An x402 agent wallet is created for that device" />
         <StepRow n="3" text="Tap to pay — the agent signs automatically" />
@@ -232,10 +235,11 @@ function EmptyAgents({ onLink }: { onLink: () => void }) {
           colors={[Colors.goldHi, Colors.gold]}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
-          style={styles.cta}
+          className="flex-row items-center justify-center gap-2 py-4 px-8 rounded-xl min-h-[52]"
+          style={DesignTokens.shadows.goldGlow}
         >
           <TapGlyph size={18} color="#151107" />
-          <Text style={styles.ctaText}>Link a Device</Text>
+          <Text className="font-['Jost-SemiBold'] text-base text-[#151107] tracking-[1px] uppercase">Link a Device</Text>
         </LinearGradient>
       </PressableScale>
     </View>
@@ -244,108 +248,11 @@ function EmptyAgents({ onLink }: { onLink: () => void }) {
 
 function StepRow({ n, text }: { n: string; text: string }) {
   return (
-    <View style={styles.step}>
-      <View style={styles.stepDot}>
-        <Text style={styles.stepNum}>{n}</Text>
+    <View className="flex-row items-center gap-4">
+      <View className="w-6 h-6 rounded-xl items-center justify-center border border-[rgba(198,161,91,0.4)] bg-[rgba(198,161,91,0.08)]">
+        <Text className="font-['Jost-SemiBold'] text-xs text-gold">{n}</Text>
       </View>
-      <Text style={styles.stepText}>{text}</Text>
+      <Text className="flex-1 text-sm text-silver leading-[19]">{text}</Text>
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surfaceBg },
-  scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: 24 },
-  screenTitle: { fontFamily: Fonts.display, fontSize: FontSize.xxl, color: Colors.cream, letterSpacing: 0.2, paddingTop: Spacing.md },
-  screenSub: { fontSize: FontSize.sm, color: Colors.mutedWhite, marginTop: 6, marginBottom: Spacing.lg, lineHeight: 20 },
-
-  // Empty state
-  empty: { alignItems: 'center', paddingTop: Spacing.xl },
-  sigStage: { width: 170, height: 170, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
-  staticRing: {
-    position: 'absolute', width: 104, height: 104, borderRadius: 52,
-    borderWidth: 1, borderColor: colorWithOpacity(Colors.gold, 0.18),
-  },
-  emptyMark: { width: 82, height: 86 },
-  emptyTitle: { fontFamily: Fonts.display, fontSize: FontSize.lg, color: Colors.white, marginTop: Spacing.xs },
-  emptyDesc: { fontSize: FontSize.sm, color: Colors.silver, textAlign: 'center', lineHeight: 21, marginTop: Spacing.sm, maxWidth: 300 },
-  steps: { width: '100%', gap: Spacing.md, marginTop: Spacing.xl, marginBottom: Spacing.xl },
-  step: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  stepDot: {
-    width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: colorWithOpacity(Colors.gold, 0.4), backgroundColor: colorWithOpacity(Colors.gold, 0.08),
-  },
-  stepNum: { fontFamily: Fonts.display, fontSize: FontSize.xs, color: Colors.gold },
-  stepText: { flex: 1, fontSize: FontSize.sm, color: Colors.silver, lineHeight: 19 },
-  cta: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
-    paddingVertical: Spacing.md, paddingHorizontal: Spacing.xl, borderRadius: BorderRadius.md, minHeight: 52,
-    ...DesignTokens.shadows.goldGlow,
-  },
-  ctaText: { fontFamily: Fonts.display, fontSize: FontSize.md, color: '#151107', letterSpacing: 1, textTransform: 'uppercase' },
-
-  // Loading
-  loadingBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, paddingVertical: Spacing.lg },
-  loadingText: { fontSize: FontSize.sm, color: Colors.mutedWhite },
-
-  // Agent wallet card (shared)
-  agentWalletCard: {
-    borderRadius: BorderRadius.xl, borderWidth: 1, borderColor: Colors.borderGrey,
-    padding: Spacing.lg, marginBottom: Spacing.xl, overflow: 'hidden',
-    ...DesignTokens.shadows.card,
-  },
-  walletHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md },
-  walletIcon: {
-    width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: colorWithOpacity(Colors.goldHi, 0.12), borderWidth: 1, borderColor: colorWithOpacity(Colors.goldHi, 0.35),
-    marginRight: Spacing.md,
-  },
-  walletTitleArea: { flex: 1 },
-  walletTitle: { fontFamily: Fonts.display, fontSize: FontSize.md, color: Colors.cream },
-  walletSub: { fontFamily: Fonts.mono, fontSize: FontSize.xs, color: Colors.mutedWhite, marginTop: 2 },
-  walletCreated: { fontSize: FontSize.xs, color: Colors.mutedWhite },
-  balanceAmount: { fontSize: FontSize.xxxl, fontFamily: Fonts.display, color: Colors.white, marginBottom: Spacing.md },
-  balanceUnit: { fontSize: FontSize.lg, color: Colors.mutedWhite },
-  budgetRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
-  budgetTile: {
-    flex: 1, backgroundColor: '#0E0E0E', borderRadius: BorderRadius.md,
-    borderWidth: 1, borderColor: Colors.borderGrey, padding: Spacing.sm, alignItems: 'center',
-  },
-  budgetLabel: { fontSize: FontSize.xs, color: Colors.mutedWhite, letterSpacing: 1, marginBottom: 2 },
-  budgetValue: { fontFamily: Fonts.display, fontSize: FontSize.md, color: Colors.white, fontVariant: ['tabular-nums'] },
-  budgetUnit: { fontSize: FontSize.xs, color: Colors.mutedWhite },
-  meterWrap: { marginTop: Spacing.xs },
-  meterTrack: { height: 7, borderRadius: 4, backgroundColor: '#1B1B1B', marginBottom: Spacing.sm },
-  meterFill: { height: 7, borderRadius: 4, position: 'relative' },
-  meterEndpoint: {
-    position: 'absolute', right: -1, top: -2, bottom: -2, width: 3, borderRadius: 2,
-    backgroundColor: Colors.goldHi, ...DesignTokens.shadows.goldGlow,
-  },
-  meterLabel: { fontSize: FontSize.xs, color: Colors.mutedWhite, fontVariant: ['tabular-nums'] },
-
-  // Device list
-  devicesSection: { marginBottom: Spacing.md },
-  sectionTitle: { fontFamily: Fonts.display, fontSize: FontSize.lg, color: Colors.cream, marginBottom: Spacing.md },
-  deviceCard: {
-    borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: Colors.borderGrey,
-    padding: Spacing.md, marginBottom: Spacing.sm,
-  },
-  deviceRow: { flexDirection: 'row', alignItems: 'center' },
-  deviceIcon: {
-    width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: colorWithOpacity(Colors.goldHi, 0.1), borderWidth: 1, borderColor: colorWithOpacity(Colors.goldHi, 0.25),
-    marginRight: Spacing.md,
-  },
-  deviceInfo: { flex: 1 },
-  deviceLabel: { fontFamily: Fonts.display, fontSize: FontSize.sm, color: Colors.cream },
-  deviceKey: { fontFamily: Fonts.mono, fontSize: FontSize.xs, color: Colors.mutedWhite, marginTop: 2 },
-
-  // Add button
-  addBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
-    paddingVertical: Spacing.md, borderRadius: BorderRadius.md, borderWidth: 1.5, borderColor: Colors.borderGrey,
-    borderStyle: 'dashed', marginTop: Spacing.sm,
-  },
-  addBtnLabel: { fontFamily: Fonts.displayMd, fontSize: FontSize.sm, color: Colors.gold, letterSpacing: 0.6, textTransform: 'uppercase' },
-})

@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react'
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   RefreshControl,
   Alert,
@@ -12,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as Clipboard from 'expo-clipboard'
 import { useRouter } from 'expo-router'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors } from '@/constants/theme'
 import { NoirLogo } from '@/components/brand/NoirLogo'
 import { Card } from '@/components/Card'
 import { Toast } from '@/components/Toast'
@@ -76,8 +75,8 @@ export function BlockchainScreen() {
   }, [user?.stellarPublicKey, refreshBalances])
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView className="flex-1 bg-surfaceBg">
+      <View className="flex-row items-center justify-between px-4 py-4">
         <PressableScale
           onPress={() => router.back()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -85,9 +84,9 @@ export function BlockchainScreen() {
         >
           <Ionicons name="chevron-back" size={26} color={Colors.white} />
         </PressableScale>
-        <View style={styles.headerTitleGroup}>
+        <View className="flex-row items-center gap-2">
           <NoirLogo variant="mark" size={24} />
-          <Text style={styles.headerTitle}>Blockchain</Text>
+          <Text className="text-xl font-bold text-white">Blockchain</Text>
         </View>
         <PressableScale
           onPress={() => {
@@ -104,96 +103,96 @@ export function BlockchainScreen() {
               setNetwork('testnet')
             }
           }}
-          style={styles.netBtn}
+          className="flex-row items-center gap-[4] px-2 py-1 rounded-full bg-[#2C2C2C]"
         >
-          <View style={[styles.netDot, { backgroundColor: network === 'testnet' ? Colors.warning : Colors.success }]} />
-          <Text style={styles.netText}>{network === 'testnet' ? 'TESTNET' : 'MAINNET'}</Text>
+          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: network === 'testnet' ? Colors.warning : Colors.success }} />
+          <Text className="text-xs text-mutedWhite font-bold">{network === 'testnet' ? 'TESTNET' : 'MAINNET'}</Text>
         </PressableScale>
       </View>
 
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        className="flex-1"
+        contentContainerClassName="px-4 pb-12"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.gold} />}
       >
         {/* Wallet */}
-        <Text style={styles.sectionTitle}>Wallet</Text>
-        <Card style={styles.card}>
-          <View style={styles.walletHeader}>
-            <View style={styles.walletIcon}>
+        <Text className="text-sm text-mutedWhite font-semibold uppercase tracking-[0.5] mb-2 mt-4">Wallet</Text>
+        <Card style={{ marginBottom: 16 }}>
+          <View className="flex-row gap-4 items-center mb-4">
+            <View className="w-[44] h-[44] rounded-full bg-gold/15 items-center justify-center border border-gold/25">
               <Ionicons name="wallet-outline" size={22} color={Colors.gold} />
             </View>
-            <View style={styles.walletInfo}>
-              <Text style={styles.walletLabel}>Stellar Address</Text>
-              <PressableScale onPress={() => copyAddr(pubKey)} style={styles.addrRow}>
-                <Text style={styles.addrText} numberOfLines={1}>{pubKey}</Text>
+            <View className="flex-1">
+              <Text className="text-xs text-mutedWhite">Stellar Address</Text>
+              <PressableScale onPress={() => copyAddr(pubKey)} className="flex-row items-center gap-1 mt-0.5">
+                <Text className="text-sm text-white font-mono" numberOfLines={1}>{pubKey}</Text>
                 <Ionicons name="copy-outline" size={14} color={Colors.gold} />
               </PressableScale>
             </View>
           </View>
 
-          <View style={styles.balances}>
-            <View style={styles.balanceRow}>
-              <Text style={styles.balanceLabel}>XLM</Text>
-              <Text style={styles.balanceValue}>{balance.xlm.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</Text>
+          <View className="gap-2">
+            <View className="flex-row justify-between items-center py-2 border-t border-borderGrey">
+              <Text className="text-sm text-mutedWhite font-medium">XLM</Text>
+              <Text className="text-base text-white font-bold">{balance.xlm.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</Text>
             </View>
 
           </View>
 
           {network === 'testnet' && (
             <PressableScale
-              style={styles.fundBtn}
+              className="flex-row items-center justify-center gap-2 mt-4 py-2 rounded-xl bg-gold min-h-[44]"
               onPress={handleFund}
               disabled={funding}
-             
+              
             >
               <Ionicons name="water-outline" size={18} color={Colors.black} />
-              <Text style={styles.fundBtnLabel}>{funding ? 'Funding...' : 'Fund with Testnet XLM'}</Text>
+              <Text className="text-sm text-black font-bold">{funding ? 'Funding...' : 'Fund with Testnet XLM'}</Text>
             </PressableScale>
           )}
         </Card>
 
         {/* Smart Contract */}
-        <Text style={styles.sectionTitle}>Device Registry Contract</Text>
-        <Card style={styles.card}>
-          <View style={styles.contractRow}>
+        <Text className="text-sm text-mutedWhite font-semibold uppercase tracking-[0.5] mb-2 mt-4">Device Registry Contract</Text>
+        <Card style={{ marginBottom: 16 }}>
+          <View className="flex-row items-center gap-4">
             <Ionicons name="code-slash-outline" size={20} color={Colors.mutedWhite} />
-            <View style={styles.contractInfo}>
-              <Text style={styles.contractLabel}>DeviceRegistry</Text>
-              <Text style={styles.contractAddr}>{contractAddr.slice(0, 8)}...{contractAddr.slice(-8)}</Text>
+            <View className="flex-1">
+              <Text className="text-sm text-white font-medium">DeviceRegistry</Text>
+              <Text className="text-xs text-mutedWhite font-mono mt-px">{contractAddr.slice(0, 8)}...{contractAddr.slice(-8)}</Text>
             </View>
             <Ionicons name="open-outline" size={18} color={Colors.mutedWhite} />
           </View>
-          <View style={styles.contractStatus}>
-            <View style={[styles.statusDot, { backgroundColor: Colors.success }]} />
-            <Text style={styles.statusText}>Deployed & Verified</Text>
+          <View className="flex-row items-center gap-2 mt-4 pt-4 border-t border-borderGrey">
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.success }} />
+            <Text className="text-xs text-[#3ED598]">Deployed & Verified</Text>
           </View>
         </Card>
 
         {/* Recent Activity */}
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
-        <Card style={styles.card}>
+        <Text className="text-sm text-mutedWhite font-semibold uppercase tracking-[0.5] mb-2 mt-4">Recent Activity</Text>
+        <Card style={{ marginBottom: 16 }}>
           {recentTx.length === 0 ? (
-            <Text style={styles.emptyTx}>No recent transactions</Text>
+            <Text className="text-sm text-mutedWhite text-center py-6">No recent transactions</Text>
           ) : (
             recentTx.map((tx) => (
-              <View key={tx.id} style={styles.txRow}>
-                <View style={styles.txIcon}>
+              <View key={tx.id} className="flex-row items-center py-4 border-b border-borderGrey gap-4">
+                <View className="w-[36] h-[36] rounded-full bg-gold/10 items-center justify-center">
                   <Ionicons name="swap-horizontal" size={18} color={Colors.gold} />
                 </View>
-                <View style={styles.txInfo}>
-                  <Text style={styles.txType}>{tx.merchantName}</Text>
-                  <Text style={styles.txTime}>{new Date(tx.createdAt).toLocaleDateString()}</Text>
+                <View className="flex-1">
+                  <Text className="text-sm text-white font-medium">{tx.merchantName}</Text>
+                  <Text className="text-xs text-mutedWhite mt-px">{new Date(tx.createdAt).toLocaleDateString()}</Text>
                 </View>
-                <Text style={styles.txAmount}>-{(tx.amountCents / 100).toFixed(2)} {tx.assetCode}</Text>
+                <Text className="text-base text-white font-bold">-{(tx.amountCents / 100).toFixed(2)} {tx.assetCode}</Text>
               </View>
             ))
           )}
           <PressableScale
-            style={styles.viewAll}
+            className="flex-row items-center justify-center gap-1 py-4"
             onPress={() => router.push('/transactions')}
           >
-            <Text style={styles.viewAllText}>View All Transactions</Text>
+            <Text className="text-sm text-gold font-medium">View All Transactions</Text>
             <Ionicons name="chevron-forward" size={16} color={Colors.gold} />
           </PressableScale>
         </Card>
@@ -204,52 +203,3 @@ export function BlockchainScreen() {
     </SafeAreaView>
   )
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surfaceBg },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
-  },
-  headerTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.white },
-  headerTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  netBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: BorderRadius.full, backgroundColor: Colors.lightGrey },
-  netDot: { width: 6, height: 6, borderRadius: 3 },
-  netText: { fontSize: FontSize.xs, color: Colors.mutedWhite, fontWeight: FontWeight.bold },
-  scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
-  sectionTitle: { fontSize: FontSize.sm, color: Colors.mutedWhite, fontWeight: FontWeight.semibold, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: Spacing.sm, marginTop: Spacing.md },
-  card: { marginBottom: Spacing.md },
-  walletHeader: { flexDirection: 'row', gap: Spacing.md, alignItems: 'center', marginBottom: Spacing.md },
-  walletIcon: { width: 44, height: 44, borderRadius: BorderRadius.full, backgroundColor: Colors.gold + '15', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.gold + '25' },
-  walletInfo: { flex: 1 },
-  walletLabel: { fontSize: FontSize.xs, color: Colors.mutedWhite },
-  addrRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: 2 },
-  addrText: { fontSize: FontSize.sm, color: Colors.white, fontFamily: 'monospace' },
-  balances: { gap: Spacing.sm },
-  balanceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.sm, borderTopWidth: 1, borderTopColor: Colors.borderGrey },
-  balanceLabel: { fontSize: FontSize.sm, color: Colors.mutedWhite, fontWeight: FontWeight.medium },
-  balanceValue: { fontSize: FontSize.md, color: Colors.white, fontWeight: FontWeight.bold },
-  contractRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  contractInfo: { flex: 1 },
-  contractLabel: { fontSize: FontSize.sm, color: Colors.white, fontWeight: FontWeight.medium },
-  contractAddr: { fontSize: FontSize.xs, color: Colors.mutedWhite, fontFamily: 'monospace', marginTop: 1 },
-  contractStatus: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.md, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: Colors.borderGrey },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusText: { fontSize: FontSize.xs, color: Colors.success },
-  txRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.borderGrey, gap: Spacing.md },
-  txIcon: { width: 36, height: 36, borderRadius: BorderRadius.full, backgroundColor: Colors.gold + '10', alignItems: 'center', justifyContent: 'center' },
-  txInfo: { flex: 1 },
-  txType: { fontSize: FontSize.sm, color: Colors.white, fontWeight: FontWeight.medium },
-  txTime: { fontSize: FontSize.xs, color: Colors.mutedWhite, marginTop: 1 },
-  txAmount: { fontSize: FontSize.md, color: Colors.white, fontWeight: FontWeight.bold },
-  viewAll: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, paddingVertical: Spacing.md },
-  viewAllText: { fontSize: FontSize.sm, color: Colors.gold, fontWeight: FontWeight.medium },
-  emptyTx: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', paddingVertical: Spacing.lg },
-  fundBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
-    marginTop: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.md,
-    backgroundColor: Colors.gold, minHeight: 44,
-  },
-  fundBtnLabel: { fontSize: FontSize.sm, color: Colors.black, fontWeight: FontWeight.bold },
-})

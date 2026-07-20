@@ -1,11 +1,10 @@
 import { memo, useState, useEffect } from 'react'
-import { View, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-native'
+import { View, Text, FlatList, ActivityIndicator } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
-import { colorWithOpacity } from '@/constants/designTokens'
+import { Colors } from '@/constants/theme'
 import { EmptyState } from '@/components/EmptyState'
 import { Notification } from '@/types'
 import { apiService } from '@/services/api'
@@ -18,10 +17,10 @@ const TYPE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  transaction: Colors.gold,
-  security: Colors.danger,
-  system: Colors.mutedWhite,
-  promo: Colors.gold,
+  transaction: '#C6A15B',
+  security: '#FF5A5F',
+  system: '#A9A9A9',
+  promo: '#C6A15B',
 }
 
 function timeAgo(iso: string): string {
@@ -47,7 +46,6 @@ export function NotificationsScreen() {
         const res = await apiService.getNotifications()
         if (res?.notifications) setNotifications(res.notifications)
       } catch {
-        // backend unavailable — empty state
       } finally {
         setLoading(false)
       }
@@ -68,16 +66,16 @@ export function NotificationsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView className="flex-1 bg-surfaceBg">
+      <View className="flex-row items-center justify-between px-4 py-4">
         <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
         </PressableScale>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Notifications</Text>
+        <View className="flex-row items-center gap-2">
+          <Text className="text-lg font-bold text-white">Notifications</Text>
           {unreadCount > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeLabel}>{unreadCount}</Text>
+            <View className="bg-[#FF5A5F] rounded-full px-2 min-w-[22] h-[22] items-center justify-center">
+              <Text className="text-xs text-white font-bold">{unreadCount}</Text>
             </View>
           )}
         </View>
@@ -87,14 +85,14 @@ export function NotificationsScreen() {
             accessibilityRole="button"
             accessibilityLabel="Mark all read"
           >
-            <Text style={styles.markAllText}>Mark All Read</Text>
+            <Text className="text-sm text-gold font-medium">Mark All Read</Text>
           </PressableScale>
         )}
       </View>
 
       {loading ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color={Colors.gold} />
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#C6A15B" />
         </View>
       ) : (
         <FlatList
@@ -103,7 +101,7 @@ export function NotificationsScreen() {
           renderItem={({ item }) => (
             <NotificationRow item={item} onPress={() => markRead(item.id)} />
           )}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 48 }}
           ListEmptyComponent={
             <EmptyState icon="notifications-off-outline" title="No Notifications" description="You're all caught up!" />
           }
@@ -122,122 +120,32 @@ const NotificationRow = memo(function NotificationRow({
 }) {
   return (
     <PressableScale
-      style={[styles.notifRow, !item.read && styles.notifUnread]}
       onPress={onPress}
+      className="flex-row gap-4 p-4 bg-cardBg rounded-xl mb-2 border"
+      style={
+        !item.read
+          ? {
+              borderColor: '#C6A15B40',
+              borderLeftColor: '#C6A15B',
+              borderLeftWidth: 3,
+              backgroundColor: 'rgba(198, 161, 91, 0.05)',
+            }
+          : { borderColor: '#3A3A3A' }
+      }
     >
-      <View style={[styles.notifIcon, { backgroundColor: TYPE_COLORS[item.type] + '15' }]}>
+      <View className="w-10 h-10 rounded-full items-center justify-center" style={{ backgroundColor: TYPE_COLORS[item.type] + '15' }}>
         <Ionicons name={TYPE_ICONS[item.type]} size={20} color={TYPE_COLORS[item.type]} />
       </View>
-      <View style={styles.notifContent}>
-        <View style={styles.notifHeader}>
-          <Text style={styles.notifTitle}>{item.title}</Text>
-          {!item.read && <View style={styles.unreadDot} />}
+      <View className="flex-1">
+        <View className="flex-row items-center gap-2">
+          <Text className="text-sm text-white font-semibold">{item.title}</Text>
+          {!item.read && <View className="w-2 h-2 rounded bg-gold" />}
         </View>
-        <Text style={styles.notifBody} numberOfLines={2}>{item.body}</Text>
-        <Text style={styles.notifTime}>
+        <Text className="text-xs text-mutedWhite leading-4 mt-0.5" numberOfLines={2}>{item.body}</Text>
+        <Text className="text-xs text-mutedWhite mt-1">
           {timeAgo(item.createdAt)}
         </Text>
       </View>
     </PressableScale>
   )
-})
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.surfaceBg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-  },
-  headerCenter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  headerTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-  },
-  badge: {
-    backgroundColor: Colors.danger,
-    borderRadius: BorderRadius.full,
-    paddingHorizontal: Spacing.sm,
-    minWidth: 22,
-    height: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeLabel: {
-    fontSize: FontSize.xs,
-    color: Colors.white,
-    fontWeight: FontWeight.bold,
-  },
-  markAllText: {
-    fontSize: FontSize.sm,
-    color: Colors.gold,
-    fontWeight: FontWeight.medium,
-  },
-  listContent: {
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.xxl,
-  },
-  notifRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    padding: Spacing.md,
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  notifUnread: {
-    borderColor: Colors.gold + '40',
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.gold,
-    backgroundColor: colorWithOpacity(Colors.gold, 0.05),
-  },
-  notifIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  notifContent: {
-    flex: 1,
-  },
-  notifHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  notifTitle: {
-    fontSize: FontSize.sm,
-    color: Colors.white,
-    fontWeight: FontWeight.semibold,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.gold,
-  },
-  notifBody: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    lineHeight: 16,
-    marginTop: 2,
-  },
-  notifTime: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    marginTop: Spacing.xs,
-  },
 })

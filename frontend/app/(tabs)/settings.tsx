@@ -2,7 +2,6 @@ import { useState } from 'react'
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   Alert,
@@ -13,7 +12,7 @@ import { useRouter } from 'expo-router'
 import { useAppStore } from '@/store/useAppStore'
 import { Card } from '@/components/Card'
 import { SectionHeader } from '@/components/SectionHeader'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors } from '@/constants/theme'
 import { StellarNetwork } from '@/types'
 import { walletService } from '@/services/wallet'
 import { x402 } from '@/domain/x402'
@@ -60,23 +59,23 @@ export default function SettingsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView className="flex-1 bg-black">
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        className="flex-1"
+        contentContainerClassName="px-4 pb-12"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.screenTitle}>Settings</Text>
+        <Text className="text-[32px] text-cream font-heavy py-4">Settings</Text>
 
         {/* Profile */}
         <SectionHeader title="Profile" />
-        <Card style={styles.card}>
-          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/profile')}>
-            <View style={styles.rowLeft}>
+        <Card style={{ marginBottom: 24 }}>
+          <TouchableOpacity className="flex-row items-center justify-between py-4" onPress={() => router.push('/profile')}>
+            <View className="flex-row items-center gap-4 shrink">
               <Ionicons name="person-outline" size={20} color={Colors.silver} />
               <View>
-                <Text style={styles.rowLabel}>Profile</Text>
-                <Text style={styles.navHint}>{user?.displayName || 'Tap to set up'}</Text>
+                <Text className="text-base text-white font-medium">Profile</Text>
+                <Text className="text-xs text-mutedWhite mt-0.5">{user?.displayName || 'Tap to set up'}</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
@@ -102,13 +101,13 @@ export default function SettingsScreen() {
 
         {/* Security */}
         <SectionHeader title="Security" />
-        <Card style={styles.card}>
-          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/settings/security')}>
-            <View style={styles.rowLeft}>
+        <Card style={{ marginBottom: 24 }}>
+          <TouchableOpacity className="flex-row items-center justify-between py-4" onPress={() => router.push('/settings/security')}>
+            <View className="flex-row items-center gap-4 shrink">
               <Ionicons name="shield-checkmark-outline" size={20} color={Colors.silver} />
               <View>
-                <Text style={styles.rowLabel}>Security Settings</Text>
-                <Text style={styles.navHint}>
+                <Text className="text-base text-white font-medium">Security Settings</Text>
+                <Text className="text-xs text-mutedWhite mt-0.5">
                   {security.biometricLockEnabled ? 'Biometric + Auto-lock' : 'Tap to configure'}
                 </Text>
               </View>
@@ -119,13 +118,13 @@ export default function SettingsScreen() {
 
         {/* Notifications */}
         <SectionHeader title="Notifications" />
-        <Card style={styles.card}>
-          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/settings/notifications')}>
-            <View style={styles.rowLeft}>
+        <Card style={{ marginBottom: 24 }}>
+          <TouchableOpacity className="flex-row items-center justify-between py-4" onPress={() => router.push('/settings/notifications')}>
+            <View className="flex-row items-center gap-4 shrink">
               <Ionicons name="notifications-outline" size={20} color={Colors.silver} />
               <View>
-                <Text style={styles.rowLabel}>Notifications</Text>
-                <Text style={styles.navHint}>View notification history and preferences</Text>
+                <Text className="text-base text-white font-medium">Notifications</Text>
+                <Text className="text-xs text-mutedWhite mt-0.5">View notification history and preferences</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
@@ -134,14 +133,14 @@ export default function SettingsScreen() {
 
         {/* Network */}
         <SectionHeader title="Network" />
-        <Card style={styles.card}>
-          <View style={styles.chips}>
+        <Card style={{ marginBottom: 24 }}>
+          <View className="flex-row flex-wrap gap-2 py-1">
             {(['testnet', 'mainnet'] as StellarNetwork[]).map((net) => {
               const active = network === net
               return (
                 <TouchableOpacity
                   key={net}
-                  style={[styles.chip, styles.chipWide, active && styles.chipActive]}
+                  className={`flex-row items-center gap-[6px] px-4 py-2 rounded-full bg-midGrey border border-borderGrey grow justify-center ${active ? 'bg-gold border-gold' : ''}`}
                   onPress={() => setNetwork(net)}
                   accessibilityRole="button"
                   accessibilityLabel={`Use ${net}`}
@@ -152,14 +151,14 @@ export default function SettingsScreen() {
                     size={16}
                     color={active ? Colors.black : Colors.silver}
                   />
-                  <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                  <Text className={`text-sm text-silver font-semibold ${active ? 'text-black' : ''}`}>
                     {net === 'mainnet' ? 'Mainnet' : 'Testnet'}
                   </Text>
                 </TouchableOpacity>
               )
             })}
           </View>
-          <Text style={styles.hint}>
+          <Text className="text-xs text-mutedWhite pt-2">
             {network === 'testnet'
               ? 'Test SDF Network — no real value.'
               : 'Public network — real assets.'}
@@ -175,23 +174,23 @@ export default function SettingsScreen() {
 
         {/* Fiat */}
         <SectionHeader title="Banking" />
-        <Card style={styles.card}>
-          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/cards')}>
-            <View style={styles.rowLeft}>
+        <Card style={{ marginBottom: 24 }}>
+          <TouchableOpacity className="flex-row items-center justify-between py-4" onPress={() => router.push('/cards')}>
+            <View className="flex-row items-center gap-4 shrink">
               <Ionicons name="card-outline" size={20} color={Colors.silver} />
               <View>
-                <Text style={styles.rowLabel}>Cards</Text>
-                <Text style={styles.navHint}>Add a tap-to-pay card, set a PIN, or revoke</Text>
+                <Text className="text-base text-white font-medium">Cards</Text>
+                <Text className="text-xs text-mutedWhite mt-0.5">Add a tap-to-pay card, set a PIN, or revoke</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/fiat')}>
-            <View style={styles.rowLeft}>
+          <TouchableOpacity className="flex-row items-center justify-between py-4" onPress={() => router.push('/fiat')}>
+            <View className="flex-row items-center gap-4 shrink">
               <Ionicons name="wallet-outline" size={20} color={Colors.silver} />
               <View>
-                <Text style={styles.rowLabel}>Cash In / Cash Out</Text>
-                <Text style={styles.navHint}>Deposit or withdraw PHP via PDAX</Text>
+                <Text className="text-base text-white font-medium">Cash In / Cash Out</Text>
+                <Text className="text-xs text-mutedWhite mt-0.5">Deposit or withdraw PHP via PDAX</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
@@ -200,21 +199,21 @@ export default function SettingsScreen() {
 
         {/* About / danger */}
         <SectionHeader title="About" />
-        <Card style={styles.card}>
+        <Card style={{ marginBottom: 24 }}>
           <Row icon="information-circle-outline" label="Noir Wallet" value="v1.0.0" />
           <Divider />
           <Row icon="document-text-outline" label="Tagline" value="Tap into Trust" />
         </Card>
 
         <TouchableOpacity
-          style={styles.dangerBtn}
+          className="flex-row items-center justify-center gap-2 py-4 rounded-xl border border-[#FF5A5F] mt-2"
           onPress={handleReset}
           disabled={busy}
           accessibilityRole="button"
           accessibilityLabel="Sign out and reset"
         >
           <Ionicons name="log-out-outline" size={18} color={Colors.danger} />
-          <Text style={styles.dangerText}>Sign out & reset</Text>
+          <Text className="text-[#FF5A5F] text-base font-semibold">Sign out & reset</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -235,17 +234,14 @@ function Row({
   valueColor?: string
 }) {
   return (
-    <View style={styles.row}>
-      <View style={styles.rowLeft}>
+    <View className="flex-row items-center justify-between py-4">
+      <View className="flex-row items-center gap-4 shrink">
         <Ionicons name={icon} size={20} color={Colors.silver} />
-        <Text style={styles.rowLabel}>{label}</Text>
+        <Text className="text-base text-white font-medium">{label}</Text>
       </View>
       <Text
-        style={[
-          styles.rowValue,
-          mono && styles.mono,
-          valueColor ? { color: valueColor } : null,
-        ]}
+        className={`text-sm text-mutedWhite ml-4 shrink text-right ${mono ? 'font-mono' : ''}`}
+        style={valueColor ? { color: valueColor } : undefined}
         numberOfLines={1}
       >
         {value}
@@ -255,88 +251,5 @@ function Row({
 }
 
 function Divider() {
-  return <View style={styles.divider} />
+  return <View className="h-[1px] bg-borderGrey my-1" />
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.black },
-  scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
-  screenTitle: {
-    fontSize: FontSize.xxl,
-    color: Colors.cream,
-    fontWeight: FontWeight.heavy,
-    paddingVertical: Spacing.md,
-  },
-  card: { marginBottom: Spacing.lg },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.md,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.sm,
-  },
-  rowLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, flexShrink: 1 },
-  rowLabel: { fontSize: FontSize.md, color: Colors.white, fontWeight: FontWeight.medium },
-  rowValue: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    marginLeft: Spacing.md,
-    flexShrink: 1,
-    textAlign: 'right',
-  },
-  mono: { fontFamily: 'monospace' },
-  navRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.md,
-  },
-  navHint: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    marginTop: 2,
-  },
-  subLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    fontWeight: FontWeight.medium,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
-  },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, paddingVertical: Spacing.xs },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.midGrey,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  chipWide: { flexGrow: 1, justifyContent: 'center' },
-  chipActive: { backgroundColor: Colors.gold, borderColor: Colors.gold },
-  chipText: { fontSize: FontSize.sm, color: Colors.silver, fontWeight: FontWeight.semibold },
-  chipTextActive: { color: Colors.black },
-  hint: { fontSize: FontSize.xs, color: Colors.mutedWhite, paddingTop: Spacing.sm },
-  divider: { height: 1, backgroundColor: Colors.borderGrey, marginVertical: Spacing.xs },
-  dangerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.danger,
-    marginTop: Spacing.sm,
-  },
-  dangerText: { color: Colors.danger, fontSize: FontSize.md, fontWeight: FontWeight.semibold },
-})

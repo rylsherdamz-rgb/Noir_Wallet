@@ -1,10 +1,9 @@
-import { Text, StyleSheet, ActivityIndicator, View, StyleProp, ViewStyle, Animated } from 'react-native'
+import { Text, ActivityIndicator, View, StyleProp, ViewStyle, Animated } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { PressableScale } from '@/components/brand/PressableScale'
 import * as Haptics from 'expo-haptics'
 import { useRef } from 'react'
-import { DesignTokens } from '@/constants/designTokens'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors } from '@/constants/theme'
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success'
 type ButtonSize = 'small' | 'medium' | 'large'
@@ -24,6 +23,34 @@ interface ButtonProps {
   accessibilityHint?: string
   style?: StyleProp<ViewStyle>
   testID?: string
+}
+
+const variantClasses: Record<ButtonVariant, string> = {
+  primary: 'bg-gold',
+  secondary: 'bg-midGrey border border-borderGrey',
+  ghost: 'border border-gold bg-transparent',
+  danger: 'bg-[#FF5A5F]',
+  success: 'bg-[#3ED598]',
+}
+
+const sizeClasses: Record<ButtonSize, string> = {
+  small: 'py-2 px-4 min-h-[44]',
+  medium: 'py-4 px-6 min-h-[56]',
+  large: 'py-6 px-8 min-h-[72]',
+}
+
+const labelVariantClasses: Record<ButtonVariant, string> = {
+  primary: 'text-black',
+  secondary: 'text-white',
+  ghost: 'text-gold',
+  danger: 'text-white',
+  success: 'text-white',
+}
+
+const labelSizeClasses: Record<ButtonSize, string> = {
+  small: 'text-sm',
+  medium: 'text-base',
+  large: 'text-xl',
 }
 
 export function Button({
@@ -65,8 +92,7 @@ export function Button({
 
   const handlePress = () => {
     if (isDisabled || !onPress) return
-    
-    // Provide haptic feedback
+
     if (hapticFeedback) {
       if (variant === 'danger') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
@@ -74,13 +100,12 @@ export function Button({
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
       }
     }
-    
+
     onPress()
   }
 
   const getIconColor = () => {
     if (isDisabled) return Colors.mutedWhite
-    
     switch (variant) {
       case 'primary':
         return Colors.black
@@ -102,14 +127,8 @@ export function Button({
   return (
     <Animated.View style={[{ transform: [{ scale: scaleAnim }] }, fullWidth && { width: '100%' }]}>
       <PressableScale
-        style={[
-          styles.base,
-          styles[variant],
-          styles[size],
-          isDisabled && styles.disabled,
-          fullWidth && styles.fullWidth,
-          style,
-        ]}
+        className={`rounded-xl items-center justify-center flex-row ${variantClasses[variant]} ${sizeClasses[size]} ${isDisabled ? 'opacity-60' : ''} ${fullWidth ? 'w-full' : ''}`}
+        style={style}
         onPress={handlePress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
@@ -126,11 +145,11 @@ export function Button({
             size={size === 'small' ? 'small' : 'large'}
           />
         ) : (
-          <View style={styles.inner}>
+          <View className="flex-row items-center gap-2">
             {icon && iconPosition === 'left' && (
               <Ionicons name={icon} size={iconSize} color={getIconColor()} />
             )}
-            <Text style={[styles.label, styles[`${variant}Label`], styles[`${size}Label`], isDisabled && styles.labelDisabled]}>
+            <Text className={`font-bold ${labelVariantClasses[variant]} ${labelSizeClasses[size]} ${isDisabled ? 'text-mutedWhite' : ''}`}>
               {label}
             </Text>
             {icon && iconPosition === 'right' && (
@@ -142,96 +161,3 @@ export function Button({
     </Animated.View>
   )
 }
-
-const styles = StyleSheet.create({
-  base: {
-    borderRadius: BorderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  
-  // Variants
-  primary: {
-    backgroundColor: Colors.gold,
-  },
-  secondary: {
-    backgroundColor: Colors.midGrey,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  ghost: {
-    borderWidth: 1,
-    borderColor: Colors.gold,
-    backgroundColor: 'transparent',
-  },
-  danger: {
-    backgroundColor: Colors.danger,
-  },
-  success: {
-    backgroundColor: Colors.success,
-  },
-  
-  // Sizes
-  small: {
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    minHeight: DesignTokens.touchTarget.minimum,
-  },
-  medium: {
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    minHeight: DesignTokens.touchTarget.comfortable,
-  },
-  large: {
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.xl,
-    minHeight: DesignTokens.touchTarget.large,
-  },
-  
-  // States
-  disabled: {
-    opacity: DesignTokens.opacity.strong,
-  },
-  fullWidth: {
-    width: '100%',
-  },
-  
-  inner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  
-  // Label styles
-  label: {
-    fontWeight: FontWeight.bold,
-  },
-  smallLabel: {
-    fontSize: FontSize.sm,
-  },
-  mediumLabel: {
-    fontSize: FontSize.md,
-  },
-  largeLabel: {
-    fontSize: FontSize.lg,
-  },
-  primaryLabel: {
-    color: Colors.black,
-  },
-  secondaryLabel: {
-    color: Colors.white,
-  },
-  ghostLabel: {
-    color: Colors.gold,
-  },
-  dangerLabel: {
-    color: Colors.white,
-  },
-  successLabel: {
-    color: Colors.white,
-  },
-  labelDisabled: {
-    color: Colors.mutedWhite,
-  },
-})

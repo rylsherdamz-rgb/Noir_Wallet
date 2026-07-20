@@ -1,10 +1,9 @@
-import { View, Text, StyleSheet, Platform } from 'react-native'
+import { View, Text, Platform } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { PressableScale } from '@/components/brand/PressableScale'
 import * as Haptics from 'expo-haptics'
 import { useRouter } from 'expo-router'
-import { DesignTokens } from '@/constants/designTokens'
-import { Colors, Spacing, FontSize, FontWeight } from '@/constants/theme'
+import { Colors } from '@/constants/theme'
 import { ReactNode } from 'react'
 
 interface ScreenHeaderProps {
@@ -39,24 +38,20 @@ export function ScreenHeader({
     }
   }
 
-  const containerStyle = [
-    styles.container,
-    variant === 'large' && styles.containerLarge,
-    variant === 'minimal' && styles.containerMinimal,
-  ]
+  const containerClass = `flex-row items-center justify-between px-4 ${
+    variant === 'large' ? 'py-6 min-h-[72]' : variant === 'minimal' ? 'py-2' : 'py-4 min-h-[56]'
+  }`
 
-  const titleStyle = [
-    styles.title,
-    variant === 'large' && styles.titleLarge,
-    variant === 'minimal' && styles.titleMinimal,
-  ]
+  const titleClass = `text-center ${
+    variant === 'large' ? 'text-2xl text-white font-extrabold' : variant === 'minimal' ? 'text-base text-white font-semibold' : 'text-xl text-white font-bold'
+  }`
 
   return (
-    <View style={containerStyle} testID={testID}>
-      <View style={styles.leftSection}>
+    <View className={containerClass} testID={testID}>
+      <View className="w-11 items-start">
         {showBack ? (
           <PressableScale
-            style={styles.backButton}
+            className="w-11 h-11 items-center justify-center"
             onPress={handleBack}
             hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
             accessibilityRole="button"
@@ -65,80 +60,22 @@ export function ScreenHeader({
             <Ionicons name="arrow-back" size={24} color={Colors.white} />
           </PressableScale>
         ) : (
-          <View style={styles.backButton} />
+          <View className="w-11 h-11" />
         )}
       </View>
 
-      <View style={styles.centerSection}>
-        <Text style={titleStyle} numberOfLines={1} accessibilityRole="header">
+      <View className="flex-1 items-center justify-center px-2">
+        <Text className={titleClass} numberOfLines={1} accessibilityRole="header">
           {title}
         </Text>
         {subtitle && (
-          <Text style={styles.subtitle} numberOfLines={1}>
+          <Text className="text-xs text-mutedWhite mt-0.5 text-center" numberOfLines={1}>
             {subtitle}
           </Text>
         )}
       </View>
 
-      <View style={styles.rightSection}>{rightAction || <View style={styles.backButton} />}</View>
+      <View className="w-11 items-end">{rightAction || <View className="w-11 h-11" />}</View>
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    minHeight: DesignTokens.touchTarget.comfortable,
-  },
-  containerLarge: {
-    paddingVertical: Spacing.lg,
-    minHeight: DesignTokens.touchTarget.large,
-  },
-  containerMinimal: {
-    paddingVertical: Spacing.sm,
-  },
-  leftSection: {
-    width: 44,
-    alignItems: 'flex-start',
-  },
-  centerSection: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.sm,
-  },
-  rightSection: {
-    width: 44,
-    alignItems: 'flex-end',
-  },
-  backButton: {
-    width: DesignTokens.touchTarget.minimum,
-    height: DesignTokens.touchTarget.minimum,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-    textAlign: 'center',
-  },
-  titleLarge: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.heavy,
-  },
-  titleMinimal: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.semibold,
-  },
-  subtitle: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    marginTop: 2,
-    textAlign: 'center',
-  },
-})

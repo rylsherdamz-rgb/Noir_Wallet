@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react'
-import { View, Text, Animated, Easing, StyleSheet } from 'react-native'
+import { View, Text, Animated, Easing } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { DesignTokens } from '@/constants/designTokens'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors, FontSize } from '@/constants/theme'
 
 interface ReadyToTapIndicatorProps {
   amount: string
@@ -25,7 +25,6 @@ export function ReadyToTapIndicator({
   const glowAnim = useRef(new Animated.Value(0)).current
   const successScale = useRef(new Animated.Value(1)).current
 
-  // Pulse animation
   useEffect(() => {
     if (!isActive || state === 'processing' || state === 'success' || state === 'error') {
       pulseAnim.setValue(1)
@@ -53,7 +52,6 @@ export function ReadyToTapIndicator({
     return () => pulse.stop()
   }, [isActive, state])
 
-  // Rotate animation
   useEffect(() => {
     if (!isActive || state === 'success' || state === 'error') {
       rotateAnim.setValue(0)
@@ -73,7 +71,6 @@ export function ReadyToTapIndicator({
     return () => rotate.stop()
   }, [isActive, state])
 
-  // Glow animation
   useEffect(() => {
     if (isActive && (state === 'active' || state === 'processing')) {
       Animated.loop(
@@ -97,7 +94,6 @@ export function ReadyToTapIndicator({
     }
   }, [isActive, state])
 
-  // Success/Error animation
   useEffect(() => {
     if (state === 'success') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
@@ -185,81 +181,67 @@ export function ReadyToTapIndicator({
 
   return (
     <View
-      style={styles.container}
+      className="items-center py-8"
       testID={testID}
       accessibilityLabel={`${getStatusText()}. Amount: ${amount || 'None'}`}
       accessibilityLiveRegion="polite"
     >
-      <View style={styles.radarWrap}>
-        {/* Outer Pulsing Ring */}
+      <View className="w-[140] h-[140] items-center justify-center mb-6">
         {(isActive || state === 'processing') && (
           <Animated.View
-            style={[
-              styles.radarOuter,
-              {
-                transform: [{ scale: pulseAnim }],
-                opacity: glowOpacity,
-                borderColor: getIconColor() + '40',
-              },
-            ]}
+            className="absolute w-[140] h-[140] rounded-full border-2"
+            style={{
+              transform: [{ scale: pulseAnim }],
+              opacity: glowOpacity,
+              borderColor: getIconColor() + '40',
+            }}
           />
         )}
 
-        {/* Rotating Dots */}
         {isActive && state !== 'success' && state !== 'error' && (
           <Animated.View
-            style={[
-              styles.radarRing,
-              { transform: [{ rotate: rotateInterpolate }] },
-            ]}
+            className="absolute w-[140] h-[140] items-center justify-center"
+            style={{ transform: [{ rotate: rotateInterpolate }] }}
           >
             {[0, 60, 120, 180, 240, 300].map((deg) => (
               <View
                 key={deg}
-                style={[
-                  styles.radarDot,
-                  {
-                    backgroundColor: getIconColor(),
-                    transform: [{ rotate: `${deg}deg` }, { translateY: -55 }],
-                  },
-                ]}
+                className="absolute w-1.5 h-1.5 rounded-full"
+                style={{
+                  backgroundColor: getIconColor(),
+                  opacity: DesignTokens.opacity.strong,
+                  transform: [{ rotate: `${deg}deg` }, { translateY: -55 }],
+                }}
               />
             ))}
           </Animated.View>
         )}
 
-        {/* Center Icon */}
         <Animated.View
-          style={[
-            styles.radarCenter,
-            {
-              backgroundColor: getIconColor() + '15',
-              transform: [{ scale: successScale }],
-            },
-            (state === 'success' || state === 'error') && {
-              ...DesignTokens.shadows[state === 'success' ? 'successGlow' : 'errorGlow'],
-            },
-          ]}
+          className="w-16 h-16 rounded-full items-center justify-center border border-borderGrey"
+          style={{
+            backgroundColor: getIconColor() + '15',
+            transform: [{ scale: successScale }],
+            ...(state === 'success' || state === 'error'
+              ? DesignTokens.shadows[state === 'success' ? 'successGlow' : 'errorGlow']
+              : {}),
+          }}
         >
           <Ionicons name={getIconName()} size={DesignTokens.iconSize.lg} color={getIconColor()} />
         </Animated.View>
       </View>
 
-      {/* Amount Display */}
       <Text
-        style={[styles.amountLabel, state === 'error' && { color: Colors.danger }]}
+        className="text-5xl text-white font-extrabold"
+        style={{ lineHeight: FontSize.xxxl * DesignTokens.typography.lineHeight.tight }}
         accessibilityRole="text"
       >
         {amount || '₱0.00'}
       </Text>
 
-      {/* Status Text */}
       <Text
-        style={[
-          styles.statusText,
-          { color: getIconColor() },
-          state === 'processing' && styles.statusTextBlink,
-        ]}
+        className="text-base font-medium mt-2"
+        style={[{ color: getIconColor() }, state === 'processing' && { opacity: 0.7 }]}
         accessibilityRole="text"
       >
         {getStatusText()}
@@ -267,61 +249,3 @@ export function ReadyToTapIndicator({
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xl,
-  },
-  radarWrap: {
-    width: 140,
-    height: 140,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.lg,
-  },
-  radarOuter: {
-    position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: BorderRadius.full,
-    borderWidth: 2,
-  },
-  radarRing: {
-    position: 'absolute',
-    width: 140,
-    height: 140,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radarDot: {
-    position: 'absolute',
-    width: 6,
-    height: 6,
-    borderRadius: BorderRadius.full,
-    opacity: DesignTokens.opacity.strong,
-  },
-  radarCenter: {
-    width: 64,
-    height: 64,
-    borderRadius: BorderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  amountLabel: {
-    fontSize: FontSize.xxxl,
-    color: Colors.white,
-    fontWeight: FontWeight.heavy,
-    lineHeight: FontSize.xxxl * DesignTokens.typography.lineHeight.tight,
-  },
-  statusText: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.medium,
-    marginTop: Spacing.sm,
-  },
-  statusTextBlink: {
-    opacity: 0.7,
-  },
-})

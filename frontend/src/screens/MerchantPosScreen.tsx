@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect } from 'react'
 import {
   View,
   Text,
-  StyleSheet,
   Platform,
   Modal,
   KeyboardAvoidingView,
@@ -200,14 +199,14 @@ export function MerchantPosScreen() {
     .slice(0, 5)
 
   return (
-    <SafeAreaView style={styles.container} >
+    <SafeAreaView className="flex-1 bg-surfaceBg" >
       <KeyboardAvoidingView
-        style={styles.flex}
+        className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View className="flex-row items-center justify-between px-6 py-4 flex-shrink-0">
           <PressableScale
             onPress={() => router.back()}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -216,15 +215,15 @@ export function MerchantPosScreen() {
           >
             <Ionicons name="arrow-back" size={24} color={Colors.white} />
           </PressableScale>
-          <Text style={styles.headerTitle} accessibilityRole="header">
+          <Text className="text-2xl font-bold text-white" accessibilityRole="header">
             Tap to Pay
           </Text>
-          <View style={styles.headerSpacer} />
+          <View className="w-6" />
         </View>
 
-        <View style={{ flex: 1, justifyContent: 'flex-start', paddingBottom: Math.max(insets.bottom + 80, 100) }}>
+        <View className="flex-1 justify-start" style={{ paddingBottom: Math.max(insets.bottom + 80, 100) }}>
           {/* === Tap Indicator + Button === */}
-          <View style={styles.indicatorSection}>
+          <View className="items-center px-6 pt-4 flex-shrink-0">
             <PressableScale
               onPress={resetPaymentState}
               disabled={paymentState !== 'error'}
@@ -240,16 +239,15 @@ export function MerchantPosScreen() {
                 testID="merchant-pos-indicator"
               />
               {paymentState === 'error' && lastError && (
-                <Text style={styles.errorDetail} numberOfLines={2}>{lastError}</Text>
+                <Text className="text-sm text-[#FF5A5F] text-center px-6 mt-4" numberOfLines={2}>{lastError}</Text>
               )}
             </PressableScale>
 
             <PressableScale
               style={[
-                styles.tapBtn,
-                !isActive && styles.tapBtnDisabled,
-                isActive && paymentState === 'idle' && styles.tapBtnActive,
+                !isActive && { opacity: 0.6 },
               ]}
+              className={`flex-row items-center justify-center px-8 py-6 rounded-full border-2 gap-2 mt-1 min-h-[56] ${isActive && paymentState === 'idle' ? 'bg-gold border-gold' : 'bg-cardBg border-borderGrey'}`}
               onPress={handleTap}
               disabled={!isActive || paymentState === 'processing'}
               accessibilityRole="button"
@@ -265,7 +263,7 @@ export function MerchantPosScreen() {
                 size={DesignTokens.iconSize.md}
                 color={isActive && paymentState !== 'processing' ? Colors.black : Colors.mutedWhite}
               />
-              <Text style={[styles.tapBtnText, isActive && paymentState !== 'processing' && { color: Colors.black }]}>
+              <Text className={`text-xl font-bold ${isActive && paymentState !== 'processing' ? 'text-black' : 'text-mutedWhite'}`}>
                 {paymentState === 'processing'
                   ? agentMode ? 'Agent Signing...' : 'Processing...'
                   : 'Tap NFC Tag'}
@@ -274,7 +272,7 @@ export function MerchantPosScreen() {
           </View>
 
           {/* === Keypad === */}
-          <View style={styles.keypadSection}>
+          <View className="flex-shrink-0">
             <NumericKeypad value={amount} onChangeValue={setAmount} maxDigits={8} />
           </View>
 
@@ -282,22 +280,22 @@ export function MerchantPosScreen() {
 
           {/* Recent Transactions */}
           {recentTxs.length > 0 ? (
-            <View style={styles.recentSection}>
-              <Text style={styles.recentTitle} accessibilityRole="header">Recent</Text>
+            <View className="flex-shrink-0 max-h-[160]">
+              <Text className="text-xs text-mutedWhite font-medium mb-4 uppercase tracking-[2px]" accessibilityRole="header">Recent</Text>
               {recentTxs.map((tx) => (
                 <View
                   key={tx.id}
-                  style={styles.recentRow}
+                  className="flex-row justify-between items-center py-2 border-b border-borderGrey"
                   accessibilityLabel={`${tx.merchantName}, ${(tx.amountCents / 100).toFixed(2)} XLM`}
                 >
-                  <Text style={styles.recentName} numberOfLines={1}>{tx.merchantName}</Text>
-                  <Text style={styles.recentAmount}>{(tx.amountCents / 100).toFixed(2)} XLM</Text>
+                  <Text className="text-sm text-white flex-1 mr-4" numberOfLines={1}>{tx.merchantName}</Text>
+                  <Text className="text-sm text-gold font-semibold">{(tx.amountCents / 100).toFixed(2)} XLM</Text>
                 </View>
               ))}
             </View>
           ) : (
-            <View style={styles.recentSection}>
-              <Text style={styles.recentEmpty}>No payments yet — tap a card when ready.</Text>
+            <View className="flex-shrink-0 max-h-[160]">
+              <Text className="text-sm text-mutedWhite text-center py-8">No payments yet — tap a card when ready.</Text>
             </View>
           )}
         </View>
@@ -310,31 +308,31 @@ export function MerchantPosScreen() {
         animationType="fade"
         onRequestClose={() => setPinModalVisible(false)}
       >
-        <View style={styles.pinOverlay}>
-          <View style={styles.pinCard}>
-            <Text style={styles.pinTitle}>Enter Card PIN</Text>
-            <Text style={styles.pinSub}>
+        <View className="flex-1 bg-black/70 justify-end">
+          <View className="bg-surfaceBg rounded-t-3xl px-6 pt-6 pb-8 items-center">
+            <Text className="text-2xl text-white font-bold">Enter Card PIN</Text>
+            <Text className="text-sm text-mutedWhite mt-1 mb-4 text-center">
               Required for amounts over {PIN_REQUIRED_ABOVE_CENTS.toLocaleString()} XLM (4-digit card PIN)
             </Text>
-            <Text style={styles.pinDots}>{'•'.repeat(enteredPin.length) || '—'}</Text>
+            <Text className="text-2xl text-gold tracking-[6px] mb-4 min-h-[28]">{'•'.repeat(enteredPin.length) || '—'}</Text>
             <NumericKeypad value={enteredPin} onChangeValue={setEnteredPin} maxDigits={6} />
-            <View style={styles.pinActions}>
+            <View className="flex-row gap-4 w-full mt-4">
               <PressableScale
-                style={styles.pinCancel}
+                className="flex-1 py-4 rounded-xl border border-borderGrey items-center"
                 onPress={() => { setPinModalVisible(false); setEnteredPin('') }}
                 accessibilityRole="button"
                 accessibilityLabel="Cancel PIN entry"
               >
-                <Text style={styles.pinCancelText}>Cancel</Text>
+                <Text className="text-base text-mutedWhite font-semibold">Cancel</Text>
               </PressableScale>
               <PressableScale
-                style={[styles.pinConfirm, enteredPin.length < 4 && styles.pinDisabled]}
+                className={`flex-2 py-4 rounded-xl bg-gold items-center ${enteredPin.length < 4 ? 'bg-[#2C2C2C]' : ''}`}
                 disabled={enteredPin.length < 4}
                 onPress={() => { setPinModalVisible(false); handleTap() }}
                 accessibilityRole="button"
                 accessibilityLabel="Confirm PIN and tap"
               >
-                <Text style={styles.pinConfirmText}>Confirm & Tap</Text>
+                <Text className={`text-base font-bold ${enteredPin.length < 4 ? 'text-mutedWhite' : 'text-black'}`}>Confirm & Tap</Text>
               </PressableScale>
             </View>
           </View>
@@ -343,188 +341,3 @@ export function MerchantPosScreen() {
     </SafeAreaView>
   )
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.surfaceBg,
-  },
-  flex: { flex: 1 },
-
-  // ── Header ────────────────────────────────────────────────────
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    flexShrink: 0,
-  },
-  headerTitle: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-  },
-  headerSpacer: { width: 24 },
-
-  // ── Top: Tap Indicator + Button ────────────────────────────────
-  indicatorSection: {
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    flexShrink: 0,
-  },
-  tapBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.cardBg,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.lg,
-    borderRadius: BorderRadius.full,
-    borderWidth: 2,
-    borderColor: Colors.borderGrey,
-    gap: Spacing.sm,
-    marginTop: Spacing.xs,
-    minHeight: DesignTokens.touchTarget.comfortable,
-    ...DesignTokens.shadows.card,
-  },
-  tapBtnActive: {
-    backgroundColor: Colors.gold,
-    borderColor: Colors.gold,
-    ...DesignTokens.shadows.goldGlow,
-  },
-  tapBtnDisabled: {
-    opacity: DesignTokens.opacity.strong,
-  },
-  tapBtnText: {
-    fontSize: FontSize.lg,
-    color: Colors.mutedWhite,
-    fontWeight: FontWeight.bold,
-  },
-
-  // ── Keypad ──────────────────────────────────────────────────
-  keypadSection: {
-    flexShrink: 0,
-
-  },
-
-
-
-  // ── Recent Transactions ─────────────────────────────────────────
-  recentSection: {
-    flexShrink: 0,
-    maxHeight: 160,
-  },
-  recentTitle: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    fontWeight: FontWeight.medium,
-    marginBottom: Spacing.md,
-    textTransform: 'uppercase',
-    letterSpacing: DesignTokens.typography.letterSpacing.wider,
-  },
-  recentRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderGrey,
-  },
-  recentName: {
-    fontSize: FontSize.sm,
-    color: Colors.white,
-    flex: 1,
-    marginRight: Spacing.md,
-  },
-  recentAmount: {
-    fontSize: FontSize.sm,
-    color: Colors.gold,
-    fontWeight: FontWeight.semibold,
-  },
-  recentEmpty: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    textAlign: 'center',
-    paddingVertical: Spacing.xl,
-  },
-
-  // ── Error Detail (under ReadyToTapIndicator) ─────────────────────
-  errorDetail: {
-    fontSize: FontSize.sm,
-    color: Colors.danger,
-    textAlign: 'center',
-    paddingHorizontal: Spacing.lg,
-    marginTop: Spacing.md,
-  },
-
-  // ── PIN Modal ───────────────────────────────────────────────────
-  pinOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'flex-end',
-  },
-  pinCard: {
-    backgroundColor: Colors.surfaceBg,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.xl,
-    alignItems: 'center',
-  },
-  pinTitle: {
-    fontSize: FontSize.xl,
-    color: Colors.white,
-    fontWeight: FontWeight.bold,
-  },
-  pinSub: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    marginTop: Spacing.xs,
-    marginBottom: Spacing.md,
-    textAlign: 'center',
-  },
-  pinDots: {
-    fontSize: FontSize.xl,
-    color: Colors.gold,
-    letterSpacing: 6,
-    marginBottom: Spacing.md,
-    minHeight: 28,
-  },
-  pinActions: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    width: '100%',
-    marginTop: Spacing.md,
-  },
-  pinCancel: {
-    flex: 1,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    alignItems: 'center',
-  },
-  pinCancelText: {
-    fontSize: FontSize.md,
-    color: Colors.mutedWhite,
-    fontWeight: FontWeight.semibold,
-  },
-  pinConfirm: {
-    flex: 2,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.gold,
-    alignItems: 'center',
-  },
-  pinConfirmText: {
-    fontSize: FontSize.md,
-    color: Colors.black,
-    fontWeight: FontWeight.bold,
-  },
-  pinDisabled: {
-    backgroundColor: Colors.lightGrey,
-  },
-})

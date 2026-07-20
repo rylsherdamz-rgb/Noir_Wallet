@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, StyleSheet, LayoutChangeEvent } from 'react-native'
+import { View, Text, LayoutChangeEvent } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -12,14 +12,14 @@ import Animated, {
 } from 'react-native-reanimated'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { DesignTokens } from '@/constants/designTokens'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
+import { Colors, Spacing, FontSize, FontWeight, Fonts } from '@/constants/theme'
 import { SkeletonLoader } from './SkeletonLoader'
 import { CurrencyToken } from './brand/CurrencyToken'
 import { useCountUp } from '@/hooks/useCountUp'
 
 function HeroFacets() {
   return (
-    <View style={styles.facets} pointerEvents="none">
+    <View className="absolute top-[-28] right-[-22] opacity-[0.18]" pointerEvents="none">
       <Svg width={172} height={172} viewBox="0 0 100 100">
         <Defs>
           <SvgLinearGradient id="fgH" x1="0" y1="0" x2="1" y2="1">
@@ -120,36 +120,45 @@ export function BalanceCard({
           locations={[0, 0.38, 0.68, 1]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.heroBorder}
+          className="rounded-[22] p-[1.5]"
+          style={{
+            shadowColor: '#000000',
+            shadowOffset: { width: 0, height: 16 },
+            shadowOpacity: 0.6,
+            shadowRadius: 26,
+            elevation: 12,
+          }}
         >
           <LinearGradient
             colors={['#191919', '#0E0E0E']}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
-            style={styles.heroInner}
+            className="rounded-[21] p-6 overflow-hidden"
             testID={testID}
           >
             <HeroFacets />
 
-            <Animated.View style={[styles.sheenWrap, sheenStyle]} pointerEvents="none">
+            <Animated.View className="absolute inset-0" style={sheenStyle} pointerEvents="none">
               <LinearGradient
                 colors={['transparent', 'rgba(255,246,228,0.04)', 'rgba(255,248,236,0.16)', 'rgba(255,246,228,0.04)', 'transparent']}
                 locations={[0.72, 0.79, 0.82, 0.85, 0.91]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
+                className="absolute inset-0"
               />
             </Animated.View>
 
-            <View style={styles.topHighlight} pointerEvents="none" />
-            <View style={styles.bottomShadow} pointerEvents="none" />
+            <View className="absolute top-0 left-[14] right-[22] h-px" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} pointerEvents="none" />
+            <View className="absolute bottom-0 left-[22] right-[14] h-[1.5]" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} pointerEvents="none" />
 
             <View
               accessibilityLabel={`XLM balance: ${hidden ? 'hidden' : xlmBalance.toFixed(2)}`}
               accessibilityRole="summary"
             >
-              <View style={styles.totalHeader}>
-                <Text style={styles.totalLabel}>XLM BALANCE</Text>
+              <View className="flex-row items-center justify-between">
+                <Text style={{ fontFamily: Fonts.displayMd, letterSpacing: 2 }} className="text-xs text-silver">
+                  XLM BALANCE
+                </Text>
                 <PressableScale
                   onPress={() => setHidden((v) => !v)}
                   hitSlop={10}
@@ -165,19 +174,34 @@ export function BalanceCard({
                 </PressableScale>
               </View>
 
-              <Text style={styles.totalAmount} accessibilityRole="text">
+              <Text
+                className="text-5xl text-cream mt-2"
+                style={{
+                  fontFamily: Fonts.display,
+                  letterSpacing: -0.5,
+                  fontVariant: ['tabular-nums'],
+                }}
+                accessibilityRole="text"
+              >
                 {hidden ? MASK : shownXlm.toFixed(2)}
               </Text>
-              <Text style={styles.totalSub}>Stellar Lumens</Text>
+              <Text
+                className="text-sm text-silver mt-2 font-medium min-h-[18]"
+                style={{ fontVariant: ['tabular-nums'] }}
+              >
+                Stellar Lumens
+              </Text>
             </View>
 
-            <View style={styles.divider} />
+            <View className="h-px bg-borderGrey my-6" />
 
-            <View style={styles.assetRow}>
+            <View className="flex-row items-center py-1 min-h-[44]">
               <CurrencyToken asset="XLM" size={38} />
-              <View style={styles.assetInfo}>
-                <Text style={styles.assetLabel}>XLM · STELLAR</Text>
-                <Text style={styles.assetAmount}>
+              <View className="flex-1 ml-4">
+                <Text style={{ fontFamily: Fonts.displayMd, letterSpacing: 1.4 }} className="text-xs text-mutedWhite">
+                  XLM · STELLAR
+                </Text>
+                <Text className="text-base text-white font-semibold mt-[3]" style={{ fontVariant: ['tabular-nums'] }}>
                   {xlmBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
                 </Text>
               </View>
@@ -188,104 +212,3 @@ export function BalanceCard({
     </GestureDetector>
   )
 }
-
-const styles = StyleSheet.create({
-  heroBorder: {
-    borderRadius: 22,
-    padding: 1.5,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.6,
-    shadowRadius: 26,
-    elevation: 12,
-  },
-  heroInner: {
-    borderRadius: 21,
-    padding: Spacing.lg,
-    overflow: 'hidden',
-  },
-  facets: {
-    position: 'absolute',
-    top: -28,
-    right: -22,
-    opacity: 0.18,
-  },
-  sheenWrap: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  topHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 14,
-    right: 22,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  bottomShadow: {
-    position: 'absolute',
-    bottom: 0,
-    left: 22,
-    right: 14,
-    height: 1.5,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  totalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  totalLabel: {
-    fontFamily: Fonts.displayMd,
-    fontSize: FontSize.xs,
-    color: Colors.silver,
-    letterSpacing: 2,
-  },
-  totalAmount: {
-    fontFamily: Fonts.display,
-    fontSize: FontSize.xxxl,
-    color: Colors.cream,
-    marginTop: Spacing.sm,
-    letterSpacing: -0.5,
-    fontVariant: ['tabular-nums'],
-  },
-  totalSub: {
-    fontSize: FontSize.sm,
-    color: Colors.silver,
-    marginTop: Spacing.sm,
-    fontWeight: FontWeight.medium,
-    minHeight: 18,
-    fontVariant: ['tabular-nums'],
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.borderGrey,
-    marginVertical: Spacing.lg,
-  },
-  assetRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.xs,
-    minHeight: DesignTokens.touchTarget.minimum,
-  },
-  assetInfo: {
-    flex: 1,
-    marginLeft: Spacing.md,
-  },
-  assetLabel: {
-    fontFamily: Fonts.displayMd,
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    letterSpacing: 1.4,
-  },
-  assetAmount: {
-    fontSize: FontSize.md,
-    color: Colors.white,
-    fontWeight: FontWeight.semibold,
-    marginTop: 3,
-    fontVariant: ['tabular-nums'],
-  },
-})

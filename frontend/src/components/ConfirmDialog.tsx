@@ -1,7 +1,7 @@
-import { View, Text, StyleSheet, Modal } from 'react-native'
+import { View, Text, Modal } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { PressableScale } from '@/components/brand/PressableScale'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors } from '@/constants/theme'
 
 interface ConfirmDialogProps {
   visible: boolean
@@ -30,10 +30,15 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.backdrop}>
-        <View style={styles.dialog}>
+      <View className="flex-1 bg-black/60 items-center justify-center p-8">
+        <View className="w-full max-w-[340] bg-[#121212] rounded-3xl p-6 items-center border border-borderGrey">
           {icon && (
-            <View style={[styles.iconWrap, variant === 'danger' && styles.iconDanger]}>
+            <View
+              className="w-14 h-14 rounded-full items-center justify-center mb-4"
+              style={{
+                backgroundColor: variant === 'danger' ? Colors.danger + '15' : Colors.gold + '15',
+              }}
+            >
               <Ionicons
                 name={icon}
                 size={28}
@@ -41,18 +46,24 @@ export function ConfirmDialog({
               />
             </View>
           )}
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.message}>{message}</Text>
-          <View style={styles.actions}>
-            <PressableScale style={styles.cancelBtn} onPress={onCancel} disabled={loading}>
-              <Text style={styles.cancelLabel}>{cancelLabel}</Text>
+          <Text className="text-xl text-white font-bold text-center mb-2">{title}</Text>
+          <Text className="text-sm text-mutedWhite text-center leading-5 mb-6">{message}</Text>
+          <View className="flex-row gap-2 w-full">
+            <PressableScale
+              className="flex-1 py-4 rounded-xl items-center justify-center border border-borderGrey"
+              onPress={onCancel}
+              disabled={loading}
+            >
+              <Text className="text-sm text-mutedWhite font-semibold">{cancelLabel}</Text>
             </PressableScale>
             <PressableScale
-              style={[styles.confirmBtn, variant === 'danger' && styles.confirmDanger]}
+              className={`flex-1 py-4 rounded-xl items-center justify-center ${variant === 'danger' ? 'bg-[#FF5A5F]' : 'bg-gold'}`}
               onPress={onConfirm}
               disabled={loading}
             >
-              <Text style={styles.confirmLabel}>{loading ? 'Please wait...' : confirmLabel}</Text>
+              <Text className="text-sm font-bold" style={{ color: variant === 'danger' ? Colors.white : Colors.black }}>
+                {loading ? 'Please wait...' : confirmLabel}
+              </Text>
             </PressableScale>
           </View>
         </View>
@@ -60,84 +71,3 @@ export function ConfirmDialog({
     </Modal>
   )
 }
-
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: Colors.overlay,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.xl,
-  },
-  dialog: {
-    width: '100%',
-    maxWidth: 340,
-    backgroundColor: Colors.darkGrey,
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  iconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.gold + '15',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.md,
-  },
-  iconDanger: {
-    backgroundColor: Colors.danger + '15',
-  },
-  title: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-    textAlign: 'center',
-    marginBottom: Spacing.sm,
-  },
-  message: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: Spacing.lg,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    width: '100%',
-  },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  cancelLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    fontWeight: FontWeight.semibold,
-  },
-  confirmBtn: {
-    flex: 1,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.gold,
-  },
-  confirmDanger: {
-    backgroundColor: Colors.danger,
-  },
-  confirmLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.black,
-    fontWeight: FontWeight.bold,
-  },
-})

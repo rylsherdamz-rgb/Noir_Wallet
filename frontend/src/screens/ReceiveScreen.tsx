@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { View, Text, StyleSheet, Share, TextInput, Animated, Easing, Platform } from 'react-native'
+import { View, Text, Share, TextInput, Animated, Easing, Platform } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -175,39 +175,39 @@ export function ReceiveScreen() {
   }, [nfcState])
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView className="flex-1 bg-surfaceBg">
+      <View className="flex-row items-center justify-between px-4 py-4">
         <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="close" size={24} color={Colors.white} />
         </PressableScale>
-        <Text style={styles.headerTitle}>Receive</Text>
-        <View style={styles.spacer24} />
+        <Text className="text-xl font-bold text-white">Receive</Text>
+        <View className="w-6" />
       </View>
 
       {/* Mode toggle */}
-      <View style={styles.modeRow}>
+      <View className="flex-row justify-center gap-2 px-4 mb-6">
         <PressableScale
-          style={[styles.modeChip, mode === 'address' && styles.modeChipActive]}
+          className={`flex-row items-center gap-1.5 px-4 py-2 rounded-full bg-[#2C2C2C] border border-borderGrey ${mode === 'address' ? 'bg-gold border-gold' : ''}`}
           onPress={() => { setMode('address'); resetNfc() }}
         >
           <Ionicons name="qr-code-outline" size={16} color={mode === 'address' ? Colors.black : Colors.mutedWhite} />
-          <Text style={[styles.modeChipLabel, mode === 'address' && styles.modeChipLabelActive]}>Address</Text>
+          <Text className={`text-sm font-semibold ${mode === 'address' ? 'text-black' : 'text-mutedWhite'}`}>Address</Text>
         </PressableScale>
         <PressableScale
-          style={[styles.modeChip, mode === 'nfc' && styles.modeChipActive]}
+          className={`flex-row items-center gap-1.5 px-4 py-2 rounded-full bg-[#2C2C2C] border border-borderGrey ${mode === 'nfc' ? 'bg-gold border-gold' : ''}`}
            onPress={() => { setMode('nfc'); setSelectedAsset('XLM') }}
         >
           <Ionicons name="radio-outline" size={16} color={mode === 'nfc' ? Colors.black : Colors.mutedWhite} />
-          <Text style={[styles.modeChipLabel, mode === 'nfc' && styles.modeChipLabelActive]}>NFC Tap</Text>
+          <Text className={`text-sm font-semibold ${mode === 'nfc' ? 'text-black' : 'text-mutedWhite'}`}>NFC Tap</Text>
         </PressableScale>
       </View>
 
-      <View style={styles.content}>
+      <View className="flex-1 items-center px-4">
         {/* Address QR mode */}
         {mode === 'address' && (
           <>
-              <View style={styles.qrWrap}>
-              <View style={styles.qrBorder}>
+              <View className="mb-8">
+              <View className="p-4 bg-white rounded-2xl">
                 <QRCode
                   value={`${address}?asset=${selectedAsset}`}
                   size={200}
@@ -217,24 +217,24 @@ export function ReceiveScreen() {
               </View>
             </View>
 
-            <View style={styles.addressSection}>
-              <Text style={styles.addressLabel}>Your Stellar Address</Text>
-              <View style={styles.addressRow}>
-                <Text style={styles.addressText} numberOfLines={1}>
+            <View className="w-full bg-cardBg rounded-xl p-4 border border-borderGrey mb-4">
+              <Text className="text-xs text-mutedWhite mb-2 uppercase tracking-[0.5px]">Your Stellar Address</Text>
+              <View className="flex-row items-center gap-2">
+                <Text className="flex-1 text-sm text-white font-mono" numberOfLines={1}>
                   {address.slice(0, 12)}...{address.slice(-8)}
                 </Text>
-                <PressableScale style={styles.copyBtn} onPress={copyAddress}>
+                <PressableScale className="w-9 h-9 rounded-full bg-[#C6A15B15] items-center justify-center" onPress={copyAddress}>
                   <Ionicons name="copy-outline" size={18} color={Colors.gold} />
                 </PressableScale>
-                <PressableScale style={styles.shareBtn} onPress={shareAddress}>
+                <PressableScale className="w-9 h-9 rounded-full bg-[#C6A15B15] items-center justify-center" onPress={shareAddress}>
                   <Ionicons name="share-outline" size={18} color={Colors.gold} />
                 </PressableScale>
               </View>
             </View>
 
-            <View style={styles.balanceCard}>
-              <Text style={styles.balanceLabel}>Your {selectedAsset} Balance</Text>
-              <Text style={styles.balanceValue}>
+            <View className="w-full bg-[#C6A15B10] rounded-xl p-4 border border-[#C6A15B25] items-center">
+              <Text className="text-xs text-gold mb-1">Your {selectedAsset} Balance</Text>
+              <Text className="text-2xl font-bold text-gold">
                 {balanceAmount.toLocaleString()} {selectedAsset}
               </Text>
             </View>
@@ -244,14 +244,14 @@ export function ReceiveScreen() {
         {/* NFC Receive mode */}
         {mode === 'nfc' && (
           <>
-            <View style={styles.nfcSection}>
-              <Text style={styles.nfcPrompt}>Have a friend tap their NFC card to send you payment</Text>
+            <View className="w-full mb-6">
+              <Text className="text-sm text-mutedWhite text-center leading-5">Have a friend tap their NFC card to send you payment</Text>
             </View>
 
-            <View style={styles.amountSection}>
-              <Text style={styles.amountLabel}>Amount to receive</Text>
+            <View className="w-full items-center mb-8">
+              <Text className="text-sm text-mutedWhite mb-2 uppercase tracking-[0.5px]">Amount to receive</Text>
               <TextInput
-                style={styles.amountInput}
+                className="text-2xl font-extrabold text-white text-center min-w-[200] py-2 border-b border-borderGrey"
                 value={amount}
                 onChangeText={setAmount}
                 placeholder="Enter amount in XLM"
@@ -259,69 +259,69 @@ export function ReceiveScreen() {
                 keyboardType="numeric"
                 maxLength={10}
               />
-              {amount ? <Text style={styles.amountPreview}>{amount} XLM</Text> : null}
+              {amount ? <Text className="text-2xl text-gold mt-2 font-bold">{amount} XLM</Text> : null}
             </View>
 
-            <View style={styles.nfcTapArea}>
+            <View className="w-full items-center justify-center min-h-[200] mb-4">
               {nfcState === 'idle' && (
                 <>
                   <PressableScale
-                     style={[styles.nfcBtn, (amountUnits <= 0) && styles.nfcBtnDisabled]}
+                     className={`flex-row items-center gap-2 bg-gold py-6 px-8 rounded-full ${(amountUnits <= 0) ? 'bg-[#2C2C2C]' : ''}`}
                     onPress={handleNfcReceive}
                     disabled={amountUnits <= 0}
                   >
                     <Ionicons name="radio" size={28} color={amountUnits > 0 ? Colors.black : Colors.mutedWhite} />
-                    <Text style={[styles.nfcBtnText, (amountUnits <= 0) && { color: Colors.mutedWhite }]}>
+                    <Text className={`text-xl font-bold ${(amountUnits <= 0) ? 'text-mutedWhite' : 'text-black'}`}>
                       Tap to Start NFC
                     </Text>
                   </PressableScale>
                   {amountUnits <= 0 && (
-                    <Text style={styles.nfcBtnHelper}>Enter an amount above to enable NFC</Text>
+                    <Text className="text-xs text-mutedWhite mt-2 text-center">Enter an amount above to enable NFC</Text>
                   )}
                 </>
               )}
 
               {nfcState === 'scanning' && (
-                <View style={styles.nfcScanWrap}>
-                  <Animated.View style={[styles.nfcScanRing, { transform: [{ scale: pulse }] }]} />
-                  <View style={styles.nfcScanCenter}>
+                <View className="items-center justify-center w-[160] h-[160]">
+                  <Animated.View className="absolute w-[120] h-[120] rounded-full border-2 border-gold" style={{ left: '50%', top: '50%', marginLeft: -60, marginTop: -60, transform: [{ scale: pulse }] }} />
+                  <View className="w-[70] h-[70] rounded-full bg-[#C6A15B15] items-center justify-center">
                     <Ionicons name="radio" size={36} color={Colors.gold} />
                   </View>
-                  <Text style={styles.nfcScanText}>Hold card to phone...</Text>
+                  <Text className="text-sm text-gold mt-4 font-medium">Hold card to phone...</Text>
                 </View>
               )}
 
               {nfcState === 'processing' && (
-                <View style={styles.nfcProcessing}>
+                <View className="items-center gap-4">
                   <Animated.View style={{ transform: [{ rotate: rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] }}>
                     <Ionicons name="sync" size={32} color={Colors.gold} />
                   </Animated.View>
-                  <Text style={styles.nfcProcessingText}>Authorizing payment...</Text>
+                  <Text className="text-base text-gold">Authorizing payment...</Text>
                 </View>
               )}
 
               {nfcState === 'success' && (
-                <View style={styles.nfcSuccess}>
+                <View className="items-center gap-2">
                   <Ionicons name="checkmark-circle" size={64} color={Colors.success} />
-                  <Text style={styles.nfcSuccessText}>{receivedAmount} XLM queued</Text>
-                  <Text style={styles.nfcSuccessSub}>Payment submitted — you'll be notified when confirmed</Text>
-                  <PressableScale style={styles.nfcResetBtn} onPress={resetNfc}>
-                    <Text style={styles.nfcResetBtnText}>Receive Another</Text>
+                  <Text className="text-xl text-[#3ED598] font-bold text-center">{receivedAmount} XLM queued</Text>
+                  <Text className="text-xs text-mutedWhite text-center mt-1 px-6">Payment submitted — you'll be notified when confirmed</Text>
+                  <PressableScale className="mt-4 px-6 py-2 rounded-full border border-gold" onPress={resetNfc}>
+                    <Text className="text-sm text-gold font-semibold">Receive Another</Text>
                   </PressableScale>
                 </View>
               )}
 
               {nfcState === 'error' && (
-                <View style={styles.nfcError}>
+                <View className="items-center gap-4">
                   <Ionicons name="close-circle" size={48} color={Colors.danger} />
-                  <Text style={styles.nfcErrorText}>{nfcError}</Text>
-                  <PressableScale style={styles.nfcResetBtn} onPress={resetNfc}>
-                    <Text style={styles.nfcResetBtnText}>Try Again</Text>
+                  <Text className="text-sm text-[#FF5A5F] text-center px-6">{nfcError}</Text>
+                  <PressableScale className="mt-4 px-6 py-2 rounded-full border border-gold" onPress={resetNfc}>
+                    <Text className="text-sm text-gold font-semibold">Try Again</Text>
                   </PressableScale>
                   {nfcError.includes('not linked') && (
-                    <PressableScale style={[styles.nfcResetBtn, { backgroundColor: Colors.gold, marginTop: Spacing.sm }]} onPress={() => router.push('/(tabs)/devices')}>
+                    <PressableScale className="mt-4 px-6 py-2 rounded-full bg-gold mt-2 flex-row items-center gap-1.5" onPress={() => router.push('/(tabs)/devices')}>
                       <Ionicons name="link-outline" size={18} color={Colors.black} />
-                      <Text style={[styles.nfcResetBtnText, { color: Colors.black }]}>Link in Settings</Text>
+                      <Text className="text-sm font-semibold text-black">Link in Settings</Text>
                     </PressableScale>
                   )}
                 </View>
@@ -329,9 +329,9 @@ export function ReceiveScreen() {
             </View>
 
             {nfcState === 'idle' && (
-              <View style={styles.nfcInfo}>
+              <View className="flex-row items-center gap-1 px-6">
                 <Ionicons name="information-circle-outline" size={14} color={Colors.mutedWhite} />
-                <Text style={styles.nfcInfoText}>
+                <Text className="text-xs text-mutedWhite flex-1">
                   Agent wallet pays from its XLM balance
                 </Text>
               </View>
@@ -350,318 +350,3 @@ export function ReceiveScreen() {
     </SafeAreaView>
   )
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.surfaceBg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-  },
-  headerTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-  },
-  spacer24: { width: 24 },
-  content: {
-    flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-  },
-
-  // Mode toggle
-  modeRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  modeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.lightGrey,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  modeChipActive: {
-    backgroundColor: Colors.gold,
-    borderColor: Colors.gold,
-  },
-  modeChipLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    fontWeight: FontWeight.semibold,
-  },
-  modeChipLabelActive: {
-    color: Colors.black,
-  },
-
-  // Address QR mode
-  assetRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.xl,
-  },
-  assetChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.lightGrey,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  assetChipActive: {
-    backgroundColor: Colors.gold + '20',
-    borderColor: Colors.gold,
-  },
-  assetChipLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    fontWeight: FontWeight.semibold,
-  },
-  assetChipLabelActive: {
-    color: Colors.gold,
-  },
-  qrWrap: {
-    marginBottom: Spacing.xl,
-  },
-  qrBorder: {
-    padding: Spacing.md,
-    backgroundColor: Colors.white,
-    borderRadius: BorderRadius.lg,
-  },
-  addressSection: {
-    width: '100%',
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    marginBottom: Spacing.md,
-  },
-  addressLabel: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    marginBottom: Spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  addressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  addressText: {
-    flex: 1,
-    fontSize: FontSize.sm,
-    color: Colors.white,
-    fontFamily: 'monospace',
-  },
-  copyBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.gold + '15',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shareBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.gold + '15',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  balanceCard: {
-    width: '100%',
-    backgroundColor: Colors.gold + '10',
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.gold + '25',
-    alignItems: 'center',
-  },
-  balanceLabel: {
-    fontSize: FontSize.xs,
-    color: Colors.gold,
-    marginBottom: Spacing.xs,
-  },
-  balanceValue: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
-    color: Colors.gold,
-  },
-
-  // NFC receive mode
-  nfcSection: {
-    width: '100%',
-    marginBottom: Spacing.lg,
-  },
-  nfcPrompt: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  amountSection: {
-    width: '100%',
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
-  },
-  amountLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    marginBottom: Spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  amountInput: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.heavy,
-    color: Colors.white,
-    textAlign: 'center',
-    minWidth: 200,
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderGrey,
-  },
-  amountPreview: {
-    fontSize: FontSize.xl,
-    color: Colors.gold,
-    marginTop: Spacing.sm,
-    fontWeight: FontWeight.bold,
-  },
-  nfcTapArea: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 200,
-    marginBottom: Spacing.md,
-  },
-  nfcBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.gold,
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.xl,
-    borderRadius: BorderRadius.full,
-  },
-  nfcBtnDisabled: {
-    backgroundColor: Colors.lightGrey,
-  },
-  nfcBtnText: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.black,
-  },
-  nfcScanWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 160,
-    height: 160,
-  },
-  nfcScanRing: {
-    position: 'absolute',
-    left: '50%',
-    top: '50%',
-    width: 120,
-    height: 120,
-    marginLeft: -60,
-    marginTop: -60,
-    borderRadius: 60,
-    borderWidth: 2,
-    borderColor: Colors.gold,
-  },
-  nfcScanCenter: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: Colors.gold + '15',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nfcScanText: {
-    fontSize: FontSize.sm,
-    color: Colors.gold,
-    marginTop: Spacing.md,
-    fontWeight: FontWeight.medium,
-  },
-  nfcProcessing: {
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  nfcProcessingText: {
-    fontSize: FontSize.md,
-    color: Colors.gold,
-  },
-  nfcSuccess: {
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  nfcSuccessText: {
-    fontSize: FontSize.lg,
-    color: Colors.success,
-    fontWeight: FontWeight.bold,
-    textAlign: 'center',
-  },
-  nfcSuccessSub: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    textAlign: 'center',
-    marginTop: Spacing.xs,
-    paddingHorizontal: Spacing.lg,
-  },
-  nfcError: {
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  nfcErrorText: {
-    fontSize: FontSize.sm,
-    color: Colors.danger,
-    textAlign: 'center',
-    paddingHorizontal: Spacing.lg,
-  },
-  nfcResetBtn: {
-    marginTop: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    borderColor: Colors.gold,
-  },
-  nfcResetBtnText: {
-    fontSize: FontSize.sm,
-    color: Colors.gold,
-    fontWeight: FontWeight.semibold,
-  },
-  nfcInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    paddingHorizontal: Spacing.lg,
-  },
-  nfcInfoText: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    flex: 1,
-  },
-  nfcBtnHelper: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    marginTop: Spacing.sm,
-    textAlign: 'center',
-  },
-})

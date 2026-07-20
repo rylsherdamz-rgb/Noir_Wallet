@@ -1,9 +1,9 @@
-import { View, Text, StyleSheet, Platform, Dimensions } from 'react-native'
+import { View, Text, Platform, Dimensions } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { DesignTokens } from '@/constants/designTokens'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors, Spacing } from '@/constants/theme'
 
 const SCREEN_WIDTH = Dimensions.get('window').width
 const KEY_SIZE = Math.min(Math.floor((SCREEN_WIDTH - Spacing.lg * 2 - Spacing.md * 4) / 3), 80)
@@ -30,7 +30,6 @@ export function NumericKeypad({
   hapticFeedback = true,
 }: NumericKeypadProps) {
   const handlePress = (key: string) => {
-    // Haptic feedback
     if (hapticFeedback && Platform.OS !== 'web') {
       if (key === 'clear' || key === 'backspace') {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -52,21 +51,30 @@ export function NumericKeypad({
   }
 
   return (
-    <View style={styles.container}>
+    <View className="px-6 pb-2">
       {keys.map((row, rowIdx) => (
-        <View key={rowIdx} style={styles.row}>
+        <View
+          key={rowIdx}
+          className="flex-row justify-center"
+          style={{ gap: KEY_GAP, marginBottom: KEY_GAP }}
+        >
           {row.map((key) => {
             if (key === 'clear') {
               return (
                 <PressableScale
                   key={key}
-                  style={[styles.key, styles.specialKey]}
+                  className="items-center justify-center bg-midGrey"
+                  style={{
+                    width: KEY_SIZE,
+                    height: KEY_SIZE,
+                    borderRadius: KEY_SIZE / 2,
+                    ...DesignTokens.shadows.card,
+                  }}
                   onPress={() => handlePress(key)}
-
                   accessibilityRole="button"
                   accessibilityLabel="Clear all"
                 >
-                  <Text style={styles.specialKeyText}>Clear</Text>
+                  <Text className="text-sm text-mutedWhite font-medium">Clear</Text>
                 </PressableScale>
               )
             }
@@ -74,9 +82,15 @@ export function NumericKeypad({
               return (
                 <PressableScale
                   key={key}
-                  style={styles.key}
+                  className="items-center justify-center"
+                  style={{
+                    width: KEY_SIZE,
+                    height: KEY_SIZE,
+                    borderRadius: KEY_SIZE / 2,
+                    backgroundColor: Colors.lightGrey,
+                    ...DesignTokens.shadows.card,
+                  }}
                   onPress={() => handlePress(key)}
-
                   accessibilityRole="button"
                   accessibilityLabel="Delete last digit"
                 >
@@ -87,13 +101,21 @@ export function NumericKeypad({
             return (
               <PressableScale
                 key={key}
-                style={styles.key}
+                className="items-center justify-center"
+                style={{
+                  width: KEY_SIZE,
+                  height: KEY_SIZE,
+                  borderRadius: KEY_SIZE / 2,
+                  backgroundColor: Colors.lightGrey,
+                  ...DesignTokens.shadows.card,
+                }}
                 onPress={() => handlePress(key)}
-
                 accessibilityRole="button"
                 accessibilityLabel={`Digit ${key}`}
               >
-                <Text style={styles.keyText}>{key}</Text>
+                <Text className="font-semibold text-white" style={{ fontSize: Math.min(32, KEY_SIZE * 0.45) }}>
+                  {key}
+                </Text>
               </PressableScale>
             )
           })}
@@ -102,38 +124,3 @@ export function NumericKeypad({
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.sm,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: KEY_GAP,
-    marginBottom: KEY_GAP,
-  },
-  key: {
-    width: KEY_SIZE,
-    height: KEY_SIZE,
-    borderRadius: KEY_SIZE / 2,
-    backgroundColor: Colors.lightGrey,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...DesignTokens.shadows.card,
-  },
-  keyText: {
-    fontSize: Math.min(FontSize.xxl, KEY_SIZE * 0.45),
-    color: Colors.white,
-    fontWeight: FontWeight.semibold,
-  },
-  specialKey: {
-    backgroundColor: Colors.midGrey,
-  },
-  specialKeyText: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    fontWeight: FontWeight.medium,
-  },
-})

@@ -1,10 +1,10 @@
-import { View, Text, StyleSheet, ScrollView, Share, Linking } from 'react-native'
+import { View, Text, ScrollView, Share, Linking } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import * as Clipboard from 'expo-clipboard'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors } from '@/constants/theme'
 import { StatusPill } from '@/components/StatusPill'
 import { Toast } from '@/components/Toast'
 import { Avatar } from '@/components/Avatar'
@@ -53,50 +53,50 @@ export function TransactionDetailScreen() {
 
   if (!tx) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <SafeAreaView className="flex-1 bg-surfaceBg">
+        <View className="flex-row items-center justify-between px-4 py-4">
           <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="arrow-back" size={24} color={Colors.white} />
           </PressableScale>
-          <Text style={styles.headerTitle}>Transaction Details</Text>
-          <View style={styles.spacer22} />
+          <Text className="text-lg font-bold text-white">Transaction Details</Text>
+          <View style={{ width: 22 }} />
         </View>
-        <View style={styles.notFound}>
+        <View className="flex-1 items-center justify-center gap-4">
           <Ionicons name="alert-circle-outline" size={48} color={Colors.mutedWhite} />
-          <Text style={styles.notFoundText}>Transaction not found</Text>
+          <Text className="text-base text-mutedWhite">Transaction not found</Text>
         </View>
       </SafeAreaView>
     )
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView className="flex-1 bg-surfaceBg">
+      <View className="flex-row items-center justify-between px-4 py-4">
         <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
         </PressableScale>
-        <Text style={styles.headerTitle}>Transaction Details</Text>
+        <Text className="text-lg font-bold text-white">Transaction Details</Text>
         <PressableScale onPress={shareTx} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="share-outline" size={22} color={Colors.gold} />
         </PressableScale>
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.heroSection}>
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 48 }}>
+        <View className="items-center py-6">
           <Avatar name={tx.merchantName} size={64} variant="user" />
-          <Text style={styles.merchantName}>{tx.merchantName}</Text>
-          <View style={{ alignSelf: 'center', marginBottom: Spacing.sm }}>
+          <Text className="text-xl font-bold text-white mt-2 mb-1">{tx.merchantName}</Text>
+          <View className="self-center mb-2">
             <StatusPill status={tx.status} />
           </View>
-          <Text style={[styles.amount, tx.status === 'failed' && styles.amountFailed]}>
+          <Text className={`text-5xl font-extrabold text-white mt-2 ${tx.status === 'failed' ? 'text-[#FF5A5F] line-through' : ''}`}>
             {tx.status === 'failed' ? '' : '-'}{formattedAmount} {tx.assetCode}
           </Text>
           {tx.status === 'failed' && tx.errorMessage && (
-            <Text style={styles.errorMsg}>{tx.errorMessage}</Text>
+            <Text className="text-sm text-[#FF5A5F] mt-2">{tx.errorMessage}</Text>
           )}
         </View>
 
-        <View style={styles.detailsCard}>
+        <View className="bg-cardBg rounded-2xl border border-borderGrey p-4 mt-4">
           <DetailRow label="Transaction ID" value={tx.id} mono />
           <DetailRow label="Date" value={`${formattedDate} at ${formattedTime}`} />
           <DetailRow label="To" value={tx.merchantName} />
@@ -105,10 +105,10 @@ export function TransactionDetailScreen() {
           <DetailRow label="Status" value={tx.status.charAt(0).toUpperCase() + tx.status.slice(1)} />
           <DetailRow label="Device" value={tx.deviceId} mono />
           {tx.stellarTxHash && (
-            <View style={styles.hashRow}>
-              <Text style={styles.detailLabel}>Stellar Tx Hash</Text>
-              <PressableScale style={styles.hashValueRow} onPress={copyHash}>
-                <Text style={styles.hashValue} numberOfLines={1}>
+            <View className="flex-row justify-between items-center py-4 border-b border-b-borderGrey">
+              <Text className="text-sm text-mutedWhite">Stellar Tx Hash</Text>
+              <PressableScale className="flex-row items-center gap-1 max-w-[55%]" onPress={copyHash}>
+                <Text className="text-xs text-white font-mono" numberOfLines={1}>
                   {tx.stellarTxHash.slice(0, 16)}...{tx.stellarTxHash.slice(-8)}
                 </Text>
                 <Ionicons name="copy-outline" size={16} color={Colors.gold} />
@@ -120,20 +120,20 @@ export function TransactionDetailScreen() {
           )}
         </View>
 
-        <View style={styles.actionsCard}>
-          <PressableScale style={styles.actionRow} onPress={shareTx}>
+        <View className="bg-cardBg rounded-2xl border border-borderGrey mt-4 overflow-hidden">
+          <PressableScale className="flex-row items-center gap-4 p-4 border-b border-b-borderGrey" onPress={shareTx}>
             <Ionicons name="share-outline" size={18} color={Colors.gold} />
-            <Text style={styles.actionLabel}>Share Receipt</Text>
+            <Text className="text-sm text-gold font-medium">Share Receipt</Text>
           </PressableScale>
           {tx.stellarTxHash && explorerUrl && (
-            <PressableScale style={styles.actionRow} onPress={openExplorer}>
+            <PressableScale className="flex-row items-center gap-4 p-4 border-b border-b-borderGrey" onPress={openExplorer}>
               <Ionicons name="open-outline" size={18} color={Colors.gold} />
-              <Text style={styles.actionLabel}>View on Stellar Explorer</Text>
+              <Text className="text-sm text-gold font-medium">View on Stellar Explorer</Text>
             </PressableScale>
           )}
-          <PressableScale style={styles.actionRow}>
+          <PressableScale className="flex-row items-center gap-4 p-4">
             <Ionicons name="chatbubble-ellipses-outline" size={18} color={Colors.gold} />
-            <Text style={styles.actionLabel}>Report an Issue</Text>
+            <Text className="text-sm text-gold font-medium">Report an Issue</Text>
           </PressableScale>
         </View>
       </ScrollView>
@@ -163,160 +163,15 @@ function DetailRow({
   error?: boolean
 }) {
   return (
-    <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>{label}</Text>
+    <View className="flex-row justify-between items-center py-4 border-b border-b-borderGrey">
+      <Text className="text-sm text-mutedWhite">{label}</Text>
       <Text
-        style={[
-          styles.detailValue,
-          mono && styles.detailMono,
-          gold && styles.detailGold,
-          error && styles.detailError,
-        ]}
+        className={`${
+          mono ? 'font-mono text-xs' : gold ? 'text-gold font-bold text-base' : 'text-sm text-white font-medium'
+        } max-w-[55%] text-right${error ? ' text-[#FF5A5F]' : ''}`}
       >
         {value}
       </Text>
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.surfaceBg,
-  },
-  notFound: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.md,
-  },
-  notFoundText: {
-    fontSize: FontSize.md,
-    color: Colors.mutedWhite,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-  },
-  headerTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.xxl,
-  },
-  heroSection: {
-    alignItems: 'center',
-    paddingVertical: Spacing.lg,
-  },
-  merchantName: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.xs,
-  },
-  amount: {
-    fontSize: FontSize.xxxl,
-    fontWeight: FontWeight.heavy,
-    color: Colors.white,
-    marginTop: Spacing.sm,
-  },
-  amountFailed: {
-    color: Colors.danger,
-    textDecorationLine: 'line-through',
-  },
-  errorMsg: {
-    fontSize: FontSize.sm,
-    color: Colors.danger,
-    marginTop: Spacing.sm,
-  },
-  detailsCard: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    padding: Spacing.md,
-    marginTop: Spacing.md,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderGrey,
-  },
-  detailLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-  },
-  detailValue: {
-    fontSize: FontSize.sm,
-    color: Colors.white,
-    fontWeight: FontWeight.medium,
-    maxWidth: '55%',
-    textAlign: 'right',
-  },
-  detailMono: {
-    fontFamily: 'monospace',
-    fontSize: FontSize.xs,
-  },
-  detailGold: {
-    color: Colors.gold,
-    fontWeight: FontWeight.bold,
-    fontSize: FontSize.md,
-  },
-  detailError: {
-    color: Colors.danger,
-  },
-  hashRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderGrey,
-  },
-  hashValueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    maxWidth: '55%',
-  },
-  hashValue: {
-    fontSize: FontSize.xs,
-    color: Colors.white,
-    fontFamily: 'monospace',
-  },
-  actionsCard: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    marginTop: Spacing.md,
-    overflow: 'hidden',
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    padding: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderGrey,
-  },
-  actionLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.gold,
-    fontWeight: FontWeight.medium,
-  },
-  spacer22: { width: 22 },
-})

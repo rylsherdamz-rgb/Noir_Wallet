@@ -1,6 +1,6 @@
-import { View, Text, Image, StyleSheet } from 'react-native'
+import { View, Text, Image } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { Colors, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors } from '@/constants/theme'
 
 interface AvatarProps {
   uri?: string | null
@@ -24,45 +24,28 @@ export function Avatar({ uri, name, size = 40, variant = 'user' }: AvatarProps) 
     return (
       <Image
         source={{ uri }}
-        style={[styles.image, { width: size, height: size, borderRadius: size / 2 }]}
+        className="border border-borderGrey"
+        style={{ width: size, height: size, borderRadius: size / 2 }}
       />
     )
   }
 
   return (
     <View
-      style={[
-        styles.fallback,
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: Colors.gold + '15',
-        },
-      ]}
+      className="items-center justify-center border"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: Colors.gold + '15',
+        borderColor: Colors.gold + '30',
+      }}
     >
       {name ? (
-        <Text style={[styles.initials, { fontSize: size * 0.4 }]}>{initials}</Text>
+        <Text className="text-gold font-bold" style={{ fontSize: size * 0.4 }}>{initials}</Text>
       ) : (
         <Ionicons name={iconMap[variant]} size={size * 0.5} color={Colors.gold} />
       )}
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  image: {
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  fallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.gold + '30',
-  },
-  initials: {
-    color: Colors.gold,
-    fontWeight: FontWeight.bold,
-  },
-})

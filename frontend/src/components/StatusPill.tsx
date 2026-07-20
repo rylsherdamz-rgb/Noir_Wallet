@@ -1,6 +1,6 @@
-import { View, Text, StyleSheet } from 'react-native'
+import { View, Text } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors } from '@/constants/theme'
 
 export type TxStatus = 'pending' | 'confirmed' | 'failed'
 
@@ -35,30 +35,12 @@ export function StatusPill({ status }: StatusPillProps) {
   const { color, icon, label } = CONFIG[status as string] ?? FALLBACK_CONFIG
   return (
     <View
-      style={[styles.pill, { backgroundColor: color + '20', borderColor: color + '55' }]}
+      className="flex-row items-center gap-1 px-2 py-1 rounded-full border self-start"
+      style={{ backgroundColor: color + '20', borderColor: color + '55' }}
       accessibilityLabel={`Status: ${label}`}
     >
       <Ionicons name={icon} size={14} color={color} />
-      <Text style={[styles.text, { color }]}>{label}</Text>
+      <Text className="text-xs font-semibold" style={{ color }}>{label}</Text>
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    alignSelf: 'flex-start',
-  },
-  text: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.semibold,
-  },
-})
-
-export default StatusPill

@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, Text, StyleSheet, Modal, Alert } from 'react-native'
+import { View, Text, Modal, Alert } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { Ionicons } from '@expo/vector-icons'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
+import { Colors } from '@/constants/theme'
 import { walletService, WalletListItem } from '@/services/wallet'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
@@ -61,17 +61,17 @@ export function WalletSwitcher({ onImportRequest }: WalletSwitcherProps) {
   return (
     <>
       <PressableScale
-        style={styles.trigger}
+        className="flex-row items-center bg-cardBg p-4 rounded-xl mb-2 gap-4 border border-borderGrey"
         onPress={() => setVisible(true)}
         accessibilityRole="button"
         accessibilityLabel="Switch wallet"
       >
         <Ionicons name="wallet-outline" size={18} color={Colors.gold} />
-        <View style={styles.triggerInfo}>
-          <Text style={styles.triggerText}>
+        <View className="flex-1 gap-1">
+          <Text className="text-sm text-white">
             {wallets[activeIndex]?.label || `Wallet ${activeIndex + 1}`}
           </Text>
-          <Text style={styles.triggerSubText} numberOfLines={1}>
+          <Text className="text-xs text-mutedWhite font-mono" numberOfLines={1}>
             {wallets[activeIndex]?.stellarPublic
               ? `${wallets[activeIndex].stellarPublic.slice(0, 8)}…${wallets[activeIndex].stellarPublic.slice(-6)}`
               : '—'}
@@ -86,47 +86,50 @@ export function WalletSwitcher({ onImportRequest }: WalletSwitcherProps) {
         animationType="slide"
         onRequestClose={() => setVisible(false)}
       >
-        <View style={styles.overlay}>
-          <View style={styles.sheet}>
-            <View style={styles.handle} />
-            <View style={styles.headerRow}>
-              <Text style={styles.title}>My Wallets</Text>
+        <View className="flex-1 bg-black/60 justify-end">
+          <View className="bg-surfaceBg rounded-t-3xl px-6 pt-4 pb-8 max-h-[80%]">
+            <View className="w-9 h-1 rounded-[2] bg-midGrey self-center mb-6" />
+            <View className="flex-row justify-between items-center mb-6">
+              <Text className="text-2xl text-white font-bold">My Wallets</Text>
               <PressableScale onPress={() => setVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Ionicons name="close" size={24} color={Colors.mutedWhite} />
               </PressableScale>
             </View>
 
             {wallets.length === 0 ? (
-              <View style={styles.empty}>
+              <View className="items-center py-12 gap-2">
                 <Ionicons name="wallet-outline" size={48} color={Colors.mutedWhite} />
-                <Text style={styles.emptyText}>No wallets yet</Text>
-                <Text style={styles.emptySub}>Create or import a wallet to get started</Text>
+                <Text className="text-base text-mutedWhite font-medium">No wallets yet</Text>
+                <Text className="text-sm text-mutedWhite text-center">Create or import a wallet to get started</Text>
               </View>
             ) : (
-              <View style={styles.list}>
+              <View className="mb-4">
                 {wallets.map((w, i) => (
                   <PressableScale
                     key={w.stellarPublic}
-                    style={[styles.walletRow, i === activeIndex && styles.walletRowActive]}
+                    className={`flex-row items-center py-4 px-2 rounded-xl mb-1 gap-4 bg-cardBg border ${
+                      i === activeIndex ? 'border-gold' : 'border-borderGrey'
+                    }`}
+                    style={i === activeIndex ? { backgroundColor: Colors.gold + '10' } : undefined}
                     onPress={() => handleSwitch(i)}
                     onLongPress={() => setConfirmRemove(w.stellarPublic)}
                   >
-                    <View style={styles.walletIcon}>
+                    <View className="w-10 h-10 rounded-[20] bg-[#2C2C2C] items-center justify-center">
                       <Ionicons
                         name="wallet"
                         size={20}
                         color={i === activeIndex ? Colors.gold : Colors.mutedWhite}
                       />
                     </View>
-                    <View style={styles.walletInfo}>
-                      <Text style={[styles.walletLabel, i === activeIndex && styles.walletLabelActive]}>
+                    <View className="flex-1">
+                      <Text className={`text-base ${i === activeIndex ? 'text-gold' : 'text-white'} font-medium`}>
                         {w.label || `Wallet ${i + 1}`}
                       </Text>
-                      <Text style={styles.walletAddress}>{displayAddress(w.stellarPublic)}</Text>
+                      <Text className="text-xs text-mutedWhite font-mono mt-0.5">{displayAddress(w.stellarPublic)}</Text>
                     </View>
                     {i === activeIndex ? (
-                      <View style={styles.activeBadge}>
-                        <Text style={styles.activeBadgeText}>Active</Text>
+                      <View className="px-2 py-1 rounded-full" style={{ backgroundColor: Colors.gold + '20' }}>
+                        <Text className="text-xs text-gold font-semibold">Active</Text>
                       </View>
                     ) : (
                       <Ionicons name="chevron-forward" size={16} color={Colors.mutedWhite} />
@@ -146,25 +149,25 @@ export function WalletSwitcher({ onImportRequest }: WalletSwitcherProps) {
             />
 
             {confirmRemove && (
-              <View style={styles.confirmOverlay}>
+              <View className="absolute inset-0 bg-black/50 justify-center items-center px-6">
                 <Card>
-                  <Text style={styles.confirmTitle}>Remove Wallet?</Text>
-                  <Text style={styles.confirmSub}>
+                  <Text className="text-base text-white font-bold mb-1">Remove Wallet?</Text>
+                  <Text className="text-sm text-mutedWhite mb-4">
                     {displayAddress(confirmRemove)} will be removed from the list.
                     Keys remain accessible via recovery phrase.
                   </Text>
-                  <View style={styles.confirmActions}>
+                  <View className="flex-row gap-4">
                     <PressableScale
-                      style={styles.confirmCancel}
+                      className="flex-1 py-2 rounded-xl border border-borderGrey items-center"
                       onPress={() => setConfirmRemove(null)}
                     >
-                      <Text style={styles.confirmCancelText}>Keep</Text>
+                      <Text className="text-sm text-mutedWhite">Keep</Text>
                     </PressableScale>
                     <PressableScale
-                      style={styles.confirmDelete}
+                      className="flex-1 py-2 rounded-xl bg-[#FF5A5F] items-center"
                       onPress={() => handleRemove(confirmRemove)}
                     >
-                      <Text style={styles.confirmDeleteText}>Remove</Text>
+                      <Text className="text-sm text-white font-bold">Remove</Text>
                     </PressableScale>
                   </View>
                 </Card>
@@ -176,183 +179,3 @@ export function WalletSwitcher({ onImportRequest }: WalletSwitcherProps) {
     </>
   )
 }
-
-const styles = StyleSheet.create({
-  trigger: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.cardBg,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.sm,
-    gap: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  triggerInfo: {
-    flex: 1,
-    gap: Spacing.xs,
-  },
-  triggerText: {
-    fontSize: FontSize.sm,
-    color: Colors.white,
-  },
-  triggerSubText: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    fontFamily: Fonts.mono,
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: Colors.surfaceBg,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.xl,
-    maxHeight: '80%',
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.midGrey,
-    alignSelf: 'center',
-    marginBottom: Spacing.lg,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-  },
-  title: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-  },
-  empty: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xxl,
-    gap: Spacing.sm,
-  },
-  emptyText: {
-    fontSize: FontSize.md,
-    color: Colors.mutedWhite,
-    fontWeight: FontWeight.medium,
-  },
-  emptySub: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    textAlign: 'center',
-  },
-  list: {
-    marginBottom: Spacing.md,
-  },
-  walletRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.sm,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.xs,
-    gap: Spacing.md,
-    backgroundColor: Colors.cardBg,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  walletRowActive: {
-    borderColor: Colors.gold,
-    backgroundColor: Colors.gold + '10',
-  },
-  walletIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.lightGrey,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  walletInfo: {
-    flex: 1,
-  },
-  walletLabel: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.medium,
-    color: Colors.white,
-  },
-  walletLabelActive: {
-    color: Colors.gold,
-  },
-  walletAddress: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    fontFamily: 'monospace',
-    marginTop: 2,
-  },
-  activeBadge: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.gold + '20',
-  },
-  activeBadgeText: {
-    fontSize: FontSize.xs,
-    color: Colors.gold,
-    fontWeight: FontWeight.semibold,
-  },
-  confirmOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-  },
-  confirmTitle: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-    marginBottom: Spacing.xs,
-  },
-  confirmSub: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    marginBottom: Spacing.md,
-  },
-  confirmActions: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
-  confirmCancel: {
-    flex: 1,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    alignItems: 'center',
-  },
-  confirmCancelText: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-  },
-  confirmDelete: {
-    flex: 1,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.danger,
-    alignItems: 'center',
-  },
-  confirmDeleteText: {
-    fontSize: FontSize.sm,
-    color: Colors.white,
-    fontWeight: FontWeight.bold,
-  },
-})

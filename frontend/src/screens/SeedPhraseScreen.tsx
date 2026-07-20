@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
-import { View, Text, StyleSheet, ScrollView } from 'react-native'
+import { View, Text, ScrollView } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { NoirLogo } from '@/components/brand/NoirLogo'
 import { Button } from '@/components/Button'
 import { walletService, WalletKeys } from '@/services/wallet'
@@ -48,37 +47,37 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <PressableScale onPress={onBack} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.white} />
+    <SafeAreaView className="flex-1 bg-surfaceBg">
+      <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 16, flexGrow: 1 }}>
+        <PressableScale className="w-10 h-10 items-center justify-center mb-4" onPress={onBack}>
+          <Ionicons name="arrow-back" size={24} color="white" />
         </PressableScale>
 
         <NoirLogo variant="mark" size={48} />
-        <Text style={styles.title}>Your Recovery Phrase</Text>
-        <Text style={styles.subtitle}>
+        <Text className="text-xl text-white font-bold text-center mt-4">Your Recovery Phrase</Text>
+        <Text className="text-sm text-mutedWhite text-center mt-2 leading-5">
           Write these 12 words down in order. Never share them with anyone. This is the only way to recover your wallet.
         </Text>
 
-        <View style={styles.warningBox}>
-          <Ionicons name="shield-outline" size={20} color={Colors.warning} />
-          <Text style={styles.warningText}>
+        <View className="flex-row gap-2 rounded-xl p-4 mt-6 border" style={{ backgroundColor: '#F0B42910', borderColor: '#F0B42925' }}>
+          <Ionicons name="shield-outline" size={20} color="#F0B429" />
+          <Text className="flex-1 text-xs text-[#F0B429] leading-[18]">
             Anyone with this phrase can access ALL your funds. Store it offline, never screenshot it.
           </Text>
         </View>
 
-        <View style={styles.phraseBox}>
+        <View className="bg-cardBg rounded-2xl border border-borderGrey p-4 mt-6 min-h-[180] items-center justify-center">
           {!revealed ? (
-            <PressableScale style={styles.revealBtn} onPress={() => setRevealed(true)}>
-              <Ionicons name="eye-outline" size={24} color={Colors.gold} />
-              <Text style={styles.revealText}>Tap to reveal phrase</Text>
+            <PressableScale className="items-center gap-2 py-8" onPress={() => setRevealed(true)}>
+              <Ionicons name="eye-outline" size={24} color="#C6A15B" />
+              <Text className="text-base text-gold font-semibold">Tap to reveal phrase</Text>
             </PressableScale>
           ) : (
-            <View style={styles.phraseGrid}>
+            <View className="flex-row flex-wrap gap-1 w-full">
               {phrase.map((word, i) => (
-                <View key={i} style={styles.wordRow}>
-                  <Text style={styles.wordNum}>{i + 1}.</Text>
-                  <Text style={styles.word}>{word}</Text>
+                <View key={i} className="flex-row items-center w-[33%] py-1">
+                  <Text className="text-xs text-mutedWhite w-6 text-right mr-1">{i + 1}.</Text>
+                  <Text className="text-base text-white font-medium">{word}</Text>
                 </View>
               ))}
             </View>
@@ -86,15 +85,15 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
         </View>
 
         {revealed && (
-          <PressableScale style={styles.copyBtn} onPress={handleCopy}>
-            <Ionicons name="copy-outline" size={18} color={copied ? Colors.success : Colors.gold} />
-            <Text style={[styles.copyText, copied && { color: Colors.success }]}>
+          <PressableScale className="flex-row items-center justify-center gap-1 mt-4 py-2" onPress={handleCopy}>
+            <Ionicons name="copy-outline" size={18} color={copied ? '#3ED598' : '#C6A15B'} />
+            <Text className="text-sm text-gold font-medium" style={copied ? { color: '#3ED598' } : {}}>
               {copied ? 'Copied!' : 'Copy to Clipboard'}
             </Text>
           </PressableScale>
         )}
 
-        <View style={styles.actions}>
+        <View className="mt-8 gap-4">
           <Button
             label={loading ? "Creating Account..." : "I've Saved My Phrase"}
             onPress={handleConfirm}
@@ -105,23 +104,3 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
     </SafeAreaView>
   )
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surfaceBg },
-  scrollContent: { padding: Spacing.lg, paddingTop: Spacing.md, flexGrow: 1 },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md },
-  title: { fontSize: FontSize.xl, color: Colors.white, fontWeight: FontWeight.bold, textAlign: 'center', marginTop: Spacing.md },
-  subtitle: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', marginTop: Spacing.sm, lineHeight: 20 },
-  warningBox: { flexDirection: 'row', gap: Spacing.sm, backgroundColor: Colors.warning + '10', borderRadius: BorderRadius.md, padding: Spacing.md, marginTop: Spacing.lg, borderWidth: 1, borderColor: Colors.warning + '25' },
-  warningText: { flex: 1, fontSize: FontSize.xs, color: Colors.warning, lineHeight: 18 },
-  phraseBox: { backgroundColor: Colors.cardBg, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: Colors.borderGrey, padding: Spacing.md, marginTop: Spacing.lg, minHeight: 180, alignItems: 'center', justifyContent: 'center' },
-  revealBtn: { alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.xl },
-  revealText: { fontSize: FontSize.md, color: Colors.gold, fontWeight: FontWeight.semibold },
-  phraseGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, width: '100%' },
-  wordRow: { flexDirection: 'row', alignItems: 'center', width: '33%', paddingVertical: Spacing.xs },
-  wordNum: { fontSize: FontSize.xs, color: Colors.mutedWhite, width: 24, textAlign: 'right', marginRight: 4 },
-  word: { fontSize: FontSize.md, color: Colors.white, fontWeight: FontWeight.medium },
-  copyBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, marginTop: Spacing.md, paddingVertical: Spacing.sm },
-  copyText: { fontSize: FontSize.sm, color: Colors.gold, fontWeight: FontWeight.medium },
-  actions: { marginTop: Spacing.xl, gap: Spacing.md },
-})

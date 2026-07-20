@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, Text, TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors } from '@/constants/theme'
 import { getItem, setItem, removeItem } from '@/services/storage'
 
 const PIN_KEY = 'app_pin_hash'
@@ -104,32 +104,32 @@ export default function LockScreen() {
   if (hasPin === null) return null
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+    <SafeAreaView className="flex-1 bg-black">
+      <View className="flex-1 items-center justify-center px-8 gap-4">
         <Ionicons name="lock-closed-outline" size={48} color={Colors.gold} />
-        <Text style={styles.title}>
+        <Text className="text-xl font-bold text-white">
           {mode === 'setup' ? 'Set App PIN' : mode === 'confirm' ? 'Confirm PIN' : 'Enter PIN'}
         </Text>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <Text className="text-sm text-[#FF5A5F]">{error}</Text> : null}
 
-        <View style={styles.dots}>
+        <View className="flex-row gap-4 my-6">
           {Array.from({ length: MAX_LENGTH }).map((_, i) => (
-            <View key={i} style={[styles.dot, i < displayPin.length && styles.dotFilled]} />
+            <View key={i} className={`w-[14px] h-[14px] rounded-full bg-[#2C2C2C] border border-borderGrey ${i < displayPin.length ? 'bg-gold border-gold' : ''}`} />
           ))}
         </View>
 
-        <View style={styles.keypad}>
+        <View className="flex-row flex-wrap justify-center w-60 gap-4">
           {['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', ''].map((d, i) => {
             if (d === '') {
               return (
-                <View key={i} style={styles.keypadBtn}>
+                <View key={i} className="w-16 h-16 rounded-full items-center justify-center">
                   {i === 9 && mode !== 'setup' ? null : null}
                 </View>
               )
             }
             return (
-              <TouchableOpacity key={i} style={styles.keypadBtn} onPress={() => handleDigit(d)} activeOpacity={0.6}>
-                <Text style={styles.keypadDigit}>{d}</Text>
+              <TouchableOpacity key={i} className="w-16 h-16 rounded-full items-center justify-center" onPress={() => handleDigit(d)} activeOpacity={0.6}>
+                <Text className="text-[32px] font-medium text-white">{d}</Text>
               </TouchableOpacity>
             )
           })}
@@ -142,26 +142,11 @@ export default function LockScreen() {
         )}
 
         {mode === 'setup' && (
-          <TouchableOpacity onPress={skipSetup} style={styles.skipBtn}>
-            <Text style={styles.skipLabel}>Skip</Text>
+          <TouchableOpacity onPress={skipSetup} className="py-4">
+            <Text className="text-base text-mutedWhite">Skip</Text>
           </TouchableOpacity>
         )}
       </View>
     </SafeAreaView>
   )
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.black },
-  content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.xl, gap: Spacing.md },
-  title: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, color: Colors.white },
-  error: { fontSize: FontSize.sm, color: Colors.danger },
-  dots: { flexDirection: 'row', gap: Spacing.md, marginVertical: Spacing.lg },
-  dot: { width: 14, height: 14, borderRadius: 7, backgroundColor: Colors.lightGrey, borderWidth: 1, borderColor: Colors.borderGrey },
-  dotFilled: { backgroundColor: Colors.gold, borderColor: Colors.gold },
-  keypad: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', width: 240, gap: Spacing.md },
-  keypadBtn: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
-  keypadDigit: { fontSize: FontSize.xxl, fontWeight: FontWeight.medium, color: Colors.white },
-  skipBtn: { paddingVertical: Spacing.md },
-  skipLabel: { fontSize: FontSize.md, color: Colors.mutedWhite },
-})

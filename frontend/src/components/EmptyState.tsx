@@ -1,8 +1,8 @@
-import { View, Text, StyleSheet } from 'react-native'
+import { View, Text } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { DesignTokens, colorWithOpacity } from '@/constants/designTokens'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors } from '@/constants/theme'
 
 interface EmptyStateProps {
   icon?: keyof typeof Ionicons.glyphMap
@@ -23,77 +23,28 @@ export function EmptyState({
   testID,
 }: EmptyStateProps) {
   return (
-    <View style={styles.container} testID={testID} accessibilityLiveRegion="polite">
-      <View style={styles.iconWrap}>
+    <View className="items-center justify-center py-12 px-6" testID={testID} accessibilityLiveRegion="polite">
+      <View className="w-24 h-24 rounded-full items-center justify-center mb-6 border-2" style={{ backgroundColor: colorWithOpacity(Colors.gold, 0.1), borderColor: colorWithOpacity(Colors.gold, 0.2) }}>
         <Ionicons name={icon} size={DesignTokens.iconSize.xxl} color={Colors.gold} />
       </View>
-      <Text style={styles.title}>{title}</Text>
-      {description ? <Text style={styles.desc}>{description}</Text> : null}
+      <Text className="text-xl text-[#F5F5F5] font-semibold text-center mb-1">{title}</Text>
+      {description ? (
+        <Text className="text-sm text-mutedWhite text-center max-w-[280]" style={{ lineHeight: DesignTokens.typography.size.sm * DesignTokens.typography.lineHeight.normal }}>{description}</Text>
+      ) : null}
       {actionLabel && onAction && (
         <PressableScale
-          style={styles.actionButton}
+          className="flex-row items-center gap-2 py-4 px-6 rounded-full border border-gold mt-6 min-h-[44]"
+          style={{ backgroundColor: colorWithOpacity(Colors.gold, 0.1) }}
           onPress={onAction}
           accessibilityRole="button"
           accessibilityLabel={actionLabel}
         >
-          <Text style={styles.actionLabel}>{actionLabel}</Text>
+          <Text className="text-sm text-gold font-semibold">{actionLabel}</Text>
           <Ionicons name="arrow-forward" size={16} color={Colors.gold} />
         </PressableScale>
       )}
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.xxl,
-    paddingHorizontal: Spacing.lg,
-  },
-  iconWrap: {
-    width: 96,
-    height: 96,
-    borderRadius: BorderRadius.full,
-    backgroundColor: colorWithOpacity(Colors.gold, 0.1),
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.lg,
-    borderWidth: 2,
-    borderColor: colorWithOpacity(Colors.gold, 0.2),
-  },
-  title: {
-    fontSize: FontSize.lg,
-    color: Colors.offWhite,
-    fontWeight: FontWeight.semibold,
-    textAlign: 'center',
-    marginBottom: Spacing.xs,
-  },
-  desc: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    textAlign: 'center',
-    lineHeight: FontSize.sm * DesignTokens.typography.lineHeight.normal,
-    maxWidth: 280,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    borderColor: Colors.gold,
-    backgroundColor: colorWithOpacity(Colors.gold, 0.1),
-    marginTop: Spacing.lg,
-    minHeight: DesignTokens.touchTarget.minimum,
-  },
-  actionLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.gold,
-    fontWeight: FontWeight.semibold,
-  },
-})
 
 export default EmptyState

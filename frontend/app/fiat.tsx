@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
-import { View, Text, StyleSheet, ScrollView, TextInput } from 'react-native'
+import { View, Text, ScrollView, TextInput } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { PressableScale } from '@/components/brand/PressableScale'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors } from '@/constants/theme'
 import { Button } from '@/components/Button'
 import { NumericKeypad } from '@/components/NumericKeypad'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -102,74 +102,74 @@ export default function FiatScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView className="flex-1 bg-black">
+      <View className="flex-row items-center justify-between px-4 py-4">
         <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="close" size={24} color={Colors.white} />
         </PressableScale>
-        <Text style={styles.headerTitle}>
+        <Text className="text-xl font-bold text-white">
           {mode === 'cash-in' ? 'Cash In' : 'Cash Out'}
         </Text>
-        <View style={{ width: 24 }} />
+        <View className="w-6" />
       </View>
 
-      <View style={styles.modeRow}>
+      <View className="flex-row justify-center gap-2 px-4 mb-4">
         <PressableScale
-          style={[styles.modeChip, mode === 'cash-in' && styles.modeChipActive]}
+          className={`flex-row items-center gap-[6px] px-4 py-2 rounded-full bg-[#2C2C2C] border border-borderGrey ${mode === 'cash-in' ? 'bg-gold border-gold' : ''}`}
           onPress={() => { setMode('cash-in'); setError(null); setStep('amount') }}
         >
           <Ionicons name="arrow-down-outline" size={16} color={mode === 'cash-in' ? Colors.black : Colors.silver} />
-          <Text style={[styles.modeChipLabel, mode === 'cash-in' && styles.modeChipLabelActive]}>
+          <Text className={`text-sm text-mutedWhite font-semibold ${mode === 'cash-in' ? 'text-black' : ''}`}>
             Cash In
           </Text>
         </PressableScale>
         <PressableScale
-          style={[styles.modeChip, mode === 'cash-out' && styles.modeChipActive]}
+          className={`flex-row items-center gap-[6px] px-4 py-2 rounded-full bg-[#2C2C2C] border border-borderGrey ${mode === 'cash-out' ? 'bg-gold border-gold' : ''}`}
           onPress={() => { setMode('cash-out'); setError(null); setStep('amount') }}
         >
           <Ionicons name="arrow-up-outline" size={16} color={mode === 'cash-out' ? Colors.black : Colors.silver} />
-          <Text style={[styles.modeChipLabel, mode === 'cash-out' && styles.modeChipLabelActive]}>
+          <Text className={`text-sm text-mutedWhite font-semibold ${mode === 'cash-out' ? 'text-black' : ''}`}>
             Cash Out
           </Text>
         </PressableScale>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerClassName="px-4">
         {!balanceLoading && balances.length > 0 && (
-          <View style={styles.balanceCard}>
-            <Text style={styles.balanceTitle}>PDAX Balance</Text>
+          <View className="bg-cardBg rounded-xl border border-borderGrey p-4 mt-4">
+            <Text className="text-sm text-mutedWhite font-semibold mb-2">PDAX Balance</Text>
             {balances.map((b, i) => (
-              <View key={i} style={styles.balanceRow}>
-                <Text style={styles.balanceCurrency}>{b.currency}</Text>
-                <Text style={styles.balanceAmount}>{b.available}</Text>
+              <View key={i} className="flex-row justify-between py-1">
+                <Text className="text-sm text-white font-medium">{b.currency}</Text>
+                <Text className="text-sm text-gold font-bold">{b.available}</Text>
               </View>
             ))}
           </View>
         )}
 {mode === 'cash-out' && step === 'beneficiary' ? (
-            <View style={styles.beneficiarySection}>
-              <Text style={styles.beneficiaryTitle}>Bank Account Details</Text>
-              <Text style={styles.textFieldLabel}>Bank Name</Text>
+            <View className="py-4">
+              <Text className="text-base font-bold text-white mb-4">Bank Account Details</Text>
+              <Text className="text-sm text-mutedWhite font-semibold mb-1 mt-2">Bank Name</Text>
               <TextInput
-                style={styles.textField}
+                className="bg-[#2C2C2C] rounded-xl border border-borderGrey px-4 py-2 text-base text-white"
                 value={beneficiary.bankName}
                 onChangeText={(t) => setBeneficiary((prev) => ({ ...prev, bankName: t }))}
                 placeholder="e.g. BDO, BPI, Metrobank"
                 placeholderTextColor={Colors.mutedWhite}
                 autoCapitalize="words"
               />
-              <Text style={styles.textFieldLabel}>Account Holder</Text>
+              <Text className="text-sm text-mutedWhite font-semibold mb-1 mt-2">Account Holder</Text>
               <TextInput
-                style={styles.textField}
+                className="bg-[#2C2C2C] rounded-xl border border-borderGrey px-4 py-2 text-base text-white"
                 value={beneficiary.accountName}
                 onChangeText={(t) => setBeneficiary((prev) => ({ ...prev, accountName: t }))}
                 placeholder="Full name as registered with bank"
                 placeholderTextColor={Colors.mutedWhite}
                 autoCapitalize="words"
               />
-              <Text style={styles.textFieldLabel}>Account Number</Text>
+              <Text className="text-sm text-mutedWhite font-semibold mb-1 mt-2">Account Number</Text>
               <TextInput
-                style={styles.textField}
+                className="bg-[#2C2C2C] rounded-xl border border-borderGrey px-4 py-2 text-base text-white"
                 value={beneficiary.accountNumber}
                 onChangeText={(t) => setBeneficiary((prev) => ({ ...prev, accountNumber: t }))}
                 placeholder="10-12 digit account number"
@@ -178,13 +178,13 @@ export default function FiatScreen() {
               />
             </View>
           ) : (
-            <View style={styles.amountSection}>
-              <Text style={styles.currency}>PHP</Text>
-              <Text style={styles.amountDisplay}>
+            <View className="items-center py-8">
+              <Text className="text-base text-mutedWhite font-semibold">PHP</Text>
+              <Text className="text-[64px] font-heavy text-white tracking-tight mt-2">
                 {amount || '0'}
-                <Text style={styles.amountCursor}>|</Text>
+                <Text className="text-gold">|</Text>
               </Text>
-              <Text style={styles.amountHint}>
+              <Text className="text-sm text-mutedWhite mt-2 text-center">
                 {mode === 'cash-in' ? 'Deposit PHP from your bank' : 'Withdraw PHP to your bank'}
               </Text>
             </View>
@@ -192,9 +192,9 @@ export default function FiatScreen() {
           {error && <ErrorMessage message={error} variant="inline" />}
       </ScrollView>
 
-      <View style={styles.bottom}>
+      <View className="px-4 pb-4">
         <NumericKeypad value={amount} onChangeValue={setAmount} />
-        <View style={styles.actionRow}>
+        <View className="flex-row gap-2 mt-4">
           <Button
             variant="ghost"
             label={mode === 'cash-in' ? 'Switch to Cash Out' : 'Switch to Cash In'}
@@ -214,7 +214,7 @@ export default function FiatScreen() {
               : 'Confirm Cash Out'}
             onPress={handleSubmit}
             disabled={amountCents <= 0 || busy}
-            style={mode === 'cash-out' && step === 'beneficiary' ? styles.halfBtn : undefined}
+            style={mode === 'cash-out' && step === 'beneficiary' ? { flex: 1 } : undefined}
           />
         </View>
       </View>
@@ -229,46 +229,3 @@ export default function FiatScreen() {
     </SafeAreaView>
   )
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.black },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
-  },
-  headerTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.white },
-  modeRow: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.md, marginBottom: Spacing.md },
-  modeChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full, backgroundColor: Colors.lightGrey,
-    borderWidth: 1, borderColor: Colors.borderGrey,
-  },
-  modeChipActive: { backgroundColor: Colors.gold, borderColor: Colors.gold },
-  modeChipLabel: { fontSize: FontSize.sm, color: Colors.mutedWhite, fontWeight: FontWeight.semibold },
-  modeChipLabelActive: { color: Colors.black },
-  scrollContent: { paddingHorizontal: Spacing.md },
-  balanceCard: {
-    backgroundColor: Colors.cardBg, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.borderGrey,
-    padding: Spacing.md, marginTop: Spacing.md,
-  },
-  balanceTitle: { fontSize: FontSize.sm, color: Colors.mutedWhite, fontWeight: FontWeight.semibold, marginBottom: Spacing.sm },
-  balanceRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
-  balanceCurrency: { fontSize: FontSize.sm, color: Colors.white, fontWeight: FontWeight.medium },
-  balanceAmount: { fontSize: FontSize.sm, color: Colors.gold, fontWeight: FontWeight.bold },
-  amountSection: { alignItems: 'center', paddingVertical: Spacing.xl },
-  beneficiarySection: { paddingVertical: Spacing.md },
-  beneficiaryTitle: { fontSize: FontSize.md, fontWeight: FontWeight.bold, color: Colors.white, marginBottom: Spacing.md },
-  textFieldLabel: { fontSize: FontSize.sm, color: Colors.mutedWhite, fontWeight: FontWeight.semibold, marginBottom: 4, marginTop: Spacing.sm },
-  textField: {
-    backgroundColor: Colors.lightGrey, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.borderGrey,
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, fontSize: FontSize.md, color: Colors.white,
-  },
-  currency: { fontSize: FontSize.md, color: Colors.mutedWhite, fontWeight: FontWeight.semibold },
-  amountDisplay: { fontSize: FontSize.hero, fontWeight: FontWeight.heavy, color: Colors.white, letterSpacing: -1, marginTop: Spacing.sm },
-  amountCursor: { color: Colors.gold },
-  amountHint: { fontSize: FontSize.sm, color: Colors.mutedWhite, marginTop: Spacing.sm, textAlign: 'center' },
-  bottom: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.md },
-  actionRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
-  halfBtn: { flex: 1 },
-})

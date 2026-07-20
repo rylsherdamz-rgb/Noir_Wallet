@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, Fragment } from 'react'
 import {
   View,
   Text,
-  StyleSheet,
   TextInput,
   Animated,
   Easing,
@@ -240,68 +239,68 @@ export function DeviceProvisioningScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.top}>
+    <SafeAreaView className="flex-1 bg-surfaceBg">
+      <View className="flex-1 px-6 justify-between pt-6 pb-8">
+        <View className="items-center">
           <NoirLogo variant="mark" size={48} />
-          <Text style={styles.title}>Link Your Device</Text>
-          <Text style={styles.subtitle}>
+          <Text className="text-2xl text-white font-bold mt-4">Link Your Device</Text>
+          <Text className="text-sm text-mutedWhite text-center mt-2 leading-5">
             Tap your {user?.displayName ? `${user.displayName}'s ` : ''}NFC tag against the back of your phone to link it
           </Text>
         </View>
 
-        <View style={styles.center}>
+        <View className="flex-1 items-center justify-center">
           {step === 'intro' && !isEnabled && (
-            <View style={styles.nfcOffWrap}>
+            <View className="items-center gap-4">
               <Ionicons name="radio-outline" size={64} color={Colors.warning} />
-              <Text style={styles.nfcOffTitle}>NFC is Off</Text>
-              <Text style={styles.nfcOffSub}>
+              <Text className="text-xl text-[#F0B429] font-bold">NFC is Off</Text>
+              <Text className="text-sm text-mutedWhite text-center leading-5 px-8">
                 Enable NFC in your phone's settings to link a device
               </Text>
             </View>
           )}
           {step === 'intro' && isEnabled && (
-            <View style={styles.illustration}>
-              <View style={styles.phoneBody}>
-                <View style={styles.phoneScreen}>
-                  <View style={styles.phoneNotch} />
+            <View className="flex-row items-center gap-4 flex-shrink">
+              <View className="w-14 h-[84] rounded-[14px] border-2 border-mutedWhite bg-surfaceBg relative items-center justify-center overflow-visible">
+                <View className="w-11 h-[62] rounded-[6px] bg-[#121212] items-center pt-2 relative">
+                  <View className="w-4 h-1 rounded-[2px] bg-midGrey" />
                 </View>
-                <View style={styles.antenna}>
+                <View className="absolute w-[38] h-[38] rounded-full bg-[#C6A15B20] items-center justify-center border-[1.5px] border-[#C6A15B30]" style={{ top: '50%', left: '50%', transform: [{ translateX: -19 }, { translateY: -19 }] }}>
                   <Ionicons name="radio" size={20} color={Colors.gold} />
                 </View>
               </View>
               <Ionicons name="arrow-forward" size={18} color={Colors.mutedWhite} />
-              <View style={styles.cardImg}>
+              <View className="w-14 h-[84] rounded-lg bg-[#2C2C2C] items-center justify-center border border-borderGrey">
                 <Ionicons name="card-outline" size={24} color={Colors.white} />
               </View>
             </View>
           )}
 
           {step === 'scanning' && (
-            <View style={styles.scanWrap}>
-              <Animated.View style={[styles.scanRing, { transform: [{ scale: pulse }] }]} />
-              <View style={styles.scanCenter}>
+            <View className="items-center justify-center w-[180] h-[180]">
+              <Animated.View className="absolute w-[140] h-[140] rounded-full border-2 border-gold" style={{ left: '50%', top: '50%', marginLeft: -70, marginTop: -70, transform: [{ scale: pulse }] }} />
+              <View className="w-20 h-20 rounded-full bg-[#C6A15B15] items-center justify-center">
                 <Ionicons name="radio" size={40} color={Colors.gold} />
               </View>
-              <Text style={styles.scanText}>Tap your NFC tag against the phone</Text>
+              <Text className="text-sm text-gold mt-4 font-medium">Tap your NFC tag against the phone</Text>
             </View>
           )}
 
           {step === 'confirm' && (
-            <View style={styles.resultWrap}>
+            <View className="items-center">
               <Ionicons name="checkmark-circle" size={72} color={Colors.success} />
-              <Text style={styles.successTitle}>Tag Read</Text>
-              <Text style={styles.successSub}>Ready to register {displayLabel} on Stellar</Text>
+              <Text className="text-2xl text-[#3ED598] font-bold mt-4">Tag Read</Text>
+              <Text className="text-sm text-mutedWhite text-center mt-1">Ready to register {displayLabel} on Stellar</Text>
             </View>
           )}
 
           {step === 'registering' && (
-            <View style={styles.registerWrap}>
+            <View className="items-center">
               <Animated.View style={{ transform: [{ rotate: spinner }] }}>
                 <Ionicons name="sync" size={48} color={Colors.gold} />
               </Animated.View>
-              <Text style={styles.resultText}>{statusMessage || 'Registering on-chain...'}</Text>
-              <View style={styles.stepsWrap}>
+              <Text className="text-base text-gold mt-4 font-medium">{statusMessage || 'Registering on-chain...'}</Text>
+              <View className="mt-6 self-stretch px-8">
                 <StepRow done={true} active={false} label="NFC tag read" />
                 <StepRow done={false} active={true} label={statusMessage || 'Working...'} />
               </View>
@@ -309,17 +308,17 @@ export function DeviceProvisioningScreen() {
           )}
 
           {step === 'success' && (
-            <View style={styles.resultWrap}>
+            <View className="items-center">
               <Ionicons name="checkmark-circle" size={72} color={Colors.success} />
-              <Text style={styles.successTitle}>Linked!</Text>
-              <Text style={styles.successSub}>{displayLabel} is now paired and registered on-chain</Text>
-              <View style={styles.successDetail}>
+              <Text className="text-2xl text-[#3ED598] font-bold mt-4">Linked!</Text>
+              <Text className="text-sm text-mutedWhite text-center mt-1">{displayLabel} is now paired and registered on-chain</Text>
+              <View className="flex-row items-center gap-1 mt-2">
                 {nfcWritten === true
                   ? <Ionicons name="checkmark" size={14} color={Colors.success} />
                   : nfcWritten === false
                     ? <Ionicons name="close-circle" size={14} color={Colors.danger} />
                     : <Ionicons name="remove-circle-outline" size={14} color={Colors.mutedWhite} />}
-                <Text style={[styles.successDetailText, nfcWritten === false && { color: Colors.danger }]}>
+                <Text className={`text-xs ${nfcWritten === false ? 'text-[#FF5A5F]' : 'text-mutedWhite'}`}>
                   {nfcWritten === true
                     ? 'NFC tag written'
                     : nfcWritten === false
@@ -327,60 +326,60 @@ export function DeviceProvisioningScreen() {
                       : 'NFC tag write skipped'}
                 </Text>
               </View>
-              <View style={styles.successDetail}>
+              <View className="flex-row items-center gap-1 mt-2">
                 <Ionicons name="checkmark" size={14} color={Colors.success} />
-                <Text style={styles.successDetailText}>Device registered on Stellar</Text>
+                <Text className="text-xs text-mutedWhite">Device registered on Stellar</Text>
               </View>
               {agentCreated && (
-                <View style={styles.successDetail}>
+                <View className="flex-row items-center gap-1 mt-2">
                   <Ionicons name="checkmark" size={14} color={Colors.success} />
-                  <Text style={styles.successDetailText}>Payment agent enrolled</Text>
+                  <Text className="text-xs text-mutedWhite">Payment agent enrolled</Text>
                 </View>
               )}
 
               {agentCreated && (
-                <View style={styles.agentBadge}>
+                <View className="flex-row items-center gap-1 mt-4 px-4 py-2 rounded-full bg-[#C6A15B15] border border-[#C6A15B25]">
                   <Ionicons name="flash-outline" size={14} color={Colors.gold} />
-                  <Text style={styles.agentBadgeText}>x402 agent ready — tap to pay without signing</Text>
+                  <Text className="text-xs text-gold font-medium">x402 agent ready — tap to pay without signing</Text>
                 </View>
               )}
             </View>
           )}
 
           {step === 'error' && (
-            <View style={styles.resultWrap}>
+            <View className="items-center">
               <Ionicons name="close-circle" size={72} color={Colors.danger} />
-              <Text style={[styles.successTitle, { color: Colors.danger }]}>{registerError || error || 'Failed'}</Text>
-              <Text style={styles.successSub}>{registerError ? 'Tap Try Again to retry registration' : 'Hold the tag steady against the back of your phone'}</Text>
+              <Text style={{ color: Colors.danger }} className="text-2xl text-[#FF5A5F] font-bold mt-4">{registerError || error || 'Failed'}</Text>
+              <Text className="text-sm text-mutedWhite text-center mt-1">{registerError ? 'Tap Try Again to retry registration' : 'Hold the tag steady against the back of your phone'}</Text>
             </View>
           )}
         </View>
 
         {step === 'intro' && isEnabled && (
-          <View style={styles.labelSection}>
-            <Text style={styles.labelTitle}>Name this device</Text>
-            <View style={styles.labelRow}>
+          <View className="mb-6">
+            <Text className="text-sm text-mutedWhite mb-2 text-center">Name this device</Text>
+            <View className="flex-row flex-wrap justify-center gap-2">
               {LABELS.map((l) => (
                 <PressableScale
                   key={l}
-                  style={[styles.chip, label === l && styles.chipActive]}
+                  className={`flex-row items-center px-4 py-2 rounded-full bg-[#2C2C2C] border border-borderGrey ${label === l ? 'bg-[#C6A15B20] border-gold' : ''}`}
                   onPress={() => { setLabel(l); setCustomName('') }}
                 >
-                  <Text style={[styles.chipText, label === l && styles.chipTextActive]}>{l}</Text>
+                  <Text className={`text-sm text-mutedWhite ${label === l ? 'text-gold font-semibold' : ''}`}>{l}</Text>
                 </PressableScale>
               ))}
               <PressableScale
-                style={[styles.chip, label === OTHER && styles.chipActive]}
+                className={`flex-row items-center px-4 py-2 rounded-full bg-[#2C2C2C] border border-borderGrey ${label === OTHER ? 'bg-[#C6A15B20] border-gold' : ''}`}
                 onPress={() => { setLabel(OTHER); setCustomName(''); inputRef.current?.focus() }}
               >
                 <Ionicons name="pencil-outline" size={13} color={label === OTHER ? Colors.gold : Colors.mutedWhite} />
-                <Text style={[styles.chipText, label === OTHER && styles.chipTextActive, { marginLeft: 4 }]}>Other</Text>
+                <Text className={`text-sm text-mutedWhite ml-1 ${label === OTHER ? 'text-gold font-semibold' : ''}`}>Other</Text>
               </PressableScale>
             </View>
             {label === OTHER && (
               <TextInput
                 ref={inputRef}
-                style={styles.customInput}
+                className="mt-2 px-4 py-4 rounded-xl bg-[#2C2C2C] border border-[#C6A15B50] text-white text-base text-center"
                 placeholder="Enter custom name..."
                 placeholderTextColor={Colors.mutedWhite}
                 value={customName}
@@ -391,66 +390,63 @@ export function DeviceProvisioningScreen() {
           </View>
         )}
         {!isSupported && (
-          <Text style={styles.unsupported}>NFC unavailable on this device</Text>
+          <Text className="text-xs text-[#F0B429] text-center mt-2">NFC unavailable on this device</Text>
         )}
 
-        <View style={styles.actions}>
+        <View className="gap-4">
           {step === 'intro' && !isEnabled && (
             <PressableScale
-              style={[styles.primaryBtn, !isSupported && styles.btnDisabled]}
+              className={`flex-row items-center justify-center bg-gold py-4 rounded-xl gap-2 min-h-[52] ${!isSupported ? 'bg-[#2C2C2C]' : ''}`}
               onPress={goToNfcSettings}
               disabled={!isSupported}
-             
             >
               <Ionicons name="settings-outline" size={20} color={Colors.black} />
-              <Text style={styles.primaryBtnText}>Open NFC Settings</Text>
+              <Text className="text-xl font-bold text-black">Open NFC Settings</Text>
             </PressableScale>
           )}
           {step === 'intro' && isEnabled && (
             <PressableScale
-              style={styles.primaryBtn}
+              className="flex-row items-center justify-center bg-gold py-4 rounded-xl gap-2 min-h-[52]"
               onPress={handleScan}
-             
             >
               <Ionicons name="radio" size={20} color={Colors.black} />
-              <Text style={styles.primaryBtnText}>Scan My Tag</Text>
+              <Text className="text-xl font-bold text-black">Scan My Tag</Text>
             </PressableScale>
           )}
           {step === 'registering' && (
             <PressableScale
-              style={[styles.primaryBtn, styles.btnDisabled]}
+              className="flex-row items-center justify-center bg-[#2C2C2C] py-4 rounded-xl gap-2 min-h-[52]"
               disabled
-             
             >
               <Ionicons name="sync" size={20} color={Colors.gold} />
-              <Text style={[styles.primaryBtnText, { color: Colors.gold }]}>Registering...</Text>
+              <Text className="text-xl font-bold text-gold">Registering...</Text>
             </PressableScale>
           )}
           {step === 'success' && (
             <>
-              <PressableScale style={styles.secondaryBtn} onPress={() => router.push('/fiat')}>
+              <PressableScale className="flex-row items-center justify-center bg-transparent border border-gold py-4 rounded-xl gap-2 min-h-[52]" onPress={() => router.push('/fiat')}>
                 <Ionicons name="cash-outline" size={20} color={Colors.white} />
-                <Text style={styles.secondaryBtnText}>Cash In via PDAX</Text>
+                <Text className="text-xl font-bold text-gold">Cash In via PDAX</Text>
               </PressableScale>
-              <PressableScale style={styles.primaryBtn} onPress={reset}>
-                <Text style={styles.primaryBtnText}>Done</Text>
+              <PressableScale className="flex-row items-center justify-center bg-gold py-4 rounded-xl gap-2 min-h-[52]" onPress={reset}>
+                <Text className="text-xl font-bold text-black">Done</Text>
               </PressableScale>
             </>
           )}
           {step === 'error' && registerError?.includes('does not exist on-chain') && (
             <>
-              <PressableScale style={styles.secondaryBtn} onPress={fundWallet}>
+              <PressableScale className="flex-row items-center justify-center bg-transparent border border-gold py-4 rounded-xl gap-2 min-h-[52]" onPress={fundWallet}>
                 <Ionicons name="water-outline" size={20} color={Colors.white} />
-                <Text style={styles.secondaryBtnText}>Fund Wallet (Friendbot)</Text>
+                <Text className="text-xl font-bold text-gold">Fund Wallet (Friendbot)</Text>
               </PressableScale>
-              <PressableScale style={styles.primaryBtn} onPress={reset}>
-                <Text style={styles.primaryBtnText}>Try Again</Text>
+              <PressableScale className="flex-row items-center justify-center bg-gold py-4 rounded-xl gap-2 min-h-[52]" onPress={reset}>
+                <Text className="text-xl font-bold text-black">Try Again</Text>
               </PressableScale>
             </>
           )}
           {step === 'error' && !registerError?.includes('does not exist on-chain') && (
-            <PressableScale style={styles.primaryBtn} onPress={reset}>
-              <Text style={styles.primaryBtnText}>Try Again</Text>
+            <PressableScale className="flex-row items-center justify-center bg-gold py-4 rounded-xl gap-2 min-h-[52]" onPress={reset}>
+              <Text className="text-xl font-bold text-black">Try Again</Text>
             </PressableScale>
           )}
         </View>
@@ -462,53 +458,53 @@ export function DeviceProvisioningScreen() {
         animationType="fade"
         onRequestClose={() => setStep('error')}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHandle} />
-            <View style={styles.modalIconWrap}>
+        <View className="flex-1 bg-black/70 justify-end">
+          <View className="bg-surfaceBg rounded-t-3xl px-6 pt-4 pb-20 items-center">
+            <View className="w-9 h-1 rounded-[2px] bg-midGrey mb-6" />
+            <View className="w-[72] h-[72] rounded-full bg-[#C6A15B15] border-[1.5px] border-[#C6A15B30] items-center justify-center mb-4">
               <Ionicons name="shield-checkmark-outline" size={48} color={Colors.gold} />
             </View>
-            <Text style={styles.modalTitle}>Signature Request</Text>
-            <Text style={styles.modalSub}>
-              Register <Text style={styles.modalBold}>{displayLabel}</Text> on Stellar
+            <Text className="text-2xl text-white font-bold mb-1">Signature Request</Text>
+            <Text className="text-sm text-mutedWhite text-center mb-6">
+              Register <Text className="font-bold text-white">{displayLabel}</Text> on Stellar
             </Text>
 
-            <View style={styles.modalDetail}>
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Contract</Text>
-                <Text style={styles.modalValue} numberOfLines={1}>
+            <View className="w-full bg-[#2C2C2C] rounded-xl p-4 gap-2 mb-2">
+              <View className="flex-row justify-between items-center">
+                <Text className="text-sm text-mutedWhite">Contract</Text>
+                <Text className="text-sm text-white font-medium max-w-[60%]" numberOfLines={1}>
                   DeviceRegistry
                 </Text>
               </View>
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Action</Text>
-                <Text style={styles.modalValue}>register_device</Text>
+              <View className="flex-row justify-between items-center">
+                <Text className="text-sm text-mutedWhite">Action</Text>
+                <Text className="text-sm text-white font-medium max-w-[60%]">register_device</Text>
               </View>
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Device</Text>
-                <Text style={styles.modalValue}>{displayLabel}</Text>
+              <View className="flex-row justify-between items-center">
+                <Text className="text-sm text-mutedWhite">Device</Text>
+                <Text className="text-sm text-white font-medium max-w-[60%]">{displayLabel}</Text>
               </View>
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Network</Text>
-                <Text style={styles.modalValue}>Stellar {stellarService.networkName === 'testnet' ? 'Testnet' : 'Mainnet'}</Text>
+              <View className="flex-row justify-between items-center">
+                <Text className="text-sm text-mutedWhite">Network</Text>
+                <Text className="text-sm text-white font-medium max-w-[60%]">Stellar {stellarService.networkName === 'testnet' ? 'Testnet' : 'Mainnet'}</Text>
               </View>
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Wallet</Text>
-                <Text style={styles.modalValue} numberOfLines={1}>
+              <View className="flex-row justify-between items-center">
+                <Text className="text-sm text-mutedWhite">Wallet</Text>
+                <Text className="text-sm text-white font-medium max-w-[60%]" numberOfLines={1}>
                   {user?.stellarPublicKey?.slice(0, 12)}…
                 </Text>
               </View>
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Balance</Text>
-                <Text style={[styles.modalValue, balanceXlm === '0' && { color: Colors.danger }]}>
+              <View className="flex-row justify-between items-center">
+                <Text className="text-sm text-mutedWhite">Balance</Text>
+                <Text className={`text-sm text-white font-medium max-w-[60%] ${balanceXlm === '0' ? 'text-[#FF5A5F]' : ''}`}>
                   {balanceXlm ? `${balanceXlm} XLM` : 'Checking...'}
                 </Text>
               </View>
             </View>
 
-            <View style={styles.modalFeeRow}>
+            <View className="flex-row items-center gap-1 mb-6">
               <Ionicons name="information-circle-outline" size={14} color={Colors.mutedWhite} />
-              <Text style={styles.modalFeeText}>
+              <Text className="text-xs text-mutedWhite">
                 {balanceXlm === '0' || balanceXlm === 'Funding...'
                   ? 'Funding wallet via Friendbot...'
                   : balanceXlm
@@ -518,22 +514,20 @@ export function DeviceProvisioningScreen() {
               </Text>
             </View>
 
-            <View style={styles.modalActions}>
+            <View className="flex-row gap-4 w-full">
               <PressableScale
-                style={styles.modalCancelBtn}
+                className="flex-1 py-4 rounded-xl border border-borderGrey items-center justify-center"
                 onPress={() => setStep('error')}
-               
               >
-                <Text style={styles.modalCancelText}>Reject</Text>
+                <Text className="text-base text-mutedWhite font-semibold">Reject</Text>
               </PressableScale>
               <PressableScale
-                style={[styles.modalSignBtn, (balanceXlm === '0' || funding) && styles.btnDisabled]}
+                className={`flex-2 flex-row py-4 rounded-xl bg-gold items-center justify-center gap-2 ${(balanceXlm === '0' || funding) ? 'bg-[#2C2C2C]' : ''}`}
                 onPress={handleRegister}
                 disabled={balanceXlm === '0' || funding}
-               
               >
                 <Ionicons name="pencil-outline" size={18} color={balanceXlm === '0' || funding ? Colors.mutedWhite : Colors.black} />
-                <Text style={[styles.modalSignText, (balanceXlm === '0' || funding) && { color: Colors.mutedWhite }]}>
+                <Text className={`text-base font-bold ${(balanceXlm === '0' || funding) ? 'text-mutedWhite' : 'text-black'}`}>
                   {funding ? 'Funding...' : balanceXlm === '0' ? 'No XLM' : 'Sign'}
                 </Text>
               </PressableScale>
@@ -547,427 +541,17 @@ export function DeviceProvisioningScreen() {
 
 function StepRow({ done, active, label }: { done: boolean; active: boolean; label: string }) {
   return (
-    <View style={stepRow}>
-      <View style={[stepDot, done && stepDotDone, active && stepDotActive]}>
+    <View className="flex-row items-center gap-[10px] py-1.5">
+      <View
+        className={`w-[18] h-[18] rounded-full border-2 items-center justify-center ${done ? 'bg-[#3ED598] border-[#3ED598]' : ''} ${active ? 'border-gold' : ''} ${!done && !active ? 'border-midGrey' : ''}`}
+      >
         {done ? (
           <Ionicons name="checkmark" size={10} color={Colors.black} />
         ) : active ? (
-          <View style={stepDotInner} />
+          <View className="w-1.5 h-1.5 rounded-full bg-gold" />
         ) : null}
       </View>
-      <Text style={[stepLabel, active && stepLabelActive]}>{label}</Text>
+      <Text className={`text-sm ${active ? 'text-gold font-medium' : 'text-mutedWhite'}`}>{label}</Text>
     </View>
   )
 }
-
-const stepRow: any = { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 }
-const stepDot: any = { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: Colors.midGrey, alignItems: 'center', justifyContent: 'center' }
-const stepDotDone: any = { backgroundColor: Colors.success, borderColor: Colors.success }
-const stepDotActive: any = { borderColor: Colors.gold }
-const stepDotInner: any = { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.gold }
-const stepLabel: any = { fontSize: FontSize.sm, color: Colors.mutedWhite }
-const stepLabelActive: any = { color: Colors.gold, fontWeight: FontWeight.medium }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.surfaceBg,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: Spacing.lg,
-    justifyContent: 'space-between',
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.xl,
-  },
-  top: {
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: FontSize.xl,
-    color: Colors.white,
-    fontWeight: FontWeight.bold,
-    marginTop: Spacing.md,
-  },
-  subtitle: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    textAlign: 'center',
-    marginTop: Spacing.sm,
-    lineHeight: 20,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  illustration: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    flexShrink: 1,
-  },
-  phoneBody: {
-    width: 56,
-    height: 84,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: Colors.mutedWhite,
-    backgroundColor: Colors.surfaceBg,
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'visible',
-  },
-  phoneScreen: {
-    width: 44,
-    height: 62,
-    borderRadius: 6,
-    backgroundColor: Colors.darkGrey,
-    alignItems: 'center',
-    paddingTop: 8,
-    position: 'relative',
-  },
-  phoneNotch: {
-    width: 16,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.midGrey,
-  },
-  antenna: {
-    position: 'absolute',
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: Colors.gold + '20',
-    borderWidth: 1.5,
-    borderColor: Colors.gold + '30',
-    alignItems: 'center',
-    justifyContent: 'center',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -19 }, { translateY: -19 }],
-  },
-  cardImg: {
-    width: 56,
-    height: 84,
-    borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.lightGrey,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  scanWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 180,
-    height: 180,
-  },
-  scanRing: {
-    position: 'absolute',
-    left: '50%',
-    top: '50%',
-    width: 140,
-    height: 140,
-    marginLeft: -70,
-    marginTop: -70,
-    borderRadius: 70,
-    borderWidth: 2,
-    borderColor: Colors.gold,
-  },
-  scanCenter: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.gold + '15',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scanText: {
-    fontSize: FontSize.sm,
-    color: Colors.gold,
-    marginTop: Spacing.md,
-    fontWeight: FontWeight.medium,
-  },
-  resultWrap: {
-    alignItems: 'center',
-  },
-  resultText: {
-    fontSize: FontSize.md,
-    color: Colors.gold,
-    marginTop: Spacing.md,
-    fontWeight: FontWeight.medium,
-  },
-  registerWrap: {
-    alignItems: 'center',
-  },
-  stepsWrap: {
-    marginTop: Spacing.lg,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.xl,
-  },
-  successTitle: {
-    fontSize: FontSize.xl,
-    color: Colors.success,
-    fontWeight: FontWeight.bold,
-    marginTop: Spacing.md,
-  },
-  successSub: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    textAlign: 'center',
-    marginTop: Spacing.xs,
-  },
-  labelSection: {
-    marginBottom: Spacing.lg,
-  },
-  labelTitle: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    marginBottom: Spacing.sm,
-    textAlign: 'center',
-  },
-  labelRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.lightGrey,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  chipActive: {
-    backgroundColor: Colors.gold + '20',
-    borderColor: Colors.gold,
-  },
-  chipText: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-  },
-  chipTextActive: {
-    color: Colors.gold,
-    fontWeight: FontWeight.semibold,
-  },
-  agentBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    marginTop: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.gold + '15',
-    borderWidth: 1,
-    borderColor: Colors.gold + '25',
-  },
-  agentBadgeText: {
-    fontSize: FontSize.xs,
-    color: Colors.gold,
-    fontWeight: FontWeight.medium,
-  },
-  customInput: {
-    marginTop: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.lightGrey,
-    borderWidth: 1,
-    borderColor: Colors.gold + '50',
-    color: Colors.white,
-    fontSize: FontSize.md,
-    textAlign: 'center',
-  },
-  nfcOffWrap: {
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  nfcOffTitle: {
-    fontSize: FontSize.lg,
-    color: Colors.warning,
-    fontWeight: FontWeight.bold,
-  },
-  nfcOffSub: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: Spacing.xl,
-  },
-  unsupported: {
-    fontSize: FontSize.xs,
-    color: Colors.warning,
-    textAlign: 'center',
-    marginTop: Spacing.sm,
-  },
-  actions: {
-    gap: Spacing.md,
-  },
-  primaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.gold,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    gap: Spacing.sm,
-    minHeight: 52,
-  },
-  primaryBtnText: {
-    color: Colors.black,
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-  },
-  btnDisabled: {
-    backgroundColor: Colors.lightGrey,
-  },
-  secondaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: Colors.gold,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    gap: Spacing.sm,
-    minHeight: 52,
-  },
-  secondaryBtnText: {
-    color: Colors.gold,
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'flex-end',
-  },
-  modalCard: {
-    backgroundColor: Colors.surfaceBg,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.xl + Spacing.lg,
-    alignItems: 'center',
-  },
-  modalHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.midGrey,
-    marginBottom: Spacing.lg,
-  },
-  modalIconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: Colors.gold + '15',
-    borderWidth: 1.5,
-    borderColor: Colors.gold + '30',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.md,
-  },
-  modalTitle: {
-    fontSize: FontSize.xl,
-    color: Colors.white,
-    fontWeight: FontWeight.bold,
-    marginBottom: Spacing.xs,
-  },
-  modalSub: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    textAlign: 'center',
-    marginBottom: Spacing.lg,
-  },
-  modalBold: {
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-  },
-  modalDetail: {
-    width: '100%',
-    backgroundColor: Colors.lightGrey,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  modalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  modalLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-  },
-  modalValue: {
-    fontSize: FontSize.sm,
-    color: Colors.white,
-    fontWeight: FontWeight.medium,
-    maxWidth: '60%',
-  },
-  modalFeeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    marginBottom: Spacing.lg,
-  },
-  modalFeeText: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    width: '100%',
-  },
-  modalCancelBtn: {
-    flex: 1,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalCancelText: {
-    fontSize: FontSize.lg,
-    color: Colors.mutedWhite,
-    fontWeight: FontWeight.semibold,
-  },
-  modalSignBtn: {
-    flex: 2,
-    flexDirection: 'row',
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.gold,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-  },
-  modalSignText: {
-    fontSize: FontSize.lg,
-    color: Colors.black,
-    fontWeight: FontWeight.bold,
-  },
-  successDetail: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    marginTop: Spacing.sm,
-  },
-  successDetailText: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-  },
-})

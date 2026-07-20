@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { View, ActivityIndicator, Animated, StyleSheet, Image } from 'react-native'
+import { View, ActivityIndicator, Animated, Image } from 'react-native'
 import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useAppStore } from '@/store/useAppStore'
-import { Colors, Spacing, FontSize } from '@/constants/theme'
+import { Colors } from '@/constants/theme'
 
 const NOIR_MARK = require('../assets/noir-mark.png')
 const MIN_SPLASH_MS = 600
@@ -47,18 +47,18 @@ export default function Index() {
   const glowOpacity = glow.interpolate({ inputRange: [0, 1], outputRange: [0, 0.5] })
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={['#000000', '#0A0A0A', '#000000']} style={StyleSheet.absoluteFill} />
+    <View className="flex-1 bg-black">
+      <LinearGradient colors={['#000000', '#0A0A0A', '#000000']} className="absolute inset-0" />
       <LinearGradient
         colors={['transparent', Colors.gold + '06', 'transparent']}
         locations={[0, 0.5, 1]}
-        style={StyleSheet.absoluteFill}
+        className="absolute inset-0"
       />
 
-      <View style={styles.content}>
+      <View className="flex-1 items-center justify-center">
         <Animated.View style={{ opacity, transform: [{ scale }] }}>
-          <View style={styles.logoRing}>
-            <Animated.View style={[styles.glow, { opacity: glowOpacity }]} />
+          <View className="relative items-center justify-center">
+            <Animated.View className="absolute w-[140px] h-[140px] rounded-full bg-gold -top-[26px] -left-[26px]" style={{ opacity: glowOpacity }} />
             <Image
               source={NOIR_MARK}
               style={{ width: 88, height: 88 }}
@@ -67,42 +67,15 @@ export default function Index() {
           </View>
         </Animated.View>
 
-        <Animated.View style={{ opacity: brandOpacity, transform: [{ translateY: brandSlide }], marginTop: Spacing.lg }}>
-          <Animated.Text style={styles.brandText}>NOIR</Animated.Text>
-          <Animated.Text style={styles.tagline}>TAP INTO TRUST</Animated.Text>
+        <Animated.View style={{ opacity: brandOpacity, transform: [{ translateY: brandSlide }], marginTop: 24 }}>
+          <Animated.Text className="text-cream text-[48px] font-heavy tracking-[14px] text-center">NOIR</Animated.Text>
+          <Animated.Text className="text-gold text-xs tracking-[6px] text-center mt-4 uppercase">TAP INTO TRUST</Animated.Text>
         </Animated.View>
 
-        <Animated.View style={{ opacity: brandOpacity, marginTop: Spacing.xxl }}>
+        <Animated.View style={{ opacity: brandOpacity, marginTop: 48 }}>
           <ActivityIndicator size="small" color={Colors.gold + '60'} />
         </Animated.View>
       </View>
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.black },
-  content: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  logoRing: { position: 'relative', alignItems: 'center', justifyContent: 'center' },
-  glow: {
-    position: 'absolute',
-    width: 140, height: 140, borderRadius: 70,
-    backgroundColor: Colors.gold,
-    top: -26, left: -26,
-  },
-  brandText: {
-    color: Colors.cream,
-    fontSize: FontSize.xxxl,
-    fontWeight: '800',
-    letterSpacing: 14,
-    textAlign: 'center',
-  },
-  tagline: {
-    color: Colors.gold,
-    fontSize: FontSize.xs,
-    letterSpacing: 6,
-    textAlign: 'center',
-    marginTop: Spacing.md,
-    textTransform: 'uppercase',
-  },
-})

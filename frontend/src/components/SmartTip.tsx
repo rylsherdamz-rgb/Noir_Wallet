@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { View, Text, StyleSheet } from 'react-native'
+import { View, Text } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { Ionicons } from '@expo/vector-icons'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors } from '@/constants/theme'
 
 interface SmartTipProps {
   title: string
@@ -48,14 +48,14 @@ export function SmartTip({
   const v = VARIANT_STYLES[variant]
 
   return (
-    <View style={[styles.card, { backgroundColor: v.bg, borderColor: v.border }]}>
-      <View style={styles.row}>
-        <View style={[styles.iconWrap, { backgroundColor: v.iconColor + '15' }]}>
+    <View className="rounded-xl border p-4" style={{ backgroundColor: v.bg, borderColor: v.border }}>
+      <View className="flex-row gap-2 items-start">
+        <View className="w-9 h-9 rounded-full items-center justify-center" style={{ backgroundColor: v.iconColor + '15' }}>
           <Ionicons name={icon || v.icon} size={20} color={v.iconColor} />
         </View>
-        <View style={styles.textWrap}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.description}>{description}</Text>
+        <View className="flex-1">
+          <Text className="text-sm font-semibold text-white mb-0.5">{title}</Text>
+          <Text className="text-xs text-mutedWhite leading-4">{description}</Text>
         </View>
         {dismissible && (
           <PressableScale onPress={() => setDismissed(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -64,59 +64,11 @@ export function SmartTip({
         )}
       </View>
       {action && (
-        <PressableScale style={styles.actionBtn} onPress={action.onPress}>
-          <Text style={[styles.actionLabel, { color: v.iconColor }]}>{action.label}</Text>
+        <PressableScale className="flex-row items-center justify-center gap-1 mt-2 pt-2 border-t border-t-[rgba(255,255,255,0.06)]" onPress={action.onPress}>
+          <Text className="text-sm font-semibold" style={{ color: v.iconColor }}>{action.label}</Text>
           <Ionicons name="chevron-forward" size={14} color={v.iconColor} />
         </PressableScale>
       )}
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  card: {
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    padding: Spacing.md,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    alignItems: 'flex-start',
-  },
-  iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: BorderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  textWrap: {
-    flex: 1,
-  },
-  title: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
-    color: Colors.white,
-    marginBottom: 2,
-  },
-  description: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    lineHeight: 16,
-  },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.xs,
-    marginTop: Spacing.sm,
-    paddingTop: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
-  },
-  actionLabel: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
-  },
-})
