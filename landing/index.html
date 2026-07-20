@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Noir Wallet — Tap. Pay. Done.</title>
+<meta name="description" content="Noir Wallet is a contactless payment wallet powered by Stellar and the x402 protocol. No app opens, no confirmation — just tap and go.">
+<meta property="og:title" content="Noir Wallet — Tap. Pay. Done.">
+<meta property="og:description" content="Contactless payments powered by Stellar. No app opens. No confirmation. Just tap and go.">
+<meta property="og:image" content="assets/images/tour/01-intro.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="assets/images/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div class="grain" aria-hidden="true"></div>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header" id="top">
+  <div class="container header-inner">
+    <a class="brand" href="#top">
+      <img src="assets/images/logo-mark.png" alt="" class="brand-mark">
+      <span class="brand-word">NOIR</span>
+    </a>
+
+    <nav class="site-nav" id="site-nav" aria-label="Primary">
+      <a href="#features">Features</a>
+      <a href="#how-it-works">How It Works</a>
+      <a href="#tour">Product Tour</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#security">Security</a>
+      <a href="#team">Team</a>
+    </nav>
+
+    <div class="header-actions">
+      <a class="btn btn-ghost" href="https://github.com/rylsherdamz-rgb/Noir_Wallet" target="_blank" rel="noopener">GitHub</a>
+      <a class="btn btn-gold" href="#demo">Watch Demo</a>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Toggle menu" aria-expanded="false" aria-controls="site-nav">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-glow" aria-hidden="true"></div>
+    <div class="container hero-inner">
+      <div class="hero-copy reveal">
+        <p class="eyebrow"><span class="dot"></span>Contactless payments &middot; Stellar</p>
+        <h1>Tap. Pay. <span class="text-gold">Done.</span></h1>
+        <p class="lede">
+          Noir Wallet implements the <strong>x402 protocol</strong> — a zero-interaction payment flow where
+          your wallet is debited the instant your hardware tap lands. No unlock, no app, no confirmation.
+          Settlement happens on Stellar in under two seconds.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-gold btn-lg" href="#demo">Watch the Demo</a>
+          <a class="btn btn-outline btn-lg" href="https://github.com/rylsherdamz-rgb/Noir_Wallet" target="_blank" rel="noopener">View Source</a>
+        </div>
+        <p class="hero-meta">Hackathon Track: Payment &amp; Consumer Applications</p>
+      </div>
+
+      <div class="hero-visual reveal">
+        <div class="phone-frame">
+          <img src="assets/images/tour/04-dashboard.png" alt="Noir Wallet dashboard showing PHP, USDC and XLM balances and linked NFC devices" class="phone-crop">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROBLEM -->
+  <section class="problem">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow eyebrow-dark"><span class="dot"></span>The friction problem</p>
+        <h2>Paying should be <span class="text-gold">invisible.</span></h2>
+      </div>
+      <div class="pill-row reveal">
+        <span class="pill"><i class="pill-dot pill-dot-red"></i>No app to open</span>
+        <span class="pill"><i class="pill-dot pill-dot-gold"></i>No screen to unlock</span>
+        <span class="pill"><i class="pill-dot pill-dot-blue"></i>No confirmation to tap</span>
+      </div>
+      <p class="problem-copy reveal">
+        Noir Wallet debits the moment your tag touches the terminal — powered by the x402 protocol.
+        Built for high-throughput environments: transit turnstiles, campus canteens, event gates, and retail checkout.
+      </p>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS / PRODUCT TOUR -->
+  <section class="tour" id="how-it-works">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow"><span class="dot"></span>How it works</p>
+        <h2>From tap to settlement, <span class="text-gold">in seconds.</span></h2>
+      </div>
+    </div>
+
+    <div class="tour-steps" id="tour">
+      <article class="tour-step reveal">
+        <div class="tour-copy">
+          <p class="step-num">01 &middot; Welcome</p>
+          <h3>Your wallet is your identity.</h3>
+          <p>Link an NFC card, sticker, or wearable — and you're ready to pay. No separate hardware wallet, no seed phrase to memorize on day one.</p>
+        </div>
+        <div class="tour-visual">
+          <div class="phone-frame phone-frame-sm">
+            <img src="assets/images/tour/03-welcome.png" alt="Onboarding screen: Your wallet is your identity, register an NFC wallet card" loading="lazy">
+          </div>
+        </div>
+      </article>
+
+      <article class="tour-step tour-step-reverse reveal">
+        <div class="tour-copy">
+          <p class="step-num">02 &middot; Dashboard</p>
+          <h3>Every asset, one glance.</h3>
+          <p>PHP, USDC, and XLM balances update live — with per-device wallet limits so you always know what's spendable today.</p>
+        </div>
+        <div class="tour-visual">
+          <div class="phone-frame phone-frame-sm">
+            <img src="assets/images/tour/04-dashboard.png" alt="Dashboard screen showing portfolio value and linked wallet cards" loading="lazy">
+          </div>
+        </div>
+      </article>
+
+      <article class="tour-step reveal">
+        <div class="tour-copy">
+          <p class="step-num">03 &middot; Link Device</p>
+          <h3>Provision in seconds.</h3>
+          <p>Hold your tag to the phone. You sign once — Soroban's <code>device_registry</code> contract registers it on-chain, permanently.</p>
+        </div>
+        <div class="tour-visual">
+          <div class="phone-frame phone-frame-sm">
+            <img src="assets/images/tour/05-link-device.png" alt="Device linking success screen showing a paired NFC device" loading="lazy">
+          </div>
+        </div>
+      </article>
+
+      <article class="tour-step tour-step-reverse reveal">
+        <div class="tour-copy">
+          <p class="step-num">04 &middot; x402 Agent</p>
+          <h3>Fund it once. It pays for you.</h3>
+          <p>Each device gets its own x402 agent — a dedicated wallet with a balance and a daily limit. It signs every tap, so your main funds stay untouched.</p>
+        </div>
+        <div class="tour-visual">
+          <div class="phone-frame phone-frame-sm">
+            <img src="assets/images/tour/06-agent.png" alt="Agents screen listing per-device wallets with balances and daily remaining limits" loading="lazy">
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <div class="x402-moment reveal">
+      <div class="container x402-inner">
+        <p class="eyebrow eyebrow-on-dark"><span class="dot"></span>The x402 moment</p>
+        <h2>Tap. Debited <span class="text-gold">instantly.</span></h2>
+        <p>Your x402 agent pays — no unlock, no app, no confirmation. Terminal to settlement in under two seconds.</p>
+        <div class="tap-diagram" aria-hidden="true">
+          <div class="tap-node tap-node-tag">
+            <div class="tap-ring"></div>
+            <span>NFC Tag</span>
+          </div>
+          <div class="tap-arrow">
+            <span class="tap-arrow-line"></span>
+          </div>
+          <div class="tap-node tap-node-paid">
+            <div class="tap-check">&#10003;</div>
+            <strong>Paid</strong>
+            <span class="tap-settled">Settled &middot; 1.8s</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features" id="features">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow"><span class="dot"></span>Key features</p>
+        <h2>Built for <span class="text-gold">zero-friction</span> commerce.</h2>
+      </div>
+
+      <div class="feature-grid">
+        <div class="feature-card reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 8a6 6 0 0 1 12 0v3a6 6 0 0 1-12 0V8Z"/><path d="M12 2v2M8.5 3.2 9.3 5M15.5 3.2 14.7 5"/><path d="M9 21h6M12 17.5V21"/></svg>
+          </div>
+          <h3>Zero-Interaction Payments</h3>
+          <p>Tap any RFID sticker, NFC card, or wearable to pay instantly — no unlock required.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/></svg>
+          </div>
+          <h3>x402 Protocol</h3>
+          <p>Wallet debited on hardware tap — no unlock, no app, no confirmation.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+          </div>
+          <h3>Stellar-Powered</h3>
+          <p>Fast, low-cost settlement via the Stellar network — consensus in seconds, not minutes.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          </div>
+          <h3>Soroban Smart Contracts</h3>
+          <p><code>device_registry</code>, <code>agent_registry</code>, and <code>payment_escrow</code> — three contracts mapping hardware to wallets.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2 3 6v6c0 5 3.8 8.7 9 10 5.2-1.3 9-5 9-10V6l-9-4Z"/><path d="m9 12 2 2 4-4"/></svg>
+          </div>
+          <h3>Wallet-Authorized Registration</h3>
+          <p>Device owners sign their own registration via <code>wallet.require_auth()</code> — full self-custody.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 10h18M7 15h2m4 0h4"/><rect x="3" y="5" width="18" height="14" rx="2"/></svg>
+          </div>
+          <h3>PDAX Fiat Bridge</h3>
+          <p>Optional PHP cash-out via PDAX integration — settle in the currency merchants actually want.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg>
+          </div>
+          <h3>Custom Agents</h3>
+          <p>Per-device agent wallets with independent balances and daily spending limits.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 18h6"/></svg>
+          </div>
+          <h3>Cross-Platform</h3>
+          <p>React Native Expo app for iOS and Android, one codebase, native NFC support.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ARCHITECTURE -->
+  <section class="architecture" id="architecture">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow"><span class="dot"></span>Architecture</p>
+        <h2>Hardware tap to <span class="text-gold">on-chain settlement.</span></h2>
+      </div>
+
+      <div class="arch-diagram reveal">
+        <div class="arch-col">
+          <div class="arch-node arch-node-accent">RFID / NFC Tag</div>
+          <div class="arch-connector"></div>
+          <div class="arch-node">Mobile App / POS Terminal</div>
+          <div class="arch-connector"></div>
+          <div class="arch-substep">NFC read &rarr; SHA-256 hash device UID</div>
+        </div>
+
+        <div class="arch-connector arch-connector-down" aria-hidden="true"></div>
+
+        <div class="arch-contracts">
+          <div class="arch-contract-card">
+            <span class="arch-tag">device_registry</span>
+            <p>Maps hardware device hashes to Stellar wallet addresses</p>
+          </div>
+          <div class="arch-contract-card">
+            <span class="arch-tag">agent_registry</span>
+            <p>On-chain agent authorization per device for tap-to-pay signing</p>
+          </div>
+          <div class="arch-contract-card">
+            <span class="arch-tag">payment_escrow</span>
+            <p>Pre-funded escrow — instant authorize, merchants claim in batch</p>
+          </div>
+        </div>
+
+        <div class="arch-connector arch-connector-down" aria-hidden="true"></div>
+
+        <div class="arch-node arch-node-accent arch-node-center">Stellar Network</div>
+
+        <div class="arch-connector arch-connector-down" aria-hidden="true"></div>
+
+        <div class="arch-split">
+          <div class="arch-node">Merchant claim<br><small>(batch settle)</small></div>
+          <div class="arch-node">PDAX Fiat Bridge<br><small>(PHP cash-out)</small></div>
+        </div>
+      </div>
+
+      <p class="arch-note reveal">
+        Full contract methods, deployed testnet &amp; mainnet contract IDs are documented in the
+        <a href="https://github.com/rylsherdamz-rgb/Noir_Wallet#smart-contracts" target="_blank" rel="noopener">project README</a>.
+      </p>
+    </div>
+  </section>
+
+  <!-- SECURITY -->
+  <section class="security" id="security">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow"><span class="dot"></span>Defense in depth</p>
+        <h2>Simple to use. <span class="text-gold">Robust by design.</span></h2>
+        <p class="security-lede">Every NFC device links to its own agent wallet with a configurable daily limit. Lose the tag, revoke it instantly — the remaining balance returns automatically to your main wallet.</p>
+      </div>
+
+      <div class="security-grid">
+        <div class="security-card reveal">
+          <div class="security-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 9h16M4 15h16M10 3 7 21M17 3l-3 18"/></svg>
+          </div>
+          <h3>Hashed Device Identity</h3>
+          <p>Tag UIDs are SHA-256 hashed at the terminal — the raw UID is never stored or transmitted.</p>
+        </div>
+
+        <div class="security-card reveal">
+          <div class="security-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="15" r="4"/><path d="M10.5 12.5 20 3M17 6l3 3M14 9l2 2"/></svg>
+          </div>
+          <h3>Terminal Authentication</h3>
+          <p>Only whitelisted POS terminals can initiate payments, via API keys and signed challenges.</p>
+        </div>
+
+        <div class="security-card reveal">
+          <div class="security-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg>
+          </div>
+          <h3>Replay Protection</h3>
+          <p>Every tap carries a signed nonce; 500ms anti-double-tap rate limiting per device.</p>
+        </div>
+
+        <div class="security-card reveal">
+          <div class="security-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>
+          </div>
+          <h3>Blast-Radius Limits</h3>
+          <p>Per-device daily limits and isolated x402 agent wallets — a lost tag never exposes main funds.</p>
+        </div>
+
+        <div class="security-card reveal">
+          <div class="security-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          </div>
+          <h3>Encrypted Key Custody</h3>
+          <p>Fee-channel and agent keys sealed with envelope encryption — a KMS-backed KeyManager.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MARKET & COMPARISON -->
+  <section class="market" id="market">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow eyebrow-on-dark"><span class="dot"></span>Market</p>
+        <h2>Every venue that hates <span class="text-gold">checkout queues</span> is a Noir venue.</h2>
+      </div>
+
+      <div class="venue-grid reveal">
+        <div class="venue-card">
+          <div class="venue-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="3" width="14" height="13" rx="4"/><circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/><path d="M5 11h14M9 3v5M15 3v5"/></svg>
+          </div>
+          <h3>Transit</h3>
+          <p>Turnstile-speed fares, no queue pileups.</p>
+        </div>
+
+        <div class="venue-card">
+          <div class="venue-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 8h13a3 3 0 0 1 0 6h-1M4 8v8a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V8M4 8V5"/></svg>
+          </div>
+          <h3>Campus Canteens</h3>
+          <p>Lunch-rush throughput with student ID stickers.</p>
+        </div>
+
+        <div class="venue-card">
+          <div class="venue-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4V8Z"/><path d="M13 6v2M13 11v2M13 16v2"/></svg>
+          </div>
+          <h3>Event Gates</h3>
+          <p>Wristband entry and cashless concessions.</p>
+        </div>
+
+        <div class="venue-card">
+          <div class="venue-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 8h12l-1 12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>
+          </div>
+          <h3>Retail Checkout</h3>
+          <p>Sub-cent fees instead of 2–3% card rails.</p>
+        </div>
+      </div>
+
+      <div class="market-stat reveal">
+        <span class="market-stat-num">&#8369;100B+</span>
+        <p>QR/contactless payment volume in the Philippines alone — and every cashless venue that hates checkout queues is a Noir venue.</p>
+      </div>
+
+      <div class="compare reveal">
+        <h3 class="compare-title">How We Compare</h3>
+        <div class="compare-wrap">
+          <table class="compare-table">
+            <thead>
+              <tr>
+                <th>Feature</th>
+                <th>EMV Tap</th>
+                <th>Apple Pay</th>
+                <th class="compare-noir">Noir Wallet</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>No phone unlock needed</td><td class="yes">&#10003;</td><td class="no">&mdash;</td><td class="yes compare-noir">&#10003;</td></tr>
+              <tr><td>Self-custody of funds</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td class="yes compare-noir">&#10003;</td></tr>
+              <tr><td>Sub-cent transaction fees</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td class="yes compare-noir">&#10003;</td></tr>
+              <tr><td>Settlement in seconds</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td class="yes compare-noir">&#10003;</td></tr>
+              <tr><td>Stickers &amp; wearables</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td class="yes compare-noir">&#10003;</td></tr>
+              <tr><td>Per-device spend limits</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td class="yes compare-noir">&#10003;</td></tr>
+              <tr><td>Open smart contracts</td><td class="no">&mdash;</td><td class="no">&mdash;</td><td class="yes compare-noir">&#10003;</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TECH STACK -->
+  <section class="tech">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow"><span class="dot"></span>Tech stack</p>
+        <h2>Built with tools that <span class="text-gold">scale.</span></h2>
+      </div>
+      <ul class="tech-badges reveal">
+        <li>Stellar</li>
+        <li>Soroban / Rust</li>
+        <li>React Native</li>
+        <li>Expo 57</li>
+        <li>TypeScript</li>
+        <li>NativeWind</li>
+        <li>Tailwind CSS</li>
+        <li>Zustand</li>
+        <li>@stellar/stellar-sdk v16</li>
+        <li>react-native-nfc-manager</li>
+        <li>Vitest</li>
+        <li>soroban-cli</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- DEMO -->
+  <section class="demo" id="demo">
+    <div class="container demo-inner">
+      <div class="section-head reveal">
+        <p class="eyebrow eyebrow-on-dark"><span class="dot"></span>Demo</p>
+        <h2>Watch it <span class="text-gold">tap and go.</span></h2>
+        <p class="demo-copy">A 95-second, product walkthrough — the x402 tap-to-pay flow, per-device agent wallets, and the full mobile app.</p>
+      </div>
+      <div class="demo-video-wrap reveal">
+        <video class="demo-video" controls preload="none" poster="assets/media/demo-poster.jpg">
+          <source src="assets/media/demo.mp4" type="video/mp4">
+          Your browser doesn't support embedded video.
+        </video>
+      </div>
+      <p class="demo-link reveal">
+        <a href="https://x.com/ChichiCode0/status/2076692282452148572" target="_blank" rel="noopener">Watch the full walkthrough on X &rarr;</a>
+      </p>
+    </div>
+  </section>
+
+  <!-- TEAM -->
+  <section class="team" id="team">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow"><span class="dot"></span>Team</p>
+        <h2>The people behind <span class="text-gold">Noir.</span></h2>
+      </div>
+      <div class="team-grid reveal">
+        <div class="team-card">
+          <div class="team-avatar">RD</div>
+          <h3>Richie Christian De Guzman</h3>
+          <p>Fullstack Developer</p>
+        </div>
+        <div class="team-card">
+          <div class="team-avatar">JR</div>
+          <h3>Johnrick Rabara</h3>
+          <p>Backend Developer</p>
+        </div>
+        <div class="team-card">
+          <div class="team-avatar">JT</div>
+          <h3>Jefferson Tuparan</h3>
+          <p>UI/UX Designer</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINAL CTA -->
+  <section class="final-cta">
+    <div class="container final-cta-inner reveal">
+      <img src="assets/images/logo-mark.png" alt="" class="final-cta-mark">
+      <h2>A world where paying is <span class="text-gold">invisible.</span></h2>
+      <p>Your wallet is your identity. Payments happen without friction. Settlement is instant.</p>
+      <div class="hero-actions">
+        <a class="btn btn-gold btn-lg" href="https://github.com/rylsherdamz-rgb/Noir_Wallet" target="_blank" rel="noopener">Explore the Repo</a>
+        <a class="btn btn-outline btn-lg" href="https://github.com/rylsherdamz-rgb/Noir_Wallet/raw/main/ppt/Noir-Wallet-Pitch.pptx" target="_blank" rel="noopener">View Pitch Deck</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <a class="brand" href="#top">
+      <img src="assets/images/logo-mark.png" alt="" class="brand-mark">
+      <span class="brand-word">NOIR</span>
+    </a>
+    <p class="footer-tagline">Tap into trust.</p>
+    <div class="footer-links">
+      <a href="https://github.com/rylsherdamz-rgb/Noir_Wallet" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/rylsherdamz-rgb/Noir_Wallet/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+    </div>
+    <p class="footer-copy">&copy; 2026 Noir Wallet. Built for the Payment &amp; Consumer Applications track.</p>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>

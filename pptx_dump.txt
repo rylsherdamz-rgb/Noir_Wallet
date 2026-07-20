@@ -1,0 +1,452 @@
+===== ppt/Noir-Wallet-Pitch.pptx =====
+--- ppt/slides/slide1.xml ---
+TAP · PAY · DONE
+CONTACTLESS PAYMENTS ON STELLAR
+Noir Wallet
+Tap. Pay. 
+Done.
+A wallet you never open. Payments that just happen. Tap any RFID sticker, NFC card, or wearable to pay instantly — no app, no unlock, no confirmation.
+Presented by: Richie Christian De Guzman
+Noir Wallet
+--- ppt/slides/slide2.xml ---
+Paying Is Still Full of Friction
+Contactless was supposed to be instant. In reality, every payment still demands attention — unlock the phone, open the app, authenticate, confirm. 
+Crypto is even harder to spend: you need a cold wallet or a phone app just to pay for anything. 
+Behind it all, merchants surrender percentage fees to card rails and wait days for settlement — and high-throughput venues can't afford either.
+10–30s
+Per Checkout Interaction
+Unlock, open, authenticate,
+confirm — every single time
+2–3%
+Card Rail Fees
+What merchants surrender
+on every sale
+T+2
+Days to Settle
+Before merchants actually
+see their money
+The principle: crypto gets adopted when people can use it daily. 
+Remove the friction from everyday purchases, and spending crypto becomes as natural as tapping a card — that's what turns holders into users.
+Noir Wallet
+--- ppt/slides/slide3.xml ---
+Checkout Should Never Be
+the Bottleneck
+What Traditional Payments
+Demand
+Unlock your phone and open an app for every purchase
+Confirm each transaction on-device
+2–3% fees on closed card networks
+Multi-day settlement before funds arrive
+Speed should not cost you custody. 
+Even “tap to pay” cards ride closed networks with percentage fees and day-long settlement.
+Noir Wallet
+--- ppt/slides/slide4.xml ---
+OUR SOLUTION
+Introducing Noir Wallet
+Zero interaction. Instant settlement.
+Tap-First Identity
+Any RFID sticker, NFC card, or wearable links to your Stellar wallet — the tag is the login
+x402 Protocol
+Debited the moment your tag touches the terminal — no unlock, no app, no confirmation
+x402 Agents
+Each device gets its own funded agent wallet with a daily limit — your main funds stay untouched
+Soroban Registry
+The device_registry smart contract maps hardware to wallets on-chain — auditable and revocable
+--- ppt/slides/slide5.xml ---
+Why Stellar?
+Stellar provides everything needed for pay-by-tap at machine speed and near-zero cost.
+Near-Zero Fees
+~$0.00001 per operation — viable for ₱20 canteen meals
+Fast Finality
+3–5 second confirmations — faster than a receipt prints
+Soroban Contracts
+WASM smart contracts for the on-chain device registry
+Fee Channels
+Sponsored transactions absorb costs — users never buy XLM first
+Real Assets
+XLM, USDC, and issuer assets — spend and settle in stable value
+PDAX Fiat Bridge
+Licensed PHP on/off-ramp — merchants cash out in pesos
+Architecture Principle
+Only hashed device references and payment operations go on-chain. 
+The terminal reads a tag UID, Soroban resolves the linked wallet, and Stellar settles the transfer — with PDAX converting to PHP for merchants who want pesos, not crypto.
+~$0.00001
+Per transaction
+&lt; 2s
+Tap to “Paid”
+Noir Wallet
+--- ppt/slides/slide6.xml ---
+How It Works
+One tap sets off the whole pipeline — the user never sees any of it.
+1 · Tap   
+Terminal reads the tag UID over NFC/RFID
+2 · Hash &amp; Resolve   
+UID is SHA-256 hashed; device_registry resolves the wallet
+3 · Debit the Agent   
+The device's x402 agent wallet signs within its daily limit
+4 · Settle &amp; Cash Out   
+Stellar finalizes in 3–5s; PDAX bridges to PHP
+The gateway returns 202 Accepted instantly and settles asynchronously — 
+under two seconds from tap to “Paid”
+ — with an offline queue that batches transactions when the network drops.
+Noir Wallet
+--- ppt/slides/slide7.xml ---
+System Architecture
+Three Core Layers
+device_registry · Soroban
+Hardware-to-wallet mapping with terminal whitelisting and per-device replay protection on-chain
+Payment Gateway · Rust + actix-web
+Async payment queue, fee channels, daily-limit enforcement, and idempotent transaction records in PostgreSQL
+PDAX Fiat Bridge
+Licensed Philippine exchange integration — auto-liquidation webhooks convert merchant USDC to PHP
+Only SHA-256 device hashes touch the chain. 
+Raw card UIDs never leave the terminal, and no custodial server ever holds user funds.
+Noir Wallet
+--- ppt/slides/slide8.xml ---
+🔒
+DEFENSE IN DEPTH
+Security-First Design
+✓
+Hashed Device Identity
+Tag UIDs are SHA-256 hashed at the terminal — the raw UID is never stored or transmitted
+✓
+Terminal Authentication
+Only whitelisted POS terminals can initiate payments, via API keys and signed challenges
+✓
+Replay Protection
+Every tap carries a signed nonce; 500ms anti-double-tap rate limiting per device
+✓
+Blast-Radius Limits
+Per-device daily limits and isolated x402 agent wallets — a lost tag never exposes main funds
+✓
+Encrypted Key Custody
+Fee-channel and agent keys sealed with envelope encryption (KMS-backed KeyManager)
+Noir Wallet
+--- ppt/slides/slide9.xml ---
+Market Opportunity &amp; Competitive Advantage
+Target Venues
+Transit
+Turnstile-speed fares,
+no queue pileups
+Campus Canteens
+Lunch-rush throughput
+with student ID stickers
+Event Gates
+Wristband entry
+and cashless concessions
+Retail Checkout
+Sub-cent fees instead
+of 2–3% card rails
+₱
+100B+ QR/contactless volume in PH alone. 
+Every cashless venue that hates checkout queues is a Noir venue.
+How We Compare
+Feature
+EMV Tap
+Apple
+Pay
+Noir
+Wallet
+No phone unlock needed
+✓
+—
+✓
+Self-custody of funds
+—
+—
+✓
+Sub-cent transaction fees
+—
+—
+✓
+Settlement in seconds
+—
+—
+✓
+Stickers &amp; wearables
+—
+—
+✓
+Per-device spend limits
+—
+—
+✓
+Open smart contracts
+—
+—
+✓
+Noir Wallet
+--- ppt/slides/slide10.xml ---
+Business Model &amp; Roadmap
+Revenue Streams
+Merchant Transaction Fees
+A fraction of card-rail pricing — volume over margin
+Device &amp; Tag Sales
+Branded NFC cards, stickers, and wearables for venues
+PDAX Conversion Spread
+Small margin on automated USDC → PHP liquidation
+Enterprise &amp; Developer APIs
+White-label tap-to-pay for transit operators and campuses
+Roadmap
+Q3 2026
+PDAX production integration, terminal authentication, mainnet pilot with first venues
+Q4 2026
+Offline queue + batch settlement, merchant dashboard, spending analytics
+2027
+Transit &amp; campus partnerships, wearable product line, multi-asset auto-conversion
+Future
+Cross-chain agents, x402 ecosystem APIs, machine-to-machine payments
+Noir Wallet
+--- ppt/slides/slide11.xml ---
+Tap the 
+future.
+Zero-interaction payments, settled on Stellar in under two seconds.
+x402 Protocol
+Soroban
+Stellar
+PDAX Bridge
+Noir Wallet · Tap. Pay. Done.
+Noir Wallet
+===== ppt/Noir-Wallet-Script-Deck.pptx =====
+--- ppt/slides/slide1.xml ---
+TAP · PAY · DONE
+CONTACTLESS PAYMENTS ON STELLAR
+Noir Wallet
+Tap. Pay. 
+Done.
+A wallet you never open. Payments that just happen. Tap any RFID sticker, NFC card, or wearable to pay instantly — no app, no unlock, no confirmation.
+Presented by: Richie Christian De Guzman
+Noir Wallet
+--- ppt/slides/slide2.xml ---
+Paying Is Still Full of Friction
+Contactless was supposed to be instant. In reality, every payment still demands attention — unlock the phone, open the app, authenticate, confirm. 
+Crypto is even harder to spend: you need a cold wallet or a phone app just to pay for anything. 
+Behind it all, merchants surrender percentage fees to card rails and wait days for settlement — and high-throughput venues can't afford either.
+10–30s
+Per Checkout Interaction
+Unlock, open, authenticate,
+confirm — every single time
+2–3%
+Card Rail Fees
+What merchants surrender
+on every sale
+T+2
+Days to Settle
+Before merchants actually
+see their money
+The principle: crypto gets adopted when people can use it daily. 
+Remove the friction from everyday purchases, and spending crypto becomes as natural as tapping a card — that's what turns holders into users.
+Noir Wallet
+--- ppt/slides/slide3.xml ---
+Checkout Should Never Be
+the Bottleneck
+What Traditional Payments
+Demand
+Unlock your phone and open an app for every purchase
+Confirm each transaction on-device
+2–3% fees on closed card networks
+Multi-day settlement before funds arrive
+Speed should not cost you custody. 
+Even “tap to pay” cards ride closed networks with percentage fees and day-long settlement.
+Noir Wallet
+--- ppt/slides/slide4.xml ---
+OUR SOLUTION
+Introducing Noir Wallet
+Zero interaction. Instant settlement.
+Tap-First Identity
+Any RFID sticker, NFC card, or wearable links to your Stellar wallet — the tag is the login
+x402 Protocol
+Debited the moment your tag touches the terminal — no unlock, no app, no confirmation
+x402 Agents
+Each device gets its own funded agent wallet with a daily limit — your main funds stay untouched
+Soroban Registry
+The device_registry smart contract maps hardware to wallets on-chain — auditable and revocable
+--- ppt/slides/slide5.xml ---
+Why Stellar?
+Stellar provides everything needed for pay-by-tap at machine speed and near-zero cost.
+Near-Zero Fees
+~$0.00001 per operation — viable for ₱20 canteen meals
+Fast Finality
+3–5 second confirmations — faster than a receipt prints
+Soroban Contracts
+WASM smart contracts for the on-chain device registry
+Fee Channels
+Sponsored transactions absorb costs — users never buy XLM first
+Real Assets
+XLM, USDC, and issuer assets — spend and settle in stable value
+PDAX Fiat Bridge
+Licensed PHP on/off-ramp — merchants cash out in pesos
+Architecture Principle
+Only hashed device references and payment operations go on-chain. 
+The terminal reads a tag UID, Soroban resolves the linked wallet, and Stellar settles the transfer — with PDAX converting to PHP for merchants who want pesos, not crypto.
+~$0.00001
+Per transaction
+&lt; 2s
+Tap to “Paid”
+Noir Wallet
+--- ppt/slides/slide6.xml ---
+How It Works
+One tap sets off the whole pipeline — the user never sees any of it.
+1 · Tap   
+Terminal reads the tag UID over NFC/RFID
+2 · Hash &amp; Resolve   
+UID is SHA-256 hashed; device_registry resolves the wallet
+3 · Debit the Agent   
+The device's x402 agent wallet signs within its daily limit
+4 · Settle &amp; Cash Out   
+Stellar finalizes in 3–5s; PDAX bridges to PHP
+The gateway returns 202 Accepted instantly and settles asynchronously — 
+under two seconds from tap to “Paid”
+ — with an offline queue that batches transactions when the network drops.
+Noir Wallet
+--- ppt/slides/slide7.xml ---
+System Architecture
+Three Core Layers
+device_registry · Soroban
+Hardware-to-wallet mapping with terminal whitelisting and per-device replay protection on-chain
+Payment Gateway · Rust + actix-web
+Async payment queue, fee channels, daily-limit enforcement, and idempotent transaction records in PostgreSQL
+PDAX Fiat Bridge
+Licensed Philippine exchange integration — auto-liquidation webhooks convert merchant USDC to PHP
+Only SHA-256 device hashes touch the chain. 
+Raw card UIDs never leave the terminal, and no custodial server ever holds user funds.
+Noir Wallet
+--- ppt/slides/slide8.xml ---
+🔒
+DEFENSE IN DEPTH
+Security-First Design
+✓
+Hashed Device Identity
+Tag UIDs are SHA-256 hashed at the terminal — the raw UID is never stored or transmitted
+✓
+Terminal Authentication
+Only whitelisted POS terminals can initiate payments, via API keys and signed challenges
+✓
+Replay Protection
+Every tap carries a signed nonce; 500ms anti-double-tap rate limiting per device
+✓
+Blast-Radius Limits
+Per-device daily limits and isolated x402 agent wallets — a lost tag never exposes main funds
+✓
+Encrypted Key Custody
+Fee-channel and agent keys sealed with envelope encryption (KMS-backed KeyManager)
+Noir Wallet
+--- ppt/slides/slide9.xml ---
+Market Opportunity &amp; Competitive Advantage
+Target Venues
+Transit
+Turnstile-speed fares,
+no queue pileups
+Campus Canteens
+Lunch-rush throughput
+with student ID stickers
+Event Gates
+Wristband entry
+and cashless concessions
+Retail Checkout
+Sub-cent fees instead
+of 2–3% card rails
+₱
+100B+ QR/contactless volume in PH alone. 
+Every cashless venue that hates checkout queues is a Noir venue.
+How We Compare
+Feature
+EMV Tap
+Apple
+Pay
+Noir
+Wallet
+No phone unlock needed
+✓
+—
+✓
+Self-custody of funds
+—
+—
+✓
+Sub-cent transaction fees
+—
+—
+✓
+Settlement in seconds
+—
+—
+✓
+Stickers &amp; wearables
+—
+—
+✓
+Per-device spend limits
+—
+—
+✓
+Open smart contracts
+—
+—
+✓
+Noir Wallet
+--- ppt/slides/slide10.xml ---
+Business Model &amp; Roadmap
+Revenue Streams
+Merchant Transaction Fees
+A fraction of card-rail pricing — volume over margin
+Device &amp; Tag Sales
+Branded NFC cards, stickers, and wearables for venues
+PDAX Conversion Spread
+Small margin on automated USDC → PHP liquidation
+Enterprise &amp; Developer APIs
+White-label tap-to-pay for transit operators and campuses
+Roadmap
+Q3 2026
+PDAX production integration, terminal authentication, mainnet pilot with first venues
+Q4 2026
+Offline queue + batch settlement, merchant dashboard, spending analytics
+2027
+Transit &amp; campus partnerships, wearable product line, multi-asset auto-conversion
+Future
+Cross-chain agents, x402 ecosystem APIs, machine-to-machine payments
+Noir Wallet
+--- ppt/slides/slide11.xml ---
+Tap the 
+future.
+Zero-interaction payments, settled on Stellar in under two seconds.
+x402 Protocol
+Soroban
+Stellar
+PDAX Bridge
+Noir Wallet · Tap. Pay. Done.
+Noir Wallet
+--- ppt/slides/slide12.xml ---
+THE HOOK
+So Why Can’t I Buy Lunch With Crypto?
+Everyone says crypto is the future of payments. So why can’t I buy lunch with it? To spend crypto today, I need a cold wallet in my pocket or a phone in my hand — unlock, open, sign, confirm. If paying takes this much effort, people simply won’t use it.
+Noir Wallet
+--- ppt/slides/slide13.xml ---
+THE PRINCIPLE
+Effortless Is What Defines the Future
+The future of payments isn’t defined by the technology behind them — it’s defined by how effortless they are to use. Every generation of payment systems has removed friction: from cash, to cards, to contactless tap-to-pay. The next step is making blockchain payments just as seamless.
+From research to vision: 
+during senior high school, for our Research 2 subject, I conducted a study on the acceptability of decentralized applications using the Technology Acceptance Model (TAM) as our theoretical framework. Our findings reinforced a simple idea: when technology is easier to use and requires less effort, people are far more likely to adopt it. That insight shaped the vision behind Noir Wallet.
+Noir Wallet
+--- ppt/slides/slide14.xml ---
+THE SOLUTION
+Introducing Noir Wallet
+Noir Wallet brings the convenience of tap-to-pay to blockchain. Simply tap an NFC card, sticker, or wearable — and the payment is complete. 
+No app. No unlock. No confirmation.
+ Our x402 protocol authorizes the payment the moment your NFC tag touches the terminal, while Stellar settles the transaction in under two seconds for a fraction of a cent.
+Noir Wallet
+--- ppt/slides/slide15.xml ---
+TRUST &amp; SECURITY
+Simple to Use. Robust by Design.
+The experience is simple, but the security is robust. Every NFC device is linked to its own agent wallet with a configurable daily spending limit. If it’s lost, you can revoke it instantly, and the remaining funds are automatically returned to your main wallet. Device identities are hashed on-chain through Soroban, terminals are whitelisted, and every transaction is protected against replay attacks.
+Noir Wallet
+--- ppt/slides/slide16.xml ---
+Tap the 
+present.
+The future of payments isn’t about asking people to change their habits — it’s about making blockchain fit the habits they already have. With Noir Wallet, paying with crypto becomes as simple as a tap. And that’s how the future of payments becomes the present.
+x402 Protocol
+Soroban
+Stellar
+PDAX Bridge
+Noir Wallet · Tap. Pay. Done.
+Noir Wallet

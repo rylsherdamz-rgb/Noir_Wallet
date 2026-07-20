@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pkill -f \"http.server 8842\")",
+      "Bash(npx --version)",
+      "Bash(command -v chromium-cli)",
+      "Read(//c//**)",
+      "Bash(python3 -c ' *)",
+      "Bash(pkill -f \"http.server 5173\")",
+      "Bash(curl -s -o /dev/null -w \"still up: %{http_code}\\\\n\" http://localhost:5173/index.html)"
+    ]
+  }
+}
