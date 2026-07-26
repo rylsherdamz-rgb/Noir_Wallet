@@ -2,6 +2,7 @@ import { useEffect, useRef, ReactNode } from 'react'
 import {
   View,
   Text,
+  StyleSheet,
   Modal,
   TouchableWithoutFeedback,
   Animated,
@@ -12,7 +13,7 @@ import { PressableScale } from '@/components/brand/PressableScale'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { DesignTokens } from '@/constants/designTokens'
-import { Colors } from '@/constants/theme'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window')
 
@@ -107,39 +108,46 @@ export function ActionSheet({
       onRequestClose={handleClose}
       statusBarTranslucent
     >
-      <View className="flex-1 justify-end" testID={testID}>
+      <View style={styles.container} testID={testID}>
         <TouchableWithoutFeedback onPress={handleClose}>
-          <Animated.View className="absolute inset-0 bg-black/60" style={[{ opacity }]} />
+          <Animated.View style={[styles.backdrop, { opacity }]} />
         </TouchableWithoutFeedback>
 
         <Animated.View
-          className="bg-cardBg rounded-t-3xl pb-6"
-          style={[{ maxHeight: SCREEN_HEIGHT * 0.85 }, { transform: [{ translateY }] }, DesignTokens.shadows.medium]}
+          style={[styles.sheet, { transform: [{ translateY }] }]}
         >
-          <View className="items-center py-4">
-            <View className="w-9 h-1 rounded-[2] bg-midGrey" />
+          {/* Handle */}
+          <View style={styles.handleContainer}>
+            <View style={styles.handle} />
           </View>
 
+          {/* Header */}
           {(title || subtitle) && (
-            <View className="px-6 pb-4 border-b border-borderGrey">
+            <View style={styles.header}>
               {title && (
-                <Text className="text-xl text-white font-bold text-center" accessibilityRole="header">
+                <Text style={styles.title} accessibilityRole="header">
                   {title}
                 </Text>
               )}
-              {subtitle ? <Text className="text-sm text-mutedWhite text-center mt-1">{subtitle}</Text> : null}
+              {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
             </View>
           )}
 
-          {children ? <View className="px-6 py-4">{children}</View> : null}
+          {/* Custom Content */}
+          {children ? <View style={styles.content}>{children}</View> : null}
 
-          <View className="px-6 gap-1">
+          {/* Actions */}
+          <View style={styles.actions}>
             {actions.map((action, index) => (
               <PressableScale
                 key={index}
-                className={`flex-row items-center gap-4 py-4 px-6 bg-midGrey rounded-xl min-h-[56] ${action.disabled ? 'opacity-60' : ''}`}
+                style={[
+                  styles.actionButton,
+                  action.disabled && styles.actionButtonDisabled,
+                ]}
                 onPress={() => handleActionPress(action)}
                 disabled={action.disabled}
+               
                 accessibilityRole="button"
                 accessibilityLabel={action.label}
                 accessibilityState={{ disabled: action.disabled }}
@@ -158,9 +166,11 @@ export function ActionSheet({
                   />
                 )}
                 <Text
-                  className={`text-base font-semibold flex-1 ${
-                    action.destructive ? 'text-[#FF5A5F]' : action.disabled ? 'text-mutedWhite' : 'text-white'
-                  }`}
+                  style={[
+                    styles.actionLabel,
+                    action.destructive && styles.actionLabelDestructive,
+                    action.disabled && styles.actionLabelDisabled,
+                  ]}
                 >
                   {action.label}
                 </Text>
@@ -168,16 +178,114 @@ export function ActionSheet({
             ))}
           </View>
 
+          {/* Cancel Button */}
           <PressableScale
-            className="mt-4 mx-6 py-4 bg-midGrey rounded-xl border border-borderGrey items-center min-h-[56]"
+            style={styles.cancelButton}
             onPress={handleClose}
+           
             accessibilityRole="button"
             accessibilityLabel="Cancel"
           >
-            <Text className="text-base font-bold text-gold">Cancel</Text>
+            <Text style={styles.cancelLabel}>Cancel</Text>
           </PressableScale>
         </Animated.View>
       </View>
     </Modal>
   )
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: Colors.overlay,
+  },
+  sheet: {
+    backgroundColor: Colors.cardBg,
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
+    paddingBottom: Spacing.lg,
+    maxHeight: SCREEN_HEIGHT * 0.85,
+    ...DesignTokens.shadows.medium,
+  },
+  handleContainer: {
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    backgroundColor: Colors.borderGrey,
+    borderRadius: BorderRadius.full,
+  },
+  header: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderGrey,
+  },
+  title: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+    color: Colors.white,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: FontSize.sm,
+    color: Colors.mutedWhite,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
+  },
+  content: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+  },
+  actions: {
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.xs,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    backgroundColor: Colors.midGrey,
+    borderRadius: BorderRadius.md,
+    minHeight: DesignTokens.touchTarget.comfortable,
+  },
+  actionButtonDisabled: {
+    opacity: DesignTokens.opacity.strong,
+  },
+  actionLabel: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
+    color: Colors.white,
+    flex: 1,
+  },
+  actionLabelDestructive: {
+    color: Colors.danger,
+  },
+  actionLabelDisabled: {
+    color: Colors.mutedWhite,
+  },
+  cancelButton: {
+    marginTop: Spacing.md,
+    marginHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    backgroundColor: Colors.midGrey,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.borderGrey,
+    alignItems: 'center',
+    minHeight: DesignTokens.touchTarget.comfortable,
+  },
+  cancelLabel: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+    color: Colors.gold,
+  },
+})

@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { View, Text, TextInput, ScrollView } from 'react-native'
+import { View, Text, StyleSheet, TextInput, ScrollView } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { NoirLogo } from '@/components/brand/NoirLogo'
 import { Button } from '@/components/Button'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -45,34 +46,35 @@ export function ImportWalletScreen({ onComplete, onBack }: ImportWalletScreenPro
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-surfaceBg">
-      <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 16, flexGrow: 1 }} keyboardShouldPersistTaps="handled">
-        <PressableScale className="w-10 h-10 items-center justify-center mb-4" onPress={onBack}>
-          <Ionicons name="arrow-back" size={24} color="white" />
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <PressableScale onPress={onBack} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color={Colors.white} />
         </PressableScale>
 
         <NoirLogo variant="mark" size={48} />
-        <Text className="text-xl text-white font-bold text-center mt-4">Import Wallet</Text>
-        <Text className="text-sm text-mutedWhite text-center mt-2">Enter your 12 or 24-word recovery phrase</Text>
+        <Text style={styles.title}>Import Wallet</Text>
+        <Text style={styles.subtitle}>Enter your 12 or 24-word recovery phrase</Text>
 
-        <View className="bg-cardBg rounded-2xl border border-borderGrey mt-8 overflow-hidden">
+        <View style={styles.inputBox}>
           <TextInput
-            className="p-4 text-base text-white min-h-[120] font-mono leading-6"
+            style={styles.input}
             value={input}
             onChangeText={(t) => { setInput(t); setError(null) }}
             placeholder="Paste or type your recovery phrase..."
-            placeholderTextColor="#A9A9A9"
+            placeholderTextColor={Colors.mutedWhite}
             multiline
             autoCapitalize="none"
             autoCorrect={false}
             textAlignVertical="top"
           />
-          <Text className="text-xs text-mutedWhite text-right px-4 pb-2">{input.trim().split(/\s+/).filter(Boolean).length} words</Text>
+          <Text style={styles.wordCount}>{input.trim().split(/\s+/).filter(Boolean).length} words</Text>
         </View>
 
         {error ? <ErrorMessage message={error} variant="card" onRetry={handleImport} /> : null}
 
         <Button
+
           style={{ marginTop: 20 }}
           label={loading ? 'Importing...' : 'Import Wallet'}
           onPress={handleImport}
@@ -82,3 +84,14 @@ export function ImportWalletScreen({ onComplete, onBack }: ImportWalletScreenPro
     </SafeAreaView>
   )
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.surfaceBg },
+  scrollContent: { padding: Spacing.lg, paddingTop: Spacing.md, flexGrow: 1 },
+  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md },
+  title: { fontSize: FontSize.xl, color: Colors.white, fontWeight: FontWeight.bold, textAlign: 'center', marginTop: Spacing.md },
+  subtitle: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', marginTop: Spacing.sm },
+  inputBox: { backgroundColor: Colors.cardBg, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: Colors.borderGrey, marginTop: Spacing.xl, overflow: 'hidden' },
+  input: { padding: Spacing.md, fontSize: FontSize.md, color: Colors.white, minHeight: 120, fontFamily: 'monospace', lineHeight: 24 },
+  wordCount: { fontSize: FontSize.xs, color: Colors.mutedWhite, textAlign: 'right', paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm },
+})

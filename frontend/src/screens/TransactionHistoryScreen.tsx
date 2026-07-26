@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect } from 'react'
 import {
   View,
+  Text,
+  StyleSheet,
   FlatList,
   RefreshControl,
   Platform,
@@ -10,7 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { useRouter, useFocusEffect } from 'expo-router'
-import { Colors } from '@/constants/theme'
+import { DesignTokens } from '@/constants/designTokens'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { TransactionItem } from '@/components/TransactionItem'
 import { FilterChips } from '@/components/FilterChips'
 import { SearchBar } from '@/components/SearchBar'
@@ -68,6 +71,7 @@ export function TransactionHistoryScreen() {
       const res = await apiService.getTransactions()
       if (res?.transactions) {
         const backendIds = new Set(res.transactions.map((t: Transaction) => t.id))
+        // Keep locally-created txs that aren't yet in the backend
         const current = useAppStore.getState().transactions
         const localOnly = current.filter((t) => !backendIds.has(t.id))
         setTransactions([...res.transactions, ...localOnly])
@@ -97,10 +101,11 @@ export function TransactionHistoryScreen() {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     }
+    // TODO: Implement export functionality
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-surfaceBg" edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader
         title="Transactions"
         rightAction={
@@ -115,20 +120,20 @@ export function TransactionHistoryScreen() {
         }
       />
 
-      <View className="px-4 mb-4">
+      <View style={styles.searchSection}>
         <SearchBar value={search} onChangeText={setSearch} placeholder="Search name or amount..." />
       </View>
 
       <FilterChips options={FILTERS} selected={filter} onSelect={setFilter} />
 
       {error ? (
-        <View className="px-4">
+        <View style={styles.errorContainer}>
           <ErrorMessage message={error} variant="card" onRetry={() => setError(null)} />
         </View>
       ) : null}
 
       {loading ? (
-        <View className="px-4">
+        <View style={styles.loadingContainer}>
           {[1, 2, 3, 4].map((i) => (
             <SkeletonLoader key={i} variant="list" />
           ))}
@@ -144,7 +149,7 @@ export function TransactionHistoryScreen() {
           data={displayTxs}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 48 }}
+          contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -159,3 +164,24 @@ export function TransactionHistoryScreen() {
     </SafeAreaView>
   )
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.surfaceBg,
+  },
+  searchSection: {
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  listContent: {
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.xxl,
+  },
+  errorContainer: {
+    paddingHorizontal: Spacing.md,
+  },
+  loadingContainer: {
+    paddingHorizontal: Spacing.md,
+  },
+})

@@ -2,9 +2,11 @@ import { useState, useCallback } from 'react'
 import {
   View,
   Text,
+  StyleSheet,
   ScrollView,
   TextInput,
   ActivityIndicator,
+  Platform,
 } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -14,7 +16,7 @@ import { useAppStore } from '@/store/useAppStore'
 import { apiService } from '@/services/api'
 import { nfcService } from '@/services/nfc'
 import { Device } from '@/types'
-import { Colors } from '@/constants/theme'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 
 /**
  * Cards: provision a blank NFC card into a spendable (custodied) wallet, view
@@ -83,27 +85,27 @@ export function CardsScreen() {
   )
 
   return (
-    <SafeAreaView className="flex-1 bg-surfaceBg" edges={['top']}>
-      <View className="flex-row items-center justify-between px-4 py-4">
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.header}>
         <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
         </PressableScale>
-        <Text className="text-xl font-bold text-white" accessibilityRole="header">
+        <Text style={styles.headerTitle} accessibilityRole="header">
           Cards
         </Text>
-        <View className="w-[24]" />
+        <View style={styles.spacer24} />
       </View>
 
-      <ScrollView contentContainerClassName="px-6 pb-8">
-        <Text className="text-sm text-mutedWhite leading-5 mb-6">
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.intro}>
           Turn a blank NFC card into a tap-to-pay wallet. Tap the card to pay anywhere a Noir
           reader accepts it.
         </Text>
 
-        <View className="bg-cardBg rounded-2xl p-6 border border-borderGrey">
-          <Text className="text-xs text-mutedWhite mb-2 uppercase tracking-[0.5]">Optional PIN (for larger taps)</Text>
+        <View style={styles.addCard}>
+          <Text style={styles.label}>Optional PIN (for larger taps)</Text>
           <TextInput
-            className="bg-[#2C2C2C] rounded-xl border border-borderGrey text-white text-base px-4 h-[48] mb-4"
+            style={styles.pinInput}
             value={pin}
             onChangeText={(t) => setPin(t.replace(/[^0-9]/g, '').slice(0, 6))}
             placeholder="4–6 digits"
@@ -113,7 +115,7 @@ export function CardsScreen() {
             maxLength={6}
           />
           <PressableScale
-            className={`flex-row items-center justify-center bg-gold py-4 rounded-xl gap-2 min-h-[52] ${busy ? 'opacity-60' : ''}`}
+            style={[styles.primaryBtn, busy && styles.btnDisabled]}
             onPress={addCard}
             disabled={busy}
             accessibilityRole="button"
@@ -124,7 +126,7 @@ export function CardsScreen() {
             ) : (
               <>
                 <Ionicons name="add-circle-outline" size={20} color={Colors.black} />
-                <Text className="text-xl font-bold text-black">Add a Card</Text>
+                <Text style={styles.primaryBtnText}>Add a Card</Text>
               </>
             )}
           </PressableScale>
@@ -132,40 +134,44 @@ export function CardsScreen() {
 
         {status && (
           <Text
-            className={`text-sm text-mutedWhite mt-4 text-center ${status.kind === 'error' ? 'text-[#FF5A5F]' : status.kind === 'success' ? 'text-[#3ED598]' : ''}`}
+            style={[
+              styles.status,
+              status.kind === 'error' && { color: Colors.danger },
+              status.kind === 'success' && { color: Colors.success },
+            ]}
           >
             {status.text}
           </Text>
         )}
 
-        <Text className="text-sm text-mutedWhite font-semibold uppercase tracking-[0.5] mt-8 mb-4">Your Cards</Text>
+        <Text style={styles.sectionTitle}>Your Cards</Text>
         {cards.length === 0 ? (
-          <Text className="text-sm text-mutedWhite text-center py-6">No cards yet. Add one above.</Text>
+          <Text style={styles.empty}>No cards yet. Add one above.</Text>
         ) : (
           cards.map((card) => {
             const revoked = card.status === 'deactivated' || card.status === 'lost'
             return (
-              <View key={card.id} className="flex-row items-center bg-cardBg rounded-xl border border-borderGrey p-4 mb-2 gap-4">
-                <View className="w-10 h-10 rounded-full bg-gold/15 items-center justify-center">
+              <View key={card.id} style={styles.cardRow}>
+                <View style={styles.cardIcon}>
                   <Ionicons name="card-outline" size={22} color={revoked ? Colors.mutedWhite : Colors.gold} />
                 </View>
-                <View className="flex-1">
-                  <Text className={`text-base text-white font-semibold ${revoked ? 'text-mutedWhite line-through' : ''}`}>{card.label}</Text>
-                  <Text className="text-xs text-mutedWhite font-mono mt-0.5" numberOfLines={1}>
+                <View style={styles.flexOne}>
+                  <Text style={[styles.cardLabel, revoked && styles.cardLabelRevoked]}>{card.label}</Text>
+                  <Text style={styles.cardWallet} numberOfLines={1}>
                     {card.agentPublicKey?.slice(0, 8)}…{card.agentPublicKey?.slice(-4)}
                   </Text>
                 </View>
                 {revoked ? (
-                  <Text className="text-xs text-mutedWhite italic">Revoked</Text>
+                  <Text style={styles.revokedTag}>Revoked</Text>
                 ) : (
                   <PressableScale
-                    className="px-4 py-2 rounded-full border border-[#FF5A5F]"
+                    style={styles.revokeBtn}
                     onPress={() => revokeCard(card)}
                     disabled={busy}
                     accessibilityRole="button"
                     accessibilityLabel={`Revoke ${card.label}`}
                   >
-                    <Text className="text-sm text-[#FF5A5F] font-semibold">Revoke</Text>
+                    <Text style={styles.revokeBtnText}>Revoke</Text>
                   </PressableScale>
                 )}
               </View>
@@ -176,3 +182,92 @@ export function CardsScreen() {
     </SafeAreaView>
   )
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.surfaceBg },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+  },
+  headerTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.white },
+  content: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.xl },
+  intro: { fontSize: FontSize.sm, color: Colors.mutedWhite, lineHeight: 20, marginBottom: Spacing.lg },
+  addCard: {
+    backgroundColor: Colors.cardBg,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderGrey,
+  },
+  label: { fontSize: FontSize.xs, color: Colors.mutedWhite, marginBottom: Spacing.sm, textTransform: 'uppercase', letterSpacing: 0.5 },
+  pinInput: {
+    backgroundColor: Colors.lightGrey,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.borderGrey,
+    color: Colors.white,
+    fontSize: FontSize.md,
+    paddingHorizontal: Spacing.md,
+    height: 48,
+    marginBottom: Spacing.md,
+  },
+  primaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.gold,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    gap: Spacing.sm,
+    minHeight: 52,
+  },
+  primaryBtnText: { color: Colors.black, fontSize: FontSize.lg, fontWeight: FontWeight.bold },
+  btnDisabled: { opacity: 0.6 },
+  status: { fontSize: FontSize.sm, color: Colors.mutedWhite, marginTop: Spacing.md, textAlign: 'center' },
+  sectionTitle: {
+    fontSize: FontSize.sm,
+    color: Colors.mutedWhite,
+    fontWeight: FontWeight.semibold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.md,
+  },
+  empty: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', paddingVertical: Spacing.lg },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.cardBg,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.borderGrey,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    gap: Spacing.md,
+  },
+  cardIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.gold + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardLabel: { fontSize: FontSize.md, color: Colors.white, fontWeight: FontWeight.semibold },
+  cardLabelRevoked: { color: Colors.mutedWhite, textDecorationLine: 'line-through' },
+  cardWallet: { fontSize: FontSize.xs, color: Colors.mutedWhite, fontFamily: 'monospace', marginTop: 2 },
+  revokeBtn: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: Colors.danger,
+  },
+  revokeBtnText: { fontSize: FontSize.sm, color: Colors.danger, fontWeight: FontWeight.semibold },
+  revokedTag: { fontSize: FontSize.xs, color: Colors.mutedWhite, fontStyle: 'italic' },
+  spacer24: { width: 24 },
+  flexOne: { flex: 1 },
+})

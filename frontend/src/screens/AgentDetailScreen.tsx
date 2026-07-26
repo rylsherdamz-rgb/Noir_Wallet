@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, ScrollView, RefreshControl, Alert } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Alert } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -158,36 +158,35 @@ export function AgentDetailScreen() {
 
   if (!device) {
     return (
-      <SafeAreaView className="flex-1 bg-surfaceBg">
-        <View className="flex-row items-center justify-between px-4 py-4">
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
           <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="arrow-back" size={24} color={Colors.white} />
           </PressableScale>
-          <Text className="text-xl font-bold text-white">Agent</Text>
-          <View className="w-6" />
+          <Text style={styles.headerTitle}>Agent</Text>
+          <View style={styles.spacer24} />
         </View>
-        <View className="flex-1 items-center justify-center gap-4">
+        <View style={styles.notFound}>
           <Ionicons name="alert-circle-outline" size={48} color={Colors.mutedWhite} />
-          <Text className="text-base text-mutedWhite">Device not found</Text>
+          <Text style={styles.notFoundText}>Device not found</Text>
         </View>
       </SafeAreaView>
     )
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-surfaceBg">
-      <View className="flex-row items-center justify-between px-4 py-4">
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
         <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
         </PressableScale>
-        <Text className="text-xl font-bold text-white">{device.label}</Text>
+        <Text style={styles.headerTitle}>{device.label}</Text>
         <StatusPill status={device.status} />
       </View>
 
       <ScrollView
-        className="flex-1"
-        contentContainerClassName="px-4"
-        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 16, 24) }}
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.gold} colors={[Colors.gold]} />
         }
@@ -197,40 +196,40 @@ export function AgentDetailScreen() {
           colors={['#1a1a1a', '#101010']}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
-          className="rounded-3xl border border-borderGrey p-6 mt-4 overflow-hidden"
+          style={styles.walletCard}
         >
-          <View className="flex-row items-center mb-4">
-            <View className="w-12 h-12 rounded-3xl items-center justify-center bg-[rgba(198,161,91,0.15)] border border-[rgba(198,161,91,0.25)] mr-4">
+          <View style={styles.walletIconRow}>
+            <View style={styles.walletIcon}>
               <Ionicons name="flash" size={28} color={Colors.gold} />
             </View>
-            <View className="flex-1">
-              <Text className="font-['Jost-SemiBold'] text-base text-cream">Agent Wallet</Text>
+            <View style={styles.walletTitleArea}>
+              <Text style={styles.walletTitle}>Agent Wallet</Text>
               {agent?.publicKey && (
-                <Text className="font-mono text-xs text-mutedWhite mt-0.5">{agent.publicKey.slice(0, 8)}…{agent.publicKey.slice(-6)}</Text>
+                <Text style={styles.walletKey}>{agent.publicKey.slice(0, 8)}…{agent.publicKey.slice(-6)}</Text>
               )}
             </View>
           </View>
 
-          <Text className="text-[48px] font-['Jost-SemiBold'] text-white mb-2">{xlmBalance}<Text className="text-xl text-mutedWhite"> XLM</Text></Text>
+          <Text style={styles.balanceAmount}>{xlmBalance}<Text style={styles.balanceUnit}> XLM</Text></Text>
 
           {device.agentPublicKey && (
-            <View className="flex-row items-center gap-1">
+            <View style={styles.authRow}>
               <Ionicons
                 name={authorized ? 'checkmark-circle' : 'close-circle'}
                 size={16}
                 color={authorized ? Colors.success : Colors.mutedWhite}
               />
-              <Text style={[authorized && { color: Colors.success }]} className="text-xs text-mutedWhite">
+              <Text style={[styles.authText, authorized && { color: Colors.success }]}>
                 {authorized ? 'Registered on-chain' : 'Not registered'}
               </Text>
 
               {!authorized && (
                 <PressableScale
-                  className="ml-auto"
+                  style={styles.registerLink}
                   onPress={handleRegister}
                   disabled={registering}
                 >
-                  <Text className="text-xs font-semibold text-gold">{registering ? 'Registering…' : 'Register Now'}</Text>
+                  <Text style={styles.registerLinkText}>{registering ? 'Registering…' : 'Register Now'}</Text>
                 </PressableScale>
               )}
             </View>
@@ -238,54 +237,54 @@ export function AgentDetailScreen() {
         </LinearGradient>
 
         {/* Budget & Spend */}
-        <View className="bg-cardBg rounded-2xl border border-borderGrey p-4 mt-4">
-          <View className="flex-row items-center gap-2 mb-4">
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
             <Ionicons name="wallet-outline" size={16} color={Colors.gold} />
-            <Text className="text-sm font-semibold text-cream">Budget</Text>
+            <Text style={styles.sectionTitle}>Budget</Text>
           </View>
 
-          <View className="flex-row gap-2 mb-2">
+          <View style={styles.metricsRow}>
             <MetricBox label="Budget" value={`${budget} XLM`} />
             <MetricBox label="Spent" value={`${spent} XLM`} gold={pct > 0} />
             <MetricBox label="Remaining" value={`${remaining} XLM`} gold />
           </View>
 
           {agent && agent.spendingBudgetStroops > 0 && (
-            <View className="mt-1">
-              <View className="h-[6px] rounded-[3px] bg-[#1B1B1B] mb-1">
-                <View className="h-[6px] rounded-[3px] bg-gold" style={{ width: `${Math.min(pct, 100)}%` }} />
+            <View style={styles.progressSection}>
+              <View style={styles.progressBg}>
+                <View style={[styles.progressFill, { width: `${Math.min(pct, 100)}%` }]} />
               </View>
-              <Text className="text-xs text-mutedWhite">{pct}% of budget used</Text>
+              <Text style={styles.progressLabel}>{pct}% of budget used</Text>
             </View>
           )}
         </View>
 
         {/* Actions */}
-        <View className="bg-cardBg rounded-2xl border border-borderGrey p-4 mt-4">
-          <View className="flex-row items-center gap-2 mb-4">
+        <View style={styles.actionsCard}>
+          <View style={styles.sectionHeader}>
             <Ionicons name="flash-outline" size={16} color={Colors.gold} />
-            <Text className="text-sm font-semibold text-cream">Actions</Text>
+            <Text style={styles.sectionTitle}>Actions</Text>
           </View>
 
           <PressableScale
-            className="flex-row items-center bg-[#0E0E0E] rounded-xl border border-borderGrey p-4"
+            style={styles.actionBtn}
             onPress={handleTopUp}
             disabled={toppingUp}
           >
             <Ionicons name="add-circle-outline" size={20} color={Colors.gold} />
-            <View className="flex-1 ml-4">
-              <Text className="text-sm font-semibold text-white">Top Up Agent Wallet</Text>
-              <Text className="text-xs text-mutedWhite mt-0.5">Send 50 XLM from main wallet</Text>
+            <View style={styles.actionContent}>
+              <Text style={styles.actionLabel}>Top Up Agent Wallet</Text>
+              <Text style={styles.actionDesc}>Send 50 XLM from main wallet</Text>
             </View>
-            <Text className="text-xl text-mutedWhite">{toppingUp ? '…' : '→'}</Text>
+            <Text style={styles.actionArrow}>{toppingUp ? '…' : '→'}</Text>
           </PressableScale>
         </View>
 
         {/* Transaction History */}
-        <View className="bg-cardBg rounded-2xl border border-borderGrey p-4 mt-4">
-          <View className="flex-row items-center gap-2 mb-4">
+        <View style={styles.txSection}>
+          <View style={styles.sectionHeader}>
             <Ionicons name="receipt-outline" size={16} color={Colors.gold} />
-            <Text className="text-sm font-semibold text-cream">Payment History</Text>
+            <Text style={styles.sectionTitle}>Payment History</Text>
           </View>
           {agentTxs.length === 0 ? (
             <EmptyState
@@ -301,10 +300,10 @@ export function AgentDetailScreen() {
         </View>
 
         {/* Device Info */}
-        <View className="bg-cardBg rounded-2xl border border-borderGrey p-4 mt-4">
-          <View className="flex-row items-center gap-2 mb-4">
+        <View style={styles.infoCard}>
+          <View style={styles.sectionHeader}>
             <Ionicons name="information-circle-outline" size={16} color={Colors.mutedWhite} />
-            <Text className="text-sm font-semibold text-mutedWhite">Device Info</Text>
+            <Text style={[styles.sectionTitle, { color: Colors.mutedWhite }]}>Device Info</Text>
           </View>
           <InfoRow label="Label" value={device.label} />
           <InfoRow label="Status" value={device.status} />
@@ -317,7 +316,7 @@ export function AgentDetailScreen() {
 
         {/* Remove device (danger) */}
         <PressableScale
-          className="flex-row items-center justify-center gap-2 py-4 mt-12"
+          style={styles.dangerBtn}
           onPress={() =>
             Alert.alert(
               'Remove Device',
@@ -330,7 +329,7 @@ export function AgentDetailScreen() {
           }
         >
           <Ionicons name="trash-outline" size={16} color={Colors.danger} />
-          <Text className="text-sm font-semibold text-[#FF5A5F]">Remove Device</Text>
+          <Text style={styles.dangerText}>Remove Device</Text>
         </PressableScale>
       </ScrollView>
 
@@ -347,18 +346,112 @@ export function AgentDetailScreen() {
 
 function MetricBox({ label, value, gold }: { label: string; value: string; gold?: boolean }) {
   return (
-    <View className="flex-1 bg-[#0E0E0E] rounded-xl border border-borderGrey p-2 items-center">
-      <Text className="text-xs text-mutedWhite mb-0.5">{label}</Text>
-      <Text className={`text-base font-bold ${gold ? 'text-gold' : 'text-white'}`} style={{ fontVariant: ['tabular-nums'] }}>{value}</Text>
+    <View style={styles.metric}>
+      <Text style={styles.metricLabel}>{label}</Text>
+      <Text style={[styles.metricValue, gold && styles.metricValueGold]}>{value}</Text>
     </View>
   )
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <View className="flex-row justify-between items-center py-2 border-b border-[rgba(58,58,58,0.4)]">
-      <Text className="text-sm text-mutedWhite">{label}</Text>
-      <Text className="text-sm text-white font-mono">{value}</Text>
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value}</Text>
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.surfaceBg },
+  notFound: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
+  notFoundText: { fontSize: FontSize.md, color: Colors.mutedWhite },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
+  },
+  headerTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.white },
+  spacer24: { width: 24 },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: Spacing.md, paddingBottom: 24 },
+
+  // Wallet card
+  walletCard: {
+    borderRadius: BorderRadius.xl, borderWidth: 1, borderColor: Colors.borderGrey,
+    padding: Spacing.lg, marginTop: Spacing.md, overflow: 'hidden',
+  },
+  walletIconRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md },
+  walletIcon: {
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: colorWithOpacity(Colors.gold, 0.15),
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: colorWithOpacity(Colors.gold, 0.25),
+    marginRight: Spacing.md,
+  },
+  walletTitleArea: { flex: 1 },
+  walletTitle: { fontFamily: Fonts.display, fontSize: FontSize.md, color: Colors.cream },
+  walletKey: { fontFamily: Fonts.mono, fontSize: FontSize.xs, color: Colors.mutedWhite, marginTop: 2 },
+  balanceAmount: { fontSize: FontSize.xxxl, fontFamily: Fonts.display, color: Colors.white, marginBottom: Spacing.sm },
+  balanceUnit: { fontSize: FontSize.lg, color: Colors.mutedWhite },
+  authRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  authText: { fontSize: FontSize.xs, color: Colors.mutedWhite },
+  registerLink: { marginLeft: 'auto' },
+  registerLinkText: { fontSize: FontSize.xs, color: Colors.gold, fontWeight: FontWeight.semibold },
+
+  // Section card
+  sectionCard: {
+    backgroundColor: Colors.cardBg, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: Colors.borderGrey,
+    padding: Spacing.md, marginTop: Spacing.md,
+  },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md },
+  sectionTitle: { fontSize: FontSize.sm, color: Colors.cream, fontWeight: FontWeight.semibold },
+  metricsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
+  metric: { flex: 1, backgroundColor: '#0E0E0E', borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.borderGrey, padding: Spacing.sm, alignItems: 'center' },
+  metricLabel: { fontSize: FontSize.xs, color: Colors.mutedWhite, marginBottom: 2 },
+  metricValue: { fontSize: FontSize.md, color: Colors.white, fontWeight: FontWeight.bold, fontVariant: ['tabular-nums'] },
+  metricValueGold: { color: Colors.gold },
+  progressSection: { marginTop: Spacing.xs },
+  progressBg: { height: 6, borderRadius: 3, backgroundColor: '#1B1B1B', marginBottom: Spacing.xs },
+  progressFill: { height: 6, borderRadius: 3, backgroundColor: Colors.gold },
+  progressLabel: { fontSize: FontSize.xs, color: Colors.mutedWhite },
+
+  // Actions
+  actionsCard: {
+    backgroundColor: Colors.cardBg, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: Colors.borderGrey,
+    padding: Spacing.md, marginTop: Spacing.md,
+  },
+  actionBtn: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#0E0E0E', borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.borderGrey,
+    padding: Spacing.md,
+  },
+  actionContent: { flex: 1, marginLeft: Spacing.md },
+  actionLabel: { fontSize: FontSize.sm, color: Colors.white, fontWeight: FontWeight.semibold },
+  actionDesc: { fontSize: FontSize.xs, color: Colors.mutedWhite, marginTop: 2 },
+  actionArrow: { fontSize: FontSize.lg, color: Colors.mutedWhite },
+
+  // Transactions
+  txSection: {
+    backgroundColor: Colors.cardBg, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: Colors.borderGrey,
+    padding: Spacing.md, marginTop: Spacing.md,
+  },
+
+  // Device Info
+  infoCard: {
+    backgroundColor: Colors.cardBg, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: Colors.borderGrey,
+    padding: Spacing.md, marginTop: Spacing.md,
+  },
+  infoRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: colorWithOpacity(Colors.borderGrey, 0.4),
+  },
+  infoLabel: { fontSize: FontSize.sm, color: Colors.mutedWhite },
+  infoValue: { fontSize: FontSize.sm, color: Colors.white, fontFamily: Fonts.mono },
+
+  // Danger
+  dangerBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
+    paddingVertical: Spacing.md, marginTop: Spacing.xxl,
+  },
+  dangerText: { fontSize: FontSize.sm, color: Colors.danger, fontWeight: FontWeight.semibold },
+})

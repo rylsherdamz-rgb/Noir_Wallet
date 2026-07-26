@@ -1,6 +1,7 @@
-import { View, TextInput } from 'react-native'
+import { View, TextInput, StyleSheet } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { Ionicons } from '@expo/vector-icons'
+import { Colors, Spacing, FontSize, BorderRadius } from '@/constants/theme'
 
 interface SearchBarProps {
   value: string
@@ -16,22 +17,43 @@ export function SearchBar({
   onClear,
 }: SearchBarProps) {
   return (
-    <View className="flex-row items-center bg-[#2C2C2C] rounded-xl px-4 h-11 gap-2 border border-borderGrey">
-      <Ionicons name="search-outline" size={18} color="#A9A9A9" />
+    <View style={styles.container}>
+      <Ionicons name="search-outline" size={18} color={Colors.mutedWhite} />
       <TextInput
-        className="flex-1 text-base text-white h-full p-0"
+        style={styles.input}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor="#A9A9A9"
+        placeholderTextColor={Colors.mutedWhite}
         autoCapitalize="none"
         autoCorrect={false}
       />
       {value.length > 0 && (
         <PressableScale onPress={() => { onChangeText(''); onClear?.() }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Ionicons name="close-circle" size={18} color="#A9A9A9" />
+          <Ionicons name="close-circle" size={18} color={Colors.mutedWhite} />
         </PressableScale>
       )}
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.lightGrey,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    height: 44,
+    gap: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.borderGrey,
+  },
+  input: {
+    flex: 1,
+    fontSize: FontSize.md,
+    color: Colors.white,
+    height: '100%',
+    padding: 0,
+  },
+})

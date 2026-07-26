@@ -25,11 +25,9 @@
 
 <div align="center">
 
-<a href="https://x.com/ChichiCode0/status/2076692282452148572">
-  <img src="assets/noir-demo-preview.gif" width="100%" style="max-width:960px;border-radius:16px;border:1px solid #3A3A3A;box-shadow:0 8px 32px rgba(0,0,0,0.5)" alt="Noir Wallet Demo">
-</a>
-
-<em>▶ Click to watch the product walkthrough on X (Twitter).</em>
+<video src="assets/noir-demo.mp4" width="100%" controls style="max-width:960px;border-radius:16px;border:1px solid #3A3A3A;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
+  Your browser does not support the video tag.
+</video>
 
 <em>▶ A 95-second, Google-style product walkthrough — narrated voiceover, the x402 tap-to-pay flow, per-device agent wallets, and the full mobile app.</em>
 
@@ -109,21 +107,21 @@ Mobile App / POS Terminal
 | **agent_registry** | On-chain agent authorization per device — allows wallet owner to authorize a signing key for tap-to-pay | `wallet.require_auth()` | `backend/asset/contracts/agent_registry/` |
 | **payment_escrow** | Escrow-based settlement — wallet pre-funds, agent authorizes payments instantly, merchants claim in batch | agent auth (via `agent_registry`) | `backend/asset/contracts/payment_escrow/` |
 
-**Testnet Contract IDs** (deployed 2026-07-17):
+**Testnet Contract IDs** (deployed 2026-07-25):
 
-| Contract | ID |
-|----------|----|
-| device_registry | `CDRP5QCCRCV7TURFWH6NEQIVM3UGTONT65YKV5XNZ3457OULD4GE6YZZ` |
-| agent_registry | `CDWRQV4RBKOY4VHKSWEQWF3VV25VAUDCJJZ7344GVVD7HMQOQYMMROJN` |
-| payment_escrow | `CB633774OHLBHDB7HRYFAOUU2WOFZEBA5FR75HQEKDD32DW4NIUCEC4V` |
+| Contract | ID | Explorer |
+|----------|----|----------|
+| device_registry | `CDKZQSB7NLDACWF3MWE2ZMMMNYUOTHHROJHQYEFGYI4N237IDYESKOSU` | [view](https://testnet.stellarexpert.com/contract/CDKZQSB7NLDACWF3MWE2ZMMMNYUOTHHROJHQYEFGYI4N237IDYESKOSU) |
+| agent_registry | `CAFM4S6LIK5WD265P7OPDYMMU4QURD5ICGNOCH4ZGBF3IFJVDBGW2VH3` | [view](https://testnet.stellarexpert.com/contract/CAFM4S6LIK5WD265P7OPDYMMU4QURD5ICGNOCH4ZGBF3IFJVDBGW2VH3) |
+| payment_escrow | `CCRF6MGIPG2PQUPMEFBSVCP4LAZIVSQCS5VJBF6BLMBN4DT4JMH6OVPY` | [view](https://testnet.stellarexpert.com/contract/CCRF6MGIPG2PQUPMEFBSVCP4LAZIVSQCS5VJBF6BLMBN4DT4JMH6OVPY) |
 
 **Mainnet Contract IDs** (deployed 2026-07-18):
 
-| Contract | ID |
-|----------|----|
-| device_registry | `CDSURGM4LYYRZ6U4RKBRUQPA7SGLAJZ5XXS65ACYCIU6QOO2NEEA2S45` |
-| agent_registry | `CDE2Q22BNKHLRNHUXHNL4TYRN5YPCOCO2XD53MAVYG7K2C4KZ2T6NI5T` |
-| payment_escrow | `CCEIB2BLMHK7N7OX23HJ3RCMJBP2NLBMMBGUA6SB5IWJJ6JEWH6ZZPK3` |
+| Contract | ID | Explorer |
+|----------|----|----------|
+| device_registry | `CDSURGM4LYYRZ6U4RKBRUQPA7SGLAJZ5XXS65ACYCIU6QOO2NEEA2S45` | [view](https://stellarexpert.com/contract/CDSURGM4LYYRZ6U4RKBRUQPA7SGLAJZ5XXS65ACYCIU6QOO2NEEA2S45) |
+| agent_registry | `CDE2Q22BNKHLRNHUXHNL4TYRN5YPCOCO2XD53MAVYG7K2C4KZ2T6NI5T` | [view](https://stellarexpert.com/contract/CDE2Q22BNKHLRNHUXHNL4TYRN5YPCOCO2XD53MAVYG7K2C4KZ2T6NI5T) |
+| payment_escrow | `CCEIB2BLMHK7N7OX23HJ3RCMJBP2NLBMMBGUA6SB5IWJJ6JEWH6ZZPK3` | [view](https://stellarexpert.com/contract/CCEIB2BLMHK7N7OX23HJ3RCMJBP2NLBMMBGUA6SB5IWJJ6JEWH6ZZPK3) |
 
 ### Contract Methods
 
@@ -226,9 +224,9 @@ Copy `.env.example` to `.env` and configure:
 
 | Variable | Description | Current Value |
 |----------|-------------|---------------|
-| `EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT` | Soroban device registry contract ID | `CDRP5QCCRCV7TURFWH6NEQIVM3UGTONT65YKV5XNZ3457OULD4GE6YZZ` |
-| `EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT` | Soroban agent registry contract ID | `CDWRQV4RBKOY4VHKSWEQWF3VV25VAUDCJJZ7344GVVD7HMQOQYMMROJN` |
-| `EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT` | Soroban payment escrow contract ID | `CB633774OHLBHDB7HRYFAOUU2WOFZEBA5FR75HQEKDD32DW4NIUCEC4V` |
+| `EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT` | Soroban device registry contract ID | `CDKZQSB7NLDACWF3MWE2ZMMMNYUOTHHROJHQYEFGYI4N237IDYESKOSU` |
+| `EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT` | Soroban agent registry contract ID | `CAFM4S6LIK5WD265P7OPDYMMU4QURD5ICGNOCH4ZGBF3IFJVDBGW2VH3` |
+| `EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT` | Soroban payment escrow contract ID | `CCRF6MGIPG2PQUPMEFBSVCP4LAZIVSQCS5VJBF6BLMBN4DT4JMH6OVPY` |
 | `EXPO_PUBLIC_STELLAR_MASTER_KEY_ID` | Stellar master key ID | (configure per deployment) |
 | `EXPO_PUBLIC_CHANNEL_SECRET_KEY` | Fee channel secret | (configure per deployment) |
 | `EXPO_PUBLIC_ISSUER_ADDRESS` | Asset issuer address | (configure per deployment) |

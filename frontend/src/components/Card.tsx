@@ -1,5 +1,5 @@
-import { View, StyleProp, ViewStyle } from 'react-native'
-import { Colors } from '@/constants/theme'
+import { View, StyleSheet, StyleProp, ViewStyle } from 'react-native'
+import { Colors, Spacing, BorderRadius } from '@/constants/theme'
 
 interface CardProps {
   children: React.ReactNode
@@ -11,13 +11,21 @@ interface CardProps {
 /** Flat premium surface: cardBg + 1px hairline border, radius lg. */
 export function Card({ children, style, active }: CardProps) {
   return (
-    <View
-      className="bg-cardBg rounded-2xl p-6 border border-borderGrey"
-      style={[active && { borderColor: Colors.gold }, style]}
-    >
-      {children}
-    </View>
+    <View style={[styles.card, active && styles.active, style]}>{children}</View>
   )
 }
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.cardBg,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderGrey,
+  },
+  active: {
+    borderColor: Colors.gold,
+  },
+})
 
 export default Card
