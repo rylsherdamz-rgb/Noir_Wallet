@@ -286,6 +286,29 @@ npm test
 
 
 
+## User Feedback
+
+We collected structured feedback from 60 testers who registered devices, funded escrows, and completed payment flows on Stellar testnet. Raw responses and a summary of requested changes are linked below.
+
+| Resource | Link |
+|----------|------|
+| Feedback Form (submit) | [Google Form](https://docs.google.com/forms/d/1wk9T8bEfZn9rP6bBElFV44BC2lMzH2tGY2lIcDezAcY/viewform) |
+| Response Spreadsheet | [Google Sheets](https://docs.google.com/spreadsheets/d/1gr3p5WEBSLRDox_gSRaENWqyX1bP1q4jxdMWC2BVF90/edit?resourcekey=&gid=1410345740#gid=1410345740) |
+| Raw Export (Excel) | [`document/Noir_Wallet Feedbackform (Responses).xlsx`](document/Noir_Wallet%20Feedbackform%20(Responses).xlsx) |
+
+**Top requested improvements (from 60 respondents):**
+
+1. **Onboarding tutorial** — step-by-step guide for device provisioning and first payment
+2. **QR code scanner** — for wallet addresses on receive and send screens
+3. **Dark mode toggle** — theme switch for late-night use
+4. **Transaction search & filters** — find payments by date, amount, or counterparty
+5. **Push notifications** — payment confirmations and escrow alerts
+6. **Better empty states** — sample data or guided prompts on first launch
+7. **Haptic feedback** — vibration on successful NFC tap
+8. **Custom NFC device names** — rename tags instead of showing hashes
+9. **Multi-currency display** — show USD/PHP equivalent alongside XLM
+10. **Spending limits per device** — configurable per-NFC-card budgets
+
 ## Team
 
 | Role | Name |
