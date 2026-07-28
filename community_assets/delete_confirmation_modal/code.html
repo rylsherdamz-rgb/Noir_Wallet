@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Kabayan - Delete Confirmation</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&amp;family=Inter:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface": "#fbf9f4",
+                    "error": "#ba1a1a",
+                    "on-secondary-fixed-variant": "#574500",
+                    "secondary-fixed": "#ffe089",
+                    "on-error-container": "#93000a",
+                    "tertiary-container": "#8c0014",
+                    "surface-tint": "#3056c4",
+                    "on-primary-container": "#96adff",
+                    "secondary-fixed-dim": "#f0c100",
+                    "error-container": "#ffdad6",
+                    "surface-container": "#f0eee9",
+                    "primary": "#002576",
+                    "inverse-on-surface": "#f2f1ec",
+                    "on-secondary": "#ffffff",
+                    "surface-variant": "#e4e2dd",
+                    "on-surface-variant": "#444653",
+                    "on-secondary-container": "#6e5700",
+                    "on-tertiary-fixed-variant": "#930015",
+                    "surface-container-low": "#f5f3ee",
+                    "tertiary": "#62000a",
+                    "background": "#fbf9f4",
+                    "inverse-surface": "#30312e",
+                    "on-background": "#1b1c19",
+                    "primary-fixed-dim": "#b6c4ff",
+                    "secondary": "#735c00",
+                    "primary-fixed": "#dce1ff",
+                    "on-surface": "#1b1c19",
+                    "secondary-container": "#fecc00",
+                    "outline": "#747685",
+                    "tertiary-fixed": "#ffdad7",
+                    "on-secondary-fixed": "#241a00",
+                    "surface-container-highest": "#e4e2dd",
+                    "tertiary-fixed-dim": "#ffb3ae",
+                    "primary-container": "#0038a8",
+                    "on-error": "#ffffff",
+                    "on-primary-fixed-variant": "#093cab",
+                    "inverse-primary": "#b6c4ff",
+                    "outline-variant": "#c4c5d5",
+                    "surface-bright": "#fbf9f4",
+                    "on-tertiary-fixed": "#410004",
+                    "surface-dim": "#dbdad5",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-container": "#ff918b",
+                    "on-tertiary": "#ffffff",
+                    "on-primary-fixed": "#00164f",
+                    "on-primary": "#ffffff",
+                    "surface-container-high": "#eae8e3"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "md": "16px",
+                    "container-margin": "16px",
+                    "card-gap": "12px",
+                    "xs": "8px",
+                    "lg": "24px",
+                    "base": "4px",
+                    "sm": "12px",
+                    "xl": "32px"
+            },
+            "fontFamily": {
+                    "headline-sm": ["Montserrat"],
+                    "headline-md": ["Montserrat"],
+                    "label-md": ["Inter"],
+                    "body-md": ["Inter"],
+                    "display-lg": ["Montserrat"],
+                    "body-lg": ["Inter"],
+                    "display-sm": ["Montserrat"],
+                    "price-display": ["Montserrat"]
+            },
+            "fontSize": {
+                    "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "display-sm": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "price-display": ["20px", {"lineHeight": "24px", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        .modal-overlay {
+            backdrop-filter: blur(8px);
+            background-color: rgba(27, 28, 25, 0.4);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body-md min-h-screen flex flex-col items-center justify-center">
+<!-- Header Mockup (Background Context) -->
+<header class="bg-surface shadow-sm flex justify-between items-center px-container-margin py-md w-full sticky top-0 z-10 opacity-40 grayscale pointer-events-none">
+<div class="flex items-center gap-sm">
+<div class="w-10 h-10 rounded-full bg-surface-container-high overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A portrait of a smiling Filipino woman in her 30s, looking friendly and professional, against a soft warm white studio background. The lighting is bright and airy, reflecting a modern light-mode aesthetic with clean skin textures and natural warmth." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCsyiJzUpvtYlxYm3CQzW4Q2e2i2ukw3vYX2cxCwNOnDzFK8ynKGvsZiJulQReJkUUoIw4sj2LJ5vdHF4AE74lnL_NxovbZhSIgELX6t-Fshnf9daERBQHCANwFToigQNj7ABAsrJeZLqTn-mf5-gVOX3KmVo94BDmrKGvsPE79NDGKdP_PVUAaL_1uGxkBT-C9Qr5aQZ_sS6PSafMJoFlNaKDywtiOJ0jvRULS58DrrLJKuxoI00zDz-K3Jovo5YEcPg95IQeCq-g"/>
+</div>
+<span class="font-headline-md text-headline-md font-bold text-primary">Kabayan</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant">notifications</span>
+</header>
+<!-- Main Content Background (Mocking a Post) -->
+<main class="flex-1 w-full max-w-md px-container-margin py-lg opacity-40 grayscale pointer-events-none">
+<div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden mb-card-gap">
+<div class="w-full h-48 bg-cover bg-center" data-alt="A close-up, appetizing photo of a traditional Filipino dish like Chicken Adobo served in a rustic ceramic bowl. The lighting is warm and golden, highlighting the rich brown sauce and fresh garnish. The background is a clean, minimalist wooden table, evoking a homey, kapitbahay community kitchen feel." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDGMaYBeVseJPzHtsbvoApVOnyq_2K5G-Qy0x0g5bqM6OZTHPfsScGiFSCWdotBB4FvZ2s81jwtSUJLt7Ueo7Q1BlSJwxZruYz3D9ifzhIS_dOdZEqkpVZUsDmVm_HrnbbGlKQx8D-BU4PSgLWtwhjTQ-6QGA5OxuMREre8Q2W7-vwlI4EOSrtMJI6XHK4RZZ9qhiIo_ev8jlNJULeo188qQHR8X3WQm-8nrvR1P2qJiS2DzgjnZ6uhNXZdQTe8NWErzg9cBc8SwMs')"></div>
+<div class="p-md">
+<div class="flex justify-between items-start mb-xs">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Home-cooked Chicken Adobo</h2>
+<span class="font-price-display text-price-display text-primary">₱150</span>
+</div>
+<p class="text-on-surface-variant mb-md">Good for 2 people. Freshly cooked this morning!</p>
+<div class="flex gap-xs">
+<span class="bg-secondary-fixed text-on-secondary-fixed-variant px-sm py-xs rounded-full font-label-md text-label-md">Food</span>
+<span class="bg-surface-container-high text-on-surface-variant px-sm py-xs rounded-full font-label-md text-label-md">Available</span>
+</div>
+</div>
+</div>
+</main>
+<!-- Modal Shell -->
+<div class="fixed inset-0 z-50 flex items-end justify-center sm:items-center px-container-margin pb-xl sm:pb-0 modal-overlay">
+<!-- Modal Card -->
+<div class="bg-surface-container-lowest w-full max-w-sm rounded-[24px] shadow-2xl overflow-hidden transform transition-all animate-in slide-in-from-bottom duration-300 ease-out border border-outline-variant/30">
+<!-- Warning Header -->
+<div class="px-lg pt-xl pb-md text-center">
+<div class="w-16 h-16 bg-error-container rounded-full flex items-center justify-center mx-auto mb-lg">
+<span class="material-symbols-outlined text-on-error-container text-[32px]">delete_forever</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-sm px-md">
+                    Are you sure you want to delete this post?
+                </h3>
+<p class="font-body-md text-body-md text-on-surface-variant px-xs">
+                    This action cannot be undone. All your data associated with this listing will be permanently removed from the Kabayan marketplace.
+                </p>
+</div>
+<!-- Action Buttons -->
+<div class="px-lg pb-xl pt-md flex flex-col gap-sm">
+<!-- Primary Action (Delete) -->
+<button class="bg-error text-on-error py-md px-lg rounded-xl font-headline-sm text-headline-sm hover:opacity-90 active:scale-95 transition-all shadow-md flex items-center justify-center gap-sm" onclick="this.classList.add('scale-95'); setTimeout(() =&gt; window.location.reload(), 200);">
+<span class="material-symbols-outlined">delete</span>
+                    Delete
+                </button>
+<!-- Secondary Action (Cancel) -->
+<button class="bg-surface-container-high text-on-surface py-md px-lg rounded-xl font-headline-sm text-headline-sm hover:bg-surface-container-highest active:scale-95 transition-all border border-outline-variant/20" onclick="this.classList.add('scale-95');">
+                    Cancel
+                </button>
+</div>
+<!-- Drag Handle for Mobile Bottom Sheet feel -->
+<div class="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-outline-variant/40 rounded-full sm:hidden"></div>
+</div>
+</div>
+<!-- Script for simple interaction -->
+<script>
+        // Placeholder for future interaction logic
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Bayanihan Design System: Delete Confirmation Loaded');
+        });
+    </script>
+</body></html>

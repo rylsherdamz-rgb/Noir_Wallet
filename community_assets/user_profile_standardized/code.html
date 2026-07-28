@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary": "#735c00",
+                        "surface-container": "#f0eee9",
+                        "on-primary-container": "#96adff",
+                        "surface-tint": "#3056c4",
+                        "surface-container-low": "#f5f3ee",
+                        "on-background": "#1b1c19",
+                        "inverse-on-surface": "#f2f1ec",
+                        "surface-container-lowest": "#ffffff",
+                        "inverse-primary": "#b6c4ff",
+                        "on-error-container": "#93000a",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-highest": "#e4e2dd",
+                        "secondary-fixed-dim": "#f0c100",
+                        "on-tertiary-container": "#ff918b",
+                        "on-secondary": "#ffffff",
+                        "tertiary": "#62000a",
+                        "on-primary-fixed-variant": "#093cab",
+                        "background": "#fbf9f4",
+                        "on-secondary-fixed": "#241a00",
+                        "surface-container-high": "#eae8e3",
+                        "primary": "#0038a8",
+                        "on-primary-fixed": "#00164f",
+                        "on-secondary-fixed-variant": "#574500",
+                        "on-tertiary-fixed-variant": "#930015",
+                        "surface-dim": "#dbdad5",
+                        "secondary-fixed": "#ffe089",
+                        "primary-container": "#0038a8",
+                        "on-surface-variant": "#444653",
+                        "tertiary-fixed-dim": "#ffb3ae",
+                        "primary-fixed-dim": "#b6c4ff",
+                        "tertiary-container": "#8c0014",
+                        "on-surface": "#1b1c19",
+                        "tertiary-fixed": "#ffdad7",
+                        "surface-variant": "#e4e2dd",
+                        "surface": "#fbf9f4",
+                        "on-primary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-fixed": "#410004",
+                        "outline-variant": "#c4c5d5",
+                        "secondary-container": "#fecc00",
+                        "on-secondary-container": "#6e5700",
+                        "primary-fixed": "#dce1ff",
+                        "inverse-surface": "#30312e",
+                        "error": "#ba1a1a",
+                        "outline": "#747685",
+                        "on-error": "#ffffff",
+                        "surface-bright": "#fbf9f4"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sm": "12px",
+                        "base": "4px",
+                        "lg": "24px",
+                        "card-gap": "16px",
+                        "md": "16px",
+                        "xs": "8px",
+                        "xl": "32px",
+                        "container-margin": "16px"
+                    },
+                    "fontFamily": {
+                        "sans": ["Montserrat", "sans-serif"],
+                        "price-display": ["Montserrat"],
+                        "display-sm": ["Montserrat"],
+                        "label-md": ["Montserrat"],
+                        "headline-sm": ["Montserrat"],
+                        "body-lg": ["Montserrat"],
+                        "display-lg": ["Montserrat"],
+                        "body-md": ["Montserrat"],
+                        "headline-md": ["Montserrat"]
+                    },
+                    "fontSize": {
+                        "price-display": ["20px", {"lineHeight": "24px", "fontWeight": "700"}],
+                        "display-sm": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background-color: #fbf9f4;
+            color: #1b1c19;
+            -webkit-tap-highlight-color: transparent;
+            font-family: 'Montserrat', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .profile-card-shadow {
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+</head>
+<body class="font-sans text-on-surface">
+<!-- Top AppBar -->
+<header class="flex justify-between items-center px-container-margin py-sm w-full sticky top-0 z-50 bg-surface dark:bg-surface-dim border-b border-outline-variant/30">
+<div class="flex items-center gap-xs">
+<div class="w-9 h-9 rounded-full overflow-hidden border-2 border-primary">
+<img class="w-full h-full object-cover" data-alt="User Avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC5YgBkGtL1vkpfa5aOYqTPgySvAG5-GEqexBTnF6vljlhMNCW0Okv8RrL0zJTdvohUNKWygoPx9K9CNNh6IVivpNcJRARUVA6mulnp9nn9_kfTAOgWYNm0kFfdVsXh8sz7NrjhKgpFJWDeTJ65DQdrCPTFH3jM3Ph5WVEv1NVDXt1cTRz11JefGhjgqk5tQFTSWYwCUOwxlDVDYIeBUc3z4qMaFuJCHe7ta-N4Pn0g-Sc47nfwRlbdC3xWLNwFy_qSkYmQu_PJst4"/>
+</div>
+<h1 class="text-headline-md font-bold text-primary dark:text-inverse-primary tracking-tight">Kabayan</h1>
+</div>
+<button class="material-symbols-outlined text-primary dark:text-inverse-primary p-xs rounded-full hover:bg-surface-container transition-colors" data-icon="notifications">
+            notifications
+        </button>
+</header>
+<!-- Main Content -->
+<main class="px-container-margin pb-32 pt-md space-y-card-gap">
+<!-- Profile Header Section -->
+<section class="flex flex-col items-center text-center p-lg bg-white rounded-xl profile-card-shadow">
+<div class="relative">
+<div class="w-24 h-24 rounded-full border-4 border-secondary-container p-1 bg-surface-container">
+<img class="w-full h-full rounded-full object-cover" data-alt="Juan Dela Cruz Portrait" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCYbdqG7hburRWc8dFAX76dCr7jFyls5rcMOeX_4VU0Rhkv1CoEuUhYFUxEPR5ZRGbojsr03-lhCgqDTUtKX8dJKMReS66C6p4k1ysI96hEFp4WWJO__6Cy-zpYWd9n19fMlPWB-jM-4emYbNgZS2kXrXkV_foTUDNzMO47IsDAUhSkkBC6DXJaPHfoM-DaFW0l3mnlw4bSJlGaPnatIdWGseATuR5qnYqm3UjG-qLA2EvCd-UiDq6jkJPzRiiSK9BvsuSRiCqcECQ"/>
+</div>
+<div class="absolute bottom-1 right-1 bg-secondary-container text-on-secondary-container rounded-full p-1 border-2 border-white shadow-sm">
+<span class="material-symbols-outlined text-[16px] block" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+</div>
+<h2 class="mt-md text-display-sm text-primary font-bold">Juan Dela Cruz</h2>
+<p class="text-body-md text-on-surface-variant font-medium">Trusted Professional • Member since 2021</p>
+<div class="mt-lg flex gap-xs w-full">
+<button class="flex-1 bg-primary text-on-primary py-sm rounded-lg text-body-lg font-bold hover:opacity-90 active:scale-[0.98] transition-all">
+                    Edit Profile
+                </button>
+<button class="w-12 h-12 flex items-center justify-center border border-outline-variant text-primary rounded-lg hover:bg-surface-container transition-colors active:scale-95">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+</section>
+<!-- Verification Status -->
+<div class="grid grid-cols-2 gap-xs">
+<section class="col-span-2 p-md bg-white rounded-xl profile-card-shadow flex items-center justify-between border border-secondary-container/30">
+<div class="flex items-center gap-md">
+<div class="w-11 h-11 rounded-full bg-secondary-container/20 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[28px]" style="font-variation-settings: 'FILL' 1;">shield_with_heart</span>
+</div>
+<div>
+<p class="text-label-md text-secondary uppercase tracking-widest font-bold">Identity Confirmed</p>
+<h3 class="text-headline-sm text-on-surface font-bold">QCID Verified</h3>
+</div>
+</div>
+<span class="material-symbols-outlined text-secondary text-[24px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</section>
+<section class="p-md bg-surface-container-high/50 rounded-xl flex flex-col items-center justify-center text-center gap-xs">
+<span class="material-symbols-outlined text-primary text-[24px]" data-icon="badge">badge</span>
+<p class="text-label-md font-bold uppercase text-on-surface-variant">ID Verified</p>
+</section>
+<section class="p-md bg-surface-container-high/50 rounded-xl flex flex-col items-center justify-center text-center gap-xs">
+<span class="material-symbols-outlined text-primary text-[24px]" data-icon="diversity_3">diversity_3</span>
+<p class="text-label-md font-bold uppercase text-on-surface-variant">Trusted Neighbor</p>
+</section>
+</div>
+<!-- Community Stats -->
+<section class="grid grid-cols-3 p-md bg-white rounded-xl profile-card-shadow text-center">
+<div class="space-y-1">
+<p class="text-headline-md text-primary font-bold">124</p>
+<p class="text-label-md text-on-surface-variant font-medium">Jobs Done</p>
+</div>
+<div class="border-x border-outline-variant/30 space-y-1">
+<p class="text-headline-md text-primary font-bold">3</p>
+<p class="text-label-md text-on-surface-variant font-medium">Years</p>
+</div>
+<div class="space-y-1">
+<p class="text-headline-md text-primary font-bold">4.9</p>
+<div class="flex justify-center items-center gap-1 text-secondary-container">
+<span class="material-symbols-outlined text-[14px] leading-none" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="text-label-md text-on-surface-variant font-medium">Rating</span>
+</div>
+</div>
+</section>
+<!-- Credentials & Skills -->
+<section class="p-md bg-white rounded-xl profile-card-shadow space-y-md">
+<h3 class="text-headline-sm text-primary font-bold">Credentials &amp; Skills</h3>
+<div class="flex flex-wrap gap-xs">
+<span class="px-sm py-xs bg-secondary-container text-on-secondary-container rounded-lg text-label-md font-bold flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px]">plumbing</span> MASTER PLUMBER
+                </span>
+<span class="px-sm py-xs bg-surface-container-highest text-on-surface rounded-lg text-label-md font-bold flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px]">verified</span> TESDA CERTIFIED
+                </span>
+<span class="px-sm py-xs bg-surface-container-highest text-on-surface rounded-lg text-label-md font-bold">ELECTRICAL WIRING</span>
+<span class="px-sm py-xs bg-surface-container-highest text-on-surface rounded-lg text-label-md font-bold">HOME REPAIRS</span>
+</div>
+</section>
+<!-- Personal Information -->
+<section class="p-md bg-white rounded-xl profile-card-shadow space-y-md">
+<h3 class="text-headline-sm text-primary font-bold">Personal Info</h3>
+<div class="space-y-md">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-outline text-[20px]">mail</span>
+<div>
+<p class="text-label-md text-on-surface-variant uppercase font-bold tracking-wider">Email Address</p>
+<p class="text-body-md font-medium">juan.delacruz@email.com</p>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-outline text-[20px]">location_on</span>
+<div>
+<p class="text-label-md text-on-surface-variant uppercase font-bold tracking-wider">Location</p>
+<p class="text-body-md font-medium">Brgy. Commonwealth, Quezon City</p>
+</div>
+</div>
+</div>
+<!-- Visual Map Placeholder -->
+<div class="w-full h-32 rounded-xl overflow-hidden mt-sm border border-outline-variant/30">
+<img class="w-full h-full object-cover" data-alt="Quezon City Service Area Map" data-location="Quezon City" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDq0Ew32kJJZ-NbydP-gBSc3H9UVnMRS2VZGb_VohJOpLjHZ-Fi6zOGlcyx1B140vEe9M9z2ZMsR6Doi8jCJsO34YGI4s85Kx0okV-EXo81bNbvPVSgKvNNXoYVwbdaMxEG_r5C-m6AoDaKK2yidS6adsmMuZI1OP5jiz79jOukQx8qZNXkF3bpMyoWsOMa638gfw5nqTwHP36kN6Um8smzlGnn7LSpqG_seSUokhGGzNgvu0ihi339dZnjLYZS3_IpWBX0JA-YG20"/>
+</div>
+</section>
+<!-- Account Settings Quick Actions -->
+<section class="bg-white rounded-xl profile-card-shadow overflow-hidden">
+<button class="w-full flex items-center justify-between p-md hover:bg-surface-container-low transition-colors group border-b border-outline-variant/20">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-on-surface-variant text-[22px]">payment</span>
+<span class="text-body-lg font-medium">Payment Methods</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-active:translate-x-1 transition-transform">chevron_right</span>
+</button>
+<button class="w-full flex items-center justify-between p-md hover:bg-surface-container-low transition-colors group border-b border-outline-variant/20">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-on-surface-variant text-[22px]">history</span>
+<span class="text-body-lg font-medium">Transaction History</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-active:translate-x-1 transition-transform">chevron_right</span>
+</button>
+<button class="w-full flex items-center gap-md p-md hover:bg-error-container/10 transition-colors group">
+<span class="material-symbols-outlined text-error text-[22px]">logout</span>
+<span class="text-body-lg font-bold text-error">Logout</span>
+</button>
+</section>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-xs pb-safe h-20 bg-surface-container dark:bg-surface-container-highest shadow-lg rounded-t-2xl border-t border-outline-variant/30">
+<button class="flex flex-col items-center justify-center text-on-surface-variant gap-1 px-sm py-xs rounded-xl hover:bg-surface-container-high transition-all active:scale-90">
+<span class="material-symbols-outlined text-[24px]" data-icon="home">home</span>
+<span class="text-label-md font-bold">Home</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant gap-1 px-sm py-xs rounded-xl hover:bg-surface-container-high transition-all active:scale-90">
+<span class="material-symbols-outlined text-[24px]" data-icon="work">work</span>
+<span class="text-label-md font-bold">Jobs</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant gap-1 px-sm py-xs rounded-xl hover:bg-surface-container-high transition-all active:scale-90">
+<span class="material-symbols-outlined text-[24px]" data-icon="storefront">storefront</span>
+<span class="text-label-md font-bold">Market</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant gap-1 px-sm py-xs rounded-xl hover:bg-surface-container-high transition-all active:scale-90">
+<span class="material-symbols-outlined text-[24px]" data-icon="chat_bubble">chat_bubble</span>
+<span class="text-label-md font-bold">Inbox</span>
+</button>
+<button class="flex flex-col items-center justify-center bg-secondary-container dark:bg-secondary text-on-secondary-container dark:text-on-secondary rounded-full w-16 h-16 shadow-md active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-[28px]" data-icon="smart_toy">smart_toy</span>
+<span class="text-[10px] font-bold uppercase leading-none mt-1">Ask AI</span>
+</button>
+</nav>
+<script>
+        const navButtons = document.querySelectorAll('nav button:not(:last-child)');
+        navButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                navButtons.forEach(b => b.classList.replace('text-primary', 'text-on-surface-variant'));
+                btn.classList.replace('text-on-surface-variant', 'text-primary');
+            });
+        });
+    </script>
+</body></html>

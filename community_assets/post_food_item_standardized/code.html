@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Post Food Item - Kabayan</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-fixed-dim": "#f0c100",
+                        "on-primary": "#ffffff",
+                        "inverse-surface": "#30312e",
+                        "surface-tint": "#3056c4",
+                        "surface": "#fbf9f4",
+                        "surface-container-low": "#f5f3ee",
+                        "on-tertiary": "#ffffff",
+                        "background": "#fbf9f4",
+                        "tertiary-container": "#8c0014",
+                        "outline-variant": "#c4c5d5",
+                        "on-secondary-fixed": "#241a00",
+                        "primary-fixed-dim": "#b6c4ff",
+                        "surface-container-highest": "#e4e2dd",
+                        "surface-container": "#f0eee9",
+                        "surface-container-high": "#eae8e3",
+                        "on-secondary": "#ffffff",
+                        "primary": "#0038a8",
+                        "surface-variant": "#e4e2dd",
+                        "on-surface-variant": "#444653",
+                        "error-container": "#ffdad6",
+                        "inverse-primary": "#b6c4ff",
+                        "tertiary-fixed": "#ffdad7",
+                        "secondary": "#735c00",
+                        "primary-container": "#0038a8",
+                        "on-primary-fixed": "#00164f",
+                        "primary-fixed": "#dce1ff",
+                        "on-tertiary-container": "#ff918b",
+                        "on-error-container": "#93000a",
+                        "tertiary": "#62000a",
+                        "secondary-fixed": "#ffe089",
+                        "on-tertiary-fixed": "#410004",
+                        "surface-bright": "#fbf9f4",
+                        "on-secondary-container": "#6e5700",
+                        "on-error": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-container": "#96adff",
+                        "surface-dim": "#dbdad5",
+                        "inverse-on-surface": "#f2f1ec",
+                        "secondary-container": "#fecc00",
+                        "on-primary-fixed-variant": "#093cab",
+                        "on-secondary-fixed-variant": "#574500",
+                        "on-surface": "#1b1c19",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed-variant": "#930015",
+                        "tertiary-fixed-dim": "#ffb3ae",
+                        "outline": "#747685",
+                        "on-background": "#1b1c19"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "8px",
+                        "container-margin": "16px",
+                        "card-gap": "12px",
+                        "xl": "32px",
+                        "md": "16px",
+                        "base": "4px",
+                        "sm": "12px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "sans": ["Montserrat", "sans-serif"],
+                        "body-md": ["Montserrat", "sans-serif"],
+                        "label-md": ["Montserrat", "sans-serif"],
+                        "body-lg": ["Montserrat", "sans-serif"],
+                        "headline-md": ["Montserrat", "sans-serif"],
+                        "price-display": ["Montserrat", "sans-serif"],
+                        "headline-sm": ["Montserrat", "sans-serif"],
+                        "display-lg": ["Montserrat", "sans-serif"],
+                        "display-sm": ["Montserrat", "sans-serif"]
+                    },
+                    "fontSize": {
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "price-display": ["20px", {"lineHeight": "24px", "fontWeight": "700"}],
+                        "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "display-sm": ["24px", {"lineHeight": "32px", "fontWeight": "700"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #fbf9f4;
+            -webkit-tap-highlight-color: transparent;
+            font-family: 'Montserrat', sans-serif;
+        }
+        .form-input-focus:focus-within {
+            border-color: #0038a8;
+            box-shadow: 0 0 0 1px #0038a8;
+        }
+    </style>
+</head>
+<body class="font-sans text-on-surface antialiased">
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-container-margin h-16 bg-surface dark:bg-inverse-surface border-b border-outline-variant shadow-sm">
+<button aria-label="Back" class="flex items-center justify-center w-10 h-10 hover:bg-surface-container transition-colors rounded-full active:scale-95">
+<span class="material-symbols-outlined text-primary">arrow_back</span>
+</button>
+<h1 class="text-headline-md font-bold text-primary dark:text-inverse-primary">Kabayan</h1>
+<div class="w-10 h-10 rounded-full overflow-hidden border border-outline-variant">
+<img alt="User Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAP_qg_MpUR53syZUJjcjnJz3RIiXnmDVLb6rMbNIhqstlKoE0_5kOrMbPnLGb_XAwXOzmpOpNVr9m3_Kc_1dVHKd4hNXfc5ahsnG08OadIzpmxjlz9TF09HlL33IwYOBGQ9ZFB2YiYKedmuSB81_uZEBp8mZ8ULVfZdUBmfsNwup97VC8qVE_I8NA6Q_QJsS3XrXhuuZcC0WresakZ06oAV2KDNsp2P8aXIt_-O8rWkuzCbail81pei7Rt_mnd68fp-HVx49Na6hk"/>
+</div>
+</header>
+<main class="pt-24 pb-32 px-container-margin max-w-2xl mx-auto">
+<!-- Section Header -->
+<div class="mb-lg space-y-xs">
+<h2 class="text-display-sm text-primary">Post Food Item</h2>
+<p class="text-body-lg text-on-surface-variant">Share your homemade treats or fresh produce with the neighborhood.</p>
+</div>
+<form class="space-y-lg">
+<!-- Photo Upload Section -->
+<section class="space-y-xs">
+<label class="block text-label-md text-on-surface-variant uppercase tracking-wider">Item Photos</label>
+<div class="grid grid-cols-4 gap-xs h-48">
+<div class="col-span-2 row-span-2 relative border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low flex flex-col items-center justify-center cursor-pointer hover:bg-surface-container transition-all group overflow-hidden">
+<img alt="Main Item Preview" class="absolute inset-0 w-full h-full object-cover opacity-20 group-hover:scale-105 transition-transform" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD00CMgNsLrIl_04KFAZF8H9fgHshQRruQPAo7Hx56CUwLevchm_h4gQFMjp1sVCqHOxYFBSkCB7UtG5JEc2hNibCd1Hmy-XkQtfg9tZG6njzvdqIv_gF1_igl6W9nKz5tmY3wWn0MHOL69rqkhugpn1rrlN8vpcU3mW0j093RINVvKMPokMxpjD1jU6KS6osrgvk164ziIHFkRI1MbfQ5mmtrXAXLPaBSzNAo5Jy5frmQJNHY9Rw0ZjPe4roxoz611Ib9DPSYQ8I8"/>
+<span class="material-symbols-outlined text-primary text-3xl mb-base relative z-10">add_a_photo</span>
+<span class="text-label-md text-primary font-bold relative z-10">Main Photo</span>
+</div>
+<div class="col-span-1 border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low flex items-center justify-center cursor-pointer hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined text-outline">add</span>
+</div>
+<div class="col-span-1 border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low flex items-center justify-center cursor-pointer hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined text-outline">add</span>
+</div>
+<div class="col-span-2 border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low flex items-center justify-center cursor-pointer hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined text-outline">add</span>
+</div>
+</div>
+</section>
+<!-- Food Name -->
+<div class="space-y-xs">
+<label class="block text-label-md text-on-surface-variant uppercase tracking-wider" for="food-name">Food Name</label>
+<div class="bg-surface-container-low rounded-xl px-md py-xs h-12 flex items-center border border-transparent transition-all focus-within:border-primary focus-within:bg-white shadow-sm">
+<input class="w-full bg-transparent border-none p-0 focus:ring-0 text-body-lg placeholder:text-outline" id="food-name" placeholder="e.g., Bibingka, Fresh Mangoes" type="text"/>
+</div>
+</div>
+<!-- Category Selection -->
+<div class="space-y-xs">
+<label class="block text-label-md text-on-surface-variant uppercase tracking-wider">Category</label>
+<div class="flex flex-wrap gap-xs">
+<button class="h-10 px-md rounded-full border border-outline-variant text-body-md text-on-surface-variant hover:bg-secondary-container hover:text-on-secondary-container hover:border-transparent transition-all" type="button">Homemade</button>
+<button class="h-10 px-md rounded-full bg-secondary-container text-on-secondary-container text-body-md font-semibold transition-all" type="button">Kakanin</button>
+<button class="h-10 px-md rounded-full border border-outline-variant text-body-md text-on-surface-variant hover:bg-secondary-container hover:border-transparent transition-all" type="button">Fresh Produce</button>
+<button class="h-10 px-md rounded-full border border-outline-variant text-body-md text-on-surface-variant hover:bg-secondary-container hover:border-transparent transition-all" type="button">Others</button>
+</div>
+</div>
+<!-- Price & Availability -->
+<div class="grid grid-cols-2 gap-md">
+<div class="space-y-xs">
+<label class="block text-label-md text-on-surface-variant uppercase tracking-wider" for="price">Price (₱)</label>
+<div class="bg-surface-container-low rounded-xl px-md py-xs h-12 border border-transparent transition-all focus-within:border-primary focus-within:bg-white flex items-center shadow-sm">
+<span class="text-primary font-bold text-headline-sm mr-xs">₱</span>
+<input class="w-full bg-transparent border-none p-0 focus:ring-0 text-headline-sm font-bold placeholder:text-outline" id="price" placeholder="0.00" type="number"/>
+</div>
+</div>
+<div class="space-y-xs">
+<label class="block text-label-md text-on-surface-variant uppercase tracking-wider">Availability</label>
+<div class="relative h-12">
+<select class="w-full h-full bg-surface-container-low border-transparent rounded-xl px-md text-body-lg focus:ring-primary focus:border-primary appearance-none cursor-pointer shadow-sm">
+<option>Ready Stock</option>
+<option>Made to Order</option>
+</select>
+<span class="material-symbols-outlined absolute right-md top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Location -->
+<div class="space-y-xs">
+<label class="block text-label-md text-on-surface-variant uppercase tracking-wider" for="location">Pickup/Delivery Location</label>
+<div class="bg-surface-container-low rounded-xl px-md py-xs h-12 border border-transparent transition-all focus-within:border-primary focus-within:bg-white flex items-center shadow-sm">
+<span class="material-symbols-outlined text-outline mr-sm">location_on</span>
+<input class="w-full bg-transparent border-none p-0 focus:ring-0 text-body-lg placeholder:text-outline" id="location" placeholder="Subdivision, Street, or Barangay" type="text"/>
+</div>
+</div>
+<!-- Description -->
+<div class="space-y-xs">
+<label class="block text-label-md text-on-surface-variant uppercase tracking-wider" for="description">Food Description</label>
+<div class="bg-surface-container-low rounded-xl px-md py-md border border-transparent transition-all focus-within:border-primary focus-within:bg-white shadow-sm">
+<textarea class="w-full bg-transparent border-none p-0 focus:ring-0 text-body-md placeholder:text-outline resize-none leading-relaxed" id="description" placeholder="Tell your neighbors about ingredients, special tastes, or dietary info..." rows="4"></textarea>
+</div>
+</div>
+<!-- Submit Button -->
+<div class="pt-md pb-lg">
+<button class="w-full h-14 bg-primary text-on-primary rounded-xl font-bold text-headline-sm shadow-md active:scale-[0.98] transition-transform flex items-center justify-center gap-xs" type="submit">
+<span class="material-symbols-outlined">check_circle</span>
+                    Post to Marketplace
+                </button>
+</div>
+</form>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-sm pb-xs pt-xs bg-surface border-t border-outline-variant shadow-lg h-20">
+<a class="flex flex-col items-center justify-center text-on-surface-variant px-xs py-base hover:bg-surface-container-high transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined mb-1">storefront</span>
+<span class="text-label-md">Market</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant px-xs py-base hover:bg-surface-container-high transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined mb-1">receipt_long</span>
+<span class="text-label-md">Orders</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-xl px-4 py-2 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined mb-1">add_circle</span>
+<span class="text-label-md font-bold">Sell</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant px-xs py-base hover:bg-surface-container-high transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined mb-1">person</span>
+<span class="text-label-md">Profile</span>
+</a>
+</nav>
+<script>
+        // Micro-interaction for category chips
+        const chips = document.querySelectorAll('button[type="button"]');
+        chips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                chips.forEach(c => {
+                    c.classList.remove('bg-secondary-container', 'text-on-secondary-container', 'border-transparent', 'font-semibold');
+                    c.classList.add('border-outline-variant', 'text-on-surface-variant');
+                });
+                chip.classList.add('bg-secondary-container', 'text-on-secondary-container', 'border-transparent', 'font-semibold');
+                chip.classList.remove('border-outline-variant', 'text-on-surface-variant');
+            });
+        });
+
+        // Form submission prevention for demo
+        document.querySelector('form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            alert('Salamat! Your food item has been posted to the neighborhood.');
+        });
+    </script>
+</body></html>

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Order Confirmation | Kabayan</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Inter:wght@400;600&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Montserrat:wght@100..900&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface": "#fbf9f4",
+            "error": "#ba1a1a",
+            "on-secondary-fixed-variant": "#574500",
+            "secondary-fixed": "#ffe089",
+            "on-error-container": "#93000a",
+            "tertiary-container": "#8c0014",
+            "surface-tint": "#3056c4",
+            "on-primary-container": "#96adff",
+            "secondary-fixed-dim": "#f0c100",
+            "error-container": "#ffdad6",
+            "surface-container": "#f0eee9",
+            "primary": "#002576",
+            "inverse-on-surface": "#f2f1ec",
+            "on-secondary": "#ffffff",
+            "surface-variant": "#e4e2dd",
+            "on-surface-variant": "#444653",
+            "on-secondary-container": "#6e5700",
+            "on-tertiary-fixed-variant": "#930015",
+            "surface-container-low": "#f5f3ee",
+            "tertiary": "#62000a",
+            "background": "#fbf9f4",
+            "inverse-surface": "#30312e",
+            "on-background": "#1b1c19",
+            "primary-fixed-dim": "#b6c4ff",
+            "secondary": "#735c00",
+            "primary-fixed": "#dce1ff",
+            "on-surface": "#1b1c19",
+            "secondary-container": "#fecc00",
+            "outline": "#747685",
+            "tertiary-fixed": "#ffdad7",
+            "on-secondary-fixed": "#241a00",
+            "surface-container-highest": "#e4e2dd",
+            "tertiary-fixed-dim": "#ffb3ae",
+            "primary-container": "#0038a8",
+            "on-error": "#ffffff",
+            "on-primary-fixed-variant": "#093cab",
+            "inverse-primary": "#b6c4ff",
+            "outline-variant": "#c4c5d5",
+            "surface-bright": "#fbf9f4",
+            "on-tertiary-fixed": "#410004",
+            "surface-dim": "#dbdad5",
+            "surface-container-lowest": "#ffffff",
+            "on-tertiary-container": "#ff918b",
+            "on-tertiary": "#ffffff",
+            "on-primary-fixed": "#00164f",
+            "on-primary": "#ffffff",
+            "surface-container-high": "#eae8e3"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "md": "16px",
+            "container-margin": "16px",
+            "card-gap": "12px",
+            "xs": "8px",
+            "lg": "24px",
+            "base": "4px",
+            "sm": "12px",
+            "xl": "32px"
+          },
+          "fontFamily": {
+            "headline-sm": ["Montserrat"],
+            "headline-md": ["Montserrat"],
+            "label-md": ["Inter"],
+            "body-md": ["Inter"],
+            "display-lg": ["Montserrat"],
+            "body-lg": ["Inter"],
+            "display-sm": ["Montserrat"],
+            "price-display": ["Montserrat"]
+          },
+          "fontSize": {
+            "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+            "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+            "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+            "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+            "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+            "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+            "display-sm": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+            "price-display": ["20px", {"lineHeight": "24px", "fontWeight": "700"}]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .active-scale:active {
+      transform: scale(0.95);
+    }
+    .modal-enter {
+      animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes modalSlideUp {
+      from { transform: translateY(100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .blur-overlay {
+      backdrop-filter: blur(4px);
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface font-body-md text-on-surface min-h-screen">
+<!-- Background Content (Dimmed Marketplace) -->
+<div class="fixed inset-0 z-0 overflow-hidden opacity-40 pointer-events-none">
+<!-- TopAppBar Mock -->
+<header class="flex justify-between items-center px-container-margin py-md w-full bg-surface shadow-sm sticky top-0">
+<div class="font-headline-md text-headline-md font-bold text-primary">Kabayan</div>
+<div class="flex items-gap-xs">
+<span class="material-symbols-outlined text-primary">notifications</span>
+</div>
+</header>
+<!-- Marketplace Content Mock -->
+<main class="p-container-margin space-y-card-gap">
+<div class="bg-surface-container-lowest rounded-xl p-md shadow-sm">
+<div class="aspect-video rounded-lg bg-surface-variant mb-sm"></div>
+<div class="h-4 w-3/4 bg-surface-variant rounded mb-xs"></div>
+<div class="h-4 w-1/2 bg-surface-variant rounded"></div>
+</div>
+<div class="grid grid-cols-2 gap-card-gap">
+<div class="bg-surface-container-lowest rounded-xl p-md shadow-sm h-48"></div>
+<div class="bg-surface-container-lowest rounded-xl p-md shadow-sm h-48"></div>
+</div>
+</main>
+</div>
+<!-- Modal Overlay -->
+<div class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-md bg-on-surface/40 blur-overlay">
+<!-- Modal Container -->
+<div class="modal-enter w-full sm:max-w-md bg-surface rounded-t-3xl sm:rounded-3xl shadow-lg relative overflow-hidden flex flex-col items-center p-xl">
+<!-- Subtle Handle for mobile feel -->
+<div class="sm:hidden w-12 h-1 bg-outline-variant rounded-full mb-lg opacity-40"></div>
+<!-- Success Icon/Animation Placeholder -->
+<div class="relative w-24 h-24 mb-lg flex items-center justify-center">
+<div class="absolute inset-0 bg-secondary-container rounded-full opacity-20 scale-125 animate-pulse"></div>
+<div class="bg-secondary-container text-on-secondary-container rounded-full w-20 h-20 flex items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[48px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</div>
+<!-- Content -->
+<div class="text-center space-y-sm mb-xl">
+<h1 class="font-display-sm text-display-sm text-primary tracking-tight">Order Placed!</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant px-md">
+          Success! Your request has been sent to the seller.
+        </p>
+</div>
+<!-- Item Card -->
+<div class="w-full bg-surface-container-low rounded-xl p-md flex items-center gap-md border border-outline-variant/30 mb-xl">
+<div class="w-16 h-16 rounded-lg overflow-hidden bg-surface-container-highest shrink-0">
+<img class="w-full h-full object-cover" data-alt="A premium high-resolution studio photograph of a traditional hand-woven Filipino basket placed on a warm wooden table. The lighting is soft and golden, evocative of a late afternoon sun in a cozy modern Filipino home. The background is a clean, minimalist off-white surface that highlights the intricate textures and deep natural wood tones of the basket. The overall aesthetic is professional and tactile, emphasizing community craftsmanship." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA5Kepn8AeOT-_TLMI97uSF8m8iQG_unrxkWFaTu_qF2rkiNq5--jRC96dlTMHTccroHZ9tr1dZ3fm8cz6_Ps_2SPtu16zuPrTb2Q-dWl4elyE9iCFt9ZLQSjmTIwx9cmJ7SamaN3QLQdqTBRAN20mTVukFpBfmOGntJ5QXa_YTYCv4b69RJOPcVLYKXPXOol-KxZs92v7XN6cU6-Zf31bwVzY-BEya8ACISrcBuhX-1bhfFwTWsHYoD4u1aFOTx8QiGJel0JPdz00"/>
+</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-secondary uppercase tracking-wider mb-base">Successful Order</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface truncate">Traditional 'Bayong' Handbag</h2>
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">person</span>
+<span class="font-body-md text-body-md text-on-surface-variant">Seller: Aling Nena’s Crafts</span>
+<span class="material-symbols-outlined text-[14px] text-primary" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+</div>
+</div>
+<!-- Actions -->
+<div class="w-full space-y-md">
+<button class="active-scale w-full bg-primary text-on-primary font-headline-sm py-md rounded-full shadow-md transition-all hover:bg-primary-container focus:ring-4 focus:ring-primary/20">
+          View Orders
+        </button>
+<button class="active-scale w-full bg-transparent text-primary font-label-md py-md rounded-full border border-primary/20 hover:bg-surface-container transition-colors" onclick="history.back()">
+          Back to Marketplace
+        </button>
+</div>
+<!-- Brand Touch -->
+<div class="mt-xl flex items-center gap-xs opacity-60">
+<span class="font-headline-sm text-primary font-extrabold text-[14px]">Kabayan</span>
+<div class="h-1 w-1 bg-secondary rounded-full"></div>
+<span class="text-[12px] font-label-md text-on-surface-variant">Bayanihan Community</span>
+</div>
+</div>
+</div>
+<!-- Bottom Nav Mock (Hidden under modal but part of shell) -->
+<nav class="fixed bottom-0 left-0 w-full z-10 flex justify-around items-center px-xs pb-safe h-20 bg-surface-container shadow-lg rounded-t-xl opacity-30 pointer-events-none">
+<div class="flex flex-col items-center justify-center text-on-surface-variant px-md py-xs">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-md text-label-md">Home</span>
+</div>
+<div class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-full px-md py-xs">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">storefront</span>
+<span class="font-label-md text-label-md">Market</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant px-md py-xs">
+<span class="material-symbols-outlined">work</span>
+<span class="font-label-md text-label-md">Jobs</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant px-md py-xs">
+<span class="material-symbols-outlined">chat_bubble</span>
+<span class="font-label-md text-label-md">Inbox</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant px-md py-xs">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="font-label-md text-label-md">Ask AI</span>
+</div>
+</nav>
+<script>
+    // Micro-interaction for the success icon
+    document.addEventListener('DOMContentLoaded', () => {
+      const checkIcon = document.querySelector('.material-symbols-outlined[style*="check_circle"]');
+      if (checkIcon) {
+        checkIcon.style.transition = 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        checkIcon.style.transform = 'scale(0)';
+        setTimeout(() => {
+          checkIcon.style.transform = 'scale(1)';
+        }, 300);
+      }
+    });
+  </script>
+</body></html>

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Kabayan - Onboarding</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary": "#735c00",
+                        "surface-dim": "#dbdad5",
+                        "primary-container": "#0038a8",
+                        "on-secondary": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "surface-container-low": "#f5f3ee",
+                        "secondary-container": "#fecc00",
+                        "on-error": "#ffffff",
+                        "tertiary-fixed": "#ffdad7",
+                        "on-secondary-fixed-variant": "#574500",
+                        "outline-variant": "#c4c5d5",
+                        "on-surface": "#1b1c19",
+                        "inverse-primary": "#b6c4ff",
+                        "on-secondary-container": "#6e5700",
+                        "surface-variant": "#e4e2dd",
+                        "surface": "#fbf9f4",
+                        "on-primary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "tertiary": "#62000a",
+                        "surface-tint": "#3056c4",
+                        "on-primary-container": "#96adff",
+                        "on-surface-variant": "#444653",
+                        "on-secondary-fixed": "#241a00",
+                        "error": "#ba1a1a",
+                        "background": "#fbf9f4",
+                        "tertiary-container": "#8c0014",
+                        "tertiary-fixed-dim": "#ffb3ae",
+                        "on-primary-fixed-variant": "#093cab",
+                        "secondary-fixed-dim": "#f0c100",
+                        "surface-bright": "#fbf9f4",
+                        "outline": "#747685",
+                        "surface-container-high": "#eae8e3",
+                        "on-tertiary-fixed": "#410004",
+                        "primary-fixed": "#dce1ff",
+                        "inverse-surface": "#30312e",
+                        "primary-fixed-dim": "#b6c4ff",
+                        "on-background": "#1b1c19",
+                        "surface-container-highest": "#e4e2dd",
+                        "on-tertiary-fixed-variant": "#930015",
+                        "on-primary-fixed": "#00164f",
+                        "surface-container-lowest": "#ffffff",
+                        "primary": "#002576",
+                        "surface-container": "#f0eee9",
+                        "secondary-fixed": "#ffe089",
+                        "on-tertiary-container": "#ff918b",
+                        "inverse-on-surface": "#f2f1ec",
+                        "error-container": "#ffdad6"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "8px",
+                        "sm": "12px",
+                        "base": "4px",
+                        "card-gap": "8px",
+                        "md": "16px",
+                        "lg": "24px",
+                        "container-margin": "16px",
+                        "xl": "32px",
+                        "8px": "8px",
+                        "16px": "16px",
+                        "24px": "24px",
+                        "32px": "32px",
+                        "40px": "40px",
+                        "48px": "48px",
+                        "56px": "56px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Montserrat", "sans-serif"],
+                        "headline-md": ["Montserrat", "sans-serif"],
+                        "headline-sm": ["Montserrat", "sans-serif"],
+                        "price-display": ["Montserrat", "sans-serif"],
+                        "display-sm": ["Montserrat", "sans-serif"],
+                        "label-md": ["Montserrat", "sans-serif"],
+                        "body-lg": ["Montserrat", "sans-serif"],
+                        "body-md": ["Montserrat", "sans-serif"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                        "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "price-display": ["20px", {"lineHeight": "24px", "fontWeight": "700"}],
+                        "display-sm": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        
+        .bento-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .float-animation {
+            animation: float 4s ease-in-out infinite;
+        }
+
+        .sun-ray {
+            background: radial-gradient(circle, rgba(254,204,0,0.15) 0%, rgba(254,204,0,0) 70%);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col overflow-x-hidden font-body-md">
+<main class="flex-grow flex flex-col relative w-full max-w-md mx-auto px-container-margin pb-32px pt-24px">
+<!-- Decorative Ambient Background Elements -->
+<div class="fixed top-0 right-0 w-64 h-64 sun-ray -z-10 rounded-full blur-3xl opacity-40"></div>
+<div class="fixed bottom-1/4 -left-32 w-80 h-80 bg-primary opacity-5 -z-10 rounded-full blur-3xl"></div>
+<!-- Logo Section -->
+<div class="flex justify-center mb-32px">
+<img alt="Kabayan Logo" class="h-24 object-contain drop-shadow-sm float-animation" src="https://lh3.googleusercontent.com/aida/AP1WRLsCpkO0XGqmsubDUELwh_z8V2AJJSBbrvNBmachKOgQ4Blmp-RK9WtrHqw1QlO34pHe5KTh1WvoOl2mJ3oowGRpZUJwT1jIGMQKVbeq-PNWKyRYcFJovWacD-d48gcr0uWMIIqWy3Wd7k0hoo6-wJ5pzrEyG0wa0QawkOoheyJiL7Lxj3JentTCixoGAosR4MmMemwVecFNj8fTyVbrMjgG2Ivcq9YqSNyvGLgIY9dWK3JCqHXl1asAe2U"/>
+</div>
+<!-- Hero Illustration Area (Bento-style layout) -->
+<div class="grid grid-cols-2 gap-8px mb-32px">
+<!-- Main Featured Image -->
+<div class="col-span-2 relative h-64 rounded-xl overflow-hidden shadow-sm">
+<div class="absolute inset-0 bg-gradient-to-t from-primary/40 to-transparent z-10"></div>
+<div class="w-full h-full bg-cover bg-center" data-alt="A vibrant digital illustration of a colorful Filipino neighborhood at sunset. Traditional wooden houses and small neighborhood stores called sari-sari stores are visible under a warm, glowing sky of orange and purple. Neighbors are seen interacting warmly, depicting the Bayanihan spirit. The art style is modern, clean, and professional, using a primary color palette of deep blues and sun yellows to match the brand identity." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCH_Me1c_h9N6uZ21YOrqUZk0fRRs-SM8uOJertVHALxuKpkynTVUbg5ifzqEHOc8UECzIfxTY53c4xihQH8P5gwTanyZt3fEhL4PL7YWlI8x8Xm8bqot4ZruuBsUi8AxN4VTPn9-Wlq4tz8b2nAgUxtoJEjTg3EojDiTmwCcS_4J7QPWr93yKadciDzy0vP7VEOSRuvYtKw6BGWSNELWOimO77DmYMo_1p9plNakhuF8S6kgNqofwoMWOYnrujEamLPQs6C5iDTZY')">
+</div>
+<div class="absolute bottom-16px left-16px z-20 flex gap-8px">
+<span class="bg-secondary text-on-secondary px-12px py-8px rounded-full font-label-md text-label-md flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">favorite</span>
+                        Kapitbahayan
+                    </span>
+</div>
+</div>
+<!-- Small Secondary Tiles for Tactile Feel -->
+<div class="h-32 rounded-xl bg-surface-container-high p-16px flex flex-col justify-center items-center gap-8px shadow-sm bento-card" onclick="location.href='{{DATA:SCREEN:SCREEN_10}}'">
+<span class="material-symbols-outlined text-primary text-[32px]">work</span>
+<span class="font-label-md text-label-md text-on-surface-variant text-center">Trabaho</span>
+</div>
+<div class="h-32 rounded-xl bg-secondary-container p-16px flex flex-col justify-center items-center gap-8px shadow-sm bento-card" onclick="location.href='{{DATA:SCREEN:SCREEN_11}}'">
+<span class="material-symbols-outlined text-on-secondary-container text-[32px]">storefront</span>
+<span class="font-label-md text-label-md text-on-secondary-container text-center">Marketplace</span>
+</div>
+</div>
+<!-- Copy Text Section -->
+<div class="text-center mb-32px">
+<h1 class="font-display-lg text-display-lg text-primary mb-16px">
+                Maligayang Pagdating sa <span class="text-secondary">Kabayan</span>
+</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant px-16px">
+                Ang iyong katuwang sa pag-unlad at pagkakaisa sa kapitbahayan.
+            </p>
+</div>
+<!-- Spacer for push -->
+<div class="flex-grow"></div>
+<!-- Action & Progress Area -->
+<div class="flex flex-col items-center gap-24px w-full">
+<!-- Progress Indicators -->
+<div class="flex gap-8px">
+<div class="w-8 h-2 rounded-full bg-primary transition-all duration-300"></div>
+<div class="w-2 h-2 rounded-full bg-outline-variant"></div>
+<div class="w-2 h-2 rounded-full bg-outline-variant"></div>
+<div class="w-2 h-2 rounded-full bg-outline-variant"></div>
+</div>
+<!-- Get Started Button -->
+<button class="group relative w-full h-56px bg-primary text-on-primary rounded-xl font-headline-sm flex items-center justify-center gap-8px shadow-lg active:scale-[0.98] transition-all overflow-hidden" onclick="location.href='{{DATA:SCREEN:SCREEN_8}}'">
+<span class="relative z-10">Get Started</span>
+<span class="material-symbols-outlined relative z-10 group-hover:translate-x-1 transition-transform">arrow_forward</span>
+<!-- Shimmer effect -->
+<div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+</button>
+</div>
+</main>
+<script>
+        // Micro-interaction for tiles
+        document.querySelectorAll('.bento-card').forEach(card => {
+            card.addEventListener('touchstart', () => {
+                card.style.transform = 'scale(0.98)';
+            });
+            card.addEventListener('touchend', () => {
+                card.style.transform = 'scale(1)';
+            });
+        });
+    </script>
+</body></html>

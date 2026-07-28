@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Kabayan Onboarding - Community &amp; AI</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&amp;family=Montserrat:wght@400;500;600;700;800&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "secondary": "#735c00",
+            "surface-dim": "#dbdad5",
+            "primary-container": "#0038a8",
+            "on-secondary": "#ffffff",
+            "on-error-container": "#93000a",
+            "surface-container-low": "#f5f3ee",
+            "secondary-container": "#fecc00",
+            "on-error": "#ffffff",
+            "tertiary-fixed": "#ffdad7",
+            "on-secondary-fixed-variant": "#574500",
+            "outline-variant": "#c4c5d5",
+            "on-surface": "#1b1c19",
+            "inverse-primary": "#b6c4ff",
+            "on-secondary-container": "#6e5700",
+            "surface-variant": "#e4e2dd",
+            "surface": "#fbf9f4",
+            "on-primary": "#ffffff",
+            "on-tertiary": "#ffffff",
+            "tertiary": "#62000a",
+            "surface-tint": "#3056c4",
+            "on-primary-container": "#96adff",
+            "on-surface-variant": "#444653",
+            "on-secondary-fixed": "#241a00",
+            "error": "#ba1a1a",
+            "background": "#fbf9f4",
+            "tertiary-container": "#8c0014",
+            "tertiary-fixed-dim": "#ffb3ae",
+            "on-primary-fixed-variant": "#093cab",
+            "secondary-fixed-dim": "#f0c100",
+            "surface-bright": "#fbf9f4",
+            "outline": "#747685",
+            "surface-container-high": "#eae8e3",
+            "on-tertiary-fixed": "#410004",
+            "primary-fixed": "#dce1ff",
+            "inverse-surface": "#30312e",
+            "primary-fixed-dim": "#b6c4ff",
+            "on-background": "#1b1c19",
+            "surface-container-highest": "#e4e2dd",
+            "on-tertiary-fixed-variant": "#930015",
+            "on-primary-fixed": "#00164f",
+            "surface-container-lowest": "#ffffff",
+            "primary": "#0038a8",
+            "surface-container": "#f0eee9",
+            "secondary-fixed": "#ffe089",
+            "on-tertiary-container": "#ff918b",
+            "inverse-on-surface": "#f2f1ec",
+            "error-container": "#ffdad6"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "xs": "8px",
+            "sm": "12px",
+            "base": "4px",
+            "card-gap": "12px",
+            "md": "16px",
+            "lg": "24px",
+            "container-margin": "16px",
+            "xl": "32px",
+            "2xl": "48px"
+          },
+          "fontFamily": {
+            "display-lg": ["Montserrat"],
+            "headline-md": ["Montserrat"],
+            "headline-sm": ["Montserrat"],
+            "price-display": ["Montserrat"],
+            "display-sm": ["Montserrat"],
+            "label-md": ["Montserrat"],
+            "body-lg": ["Montserrat"],
+            "body-md": ["Montserrat"]
+          },
+          "fontSize": {
+            "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+            "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+            "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+            "price-display": ["20px", {"lineHeight": "24px", "fontWeight": "700"}],
+            "display-sm": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+            "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+            "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+            "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      line-height: 1;
+    }
+    
+    .floating-anim {
+      animation: floating 3s ease-in-out infinite;
+    }
+
+    @keyframes floating {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+      100% { transform: translateY(0px); }
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+    
+    body {
+      min-height: max(884px, 100dvh);
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .btn-height {
+      height: 56px;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col overflow-x-hidden antialiased">
+<!-- Main Content Canvas -->
+<main class="flex-grow flex flex-col items-center justify-between px-container-margin py-xl relative max-w-lg mx-auto w-full">
+<!-- Top Navigation -->
+<div class="w-full flex justify-between items-center mb-xl">
+<span class="font-display-sm text-display-sm text-primary tracking-tight">Kabayan</span>
+<button class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors tracking-widest uppercase" onclick="window.location.href='{{DATA:SCREEN:SCREEN_6}}'">
+        Lumaktaw
+      </button>
+</div>
+<!-- Visual Narrative Section -->
+<div class="w-full grid grid-cols-6 grid-rows-6 gap-xs h-[380px] relative mb-xl">
+<!-- Central Community Hub Image -->
+<div class="col-span-4 row-span-4 rounded-xl overflow-hidden shadow-md border border-outline-variant/30">
+<img alt="Bayanihan illustration" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA9mEwBDZ_4gsxARIQL-O0cZvN5Dn2WrF9r2saRAmKzuwquHvc9MQF1keY1V7BI0GnEUz5KkEB-i2B7slDHFnmGDMowdsFHdJfafQSDtTa_8Xkhry7ruGp4ZQlSsh9eo7V4VA2cx1wy9XR4M6eyXJk5lh86LoJj_NJLcK7yHfMl2agciH09LQpt_JsNaRcggMj7wCBoMAzMu2m6rL8uGFfzklCJz9D4q-Cvgq0Q3XR0c99sogPBeVExHOw1BWDMdU3xdpjgxyjoihA"/>
+</div>
+<!-- AI Assistant Overlay Component -->
+<div class="col-span-3 col-start-4 row-span-3 row-start-3 glass-card rounded-xl shadow-xl border border-primary/10 flex flex-col p-md z-10 floating-anim">
+<div class="flex items-center gap-xs mb-sm">
+<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-secondary-container text-[24px]">smart_toy</span>
+</div>
+<span class="font-label-md text-label-md text-primary">Ask AI Assistant</span>
+</div>
+<div class="bg-surface-container rounded-lg p-sm mb-xs">
+<p class="font-body-md text-body-md text-on-surface leading-snug">"Looking for a plumber nearby?"</p>
+</div>
+<div class="flex justify-end">
+<div class="bg-primary text-on-primary rounded-lg p-xs max-w-[85%] shadow-sm">
+<p class="text-[11px] font-medium leading-tight px-1">Found 3 trusted plumbers in your street!</p>
+</div>
+</div>
+</div>
+<!-- Secondary Community Detail -->
+<div class="col-span-2 row-span-2 col-start-1 row-start-5 rounded-xl overflow-hidden shadow-sm grayscale opacity-70">
+<img alt="Handshake detail" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDLdAxM9GIkNUx6m_yzI9EY94e1XN6rHqtCSJ3YfK2ckdkZLQuUh-fGjojMiMbbR_R-q-u52jwHJ-7o4O0XWA_FZSjvcc7dooRJsEkJjNregJfpwB1wNyRKybgnsprkQ3DqBAADVgQKIg1I0HhJ383r986QQMPa7MSbDVRXI2z-Bw8C8RfDD2Xjh_C8Su3EOYUN2tccqxh1Bm0CoIOcUVLVgOuWULvdRI-LSbFChU0NCvFLbhHmo40p5MInz2cP1-hT-KcweTwtbVg"/>
+</div>
+<!-- Decorative Background Blurs -->
+<div class="absolute -bottom-8 -left-8 w-40 h-40 bg-secondary-container/20 rounded-full blur-3xl -z-10 animate-pulse"></div>
+<div class="absolute -top-8 -right-8 w-48 h-48 bg-primary-fixed-dim/15 rounded-full blur-3xl -z-10"></div>
+</div>
+<!-- Text Content -->
+<div class="text-center w-full px-xs space-y-md">
+<h1 class="font-display-lg text-display-lg text-primary tracking-tight">
+        Bayanihan sa Digital na Panahon
+      </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-[95%] mx-auto leading-relaxed">
+        Gamitin ang aming AI Assistant para mahanap ang kailangan mo at makipag-ugnayan sa mga totoong tao sa iyong paligid.
+      </p>
+</div>
+<!-- Progress Indicator -->
+<div class="flex gap-xs mt-xl mb-xl">
+<div class="w-2 h-2 rounded-full bg-outline-variant/40"></div>
+<div class="w-2 h-2 rounded-full bg-outline-variant/40"></div>
+<div class="w-2 h-2 rounded-full bg-outline-variant/40"></div>
+<div class="w-8 h-2 rounded-full bg-primary transition-all duration-500"></div>
+</div>
+<!-- Action Buttons -->
+<div class="w-full flex flex-col gap-sm pb-md">
+<button class="w-full btn-height bg-primary text-on-primary font-headline-sm text-headline-sm rounded-xl shadow-lg shadow-primary/20 active:scale-[0.98] transition-all hover:opacity-95" onclick="window.location.href='{{DATA:SCREEN:SCREEN_8}}'">
+        Sign Up Now
+      </button>
+<button class="w-full btn-height bg-transparent text-primary font-headline-sm text-headline-sm rounded-xl border-2 border-primary/20 active:scale-[0.98] transition-all hover:bg-primary/[0.03]" onclick="window.location.href='{{DATA:SCREEN:SCREEN_12}}'">
+        Browse as Guest
+      </button>
+</div>
+</main>
+<!-- Interactive Script -->
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const aiCard = document.querySelector('.floating-anim');
+      if (aiCard) {
+        aiCard.addEventListener('mouseenter', () => aiCard.style.animationPlayState = 'paused');
+        aiCard.addEventListener('mouseleave', () => aiCard.style.animationPlayState = 'running');
+      }
+
+      const buttons = document.querySelectorAll('button');
+      buttons.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          const rect = this.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          const ripple = document.createElement('span');
+          ripple.style.position = 'absolute';
+          ripple.style.left = x + 'px';
+          ripple.style.top = y + 'px';
+          ripple.style.width = '0px';
+          ripple.style.height = '0px';
+          ripple.style.background = 'rgba(255, 255, 255, 0.2)';
+          if (this.classList.contains('bg-transparent')) ripple.style.background = 'rgba(0, 56, 168, 0.1)';
+          ripple.style.borderRadius = '50%';
+          ripple.style.transform = 'translate(-50%, -50%)';
+          ripple.style.transition = 'width 0.6s ease-out, height 0.6s ease-out, opacity 0.6s ease-out';
+          ripple.style.pointerEvents = 'none';
+          this.style.position = 'relative';
+          this.style.overflow = 'hidden';
+          this.appendChild(ripple);
+          
+          requestAnimationFrame(() => {
+            ripple.style.width = '400px';
+            ripple.style.height = '400px';
+            ripple.style.opacity = '0';
+          });
+          
+          setTimeout(() => ripple.remove(), 600);
+        });
+      });
+    });
+  </script>
+</body></html>

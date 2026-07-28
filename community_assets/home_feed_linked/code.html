@@ -1,0 +1,313 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Kabayan - Community Hub</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<!-- Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "inverse-primary": "#b6c4ff",
+                "on-primary-fixed-variant": "#093cab",
+                "on-secondary-fixed": "#241a00",
+                "on-tertiary-fixed": "#410004",
+                "surface-tint": "#3056c4",
+                "primary-container": "#0038a8",
+                "tertiary-fixed-dim": "#ffb3ae",
+                "on-surface": "#1b1c19",
+                "surface-container-highest": "#e4e2dd",
+                "on-secondary-container": "#6e5700",
+                "surface-container-high": "#eae8e3",
+                "tertiary-container": "#8c0014",
+                "on-secondary-fixed-variant": "#574500",
+                "surface-container-low": "#f5f3ee",
+                "error": "#ba1a1a",
+                "on-error": "#ffffff",
+                "on-secondary": "#ffffff",
+                "secondary-fixed-dim": "#f0c100",
+                "inverse-on-surface": "#f2f1ec",
+                "surface-dim": "#dbdad5",
+                "surface-container-lowest": "#ffffff",
+                "on-background": "#1b1c19",
+                "primary-fixed": "#dce1ff",
+                "inverse-surface": "#30312e",
+                "error-container": "#ffdad6",
+                "on-error-container": "#93000a",
+                "on-tertiary": "#ffffff",
+                "secondary-fixed": "#ffe089",
+                "on-tertiary-fixed-variant": "#930015",
+                "on-primary-fixed": "#00164f",
+                "tertiary-fixed": "#ffdad7",
+                "outline": "#747685",
+                "background": "#fbf9f4",
+                "primary": "#002576",
+                "tertiary": "#62000a",
+                "secondary": "#735c00",
+                "outline-variant": "#c4c5d5",
+                "surface-variant": "#e4e2dd",
+                "surface": "#fbf9f4",
+                "on-tertiary-container": "#ff918b",
+                "on-primary-container": "#96adff",
+                "surface-container": "#f0eee9",
+                "primary-fixed-dim": "#b6c4ff",
+                "on-surface-variant": "#444653",
+                "secondary-container": "#fecc00"
+            },
+            "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+            },
+            "spacing": {
+                "base": "4px",
+                "xs": "8px",
+                "md": "16px",
+                "container-margin": "16px",
+                "sm": "12px",
+                "lg": "24px",
+                "xl": "32px",
+                "card-gap": "12px"
+            },
+            "fontFamily": {
+                "headline-md": ["Montserrat"],
+                "price-display": ["Montserrat"],
+                "body-md": ["Inter"],
+                "body-lg": ["Inter"],
+                "label-md": ["Inter"],
+                "display-lg": ["Montserrat"],
+                "display-sm": ["Montserrat"],
+                "headline-sm": ["Montserrat"]
+            },
+            "fontSize": {
+                "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                "price-display": ["20px", {"lineHeight": "24px", "fontWeight": "700"}],
+                "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                "display-sm": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        body { background-color: #fbf9f4; color: #1b1c19; -webkit-tap-highlight-color: transparent; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .custom-shadow { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); }
+        .glass-header { backdrop-filter: blur(8px); background-color: rgba(251, 249, 244, 0.8); }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="font-body-md text-body-md overflow-x-hidden">
+<!-- Top Navigation Bar -->
+<header class="flex justify-between items-center px-container-margin py-md w-full sticky top-0 z-50 glass-header shadow-sm bg-surface">
+<div class="flex items-center gap-sm">
+<div class="w-10 h-10 rounded-full overflow-hidden bg-primary-container">
+<img class="w-full h-full object-cover" data-alt="A professional headshot of a friendly Filipino male professional in his late 20s, smiling warmly at the camera. He is wearing a clean casual shirt against a blurred vibrant Manila city park background. The lighting is bright and sunny, reflecting a modern, community-oriented mobile app aesthetic with clean lines and soft depth." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDyLiSPDM90t9Ad9dJ4NrqmzeKIBN9DCTviLGMaMsqDkopgVTGiwE8CwmZzD_q8jzwxqyFH-FdhLocPCB_IM9CVHqI21srWkhHklm4FHvCUjlBj5AOw1_lDrgzE2QuexcAujAf-MLIn2r8F-0uo__rkHLw1WXLyPd_DdlTNK0wWeDaMblO6Oc-82hs_uTia8iNYES2UYhTUr-1U_hDBl54sYv1W1bNWsZY3ck9iFanCsP1G6txndrQoAtZCMk9l9GvxF93Pm3MLHpY">
+</div>
+<div>
+<p class="font-label-md text-label-md text-on-surface-variant">Magandang umaga,</p>
+<h1 class="font-headline-sm text-headline-sm text-primary">Juan!</h1>
+</div>
+</div>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+</header>
+<main class="pb-32">
+<!-- Search Section -->
+<section class="px-container-margin mt-md transition-all duration-500 ease-out opacity-100 translate-y-0">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full pl-xl pr-md py-sm bg-surface-container-low border-none rounded-xl focus:ring-2 focus:ring-primary text-body-md placeholder-outline-variant custom-shadow" placeholder="Search jobs, stores, or people" type="text">
+</div>
+</section>
+<!-- Quick Actions Grid -->
+<section class="px-container-margin mt-lg transition-all duration-500 ease-out opacity-100 translate-y-0">
+<div class="grid grid-cols-4 gap-sm">
+<div class="flex flex-col items-center gap-xs">
+<button class="w-14 h-14 bg-secondary-container text-on-secondary-container rounded-xl flex items-center justify-center shadow-sm active:scale-95 transition-transform" onclick="location.href='SCREEN_6'">
+<span class="material-symbols-outlined">post_add</span>
+</button>
+<span class="font-label-md text-label-md text-center text-on-surface">Post Job</span>
+</div>
+<div class="flex flex-col items-center gap-xs">
+<button class="w-14 h-14 bg-surface-container-high text-primary rounded-xl flex items-center justify-center shadow-sm active:scale-95 transition-transform" onclick="location.href='SCREEN_11'">
+<span class="material-symbols-outlined">storefront</span>
+</button>
+<span class="font-label-md text-label-md text-center text-on-surface">My Stores</span>
+</div>
+<div class="flex flex-col items-center gap-xs">
+<button class="w-14 h-14 bg-surface-container-high text-primary rounded-xl flex items-center justify-center shadow-sm active:scale-95 transition-transform" onclick="location.href='SCREEN_8'">
+<span class="material-symbols-outlined">verified_user</span>
+</button>
+<span class="font-label-md text-label-md text-center text-on-surface">Verify ID</span>
+</div>
+<div class="flex flex-col items-center gap-xs">
+<button class="w-14 h-14 bg-surface-container-high text-primary rounded-xl flex items-center justify-center shadow-sm active:scale-95 transition-transform">
+<span class="material-symbols-outlined">groups</span>
+</button>
+<span class="font-label-md text-label-md text-center text-on-surface">Applicants</span>
+</div>
+</div>
+</section>
+<!-- Map Preview Card -->
+<section class="px-container-margin mt-lg transition-all duration-500 ease-out opacity-100 translate-y-0">
+<div class="rounded-xl overflow-hidden custom-shadow bg-surface border border-outline-variant/10">
+<div class="p-md flex justify-between items-center">
+<h2 class="font-headline-sm text-headline-sm">Community Map</h2>
+<span class="text-primary font-label-md text-label-md">View all</span>
+</div>
+<div class="h-40 w-full relative">
+<img class="w-full h-full object-cover" data-alt="A stylized neighborhood map of a vibrant Filipino community area in Manila, featuring clean pastel colors and soft shadows. The map shows small residential blocks, green spaces, and clear landmarks, with friendly rounded blue and yellow markers indicating nearby job opportunities and local stores. The aesthetic is clean, professional, and approachable, using a high-legibility UI design style." data-location="Manila" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBjyaQ1g7TDYnCD8XpLfFqgqlILp9mHau87mX_NA9rL12I6t-NP03C61Wp9xqQjn9-OcRANZHMWqQzK9J3C88wjWMBBfapz_9Mk-TVrlUydU9IrzIsdfwjpiVaun3aTLh2-Z9omZOPfnQtjT708PmoAUmUIbtbXsnPCI1gGaOc8alpCAOgBNrITl4dyYbyqxCuLZK0fCfRDhk0Qx123aQqgD9NS-_0J23La7d_dHwUxggMU3AJd1pZMnFQbzXr79d_0N29Id-KCQjg">
+<!-- Fake floating markers for UI depth -->
+<div class="absolute top-1/4 left-1/3 bg-primary text-white p-1 rounded-full shadow-lg flex items-center gap-1 scale-90">
+<span class="material-symbols-outlined text-[14px]">work</span>
+</div>
+<div class="absolute bottom-1/3 right-1/4 bg-secondary text-white p-1 rounded-full shadow-lg flex items-center gap-1 scale-90">
+<span class="material-symbols-outlined text-[14px]">storefront</span>
+</div>
+</div>
+<div class="p-sm bg-surface-container-low text-on-surface-variant flex items-center gap-xs">
+<span class="material-symbols-outlined text-sm">location_on</span>
+<span class="font-label-md text-label-md">12 activities happening nearby</span>
+</div>
+</div>
+</section>
+<!-- Latest Jobs Section -->
+<section class="mt-lg transition-all duration-500 ease-out opacity-100 translate-y-0">
+<div class="px-container-margin flex justify-between items-center mb-md">
+<h2 class="font-headline-sm text-headline-sm">Latest Jobs</h2>
+<button class="text-primary font-label-md text-label-md flex items-center gap-xs">
+                    Filter <span class="material-symbols-outlined text-[16px]">filter_list</span>
+</button>
+</div>
+<div class="flex flex-col gap-card-gap px-container-margin">
+<!-- Job Card 1 -->
+<div class="bg-surface rounded-xl p-md custom-shadow border border-outline-variant/10 flex gap-md relative overflow-hidden group active:bg-surface-container-low transition-colors cursor-pointer" onclick="location.href='SCREEN_10'">
+<div class="w-16 h-16 rounded-lg bg-surface-container-high flex-shrink-0 flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A professional close-up of a delivery professional's equipment, showing a clean blue motorcycle helmet and a branded courier bag. The background is a slightly blurred suburban Philippine street in the morning sun. High contrast, clean lighting, evoking reliability and community service within a professional marketplace UI." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCsfE587OSDi32vcsC1Jos9Po2UYmYpkAsZGVx9GYBO4lsoUoWa8olBPksqa-HBUAsU-8ppQp1jaOZU40wUAyHxdEpcmz62WytxjGpj5mYM93PE9KN6d-oKKF37gfLfPZ11eBA_zK_oxXo6C8-NEFIyITmCqkDRrvV5uptPVg6foYbe8buAwqio8mQ53-mCfeh_hYLgUXbuF9dFEJ7a4659wQF_DttEhoYLMfhWWrDs1TRh7Ryg3jbKEKsTNrkS7RGeggl7ny-8zwQ">
+</div>
+<div class="flex-grow">
+<div class="flex justify-between items-start mb-1">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Delivery Rider</h3>
+<span class="bg-error-container text-on-error-container font-label-md text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">Urgent</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mb-2">Poblacion, Makati • 2km away</p>
+<div class="flex items-center justify-between">
+<span class="font-price-display text-price-display text-primary">₱500 - ₱800</span>
+<span class="font-label-md text-label-md bg-surface-container-high px-2 py-1 rounded">Daily</span>
+</div>
+</div>
+</div>
+<!-- Job Card 2 -->
+<div class="bg-surface rounded-xl p-md custom-shadow border border-outline-variant/10 flex gap-md relative overflow-hidden group active:bg-surface-container-low transition-colors cursor-pointer" onclick="location.href='SCREEN_10'">
+<div class="w-16 h-16 rounded-lg bg-surface-container-high flex-shrink-0 flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A clean, vibrant top-down shot of a well-organized professional kitchen workstation with fresh local ingredients like garlic, onion, and herbs. The aesthetic is bright and clean, emphasizing a 'home cook' professional service. The color palette features warm whites and natural greens, perfectly suited for a trustworthy community marketplace app." src="https://lh3.googleusercontent.com/aida-public/AB6AXuApD5qUgWlDQkWXtMgJluarst49Dae3G2Y49cLgbY_GgZ5S0i_Np2uAy69TKC14j4LIKV4GtKP043kh9-zlC707di1YjKPdOZ6u9v3IXD6B5WS3e83JNQt5zEAwe5lL0TxPnZOelaYUUa2BtITx6VjYsC3_uf9YudRjtDuKckfpXPsK8AmODW0xNmg7tx-ZaWQr7EeUMVCNVyjEjZ7sihvBURV-8kr_0tfBV4RwcxCLxVpUxitRE6nO83eNxk5AgVV7B7Jo2sB2ZI0">
+</div>
+<div class="flex-grow">
+<div class="flex justify-between items-start mb-1">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">House Cook</h3>
+<span class="bg-secondary-container text-on-secondary-container font-label-md text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">Part-time</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mb-2">BGC, Taguig • 4km away</p>
+<div class="flex items-center justify-between">
+<span class="font-price-display text-price-display text-primary">₱1,200</span>
+<span class="font-label-md text-label-md bg-surface-container-high px-2 py-1 rounded">Fixed</span>
+</div>
+</div>
+</div>
+<!-- Job Card 3 -->
+<div class="bg-surface rounded-xl p-md custom-shadow border border-outline-variant/10 flex gap-md relative overflow-hidden group active:bg-surface-container-low transition-colors cursor-pointer" onclick="location.href='SCREEN_10'">
+<div class="w-16 h-16 rounded-lg bg-surface-container-high flex-shrink-0 flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A brightly lit interior of a modern Filipino sari-sari or boutique store, showing neatly arranged local goods and a clean wooden counter. The lighting is soft and welcoming, capturing the 'kabayan' spirit. High-quality commercial photography style, focusing on clarity, order, and local community business appeal." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDeoR0RPYiSRg1_UZReky3-klixi8rtz4tbNkGQzcMjhHcw1Vfm2IGnkeySpW8dtzaInL3cKrKPx4gVj33M7ptLQW_NoXOH2yJThp4-360DxUEjqoHmEC-EySILDdpos_HhdNGpmYj8gvuKR2-sKaQIj2B-LjCgChVMHFhs98epxyptWjrGKstHGESHFRVWUbgkRXidoIFmJ1XoFP3wL5ImcQ8Q6W7fh_u5yInFHttqIcY_pLdTPQ-qknbKoaAJc3-urhBQRYphsj4">
+</div>
+<div class="flex-grow">
+<div class="flex justify-between items-start mb-1">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Store Assistant</h3>
+<span class="bg-primary-fixed text-on-primary-fixed font-label-md text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">Full-time</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mb-2">Ortigas Center • 5km away</p>
+<div class="flex items-center justify-between">
+<span class="font-price-display text-price-display text-primary">₱15,000</span>
+<span class="font-label-md text-label-md bg-surface-container-high px-2 py-1 rounded">Monthly</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-xs pb-safe h-20 bg-surface-container shadow-lg rounded-t-xl">
+<button class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-full px-md py-xs scale-90 duration-200" onclick="location.href='SCREEN_12'">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-md text-label-md">Home</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant px-md py-xs hover:bg-surface-container-high transition-colors" onclick="location.href='SCREEN_10'">
+<span class="material-symbols-outlined">work</span>
+<span class="font-label-md text-label-md">Jobs</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant px-md py-xs hover:bg-surface-container-high transition-colors" onclick="location.href='SCREEN_22'">
+<span class="material-symbols-outlined">storefront</span>
+<span class="font-label-md text-label-md">Market</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant px-md py-xs hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined">chat_bubble</span>
+<span class="font-label-md text-label-md">Inbox</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant px-md py-xs hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="font-label-md text-label-md">Ask AI</span>
+</button>
+</nav>
+<!-- Floating Action Button -->
+<button class="fixed bottom-24 right-container-margin w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform z-40">
+<span class="material-symbols-outlined text-[28px]">add</span>
+</button>
+<script>
+        // Micro-interaction for Job Cards
+        document.querySelectorAll('.cursor-pointer').forEach(card => {
+            card.addEventListener('touchstart', () => {
+                card.classList.add('scale-[0.98]');
+            });
+            card.addEventListener('touchend', () => {
+                card.classList.remove('scale-[0.98]');
+            });
+        });
+
+        // Simple animation on scroll for section headers
+        const observerOptions = {
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('opacity-100', 'translate-y-0');
+                    entry.target.classList.remove('opacity-0', 'translate-y-4');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('section').forEach(section => {
+            section.classList.add('transition-all', 'duration-500', 'ease-out', 'opacity-0', 'translate-y-4');
+            observer.observe(section);
+        });
+    </script>
+
+
+</body></html>

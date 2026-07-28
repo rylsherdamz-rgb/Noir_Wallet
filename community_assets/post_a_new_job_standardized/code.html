@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Post a Job - Bayanihan</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary": "#735c00",
+                    "outline": "#747685",
+                    "on-primary-fixed-variant": "#093cab",
+                    "primary-fixed": "#dce1ff",
+                    "on-surface-variant": "#444653",
+                    "on-secondary": "#ffffff",
+                    "surface-container": "#f0eee9",
+                    "error": "#ba1a1a",
+                    "on-tertiary-fixed-variant": "#930015",
+                    "surface-dim": "#dbdad5",
+                    "on-error": "#ffffff",
+                    "on-tertiary": "#ffffff",
+                    "inverse-surface": "#30312e",
+                    "secondary-fixed-dim": "#f0c100",
+                    "on-primary-container": "#96adff",
+                    "tertiary": "#62000a",
+                    "on-surface": "#1b1c19",
+                    "on-tertiary-fixed": "#410004",
+                    "on-error-container": "#93000a",
+                    "surface-container-low": "#f5f3ee",
+                    "primary-container": "#0038a8",
+                    "inverse-primary": "#b6c4ff",
+                    "on-secondary-fixed-variant": "#574500",
+                    "surface-variant": "#e4e2dd",
+                    "primary-fixed-dim": "#b6c4ff",
+                    "on-secondary-container": "#6e5700",
+                    "primary": "#0038a8",
+                    "secondary-fixed": "#ffe089",
+                    "inverse-on-surface": "#f2f1ec",
+                    "surface": "#fbf9f4",
+                    "background": "#fbf9f4",
+                    "surface-container-high": "#eae8e3",
+                    "error-container": "#ffdad6",
+                    "outline-variant": "#c4c5d5",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-container": "#ff918b",
+                    "on-primary-fixed": "#00164f",
+                    "on-primary": "#ffffff",
+                    "surface-container-highest": "#e4e2dd",
+                    "secondary-container": "#fecc00",
+                    "tertiary-fixed": "#ffdad7",
+                    "surface-tint": "#3056c4",
+                    "on-background": "#1b1c19",
+                    "tertiary-fixed-dim": "#ffb3ae",
+                    "on-secondary-fixed": "#241a00",
+                    "tertiary-container": "#8c0014",
+                    "surface-bright": "#fbf9f4"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "card-gap": "16px",
+                    "sm": "12px",
+                    "base": "4px",
+                    "xs": "8px",
+                    "md": "16px",
+                    "lg": "24px",
+                    "xl": "32px",
+                    "container-margin": "16px"
+            },
+            "fontFamily": {
+                    "body-md": ["Montserrat", "sans-serif"],
+                    "body-lg": ["Montserrat", "sans-serif"],
+                    "display-lg": ["Montserrat", "sans-serif"],
+                    "price-display": ["Montserrat", "sans-serif"],
+                    "label-md": ["Montserrat", "sans-serif"],
+                    "display-sm": ["Montserrat", "sans-serif"],
+                    "headline-md": ["Montserrat", "sans-serif"],
+                    "headline-sm": ["Montserrat", "sans-serif"]
+            },
+            "fontSize": {
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "display-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "price-display": ["20px", {"lineHeight": "28px", "fontWeight": "700"}],
+                    "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                    "display-sm": ["20px", {"lineHeight": "28px", "fontWeight": "700"}],
+                    "headline-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "headline-sm": ["16px", {"lineHeight": "24px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        body {
+            background-color: #fbf9f4;
+            font-family: 'Montserrat', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .form-shadow {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        input, select, textarea {
+            height: 48px;
+        }
+        textarea {
+            height: auto;
+        }
+        button.action-btn {
+            height: 48px;
+        }
+    </style>
+</head>
+<body class="font-body-md text-on-surface">
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 w-full z-50 bg-surface border-b border-surface-variant h-16 flex items-center px-container-margin">
+<div class="flex justify-between items-center w-full max-w-2xl mx-auto">
+<div class="flex items-center gap-4">
+<button class="active:scale-95 transition-transform duration-150 p-2 rounded-full hover:bg-surface-container">
+<span class="material-symbols-outlined text-on-surface">close</span>
+</button>
+<h1 class="font-display-sm text-display-sm text-primary">Post a Job</h1>
+</div>
+<div class="flex items-center">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center overflow-hidden border border-primary/10">
+<img class="w-full h-full object-cover" data-alt="User profile" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAgFd4WGU4K9KyRLxD9INzX5lz8tJtAv-FdeJW6W_wYGW8GcaWa5qnu-6fL1xibO1FewoO-wBuxRn1CGjpYPKw5S-FTvsDyBME_fsrYIMhNooDWO0i7yJYi8nlaX0bqauhrRHMK3kv5M6acaW-ac9Fj4svS_mU5areYP4uxfwou1hPr_jbiRZl2dbJNhAjCNcJP0jTalok5-Od3SQyPe_aKw7qowsocbbC3r2A-EvO8boSXibaa7cWYNiTUheDTjduxStDvhSY8Rq4"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="mt-20 mb-24 px-container-margin max-w-2xl mx-auto">
+<div class="flex flex-col gap-8">
+<!-- Hero Image/Banner -->
+<div class="w-full h-44 rounded-xl overflow-hidden relative shadow-sm">
+<div class="w-full h-full bg-cover bg-center" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDotW0l_NGJkKOWauXJK1YsMS0ZldKpwYpE3MNCasIb-uBWLaFNvgg98bOTcZUou6P-JfZUt7uxtC1WJt-6O4NagFHurjpehiPh6y9lEqldXl1CbNTDUfY2QTlGUIPTA_XRx7t-aw28_b7VoOwIMcI41hbP6ZjwqL9rgp08WwyHiVh7bXcYp03Re-dGx9ffrrOPdkJYRW9cwEEE29NPq5CJpcL0ThKEMht8hl9yGtX5P6-b10rirLVKHO7QRIiLJLqU6idclOaQv9c')"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent flex items-end p-6">
+<p class="text-white font-headline-md text-headline-md">Connect with your community. Find reliable help today.</p>
+</div>
+</div>
+<form class="flex flex-col gap-6 bg-surface-container-lowest p-6 rounded-xl form-shadow">
+<!-- Job Title -->
+<div class="flex flex-col gap-2">
+<label class="font-label-md text-label-md text-on-surface-variant">Job Title</label>
+<input class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-md focus:ring-2 focus:ring-primary focus:border-primary text-body-lg font-body-md placeholder:text-outline transition-all" placeholder="e.g. Household Helper or Delivery Rider" type="text"/>
+</div>
+<!-- Category Selection -->
+<div class="flex flex-col gap-2">
+<label class="font-label-md text-label-md text-on-surface-variant">Category</label>
+<div class="grid grid-cols-2 gap-4">
+<button class="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-container-low border border-outline-variant hover:border-secondary-container transition-all" type="button">
+<span class="material-symbols-outlined text-secondary">home_repair_service</span>
+<span class="font-body-md text-body-md">Construction</span>
+</button>
+<button class="flex items-center gap-3 px-4 py-3 rounded-lg bg-secondary-container/10 border-2 border-secondary-container transition-all" type="button">
+<span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">clean_hands</span>
+<span class="font-body-md text-body-md font-semibold">Domestic</span>
+</button>
+<button class="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-container-low border border-outline-variant hover:border-secondary-container transition-all" type="button">
+<span class="material-symbols-outlined text-secondary">local_shipping</span>
+<span class="font-body-md text-body-md">Delivery</span>
+</button>
+<button class="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-container-low border border-outline-variant hover:border-secondary-container transition-all" type="button">
+<span class="material-symbols-outlined text-secondary">more_horiz</span>
+<span class="font-body-md text-body-md">Others</span>
+</button>
+</div>
+</div>
+<!-- Rate and Type Row -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="flex flex-col gap-2">
+<label class="font-label-md text-label-md text-on-surface-variant">Salary / Rate (₱)</label>
+<div class="relative">
+<span class="absolute left-4 top-1/2 -translate-y-1/2 font-price-display text-on-surface-variant">₱</span>
+<input class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-md pl-10 focus:ring-2 focus:ring-primary focus:border-primary text-body-lg font-body-md placeholder:text-outline transition-all" placeholder="500.00" type="number"/>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<label class="font-label-md text-label-md text-on-surface-variant">Job Type</label>
+<select class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-md focus:ring-2 focus:ring-primary focus:border-primary text-body-lg font-body-md appearance-none">
+<option>Full-time</option>
+<option>Part-time</option>
+<option class="text-error font-semibold">Urgent</option>
+</select>
+</div>
+</div>
+<!-- Location -->
+<div class="flex flex-col gap-2">
+<label class="font-label-md text-label-md text-on-surface-variant">Location</label>
+<div class="relative">
+<span class="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-on-surface-variant">location_on</span>
+<input class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-md pl-11 focus:ring-2 focus:ring-primary focus:border-primary text-body-lg font-body-md placeholder:text-outline transition-all" placeholder="Barangay, City" type="text"/>
+</div>
+</div>
+<!-- Map Preview -->
+<div class="w-full h-32 rounded-lg overflow-hidden border border-outline-variant grayscale opacity-70 hover:grayscale-0 transition-all duration-300">
+<img class="w-full h-full object-cover" data-location="Quezon City" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCtx_kFOt4N2G32Y7rXc_KCPFlgG1FoZJYaIK9kTOwU9FI9QQ3gVfUwh-8a38ne9pP6ct7tL8ESiYk3VI-4KkKYzSmHS7Cw9kqJT1GzbnGi4qzbzO-aWH2_bgo6G-bVpONaB5mk0DptKVhmg06XC99Xx5GViiVa-6a4hlaOJaAWV_XT4STt1p03neJRr1aB5iuOGroLAAFrvs9ljgpNQyFcrqAISpKyH09eyoyh7wpcvm-PvN2E08l4szWLMwCdy30mksx_qol_mJw"/>
+</div>
+<!-- Description -->
+<div class="flex flex-col gap-2">
+<label class="font-label-md text-label-md text-on-surface-variant">Job Description</label>
+<textarea class="w-full bg-surface-container-low border border-outline-variant rounded-lg p-4 focus:ring-2 focus:ring-primary focus:border-primary text-body-lg font-body-md placeholder:text-outline transition-all resize-none" placeholder="Describe the tasks, requirements, and any perks..." rows="4"></textarea>
+</div>
+<!-- Submit Section -->
+<div class="pt-4 flex flex-col gap-4">
+<button class="action-btn w-full bg-primary text-on-primary rounded-lg font-headline-md text-headline-md flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-md hover:brightness-110" type="submit">
+<span class="material-symbols-outlined text-[20px]">send</span>
+                    Post Job
+                </button>
+<p class="text-center text-label-md text-on-surface-variant">
+                    By posting, you agree to our Community Guidelines.
+                </p>
+</div>
+</form>
+</div>
+</main>
+<script>
+    // Micro-interactions for category selection
+    document.querySelectorAll('button[type="button"]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            // Standardizing behavior: Clear others in the category group
+            const parent = this.parentElement;
+            if (parent.classList.contains('grid-cols-2')) {
+                parent.querySelectorAll('button').forEach(other => {
+                    other.classList.remove('bg-secondary-container/10', 'border-2', 'border-secondary-container');
+                    other.classList.add('bg-surface-container-low', 'border', 'border-outline-variant');
+                    const icon = other.querySelector('.material-symbols-outlined');
+                    if (icon) icon.style.fontVariationSettings = "'FILL' 0";
+                    other.querySelector('span:not(.material-symbols-outlined)').classList.remove('font-semibold');
+                });
+
+                this.classList.remove('bg-surface-container-low', 'border', 'border-outline-variant');
+                this.classList.add('bg-secondary-container/10', 'border-2', 'border-secondary-container');
+                const icon = this.querySelector('.material-symbols-outlined');
+                if (icon) icon.style.fontVariationSettings = "'FILL' 1";
+                this.querySelector('span:not(.material-symbols-outlined)').classList.add('font-semibold');
+            }
+        });
+    });
+
+    // Form submission simulation
+    const form = document.querySelector('form');
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const btn = form.querySelector('button[type="submit"]');
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Posting...';
+        btn.classList.add('opacity-90', 'pointer-events-none');
+        
+        setTimeout(() => {
+            btn.innerHTML = '<span class="material-symbols-outlined">check_circle</span> Success!';
+            btn.classList.replace('bg-primary', 'bg-secondary');
+            setTimeout(() => {
+                btn.innerHTML = originalContent;
+                btn.classList.replace('bg-secondary', 'bg-primary');
+                btn.classList.remove('opacity-90', 'pointer-events-none');
+            }, 2000);
+        }, 1200);
+    });
+</script>
+</body></html>

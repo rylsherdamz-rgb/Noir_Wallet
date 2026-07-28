@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Manage Job Post | Bayanihan</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary": "#735c00",
+                    "outline": "#747685",
+                    "on-primary-fixed-variant": "#093cab",
+                    "primary-fixed": "#dce1ff",
+                    "on-surface-variant": "#444653",
+                    "on-secondary": "#ffffff",
+                    "surface-container": "#f0eee9",
+                    "error": "#ba1a1a",
+                    "on-tertiary-fixed-variant": "#930015",
+                    "surface-dim": "#dbdad5",
+                    "on-error": "#ffffff",
+                    "on-tertiary": "#ffffff",
+                    "inverse-surface": "#30312e",
+                    "secondary-fixed-dim": "#f0c100",
+                    "on-primary-container": "#96adff",
+                    "tertiary": "#62000a",
+                    "on-surface": "#1b1c19",
+                    "on-tertiary-fixed": "#410004",
+                    "on-error-container": "#93000a",
+                    "surface-container-low": "#f5f3ee",
+                    "primary-container": "#0038a8",
+                    "inverse-primary": "#b6c4ff",
+                    "on-secondary-fixed-variant": "#574500",
+                    "surface-variant": "#e4e2dd",
+                    "primary-fixed-dim": "#b6c4ff",
+                    "on-secondary-container": "#6e5700",
+                    "primary": "#002576",
+                    "secondary-fixed": "#ffe089",
+                    "inverse-on-surface": "#f2f1ec",
+                    "surface": "#fbf9f4",
+                    "background": "#fbf9f4",
+                    "surface-container-high": "#eae8e3",
+                    "error-container": "#ffdad6",
+                    "outline-variant": "#c4c5d5",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-container": "#ff918b",
+                    "on-primary-fixed": "#00164f",
+                    "on-primary": "#ffffff",
+                    "surface-container-highest": "#e4e2dd",
+                    "secondary-container": "#fecc00",
+                    "tertiary-fixed": "#ffdad7",
+                    "surface-tint": "#3056c4",
+                    "on-background": "#1b1c19",
+                    "tertiary-fixed-dim": "#ffb3ae",
+                    "on-secondary-fixed": "#241a00",
+                    "tertiary-container": "#8c0014",
+                    "surface-bright": "#fbf9f4"
+            },
+            "borderRadius": {
+                    "DEFAULT": "4px",
+                    "lg": "8px",
+                    "xl": "12px",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "card-gap": "16px",
+                    "sm": "12px",
+                    "base": "4px",
+                    "xs": "8px",
+                    "md": "16px",
+                    "lg": "24px",
+                    "xl": "32px",
+                    "container-margin": "16px"
+            },
+            "fontFamily": {
+                    "sans": ["Montserrat", "sans-serif"],
+                    "body-md": ["Montserrat", "sans-serif"],
+                    "body-lg": ["Montserrat", "sans-serif"],
+                    "display-lg": ["Montserrat", "sans-serif"],
+                    "price-display": ["Montserrat", "sans-serif"],
+                    "label-md": ["Montserrat", "sans-serif"],
+                    "display-sm": ["Montserrat", "sans-serif"],
+                    "headline-md": ["Montserrat", "sans-serif"],
+                    "headline-sm": ["Montserrat", "sans-serif"]
+            },
+            "fontSize": {
+                    "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "display-sm": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            min-height: 100dvh;
+            font-family: 'Montserrat', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-sans pb-32">
+<!-- TopAppBar Component -->
+<header class="fixed top-0 w-full z-50 bg-surface shadow-sm h-16 flex items-center">
+<div class="flex justify-between items-center px-container-margin w-full max-w-7xl mx-auto">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full overflow-hidden border-2 border-primary-fixed ring-2 ring-surface">
+<img alt="Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDCd_SCs4Gh0MmgKe_MDUoy-e603mzDB-4EyeYtu5Hwn3S3IJVE83-CFlA7Ky_rUSevzNzbC6t15nRXjNAGx8JoqE9e6w0fsh8XBcKnxGW7WXhsEq8OLSZHusX5vNmOa4Y7HW3XiJyC9j1gXidvG0_P74n5rzuT3fDagrrsaEhsSdwd8UMxLCfKwS3rXdhEuuay02cumnCeVaUk11LwcAL-cMiEXajetELkfYF9S6M948n7Ljq7QHxw5twYvL34GLnKp7fVF0pYFu8"/>
+</div>
+<h1 class="text-display-sm font-bold text-primary tracking-tight">Bayanihan</h1>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant p-2 hover:bg-surface-container rounded-full transition-colors h-10 w-10 flex items-center justify-center">
+            notifications
+        </button>
+</div>
+</header>
+<main class="pt-24 px-container-margin max-w-7xl mx-auto space-y-md">
+<!-- Breadcrumb / Back Link -->
+<nav class="flex items-center gap-2 text-on-surface-variant py-2">
+<span class="material-symbols-outlined text-[18px]">chevron_left</span>
+<span class="text-label-md font-semibold">Back to My Jobs</span>
+</nav>
+<!-- Main Job Details Hero Card -->
+<section class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
+<div class="p-md space-y-md">
+<div class="flex justify-between items-start">
+<div class="space-y-2">
+<div class="inline-flex items-center gap-1.5 bg-tertiary-container text-on-tertiary-container px-3 h-6 rounded-full">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">error</span>
+<span class="text-label-md">Urgent</span>
+</div>
+<h2 class="text-display-lg text-primary">Delivery Rider</h2>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">location_on</span>
+<span class="text-body-md">Quezon City, Metro Manila</span>
+</div>
+</div>
+<div class="text-right">
+<span class="text-headline-md text-secondary font-bold">₱500 - ₱800</span>
+<p class="text-label-md text-on-surface-variant uppercase tracking-wider">Per Day</p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-md pt-2">
+<button class="flex items-center justify-center gap-2 bg-primary text-on-primary text-headline-sm h-12 rounded-xl active:scale-[0.98] transition-transform">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+                    Edit Post
+                </button>
+<button class="flex items-center justify-center gap-2 bg-surface-container text-error text-headline-sm h-12 rounded-xl active:scale-[0.98] transition-transform">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+                    Delete
+                </button>
+</div>
+</div>
+</section>
+<!-- Stats & Metrics Bento Row -->
+<section class="grid grid-cols-3 gap-md">
+<div class="bg-secondary-fixed text-on-secondary-fixed p-md rounded-xl space-y-xs min-h-[100px] flex flex-col justify-between">
+<span class="material-symbols-outlined">visibility</span>
+<div>
+<p class="text-headline-md font-bold leading-none">1,248</p>
+<p class="text-label-md opacity-80 mt-1">Views</p>
+</div>
+</div>
+<div class="bg-primary-fixed text-on-primary-fixed p-md rounded-xl space-y-xs min-h-[100px] flex flex-col justify-between">
+<span class="material-symbols-outlined">group</span>
+<div>
+<p class="text-headline-md font-bold leading-none">24</p>
+<p class="text-label-md opacity-80 mt-1">Applicants</p>
+</div>
+</div>
+<div class="bg-surface-container-high text-on-surface p-md rounded-xl space-y-xs min-h-[100px] flex flex-col justify-between">
+<span class="material-symbols-outlined">share</span>
+<div>
+<p class="text-headline-md font-bold leading-none">12</p>
+<p class="text-label-md opacity-80 mt-1">Shares</p>
+</div>
+</div>
+</section>
+<!-- Recent Applicants Section -->
+<section class="space-y-md pt-4">
+<div class="flex justify-between items-center">
+<h3 class="text-headline-md text-on-surface">Recent Applicants</h3>
+<button class="text-primary text-label-md flex items-center gap-1 font-bold">
+                View All <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+<div class="space-y-md">
+<!-- Candidate 1 -->
+<div class="bg-surface-container-lowest p-md rounded-xl shadow-sm flex items-center gap-md hover:bg-surface-container-low transition-colors">
+<div class="relative">
+<div class="w-14 h-14 rounded-full overflow-hidden bg-surface-variant">
+<img alt="Juan Dela Cruz" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuABspcXRTR8ar18Aiuv6quJuxijtrBkvyA00bjFxorw1-Z3rbbKxjZWII0EQr9BxhuI6qH3Yxiev5Za0YAiCKYsGzxFVuAjPBBsRV1WYeQd5h9DEHr41TFIQd3i_5SeuJDEbE0TkwDYAMWIAxB1xo3OhQyxwCbe7qTr9SoQBPNawLCPUyqj6pbERo13S3H4lfD6CZpaHGXyW2KUajr5yl_Uf9eWzqk0BlG5oGzUsuP57FvB9BTH80rmQ3_eZAcA0rYlh7Iy_RHhry0"/>
+</div>
+<div class="absolute -bottom-1 -right-1 bg-secondary text-on-secondary rounded-full p-0.5 border-2 border-surface">
+<span class="material-symbols-outlined text-[12px]" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+</div>
+<div class="flex-grow">
+<h4 class="text-headline-sm text-on-surface">Juan Dela Cruz</h4>
+<div class="flex items-center gap-1 text-secondary">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="text-label-md">4.9 (42 reviews)</span>
+</div>
+</div>
+<a class="text-primary text-label-md font-bold border border-outline-variant h-8 px-4 flex items-center rounded-full hover:bg-primary-fixed transition-colors" href="#">
+                    View Profile
+                </a>
+</div>
+<!-- Candidate 2 -->
+<div class="bg-surface-container-lowest p-md rounded-xl shadow-sm flex items-center gap-md hover:bg-surface-container-low transition-colors">
+<div class="w-14 h-14 rounded-full overflow-hidden bg-surface-variant">
+<img alt="Maria Santos" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCZkw_HbVMGjNmIg1UrJzbkcXyowHXFutceppYE7dxuS7MZfb5tAiU1DyMkGIr2aQff55nsCY6P12_SBlzdZxoEFMsAYK0L_KCqITASLoI35So27lPlq6rRlR2R1uf0I4GNKNdjk_DZqS44b3Jw6V18rEfZi2YZbq9utnvKHCPqMp_I8VgkGLDvHZNo7r8oKwAZmJCfI91Vi1a6O5XYwdRN4oKoxq2HZqKIFtmZvX4p6oM3ia36qrQBoQ8ChDeWuRknsdqK_oHnCO8"/>
+</div>
+<div class="flex-grow">
+<h4 class="text-headline-sm text-on-surface">Maria Santos</h4>
+<div class="flex items-center gap-1 text-secondary">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="text-label-md">4.8 (15 reviews)</span>
+</div>
+</div>
+<a class="text-primary text-label-md font-bold border border-outline-variant h-8 px-4 flex items-center rounded-full hover:bg-primary-fixed transition-colors" href="#">
+                    View Profile
+                </a>
+</div>
+<!-- Candidate 3 -->
+<div class="bg-surface-container-lowest p-md rounded-xl shadow-sm flex items-center gap-md hover:bg-surface-container-low transition-colors">
+<div class="w-14 h-14 rounded-full overflow-hidden bg-surface-variant">
+<img alt="Ricardo Reyes" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDC5JG0yA6bqm-3W6xZYsk9hm_ERoga82TL53ykzN__X1rD4l-xF8dKH4xqPbyLIPxlN1KuJRvWMz7IM87yFCSd9DVcBRMG9vd0uyF9fywBGtDD5tJ87kGXq4XE0gBXAgNN5V-iOwfbphomorkD_mLIBz6DVkUm3h5E2EUa46NbIEkyvXL5gv9a6l4TZsWUTDnMvYPOwG5DdQsT9NshMpyiiXCv62qS-IlkiTvYMIFdnZRRKgZ8rAuYTypxjHVDfIQDMpkVQ04-QU0"/>
+</div>
+<div class="flex-grow">
+<h4 class="text-headline-sm text-on-surface">Ricardo Reyes</h4>
+<div class="flex items-center gap-1 text-secondary">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="text-label-md">5.0 (8 reviews)</span>
+</div>
+</div>
+<a class="text-primary text-label-md font-bold border border-outline-variant h-8 px-4 flex items-center rounded-full hover:bg-primary-fixed transition-colors" href="#">
+                    View Profile
+                </a>
+</div>
+</div>
+</section>
+<!-- Location Context Card -->
+<section class="bg-surface-container-low rounded-xl p-md space-y-md">
+<h3 class="text-headline-sm text-on-surface">Market Exposure</h3>
+<div class="h-40 rounded-lg overflow-hidden bg-surface-variant">
+<img alt="Market Map" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDeqCAbPcGCJo-nXjuUXEaNbECkV_gknB-YUDkqXtn6eUnfN_xgKZRsM1LdFZxwdTiG0srtCsD9bOj67rKnaL7lVZoMls2PLIIvhko3PTJxEYqnsQZ1G78fKHn2CmLrGMibzWvsmX190l-faSoFKUQe3Un9OXaXfBt3u6rz5XTE0vS-L2a8AxNaq6wYbxrJRX-UkKfErdgqgepB_Wpyj3yaxbAEpfyEvAypRezkKYETShXcCk6z7n76MowlfJeXghxF7vmqMRY-DNA"/>
+</div>
+<p class="text-body-md text-on-surface-variant">Your post is currently visible to 5,000+ users within a 5km radius of your location.</p>
+</section>
+</main>
+<!-- BottomNavBar Component -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 pt-2 pb-safe bg-surface shadow-[0_-2px_8px_rgba(0,0,0,0.05)] rounded-t-xl border-t border-outline-variant/20">
+<button class="flex flex-col items-center justify-center text-on-surface-variant p-2 active:scale-90 transition-transform">
+<span class="material-symbols-outlined">home</span>
+<span class="text-label-md mt-1">Home</span>
+</button>
+<button class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-full px-4 h-12 active:scale-95 transition-transform">
+<span class="material-symbols-outlined">work</span>
+<span class="text-label-md font-bold">Jobs</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant p-2 active:scale-90 transition-transform">
+<span class="material-symbols-outlined">storefront</span>
+<span class="text-label-md mt-1">Market</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant p-2 active:scale-90 transition-transform relative">
+<span class="material-symbols-outlined">chat_bubble</span>
+<span class="text-label-md mt-1">Inbox</span>
+<span class="absolute top-1 right-2 bg-error text-on-error text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">3</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant p-2 active:scale-90 transition-transform">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="text-label-md mt-1">AI</span>
+</button>
+</nav>
+<script>
+    // Simplified ripple/scale effect for buttons
+    document.querySelectorAll('button, a').forEach(btn => {
+        btn.addEventListener('click', function() {
+            this.style.opacity = '0.7';
+            setTimeout(() => this.style.opacity = '1', 150);
+        });
+    });
+</script>
+</body></html>

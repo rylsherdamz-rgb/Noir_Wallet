@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Kabayan - Welcome Home</title>
+<!-- Montserrat and Inter Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;family=Inter:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary": "#0038a8",
+                    "on-primary": "#ffffff",
+                    "secondary": "#735c00",
+                    "on-secondary": "#ffffff",
+                    "surface": "#fbf9f4",
+                    "on-surface": "#1b1c19",
+                    "surface-variant": "#e4e2dd",
+                    "on-surface-variant": "#444653",
+                    "background": "#fbf9f4",
+                    "on-background": "#1b1c19",
+                    "outline": "#747685",
+                    "outline-variant": "#c4c5d5",
+                    "surface-container-low": "#f5f3ee",
+                    "surface-container": "#f0eee9",
+                    "primary-container": "#0038a8",
+                    "on-primary-container": "#96adff",
+                    "secondary-container": "#fecc00",
+                    "on-secondary-container": "#6e5700"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "2xl": "1rem",
+                    "3xl": "1.5rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "base": "4px",
+                    "xs": "8px",
+                    "sm": "12px",
+                    "md": "16px",
+                    "lg": "24px",
+                    "xl": "32px",
+                    "2xl": "48px",
+                    "container-margin": "24px",
+                    "card-gap": "16px"
+            },
+            "fontFamily": {
+                    "sans": ["Montserrat", "Inter", "sans-serif"],
+                    "display": ["Montserrat", "sans-serif"],
+                    "body": ["Montserrat", "sans-serif"]
+            },
+            "fontSize": {
+                    "display-sm": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .carousel-container {
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .carousel-container::-webkit-scrollbar {
+            display: none;
+        }
+        .carousel-item {
+            scroll-snap-align: center;
+        }
+        .active-dot {
+            width: 24px;
+            background-color: #0038a8;
+        }
+        body {
+            font-family: 'Montserrat', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col overflow-hidden">
+<!-- Main Content Canvas -->
+<main class="relative z-10 flex flex-col h-screen overflow-hidden">
+<!-- Header Branding -->
+<header class="flex justify-center pt-xl pb-lg">
+<img alt="Kabayan Logo" class="h-10 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAvB6p4J-NeCc5Z5_3j4oy0Xc4X3tjxY4YjWO2M2z_LHl4m-ce1e5Y54y3X-BeRjHFxZ_e9ROHxlee4muIiGJfQ3GLhBLPfY87bPY7mWJGKNnaBMQUAY3j8TgVllbO-EpGZa5qhFhVm6x0f2jtIwt2mROuha1ITNeV6Kyfz5ECZHaRoVB0Ns2q8ujbqIqbz6_Mhf3t2LSrvyXdkOTyDpDoK1PGZcTXg9fjVaAbQxV4ahxQjurZ394UQDm9uBNyBRaTJCM0JziUAOIo"/>
+</header>
+<!-- Carousel Wrapper -->
+<div class="flex-1 flex flex-col overflow-hidden" id="carousel">
+<div class="carousel-container flex-1 overflow-x-auto flex overflow-y-hidden">
+<!-- Slide 1: Hanap Trabaho -->
+<section class="carousel-item min-w-full h-full flex flex-col px-container-margin">
+<div class="flex-1 flex flex-col justify-center items-center text-center space-y-lg">
+<div class="w-full max-w-[320px] aspect-square relative rounded-3xl overflow-hidden shadow-sm bg-surface-container-low border border-outline-variant/30">
+<img class="w-full h-full object-cover" data-alt="Friendly community billboard showing job listings." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhE8UQ8ni9_n7HGsBk3pvCjSOXzAR2rIeBwWCYyu0mYsMJkZdCcNRtamBoiWcTQFAYVA8sJ1RCxKeUkZlMhPDdRJkEnQ027B-RpcYtwU50cVYhGbi6eM95ttZPQiG-Zm3iIg8tpT3kvwLHsE4eq_H2hNwWumpto82kQVCgyK2d1eZoCGQnJqLUI6AWtUQNo7UyP2UAmaSk8EL2WSJ9Eldi1KElKGAgCfh-YP6xNmhAercrCctNJzl_513a4Dno31MCVNyRhSAjKrg"/>
+<div class="absolute inset-0 bg-gradient-to-t from-primary/10 to-transparent"></div>
+</div>
+<div class="space-y-xs max-w-xs">
+<h2 class="text-display-sm text-primary">Hanap Trabaho</h2>
+<p class="text-body-lg text-on-surface-variant">Discover local jobs right in your neighborhood and start your career close to home.</p>
+</div>
+</div>
+</section>
+<!-- Slide 2: Marketplace -->
+<section class="carousel-item min-w-full h-full flex flex-col px-container-margin">
+<div class="flex-1 flex flex-col justify-center items-center text-center space-y-lg">
+<div class="w-full max-w-[320px] aspect-square relative rounded-3xl overflow-hidden shadow-sm bg-surface-container-low border border-outline-variant/30">
+<img class="w-full h-full object-cover" data-alt="Vibrant local marketplace scene." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAp21HwXr8_7HBvp2T3ZsCyoI-HdhiucTTAEjB2dZNk6MUmOTBe6Aa1mBjhDjmdOAc4E5YhpPz8i3ViHzfUmjAqSQmqqKpst8d-Lo_4xM_ul3GG_EQY65gJ_SvF2Qt6y88RqcOOTxy9GvVkZJh6nvMJZ5SnMjb-yGXPmWttSCx92w0P7WPsA4_3iGxBjSEIe0MLhmyBjE6OjuoNk3iWMAjeDVVrnb-loAF7zxDrOncc8mjRfUfeWQ3L9z_mvSCwtmxfrabKdvk_kgA"/>
+<div class="absolute inset-0 bg-gradient-to-t from-secondary-container/10 to-transparent"></div>
+</div>
+<div class="space-y-xs max-w-xs">
+<h2 class="text-display-sm text-primary">Marketplace</h2>
+<p class="text-body-lg text-on-surface-variant">Support your local vendors, discover artisanal goods, and enjoy the best street food in town.</p>
+</div>
+</div>
+</section>
+<!-- Slide 3: Bayanihan -->
+<section class="carousel-item min-w-full h-full flex flex-col px-container-margin">
+<div class="flex-1 flex flex-col justify-center items-center text-center space-y-lg">
+<div class="w-full max-w-[320px] aspect-square relative rounded-3xl overflow-hidden shadow-sm bg-surface-container-low border border-outline-variant/30">
+<img class="w-full h-full object-cover" data-alt="Bayanihan spirit community help." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDER5VDRWX-UQ7qF7kzJApGF_ADbVUfHTPPrzMqA_mOuqoiWAiQ40aEsYr97v1Uk3rgs3ojDiS-1_3qlCrnrSxFsuY2mG0J4rSQSN_ZuRYsMittHLexJ31E1F_ob297M7xkh3qtIgbnDkWhCHHAILL01g3ao-WKQoTCfVG6Zqe_vw8Dase3keoCoEHNsjGTre000WfovGmHlQ_HDS5aobhWy6_xQbLGUfRBDoan7O7zjgvAHUWcWsRCBf9pEmGG4r9t59lvkD5qlD0"/>
+<div class="absolute inset-0 bg-gradient-to-t from-primary/5 to-transparent"></div>
+</div>
+<div class="space-y-xs max-w-xs">
+<h2 class="text-display-sm text-primary">Bayanihan</h2>
+<p class="text-body-lg text-on-surface-variant">Connect with your community. Lend a hand or find help from people you can trust nearby.</p>
+</div>
+</div>
+</section>
+</div>
+<!-- Carousel Indicators -->
+<div class="flex justify-center space-x-xs pb-xl">
+<div class="dot w-2 h-2 rounded-full bg-outline-variant transition-all active-dot" data-index="0"></div>
+<div class="dot w-2 h-2 rounded-full bg-outline-variant transition-all" data-index="1"></div>
+<div class="dot w-2 h-2 rounded-full bg-outline-variant transition-all" data-index="2"></div>
+</div>
+</div>
+<!-- Footer Actions -->
+<footer class="px-container-margin pb-xl space-y-md">
+<button class="w-full h-14 bg-primary text-on-primary rounded-xl font-semibold text-body-lg shadow-md active:scale-[0.98] transition-all" onclick="location.href='{{DATA:SCREEN:SCREEN_8}}'">
+                Get Started
+            </button>
+<button class="w-full h-12 text-on-surface-variant font-medium text-body-lg hover:bg-surface-container transition-colors rounded-lg" onclick="location.href='{{DATA:SCREEN:SCREEN_12}}'">
+                Browse as guest
+            </button>
+</footer>
+</main>
+<script>
+        const container = document.querySelector('.carousel-container');
+        const dots = document.querySelectorAll('.dot');
+        
+        container.addEventListener('scroll', () => {
+            const scrollLeft = container.scrollLeft;
+            const width = container.clientWidth;
+            const activeIndex = Math.round(scrollLeft / width);
+            
+            dots.forEach((dot, index) => {
+                if(index === activeIndex) {
+                    dot.classList.add('active-dot');
+                    dot.classList.remove('w-2', 'bg-outline-variant');
+                } else {
+                    dot.classList.remove('active-dot');
+                    dot.classList.add('w-2', 'bg-outline-variant');
+                }
+            });
+        });
+    </script>
+</body></html>

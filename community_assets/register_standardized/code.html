@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Join Kabayan - Community Registration</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary": "#735c00",
+                        "surface-dim": "#dbdad5",
+                        "primary-container": "#0038a8",
+                        "on-secondary": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "surface-container-low": "#f5f3ee",
+                        "secondary-container": "#fecc00",
+                        "on-error": "#ffffff",
+                        "tertiary-fixed": "#ffdad7",
+                        "on-secondary-fixed-variant": "#574500",
+                        "outline-variant": "#c4c5d5",
+                        "on-surface": "#1b1c19",
+                        "inverse-primary": "#b6c4ff",
+                        "on-secondary-container": "#6e5700",
+                        "surface-variant": "#e4e2dd",
+                        "surface": "#fbf9f4",
+                        "on-primary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "tertiary": "#62000a",
+                        "surface-tint": "#3056c4",
+                        "on-primary-container": "#96adff",
+                        "on-surface-variant": "#444653",
+                        "on-secondary-fixed": "#241a00",
+                        "error": "#ba1a1a",
+                        "background": "#fbf9f4",
+                        "tertiary-container": "#8c0014",
+                        "tertiary-fixed-dim": "#ffb3ae",
+                        "on-primary-fixed-variant": "#093cab",
+                        "secondary-fixed-dim": "#f0c100",
+                        "surface-bright": "#fbf9f4",
+                        "outline": "#747685",
+                        "surface-container-high": "#eae8e3",
+                        "on-tertiary-fixed": "#410004",
+                        "primary-fixed": "#dce1ff",
+                        "inverse-surface": "#30312e",
+                        "primary-fixed-dim": "#b6c4ff",
+                        "on-background": "#1b1c19",
+                        "surface-container-highest": "#e4e2dd",
+                        "on-tertiary-fixed-variant": "#930015",
+                        "on-primary-fixed": "#00164f",
+                        "surface-container-lowest": "#ffffff",
+                        "primary": "#002576",
+                        "surface-container": "#f0eee9",
+                        "secondary-fixed": "#ffe089",
+                        "on-tertiary-container": "#ff918b",
+                        "inverse-on-surface": "#f2f1ec",
+                        "error-container": "#ffdad6"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "8px",
+                        "xl": "32px",
+                        "lg": "24px",
+                        "base": "4px",
+                        "md": "16px",
+                        "sm": "12px",
+                        "card-gap": "12px",
+                        "container-margin": "16px"
+                    },
+                    "fontFamily": {
+                        "sans": ["Montserrat", "sans-serif"],
+                        "display-lg": ["Montserrat", "sans-serif"],
+                        "headline-md": ["Montserrat", "sans-serif"],
+                        "body-md": ["Montserrat", "sans-serif"],
+                        "price-display": ["Montserrat", "sans-serif"],
+                        "body-lg": ["Montserrat", "sans-serif"],
+                        "label-md": ["Montserrat", "sans-serif"],
+                        "display-sm": ["Montserrat", "sans-serif"],
+                        "headline-sm": ["Montserrat", "sans-serif"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "price-display": ["20px", {"lineHeight": "24px", "fontWeight": "700"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "display-sm": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                        "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .form-input-focus:focus-within {
+            border-color: #0038a8 !important;
+            box-shadow: 0 0 0 1px #0038a8;
+        }
+        .bayanihan-gradient {
+            background: linear-gradient(135deg, #002576 0%, #0038a8 100%);
+        }
+        /* Rigorous 8px vertical rhythm classes */
+        .space-v-8 { margin-bottom: 8px; }
+        .space-v-16 { margin-bottom: 16px; }
+        .space-v-24 { margin-bottom: 24px; }
+        .space-v-32 { margin-bottom: 32px; }
+        
+        .input-height { height: 56px; }
+        .button-height { height: 56px; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md min-h-screen flex flex-col items-center">
+<header class="w-full max-w-md px-container-margin pt-xl pb-lg text-center">
+<h1 class="font-display-lg text-display-lg text-primary tracking-tight space-v-8">Kabayan</h1>
+<p class="font-body-md text-on-surface-variant">Empowering neighborhoods through Bayanihan.</p>
+</header>
+<main class="w-full max-w-md px-container-margin pb-xl">
+<!-- Registration Card -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-lg border border-outline-variant/20">
+<header class="space-v-24">
+<h2 class="font-display-sm text-display-sm text-on-surface space-v-8">Join the Community</h2>
+<p class="font-body-md text-on-surface-variant leading-relaxed">Create your account to start hiring, working, or trading locally.</p>
+</header>
+<form class="space-y-md" id="registration-form">
+<!-- Full Name -->
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-outline uppercase ml-xs tracking-wider">Full Name</label>
+<div class="relative flex items-center bg-surface-container rounded-xl overflow-hidden border border-transparent transition-all duration-200 form-input-focus input-height">
+<span class="material-symbols-outlined ml-md text-outline">person</span>
+<input class="w-full bg-transparent border-none focus:ring-0 px-sm py-md text-body-lg font-body-lg placeholder:text-outline-variant" placeholder="Juan Dela Cruz" type="text"/>
+</div>
+</div>
+<!-- Email -->
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-outline uppercase ml-xs tracking-wider">Email Address</label>
+<div class="relative flex items-center bg-surface-container rounded-xl overflow-hidden border border-transparent transition-all duration-200 form-input-focus input-height">
+<span class="material-symbols-outlined ml-md text-outline">mail</span>
+<input class="w-full bg-transparent border-none focus:ring-0 px-sm py-md text-body-lg font-body-lg placeholder:text-outline-variant" placeholder="juan@kabayan.com" type="email"/>
+</div>
+</div>
+<!-- Role Selection -->
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-outline uppercase ml-xs tracking-wider">I am a...</label>
+<div class="grid grid-cols-3 gap-xs">
+<label class="cursor-pointer group">
+<input class="hidden peer" name="role" type="radio" value="job_seeker"/>
+<div class="flex flex-col items-center justify-center h-20 bg-surface-container rounded-xl border-2 border-transparent peer-checked:border-secondary-container peer-checked:bg-secondary-container/10 transition-all hover:bg-surface-container-high">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">work</span>
+<span class="font-label-md text-[11px] mt-xs text-on-surface-variant font-medium">Job Seeker</span>
+</div>
+</label>
+<label class="cursor-pointer group">
+<input checked="" class="hidden peer" name="role" type="radio" value="employer"/>
+<div class="flex flex-col items-center justify-center h-20 bg-surface-container rounded-xl border-2 border-transparent peer-checked:border-secondary-container peer-checked:bg-secondary-container/10 transition-all hover:bg-surface-container-high">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">hail</span>
+<span class="font-label-md text-[11px] mt-xs text-on-surface-variant font-medium">Employer</span>
+</div>
+</label>
+<label class="cursor-pointer group">
+<input class="hidden peer" name="role" type="radio" value="vendor"/>
+<div class="flex flex-col items-center justify-center h-20 bg-surface-container rounded-xl border-2 border-transparent peer-checked:border-secondary-container peer-checked:bg-secondary-container/10 transition-all hover:bg-surface-container-high">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">storefront</span>
+<span class="font-label-md text-[11px] mt-xs text-on-surface-variant font-medium">Vendor</span>
+</div>
+</label>
+</div>
+</div>
+<!-- Password -->
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-outline uppercase ml-xs tracking-wider">Password</label>
+<div class="relative flex items-center bg-surface-container rounded-xl overflow-hidden border border-transparent transition-all duration-200 form-input-focus input-height">
+<span class="material-symbols-outlined ml-md text-outline">lock</span>
+<input class="w-full bg-transparent border-none focus:ring-0 px-sm py-md text-body-lg font-body-lg placeholder:text-outline-variant" placeholder="••••••••" type="password"/>
+<button class="px-md text-outline hover:text-primary transition-colors h-full flex items-center" type="button">
+<span class="material-symbols-outlined">visibility</span>
+</button>
+</div>
+<p class="text-[11px] text-outline ml-xs mt-base leading-tight">Must be at least 8 characters with a mix of numbers.</p>
+</div>
+<!-- Primary Action -->
+<div class="pt-sm">
+<button class="w-full bayanihan-gradient text-on-primary font-headline-sm text-headline-sm button-height rounded-xl active:scale-[0.98] transition-all shadow-md hover:opacity-90 flex items-center justify-center gap-xs" type="submit">
+<span>Sign Up</span>
+<span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+</button>
+</div>
+</form>
+<div class="mt-xl flex flex-col items-center">
+<div class="flex items-center w-full gap-md mb-md">
+<div class="h-[1px] bg-outline-variant/30 flex-1"></div>
+<span class="font-label-md text-[10px] text-outline uppercase tracking-widest font-bold">Or continue with</span>
+<div class="h-[1px] bg-outline-variant/30 flex-1"></div>
+</div>
+<div class="flex gap-lg">
+<button class="w-12 h-12 flex items-center justify-center bg-surface-container rounded-full hover:bg-surface-container-high transition-all active:scale-90 border border-outline-variant/20 shadow-sm">
+<img alt="Google" class="w-5 h-5" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAopalhXXcUOK4Omq06HE4H3qfTrPChM5l5HdQree3tpCshkmJEWKG-nS76wMZAZC9aWV1b7a7O9cGQIQ_ATcVWVFe3De6O5SU2k0uaLPpjabXrfBaUVY0jJKgoRgGsFF2Dvj2KOokumjBDNNmfRvM_s3-zUXRF5wz192H9u6r6QAIWoZf7GWHlSVfchL1fp-xutOthcKQpALoUfu9J5x_BCMmnU76z31gULet0FfuerVMWSLUbaAn-DddIT1rzM8Byy2oyOTLSXCs"/>
+</button>
+<button class="w-12 h-12 flex items-center justify-center bg-surface-container rounded-full hover:bg-surface-container-high transition-all active:scale-90 border border-outline-variant/20 shadow-sm">
+<img alt="Facebook" class="w-5 h-5" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDxW1fWKL9OVWVyprrJ0Cw4kn9yha2Pt64oT7HQiHh9R6Dc4nSKRmw2xN8TnWw3nZDaqz_8eTrPaawbumq5yRZA8DaF_R-ozjsdZp2H23bHyALub9gGQLsYUUDaRSv5vO4eenXwptKK6HbPiwiLnhMVir1kMqJ1vBTqCcH1Z608eNnsKL6myRPuB3d4riCUXv_DrvFNqGDLeTQt2xnP8j8LWOUQ48F5lCQnoFgSUZUl7mDs0XARPxLhb92lRbsnvrttPQmpXf1aZsI"/>
+</button>
+</div>
+</div>
+</div>
+<!-- Secondary Action -->
+<div class="text-center mt-xl">
+<p class="font-body-md text-on-surface-variant">
+                Already have an account? 
+                <a class="text-primary font-bold hover:underline ml-xs transition-all" href="{{DATA:SCREEN:SCREEN_9}}">Sign In</a>
+</p>
+</div>
+</main>
+<!-- Footer -->
+<footer class="mt-auto w-full max-w-md px-container-margin pb-lg text-center">
+<div class="flex justify-center items-center gap-xs mb-xs opacity-60">
+<span class="material-symbols-outlined text-secondary text-[18px]">verified_user</span>
+<span class="font-label-md text-[11px] font-medium tracking-wide">Trusted Filipino Community Network</span>
+</div>
+<p class="text-[10px] text-outline leading-normal opacity-50 px-lg">By signing up, you agree to our <a class="underline" href="#">Terms of Service</a> and <a class="underline" href="#">Privacy Policy</a>.</p>
+</footer>
+<!-- Background Accents -->
+<div class="fixed top-[-10%] right-[-10%] w-64 h-64 bg-secondary-container rounded-full blur-[100px] opacity-10 pointer-events-none"></div>
+<div class="fixed bottom-[-10%] left-[-10%] w-80 h-80 bg-primary-container rounded-full blur-[120px] opacity-10 pointer-events-none"></div>
+<script>
+        // Micro-interaction for form submission
+        document.getElementById('registration-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            const originalContent = btn.innerHTML;
+            
+            btn.disabled = true;
+            btn.innerHTML = `
+                <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span class="ml-2">Creating Account...</span>
+            `;
+
+            setTimeout(() => {
+                btn.innerHTML = `
+                    <span class="material-symbols-outlined">check_circle</span>
+                    <span class="ml-2">Welcome to Kabayan!</span>
+                `;
+                btn.classList.remove('bayanihan-gradient');
+                btn.classList.add('bg-green-600');
+                
+                setTimeout(() => {
+                    // Final redirection trigger placeholder
+                    // window.location.href = '{{DATA:SCREEN:SCREEN_12}}';
+                }, 1500);
+            }, 2000);
+        });
+
+        // Toggle Password Visibility
+        const togglePass = document.querySelector('button[type="button"]');
+        const passInput = document.querySelector('input[type="password"]');
+        if (togglePass && passInput) {
+            togglePass.addEventListener('click', () => {
+                const isPass = passInput.getAttribute('type') === 'password';
+                passInput.setAttribute('type', isPass ? 'text' : 'password');
+                togglePass.querySelector('span').textContent = isPass ? 'visibility_off' : 'visibility';
+            });
+        }
+    </script>
+</body></html>

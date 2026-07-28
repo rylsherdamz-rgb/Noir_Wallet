@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Location Access - Kabayan</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface": "#fbf9f4",
+                    "error": "#ba1a1a",
+                    "on-secondary-fixed-variant": "#574500",
+                    "secondary-fixed": "#ffe089",
+                    "on-error-container": "#93000a",
+                    "tertiary-container": "#8c0014",
+                    "surface-tint": "#3056c4",
+                    "on-primary-container": "#96adff",
+                    "secondary-fixed-dim": "#f0c100",
+                    "error-container": "#ffdad6",
+                    "surface-container": "#f0eee9",
+                    "primary": "#002576",
+                    "inverse-on-surface": "#f2f1ec",
+                    "on-secondary": "#ffffff",
+                    "surface-variant": "#e4e2dd",
+                    "on-surface-variant": "#444653",
+                    "on-secondary-container": "#6e5700",
+                    "on-tertiary-fixed-variant": "#930015",
+                    "surface-container-low": "#f5f3ee",
+                    "tertiary": "#62000a",
+                    "background": "#fbf9f4",
+                    "inverse-surface": "#30312e",
+                    "on-background": "#1b1c19",
+                    "primary-fixed-dim": "#b6c4ff",
+                    "secondary": "#735c00",
+                    "primary-fixed": "#dce1ff",
+                    "on-surface": "#1b1c19",
+                    "secondary-container": "#fecc00",
+                    "outline": "#747685",
+                    "tertiary-fixed": "#ffdad7",
+                    "on-secondary-fixed": "#241a00",
+                    "surface-container-highest": "#e4e2dd",
+                    "tertiary-fixed-dim": "#ffb3ae",
+                    "primary-container": "#0038a8",
+                    "on-error": "#ffffff",
+                    "on-primary-fixed-variant": "#093cab",
+                    "inverse-primary": "#b6c4ff",
+                    "outline-variant": "#c4c5d5",
+                    "surface-bright": "#fbf9f4",
+                    "on-tertiary-fixed": "#410004",
+                    "surface-dim": "#dbdad5",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-container": "#ff918b",
+                    "on-tertiary": "#ffffff",
+                    "on-primary-fixed": "#00164f",
+                    "on-primary": "#ffffff",
+                    "surface-container-high": "#eae8e3"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "md": "16px",
+                    "container-margin": "16px",
+                    "card-gap": "12px",
+                    "xs": "8px",
+                    "lg": "24px",
+                    "base": "4px",
+                    "sm": "12px",
+                    "xl": "32px"
+            },
+            "fontFamily": {
+                    "headline-sm": ["Montserrat"],
+                    "headline-md": ["Montserrat"],
+                    "label-md": ["Inter"],
+                    "body-md": ["Inter"],
+                    "display-lg": ["Montserrat"],
+                    "body-lg": ["Inter"],
+                    "display-sm": ["Montserrat"],
+                    "price-display": ["Montserrat"]
+            },
+            "fontSize": {
+                    "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "display-sm": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "price-display": ["20px", {"lineHeight": "24px", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .bento-glow {
+            background: radial-gradient(circle at 50% 50%, rgba(254, 204, 0, 0.15) 0%, transparent 70%);
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body-md text-body-md min-h-screen flex flex-col items-center justify-center">
+<!-- Permission Content Canvas -->
+<main class="max-w-md w-full px-container-margin py-xl flex flex-col items-center justify-between min-h-screen md:min-h-0 md:h-auto">
+<!-- Header Branding (Hidden on mobile per Shell logic, but kept minimal for focused flow) -->
+<header class="w-full text-center mb-lg">
+<h1 class="font-headline-md text-headline-md font-bold text-primary">Kabayan</h1>
+</header>
+<!-- Visual Anchor: Bento Style Illustration -->
+<div class="relative w-full aspect-square mb-xl overflow-hidden rounded-xl bg-surface-container-low shadow-sm flex items-center justify-center">
+<!-- Animated Background Glow -->
+<div class="absolute inset-0 bento-glow animate-pulse"></div>
+<!-- Central Community Illustration -->
+<div class="relative z-10 w-[85%] h-[85%] rounded-xl overflow-hidden shadow-lg border border-white/50">
+<div class="w-full h-full bg-cover bg-center" data-alt="A warm, tactile digital illustration of a friendly Philippine neighborhood map. The scene is bathed in soft morning sunlight with a color palette of deep navy blues and bright sun yellows. Stylized map markers shaped like houses and store stalls are scattered across a grid of clean, modern streets. The art style is minimalist yet inviting, conveying a sense of Bayanihan community spirit and safety within a local marketplace context." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBVl-IrxqBIeqqMAiA3QmyS7gWaqdAvVv-2bvjA4GqtGBL5mf5dSH3GhxnoNHq83mO2jqWlVxF_vLEQ_2l8-fbaoAk8e-vrGl1LdhpP_XP4MKqnPITIdhoTUeOSN3ddWkLhNqmX0fUAx60PNZZKskkYITfvmGque6FHBiGcGvsKp8kmM5l_0zqZ33B-IT4fdIXsE1Zmm8Or7KuaSxOdmYd03SzEHkkmrh0xs8lKxuTOqX6FcLMkdYQEhV8Gf_uuahadWm7fZbKKTx4')">
+</div>
+<!-- Floating Glass Markers (Simulating App UI) -->
+<div class="absolute top-4 left-4 glass-panel px-sm py-xs rounded-full flex items-center gap-xs shadow-md">
+<span class="material-symbols-outlined text-primary text-[18px]">work</span>
+<span class="font-label-md text-label-md text-primary">Local Job</span>
+</div>
+<div class="absolute bottom-8 right-4 glass-panel px-sm py-xs rounded-full flex items-center gap-xs shadow-md">
+<span class="material-symbols-outlined text-secondary text-[18px]">storefront</span>
+<span class="font-label-md text-label-md text-secondary">Market</span>
+</div>
+</div>
+</div>
+<!-- Copy Text -->
+<div class="text-center space-y-md px-xs mb-xl">
+<h2 class="font-display-sm text-display-sm text-primary tracking-tight">Find what’s near you</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
+                By enabling location access, you can discover job opportunities and marketplace items just a few blocks away in your community.
+            </p>
+</div>
+<!-- Action Cluster -->
+<div class="w-full flex flex-col gap-sm mt-auto md:mt-0">
+<!-- Primary Action -->
+<button class="w-full h-[56px] bg-primary text-on-primary font-headline-sm text-headline-sm rounded-xl shadow-md active:scale-[0.98] transition-transform flex items-center justify-center gap-sm">
+<span class="material-symbols-outlined">location_on</span>
+                Allow Location
+            </button>
+<!-- Secondary Action -->
+<button class="w-full h-[48px] bg-transparent text-primary font-headline-sm text-headline-sm rounded-xl hover:bg-surface-container-high transition-colors active:scale-[0.98]">
+                Not Now
+            </button>
+</div>
+<!-- Trust Indicator -->
+<div class="mt-lg flex items-center gap-xs text-outline">
+<span class="material-symbols-outlined text-[16px]">verified_user</span>
+<span class="font-label-md text-label-md">Your privacy is our priority</span>
+</div>
+</main>
+<!-- Navigation Shell (Suppressed for focused permission flow as per Source of Truth) -->
+<!-- The BottomNavBar and TopAppBar are excluded here to prioritize the Content Canvas for this transactional screen -->
+<script>
+        // Simple micro-interaction for the button
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('touchstart', () => {
+                button.classList.add('scale-95');
+            });
+            button.addEventListener('touchend', () => {
+                button.classList.remove('scale-95');
+            });
+        });
+
+        // Simulating the interaction logic
+        const allowBtn = document.querySelector('button.bg-primary');
+        const notNowBtn = document.querySelector('button.text-primary');
+
+        allowBtn.addEventListener('click', () => {
+            console.log('Location access requested...');
+            // In a real app, this would trigger the system permission dialog
+        });
+
+        notNowBtn.addEventListener('click', () => {
+            console.log('User deferred location access.');
+        });
+    </script>
+</body></html>

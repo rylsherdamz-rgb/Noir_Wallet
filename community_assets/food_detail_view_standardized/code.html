@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Kabayan - Food Details</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&amp;family=Inter:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-fixed-dim": "#f0c100",
+                        "on-primary": "#ffffff",
+                        "inverse-surface": "#30312e",
+                        "surface-tint": "#3056c4",
+                        "surface": "#fbf9f4",
+                        "surface-container-low": "#f5f3ee",
+                        "on-tertiary": "#ffffff",
+                        "background": "#fbf9f4",
+                        "tertiary-container": "#8c0014",
+                        "outline-variant": "#c4c5d5",
+                        "on-secondary-fixed": "#241a00",
+                        "primary-fixed-dim": "#b6c4ff",
+                        "surface-container-highest": "#e4e2dd",
+                        "surface-container": "#f0eee9",
+                        "surface-container-high": "#eae8e3",
+                        "on-secondary": "#ffffff",
+                        "primary": "#0038a8",
+                        "surface-variant": "#e4e2dd",
+                        "on-surface-variant": "#444653",
+                        "error-container": "#ffdad6",
+                        "inverse-primary": "#b6c4ff",
+                        "tertiary-fixed": "#ffdad7",
+                        "secondary": "#735c00",
+                        "primary-container": "#0038a8",
+                        "on-primary-fixed": "#00164f",
+                        "primary-fixed": "#dce1ff",
+                        "on-tertiary-container": "#ff918b",
+                        "on-error-container": "#93000a",
+                        "tertiary": "#62000a",
+                        "secondary-fixed": "#ffe089",
+                        "on-tertiary-fixed": "#410004",
+                        "surface-bright": "#fbf9f4",
+                        "on-secondary-container": "#6e5700",
+                        "on-error": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-container": "#96adff",
+                        "surface-dim": "#dbdad5",
+                        "inverse-on-surface": "#f2f1ec",
+                        "secondary-container": "#fecc00",
+                        "on-primary-fixed-variant": "#093cab",
+                        "on-secondary-fixed-variant": "#574500",
+                        "on-surface": "#1b1c19",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed-variant": "#930015",
+                        "tertiary-fixed-dim": "#ffb3ae",
+                        "outline": "#747685",
+                        "on-background": "#1b1c19"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "8px",
+                        "container-margin": "16px",
+                        "card-gap": "12px",
+                        "xl": "32px",
+                        "md": "16px",
+                        "base": "4px",
+                        "sm": "12px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Montserrat", "Inter", "sans-serif"],
+                        "label-md": ["Montserrat", "Inter", "sans-serif"],
+                        "body-lg": ["Montserrat", "Inter", "sans-serif"],
+                        "headline-md": ["Montserrat", "sans-serif"],
+                        "price-display": ["Montserrat", "sans-serif"],
+                        "headline-sm": ["Montserrat", "sans-serif"],
+                        "display-lg": ["Montserrat", "sans-serif"],
+                        "display-sm": ["Montserrat", "sans-serif"]
+                    },
+                    "fontSize": {
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "price-display": ["24px", {"lineHeight": "28px", "fontWeight": "700"}],
+                        "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "display-sm": ["24px", {"lineHeight": "32px", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .hero-gradient {
+            background: linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 70%, rgba(251,249,244,1) 100%);
+        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        body {
+            min-height: max(884px, 100dvh);
+            font-family: 'Montserrat', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md min-h-screen pb-32">
+<!-- Top App Bar -->
+<header class="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-container-margin h-16 bg-transparent transition-all duration-300" id="topHeader">
+<button class="w-12 h-12 flex items-center justify-center rounded-full bg-surface/80 backdrop-blur-md shadow-sm active:scale-95 transition-transform text-on-surface" onclick="history.back()">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<div class="flex gap-xs">
+<button class="w-12 h-12 flex items-center justify-center rounded-full bg-surface/80 backdrop-blur-md shadow-sm active:scale-95 transition-transform text-on-surface">
+<span class="material-symbols-outlined">share</span>
+</button>
+<button class="w-12 h-12 flex items-center justify-center rounded-full bg-surface/80 backdrop-blur-md shadow-sm active:scale-95 transition-transform text-on-surface">
+<span class="material-symbols-outlined">favorite</span>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="relative">
+<!-- Hero Image Section -->
+<div class="relative w-full h-[400px] overflow-hidden">
+<img alt="Special Sapin-Sapin" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCFqXkb9vw0LR0KDKa6REWYXFI-1_6jfqJ35A49Pe1RXuLwK-00LaHYPukKpI5AG3ZzPBV5d2e-e5j_2QOGJMGZeSwi4JzFtdCvXlT6EZrt597LTqXorqPapls3nninQ3v5cNUpUVnvQPxDOlqQLgY7hitR39JJZkJWMoJetADRmnzEZYFV5cJTs_UiWF4u1tf-SKv_4kL-dHiBcgs6zmdY-tyooqiBPRh_NxyGVy5zfuVRVwVg3e7Xu9vnHHJSmuLjXRWOrTGG0mA"/>
+<div class="absolute inset-0 hero-gradient"></div>
+</div>
+<!-- Product Details Content -->
+<div class="relative -mt-12 px-container-margin">
+<div class="bg-surface p-lg rounded-t-3xl shadow-sm border-x border-t border-outline-variant/30">
+<!-- Title & Price -->
+<div class="flex justify-between items-start mb-md">
+<div class="flex-1">
+<h1 class="text-display-sm font-bold text-primary mb-xs">Special Sapin-Sapin</h1>
+<div class="flex flex-wrap items-center gap-sm">
+<span class="bg-secondary-container text-on-secondary-container px-sm py-1 rounded-full text-label-md font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">local_fire_department</span> Best Seller
+                            </span>
+<span class="text-on-surface-variant text-body-md flex items-center gap-1">
+<span class="material-symbols-outlined text-[18px] text-secondary" style="font-variation-settings: 'FILL' 1;">star</span> 4.9 (120+ reviews)
+                            </span>
+</div>
+</div>
+<div class="text-right ml-sm">
+<span class="text-price-display font-bold text-secondary block">₱250.00</span>
+<p class="text-on-surface-variant text-label-md">Per Box (12 pcs)</p>
+</div>
+</div>
+<!-- Status Badges -->
+<div class="flex flex-wrap gap-xs mb-lg">
+<div class="flex items-center gap-1 bg-surface-container-high px-sm py-xs rounded-xl text-on-surface text-label-md">
+<span class="material-symbols-outlined text-[18px]">verified</span> QCID Verified
+                    </div>
+<div class="flex items-center gap-1 bg-surface-container-high px-sm py-xs rounded-xl text-on-surface text-label-md">
+<span class="material-symbols-outlined text-[18px]">schedule</span> Freshly Made
+                    </div>
+<div class="flex items-center gap-1 bg-surface-container-high px-sm py-xs rounded-xl text-on-surface text-label-md">
+<span class="material-symbols-outlined text-[18px]">moped</span> Delivery Available
+                    </div>
+</div>
+<!-- Seller Profile Section -->
+<div class="flex items-center justify-between p-md bg-surface-container-low rounded-2xl border border-outline-variant/20 mb-lg">
+<div class="flex items-center gap-md">
+<div class="relative">
+<div class="w-14 h-14 rounded-full overflow-hidden border-2 border-secondary-container shadow-sm">
+<img alt="Aling Nene" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDAzIQVrvx1pF6maE1Kq0OIAJ4x7611ltQ9olPPKIvulXjGlVE9tBffK8puIvOv--EgQpjY01xZMDoT5p0Nwub3lGus7K0b0WNnfoisnEHVhIu8UqQDEfOFCANbmg0-84m8Ov40B16hyz-Ho6io98ycEkdYblSe7j5sdhvoiUF8fF6cDfbc2NioVGPlz2OYsMhHIjle21DD4MkwT_lg8aGpMwt7pFljL7XyzKp7tpqtui82LLgH4rbamKDonUej3IaWWOWAY0i405k"/>
+</div>
+<span class="absolute bottom-0 right-0 bg-primary text-on-primary rounded-full p-[2px]">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</span>
+</div>
+<div>
+<h3 class="text-headline-sm font-semibold text-on-surface">Aling Nene's Delicacies</h3>
+<p class="text-body-md text-on-surface-variant">Verified Seller • QC District 4</p>
+</div>
+</div>
+<button class="h-12 px-lg text-primary text-label-md font-semibold border-2 border-primary rounded-xl hover:bg-primary/5 transition-colors whitespace-nowrap">
+                        View Shop
+                    </button>
+</div>
+<!-- Description -->
+<div class="mb-lg">
+<h4 class="text-headline-sm font-semibold text-on-surface mb-xs">Description</h4>
+<p class="text-body-lg text-on-surface-variant leading-relaxed">
+                        Indulge in our signature Sapin-Sapin, a labor of love made from heritage recipes. Each layer is meticulously steamed using pure glutinous rice and freshly squeezed coconut milk. Our special ube layer uses real mountain-grown purple yam for that authentic, earthy flavor. Perfect for family gatherings, merienda, or as a sweet gift for your loved ones.
+                    </p>
+</div>
+<!-- Ingredients & Allergens -->
+<div class="p-md bg-tertiary-fixed/10 rounded-2xl border border-tertiary-fixed/30 mb-lg">
+<div class="flex items-center gap-xs text-tertiary mb-xs">
+<span class="material-symbols-outlined text-[20px]">info</span>
+<h4 class="text-label-md font-bold uppercase tracking-wider">Ingredients &amp; Allergens</h4>
+</div>
+<p class="text-body-md text-on-surface-variant">
+                        Glutinous rice, Coconut milk, Cane sugar, Purple yam (Ube), Jackfruit. <br/>
+<span class="font-semibold text-tertiary">Allergen Notice:</span> Contains coconut. Prepared in a facility that also handles nuts and dairy.
+                    </p>
+</div>
+<!-- More from Seller -->
+<div>
+<div class="flex items-center justify-between mb-md">
+<h4 class="text-headline-sm font-semibold text-on-surface">Other items from Aling Nene</h4>
+<button class="text-primary text-label-md font-bold">See all</button>
+</div>
+<div class="flex gap-card-gap overflow-x-auto hide-scrollbar -mx-container-margin px-container-margin pb-base">
+<!-- Related Item 1 -->
+<div class="min-w-[160px] w-40 bg-white rounded-2xl shadow-sm border border-outline-variant/20 overflow-hidden active:scale-95 transition-transform">
+<div class="h-32 w-full bg-surface-container-high relative">
+<img alt="Puto Maya" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBWIBqN0PoidIT9li3PM2Mx6s_qu4A1HBjOXUNmnUs5FD1UyngvvAofMa-6NXkn2iAsLKnDNvqFa2Nu9wWe-qRZ-dD0glEH6f9sxB1xZ47_AaQLl80D9cAm3tdHty8nOCKmBLNVlZnaZBYa4LESv5YOU70BNwFzm-PJladsAQOrDaFe-VUXbkATfIU_B0uC2PjSckxBPh3FojaV4NRRrxbETxFctGtiI5aXPjh-zzfOTjMbAwSsU-uD6gOF4R9jfuWWb4l4xbGARME"/>
+<div class="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm px-xs py-[2px] rounded-lg shadow-sm">
+<span class="text-label-md font-bold text-secondary">₱180</span>
+</div>
+</div>
+<div class="p-sm">
+<p class="text-body-md font-semibold truncate">Puto Maya w/ Mango</p>
+<div class="flex items-center gap-1 text-on-surface-variant mt-1">
+<span class="material-symbols-outlined text-[14px] text-secondary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="text-label-md">4.8</span>
+</div>
+</div>
+</div>
+<!-- Related Item 2 -->
+<div class="min-w-[160px] w-40 bg-white rounded-2xl shadow-sm border border-outline-variant/20 overflow-hidden active:scale-95 transition-transform">
+<div class="h-32 w-full bg-surface-container-high relative">
+<img alt="Bibingka" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBQLMqP_YJnXXC96qeI_-WDWF6-2mtV6cwy4l4h6lvkL-m18peWFRsCMT31qMKyUzgLYMX7nveUxXfUTnj-JYCF9QosKrSkzVOKSfmHMEBitC9oQZOj30PwTDYjf-53Qh4gJbhQj0cEFsGJv1HfhDQUNVuzgkLDH9c_hd9N4v_FnWUTq1b9b55wlD9qtRvoBMeENq8PUpvx6guqEmGv4b50Z1rILxyCAK2sdQibGrQ8MqZeoXv82KzM7eGY4RIHzg8lYHD4lRCj_9U"/>
+<div class="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm px-xs py-[2px] rounded-lg shadow-sm">
+<span class="text-label-md font-bold text-secondary">₱150</span>
+</div>
+</div>
+<div class="p-sm">
+<p class="text-body-md font-semibold truncate">Classic Bibingka</p>
+<div class="flex items-center gap-1 text-on-surface-variant mt-1">
+<span class="material-symbols-outlined text-[14px] text-secondary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="text-label-md">5.0</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Logo -->
+<div class="mt-xl pt-lg border-t border-outline-variant/20 flex flex-col items-center opacity-50">
+<img alt="Kabayan Logo" class="h-10 w-auto grayscale mb-base" src="https://lh3.googleusercontent.com/aida/AP1WRLsCpkO0XGqmsubDUELwh_z8V2AJJSBbrvNBmachKOgQ4Blmp-RK9WtrHqw1QlO34pHe5KTh1WvoOl2mJ3oowGRpZUJwT1jIGMQKVbeq-PNWKyRYcFJovWacD-d48gcr0uWMIIqWy3Wd7k0hoo6-wJ5pzrEyG0wa0QawkOoheyJiL7Lxj3JentTCixoGAosR4MmMemwVecFNj8fTyVbrMjgG2Ivcq9YqSNyvGLgIY9dWK3JCqHXl1asAe2U"/>
+<p class="text-label-md">Kabayan Community App</p>
+</div>
+</div>
+</div>
+</main>
+<!-- Sticky Bottom Order Bar -->
+<footer class="fixed bottom-0 left-0 w-full z-50 bg-surface/90 backdrop-blur-xl border-t border-outline-variant/30 px-container-margin py-md flex items-center gap-md">
+<div class="flex-1 flex flex-col">
+<span class="text-on-surface-variant text-label-md">Total Price</span>
+<span class="text-display-sm font-bold text-primary">₱250.00</span>
+</div>
+<div class="flex gap-sm">
+<button class="w-[56px] h-[56px] flex items-center justify-center rounded-2xl border-2 border-primary text-primary active:scale-90 transition-transform">
+<span class="material-symbols-outlined">chat_bubble</span>
+</button>
+<button class="bg-primary text-on-primary h-[56px] px-xl rounded-2xl text-headline-sm font-bold shadow-lg shadow-primary/20 active:scale-95 transition-transform flex items-center justify-center gap-2">
+                Order Now
+            </button>
+</div>
+</footer>
+<!-- Micro-interactions Script -->
+<script>
+        const header = document.getElementById('topHeader');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 80) {
+                header.classList.remove('bg-transparent');
+                header.classList.add('bg-surface', 'shadow-sm');
+            } else {
+                header.classList.add('bg-transparent');
+                header.classList.remove('bg-surface', 'shadow-sm');
+            }
+        });
+
+        const heartBtn = header.querySelector('button:last-child');
+        heartBtn.addEventListener('click', () => {
+            const icon = heartBtn.querySelector('.material-symbols-outlined');
+            const isFilled = icon.style.fontVariationSettings.includes("'FILL' 1");
+            if (isFilled) {
+                icon.style.fontVariationSettings = "'FILL' 0";
+                icon.classList.remove('text-error');
+            } else {
+                icon.style.fontVariationSettings = "'FILL' 1";
+                icon.classList.add('text-error');
+            }
+        });
+    </script>
+</body></html>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Kabayan Onboarding - Hanap Buhay</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "primary": "#0038a8",
+            "on-primary": "#ffffff",
+            "secondary": "#735c00",
+            "on-secondary": "#ffffff",
+            "surface": "#fbf9f4",
+            "on-surface": "#1b1c19",
+            "on-surface-variant": "#444653",
+            "surface-container": "#f0eee9",
+            "surface-container-highest": "#e4e2dd",
+            "outline": "#747685",
+            "outline-variant": "#c4c5d5",
+            "secondary-container": "#fecc00",
+          },
+          "borderRadius": {
+            "DEFAULT": "4px",
+            "lg": "8px",
+            "xl": "12px",
+            "2xl": "16px",
+            "3xl": "24px",
+            "full": "9999px"
+          },
+          "spacing": {
+            "base": "4px",
+            "xs": "8px",
+            "sm": "12px",
+            "md": "16px",
+            "lg": "24px",
+            "xl": "32px",
+            "2xl": "48px",
+            "container-margin": "20px"
+          },
+          "fontFamily": {
+            "sans": ["Montserrat", "sans-serif"],
+            "display": ["Montserrat", "sans-serif"],
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    body {
+      background-color: #fbf9f4;
+      font-family: 'Montserrat', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .asymmetric-shape {
+      clip-path: polygon(0 0, 100% 0, 100% 85%, 0% 100%);
+    }
+    .glass-effect {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    @keyframes float {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-12px); }
+      100% { transform: translateY(0px); }
+    }
+    .float-animation {
+      animation: float 5s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+<main class="relative w-full max-w-md mx-auto h-[100dvh] bg-surface flex flex-col overflow-hidden shadow-2xl">
+<!-- Top Decorative Header -->
+<div class="absolute top-0 left-0 w-full h-[45%] bg-primary asymmetric-shape -z-10">
+<div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+<svg height="100%" width="100%" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<pattern height="40" id="grid" patternunits="userSpaceOnUse" width="40">
+<path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" stroke-width="0.5"></path>
+</pattern>
+</defs>
+<rect fill="url(#grid)" height="100%" width="100%"></rect>
+</svg>
+</div>
+</div>
+<!-- Illustration Canvas -->
+<div class="flex-1 flex flex-col items-center justify-center px-container-margin pt-xl">
+<div class="relative w-full max-w-[280px] aspect-square flex items-center justify-center">
+<!-- Background Glow -->
+<div class="absolute inset-0 bg-secondary-container opacity-20 rounded-full blur-[64px] scale-125"></div>
+<!-- Illustration -->
+<div class="relative z-10 w-full h-full float-animation">
+<div class="w-full h-full rounded-3xl overflow-hidden shadow-2xl border-4 border-surface">
+<div class="w-full h-full bg-cover bg-center" data-alt="Modern digital illustration of a smiling Filipino professional worker" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDxgBOzbDfaeZcVBe_c7BrGnItjqXURW2-OCO8ehzUFtDJcQ0rdx85muCYy4-vltSzuIdHS3ciRxIEvKeFvi030bAFFwrJS3Am3PapCCH-fO_pR0UPtAye5oagWZ01yP1keKs_zPcOEH4JCt_zeQMDxt0Cv6Ez3wutoHt-Ih213hqnKhi1fUz5tx6J9AopqGiNCOqooZywMxMEKXZi0L6hrfvr7rW6eQZEWf0kr9HpnZ0-Aq4wty0MKqIMYJ-iG7t9QExN_aLg6kEo')">
+</div>
+</div>
+<!-- Floating Badge - Hiring Now -->
+<div class="absolute -top-3 -right-4 bg-secondary text-on-secondary px-sm py-xs rounded-xl shadow-lg flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px]">verified</span>
+<span class="text-[11px] font-bold tracking-tight uppercase">Hiring Now</span>
+</div>
+<!-- Floating Card - Available Jobs -->
+<div class="absolute bottom-8 -left-6 glass-effect p-sm rounded-2xl border border-white/40 shadow-xl flex items-center gap-sm min-w-[140px]">
+<div class="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-white shadow-md">
+<span class="material-symbols-outlined text-[20px]">work</span>
+</div>
+<div>
+<p class="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">Available Jobs</p>
+<p class="text-[16px] font-bold text-primary">Nearby</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Content Card -->
+<div class="bg-surface rounded-t-[40px] px-container-margin pt-xl pb-md flex flex-col items-center text-center shadow-[0_-12px_40px_rgba(0,0,0,0.08)]">
+<!-- Progress Indicators -->
+<div class="flex gap-xs mb-xl">
+<div class="w-2 h-2 rounded-full bg-outline-variant"></div>
+<div class="w-6 h-2 rounded-full bg-primary transition-all duration-300"></div>
+<div class="w-2 h-2 rounded-full bg-outline-variant"></div>
+<div class="w-2 h-2 rounded-full bg-outline-variant"></div>
+</div>
+<!-- Text Content -->
+<h1 class="text-[28px] font-bold text-primary mb-md leading-[1.2] tracking-tight">
+        Hanap Buhay, Malapit sa Iyo
+      </h1>
+<p class="text-[15px] leading-relaxed text-on-surface-variant px-sm mb-2xl">
+        Maghanap ng mga trabahong angkop sa iyong galing, direkta sa loob ng iyong komunidad.
+      </p>
+<!-- Buttons -->
+<div class="w-full flex flex-col gap-sm">
+<button class="w-full h-14 bg-primary text-on-primary rounded-2xl font-bold text-[16px] shadow-lg active:scale-[0.98] transition-all" onclick="window.location.href='{{DATA:SCREEN:SCREEN_4}}'">
+          Next
+        </button>
+<button class="w-full h-12 text-on-surface-variant font-semibold text-[14px] hover:text-primary active:opacity-60 transition-colors" onclick="window.location.href='{{DATA:SCREEN:SCREEN_4}}'">
+          Skip
+        </button>
+</div>
+<!-- Home Indicator (Mock) -->
+<div class="mt-lg mb-xs w-32 h-1.5 bg-surface-container-highest rounded-full"></div>
+</div>
+</main>
+</body></html>

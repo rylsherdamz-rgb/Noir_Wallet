@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&amp;family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "inverse-primary": "#b6c4ff",
+                    "on-primary-fixed-variant": "#093cab",
+                    "on-secondary-fixed": "#241a00",
+                    "on-tertiary-fixed": "#410004",
+                    "surface-tint": "#3056c4",
+                    "primary-container": "#0038a8",
+                    "tertiary-fixed-dim": "#ffb3ae",
+                    "on-surface": "#1b1c19",
+                    "surface-container-highest": "#e4e2dd",
+                    "on-secondary-container": "#6e5700",
+                    "surface-container-high": "#eae8e3",
+                    "tertiary-container": "#8c0014",
+                    "on-secondary-fixed-variant": "#574500",
+                    "surface-container-low": "#f5f3ee",
+                    "error": "#ba1a1a",
+                    "on-error": "#ffffff",
+                    "on-secondary": "#ffffff",
+                    "secondary-fixed-dim": "#f0c100",
+                    "inverse-on-surface": "#f2f1ec",
+                    "surface-dim": "#dbdad5",
+                    "surface-container-lowest": "#ffffff",
+                    "on-background": "#1b1c19",
+                    "primary-fixed": "#dce1ff",
+                    "inverse-surface": "#30312e",
+                    "error-container": "#ffdad6",
+                    "on-error-container": "#93000a",
+                    "on-tertiary": "#ffffff",
+                    "secondary-fixed": "#ffe089",
+                    "on-tertiary-fixed-variant": "#930015",
+                    "on-primary-fixed": "#00164f",
+                    "tertiary-fixed": "#ffdad7",
+                    "outline": "#747685",
+                    "background": "#fbf9f4",
+                    "primary": "#0038a8",
+                    "tertiary": "#62000a",
+                    "secondary": "#735c00",
+                    "outline-variant": "#c4c5d5",
+                    "surface-variant": "#e4e2dd",
+                    "surface": "#fbf9f4",
+                    "on-tertiary-container": "#ff918b",
+                    "on-primary-container": "#96adff",
+                    "surface-container": "#f0eee9",
+                    "primary-fixed-dim": "#b6c4ff",
+                    "on-surface-variant": "#444653",
+                    "secondary-container": "#fecc00"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "2xl": "1rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "base": "4px",
+                    "xs": "8px",
+                    "md": "16px",
+                    "container-margin": "16px",
+                    "sm": "12px",
+                    "lg": "24px",
+                    "xl": "32px",
+                    "card-gap": "16px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Montserrat", "sans-serif"],
+                    "price-display": ["Montserrat", "sans-serif"],
+                    "body-md": ["Montserrat", "sans-serif"],
+                    "body-lg": ["Montserrat", "sans-serif"],
+                    "label-md": ["Montserrat", "sans-serif"],
+                    "display-lg": ["Montserrat", "sans-serif"],
+                    "display-sm": ["Montserrat", "sans-serif"],
+                    "headline-sm": ["Montserrat", "sans-serif"]
+            },
+            "fontSize": {
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "700"}],
+                    "price-display": ["18px", {"lineHeight": "24px", "fontWeight": "700"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                    "display-lg": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "800"}],
+                    "display-sm": ["22px", {"lineHeight": "28px", "fontWeight": "700"}],
+                    "headline-sm": ["16px", {"lineHeight": "22px", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .active-pill {
+            background-color: #fecc00;
+            color: #241a00;
+            font-weight: 700;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface selection:bg-secondary-container">
+<!-- Top App Bar -->
+<header class="flex justify-between items-center px-container-margin h-16 w-full sticky top-0 z-50 bg-surface/95 backdrop-blur-md border-b border-surface-variant/30">
+<div class="flex items-center gap-sm">
+<div class="w-9 h-9 rounded-full overflow-hidden border-2 border-primary-container">
+<img class="w-full h-full object-cover" data-alt="User profile" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCtOoEzH5NkvsSp2fIML234ImHnCr_H34ikzCOBcsUuLu3gt74X6EUPTfkUaajklYgpubAyuV2sw4kjywhzzUiaLfQ823ViMPo_GPgLyddo1UlPQeGMioiOdNam3L4tJv8lrv-au-CTP2-6V56XYmPtiou_fHqJMt_UFrwy36mrkY3l83pw8f6kmQvtC8YLqdd4U59_r5-HAlC-R9oziqPAFkGEkxvl7DxIlqUNDdZWXR5Duln3jnNk7lYd_Uqn4aaVhnItIHBYXQ4"/>
+</div>
+<h1 class="font-display-sm text-primary tracking-tight">Palengke</h1>
+</div>
+<button class="material-symbols-outlined text-primary p-xs rounded-full hover:bg-surface-container transition-colors">
+        notifications
+    </button>
+</header>
+<main class="pb-32">
+<!-- Search & Filter Section -->
+<section class="px-container-margin mt-md">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline text-[20px]">search</span>
+<input class="w-full pl-12 pr-4 py-3 bg-surface-container-low border border-transparent rounded-2xl focus:border-primary focus:ring-0 transition-all text-body-md placeholder:text-outline/60" placeholder="Search items or stores..." type="text"/>
+</div>
+<!-- Category Chips -->
+<div class="flex gap-xs mt-md overflow-x-auto hide-scrollbar py-xs">
+<button class="active-pill px-5 py-2 rounded-full text-label-md whitespace-nowrap shadow-sm">All</button>
+<button class="bg-surface-container-high text-on-surface-variant px-5 py-2 rounded-full text-label-md whitespace-nowrap hover:bg-outline-variant transition-colors">Street Food</button>
+<button class="bg-surface-container-high text-on-surface-variant px-5 py-2 rounded-full text-label-md whitespace-nowrap hover:bg-outline-variant transition-colors">Kakanin</button>
+<button class="bg-surface-container-high text-on-surface-variant px-5 py-2 rounded-full text-label-md whitespace-nowrap hover:bg-outline-variant transition-colors">Ulam</button>
+<button class="bg-surface-container-high text-on-surface-variant px-5 py-2 rounded-full text-label-md whitespace-nowrap hover:bg-outline-variant transition-colors">Desserts</button>
+</div>
+</section>
+<!-- Featured Section (Bento Style) -->
+<section class="px-container-margin mt-lg">
+<div class="grid grid-cols-2 gap-xs">
+<!-- Large Featured Card -->
+<div class="col-span-2 relative overflow-hidden rounded-2xl h-48 group cursor-pointer">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" data-alt="Filipino street food grill" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBUBtdsxKBzn6nlxw58z0LvaSuZHfELqxDn0EnddqVX3T51Gyidu5DgjGvSJBXunPkDy8o-YaLzDWmtzgr2c3Shovsvr-ktFMhtY3tzM5N3qrLC3noaqBCcpkFgnR2TPToGG3Xm88abo8KopZW7jxWEoPCpoYiwmN24-ww5N1nNvy6ZrrqTPJu-woUN9mmEBMEIfviLm7_3gchvUOx3Pf3N4y3gIDvbxqUlQB_B5z9jxxkEWAvjK-9_UP8hAesQlJmS9yvskWHQGGI')"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
+<div class="absolute bottom-4 left-4 text-white">
+<span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider mb-xs inline-block">Flash Sale</span>
+<h3 class="text-display-sm">Street Food Fiesta</h3>
+<p class="text-[12px] font-medium opacity-90 mt-1">20% off on all BBQ items today</p>
+</div>
+</div>
+<!-- Small Grid Cards -->
+<div class="bg-surface-container-lowest p-md rounded-2xl shadow-sm border border-surface-variant/30 flex items-center gap-md">
+<div class="w-10 h-10 bg-secondary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-secondary text-[20px]">local_fire_department</span>
+</div>
+<span class="text-label-md font-bold text-on-surface">Trending</span>
+</div>
+<div class="bg-surface-container-lowest p-md rounded-2xl shadow-sm border border-surface-variant/30 flex items-center gap-md">
+<div class="w-10 h-10 bg-tertiary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-tertiary text-[20px]">stars</span>
+</div>
+<span class="text-label-md font-bold text-on-surface">Verified</span>
+</div>
+</div>
+</section>
+<!-- Main Marketplace Feed -->
+<section class="px-container-margin mt-xl">
+<div class="flex justify-between items-baseline mb-md">
+<h2 class="text-headline-md text-on-surface">Nearby Offerings</h2>
+<button class="text-primary text-label-md font-bold hover:underline">View All</button>
+</div>
+<div class="space-y-md">
+<!-- Marketplace Item 1 -->
+<div class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm border border-surface-variant/30 hover:shadow-md transition-shadow cursor-pointer" onclick="window.location.href='{{DATA:SCREEN:SCREEN_2}}'">
+<div class="relative h-48">
+<img class="w-full h-full object-cover" data-alt="Bibingka" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwvVprwWsxOuIxAQcz54ALZ6q1xBg-II91hXOBV4tU0RxuhMCYv35QKUr5T6KsEMVmjv_nHAkNnSTHE-8sR0N1yXZQGG9TVkiwHZ5b29GOSBcTauJehr9E_qHw-9tKzyGEQKNIzJDrY1Zy_7tI9_ZXZmlLQoABRCiWIkoRQeei4ExI6txkcuYYJSIjZrriovEAukn5DikBVJJ6i4rk4Lb7i3Xj_7V2TthzD74w-2h7nVXaNR-cbov8gvIXm7p3BWisQfP4yP0EZsw"/>
+<div class="absolute top-4 right-4">
+<span class="bg-white/95 backdrop-blur-sm text-on-surface px-2 py-1 rounded-lg text-label-md font-bold flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[14px] text-secondary" style="font-variation-settings: 'FILL' 1;">star</span> 4.8
+                        </span>
+</div>
+<div class="absolute bottom-4 right-4 bg-primary text-white px-4 py-1.5 rounded-xl text-price-display shadow-lg">
+                        ₱75
+                    </div>
+</div>
+<div class="p-md">
+<div class="flex justify-between items-start">
+<div>
+<h4 class="text-headline-sm text-on-surface">Special Bibingka</h4>
+<div class="flex items-center gap-1 mt-1">
+<span class="text-body-md text-on-surface-variant font-medium">Nanay Mary's Delights</span>
+<span class="material-symbols-outlined text-primary text-[14px]" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+</div>
+<span class="flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-50 px-2 py-1 rounded-full border border-green-100">
+<span class="w-1.5 h-1.5 bg-green-600 rounded-full animate-pulse"></span> OPEN
+                        </span>
+</div>
+<div class="flex gap-xs mt-4">
+<span class="bg-surface-container-high text-on-surface-variant text-[10px] px-2.5 py-1 rounded font-bold uppercase tracking-wider">Kakanin</span>
+<span class="bg-surface-container-high text-on-surface-variant text-[10px] px-2.5 py-1 rounded font-bold uppercase tracking-wider">Homemade</span>
+</div>
+</div>
+</div>
+<!-- Marketplace Item 2 -->
+<div class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm border border-surface-variant/30 opacity-95 grayscale-[0.1]" onclick="window.location.href='{{DATA:SCREEN:SCREEN_2}}'">
+<div class="relative h-48">
+<img class="w-full h-full object-cover" data-alt="Lechon Kawali" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD8x2MIcTuGYILfaCFbCFHjNHAAwczlS66FwkGmyWIV2XShIWSU_S8t2Tjirb56rKI76faYcGJx3M_nd0z8BYMsIJxJIPCPZJVdEhPOIKkvawWGQJzqtGzj4Dvp1EX1_o3rCt1hR4LUysPUwu-PN1hfQCzy_3nFuD62CFOAnWRNxjRm8RU-cOEH5o_gWsQRrhFRgPOmazRyq7dpan5RdVylZyDiGVO1VH_PxR74Jy7vbdeYy69yfD0evI8lbs908JvBsJKHKvrpMeg"/>
+<div class="absolute bottom-4 right-4 bg-primary/80 backdrop-blur-sm text-white px-4 py-1.5 rounded-xl text-price-display">
+                        ₱150
+                    </div>
+</div>
+<div class="p-md">
+<div class="flex justify-between items-start">
+<div>
+<h4 class="text-headline-sm text-on-surface">Crispy Lechon Kawali</h4>
+<p class="text-body-md text-on-surface-variant mt-1 font-medium">Kusina de Manila</p>
+</div>
+<span class="flex items-center gap-1 text-[10px] font-bold text-error bg-error/5 px-2 py-1 rounded-full border border-error/10">
+<span class="w-1.5 h-1.5 bg-error rounded-full"></span> CLOSED
+                        </span>
+</div>
+</div>
+</div>
+<!-- Marketplace Item 3 (Horizontal) -->
+<div class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm border border-surface-variant/30 flex h-32" onclick="window.location.href='{{DATA:SCREEN:SCREEN_2}}'">
+<div class="w-32 flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="Halo-halo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBUxcBCS3GjSxRKLNP0jCwBCUTsHGYR_rOAejU060jVT28XvpVlb_YBaNJsWQneXGC7o1eRklxVk1n-dih1M8FCUC2TBzt4cFJ_aHVZNOd9GltnZR_w-srlf1IS-bgVlMrbwlsl46K2KhFd7IAiGerp0VVrAlWh1qg02X0FGxcvB6tHCJ5n-U0PnMEVr4XyjjONGJ8WAh-OEO1jiQluqoZ1I7AjMWB5hWxr86pcIo5Uwi728onHtkpw1ZhgB9STgbdby5jiSfb5Wto"/>
+</div>
+<div class="p-md flex flex-col justify-between flex-grow">
+<div>
+<div class="flex justify-between items-start">
+<h4 class="text-label-md font-bold text-on-surface">Overload Halo-Halo</h4>
+<span class="text-primary font-bold text-label-md">₱95</span>
+</div>
+<p class="text-[12px] text-on-surface-variant mt-1">Tito's Sweets &amp; Ice</p>
+</div>
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-secondary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="text-[12px] font-bold">4.7</span>
+</div>
+<span class="text-[10px] text-green-700 font-bold">OPEN</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Post FAB -->
+<button class="fixed bottom-24 right-container-margin w-14 h-14 bg-secondary-container text-on-secondary-container rounded-2xl shadow-xl z-40 flex items-center justify-center hover:scale-105 active:scale-95 transition-all" onclick="window.location.href='{{DATA:SCREEN:SCREEN_5}}'">
+<span class="material-symbols-outlined !text-[32px]" style="font-variation-settings: 'wght' 600;">add</span>
+</button>
+<!-- Bottom Nav Bar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-xs pb-safe h-20 bg-white/95 backdrop-blur-md border-t border-surface-variant/20">
+<a class="flex flex-col items-center justify-center text-outline px-md py-xs" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="text-[10px] font-bold mt-0.5">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-outline px-md py-xs" href="#">
+<span class="material-symbols-outlined">work</span>
+<span class="text-[10px] font-bold mt-0.5">Jobs</span>
+</a>
+<!-- Active Tab -->
+<a class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-2xl px-5 py-2" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">storefront</span>
+<span class="text-[10px] font-bold mt-0.5">Market</span>
+</a>
+<a class="flex flex-col items-center justify-center text-outline px-md py-xs" href="#">
+<span class="material-symbols-outlined">chat_bubble</span>
+<span class="text-[10px] font-bold mt-0.5">Inbox</span>
+</a>
+<a class="flex flex-col items-center justify-center text-outline px-md py-xs" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="text-[10px] font-bold mt-0.5">Ask AI</span>
+</a>
+</nav>
+<script>
+    // Interaction effects
+    const searchInput = document.querySelector('input[type="text"]');
+    searchInput.addEventListener('focus', () => {
+        searchInput.parentElement.classList.add('ring-2', 'ring-primary/20');
+    });
+    searchInput.addEventListener('blur', () => {
+        searchInput.parentElement.classList.remove('ring-2', 'ring-primary/20');
+    });
+
+    const filterButtons = document.querySelectorAll('.overflow-x-auto button');
+    filterButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            filterButtons.forEach(b => {
+                b.classList.remove('active-pill');
+                b.classList.add('bg-surface-container-high', 'text-on-surface-variant');
+                b.style.fontWeight = '600';
+            });
+            btn.classList.add('active-pill');
+            btn.classList.remove('bg-surface-container-high', 'text-on-surface-variant');
+        });
+    });
+</script>
+</body></html>
