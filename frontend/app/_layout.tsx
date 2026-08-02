@@ -49,13 +49,14 @@ import { nfcService } from '@/services/nfc'
 import { useAppStore } from '@/store/useAppStore'
 import { apiService } from '@/services/api'
 import { x402 } from '@/domain/x402'
-import { getItem } from '@/services/storage'
+import { hasPin } from '@/services/pinLock'
+import { ToastProvider } from '@/components/ToastProvider'
 import { Device } from '@/types'
 import NetInfo from '@react-native-community/netinfo'
+import { logger } from '@/lib/logger'
+import { Colors } from '@/constants/theme'
 
 SplashScreen.preventAutoHideAsync()
-
-const PIN_KEY = 'app_pin_hash'
 
 export default function RootLayout() {
   const router = useRouter()
@@ -89,7 +90,11 @@ export default function RootLayout() {
           removePendingPayment(p.id)
         }
       }
-    } catch {}
+    } catch {
+      // Deliberately silent: nothing is lost. A failed flush leaves every
+      // payment in the queue and the next reconnect retries it. The user has
+      // no action to take, and this fires in the background.
+    }
   }, [pendingPayments, removePendingPayment, addTransaction])
 
   useEffect(() => {
@@ -105,38 +110,49 @@ export default function RootLayout() {
         const { devices, setDevices, user } = useAppStore.getState()
         if (user?.stellarPublicKey) {
           const onChain = await x402.getOnChainDevices(user.stellarPublicKey)
-          const chainHashes = new Set(onChain.map((d) => d.deviceUidHash))
-          console.log(`[on-chain sync] ${onChain.length} devices on chain, ${devices.length} local`)
 
-          // Drop local devices whose hash is gone from the chain
-          const validLocal = devices.filter((d) => chainHashes.has(d.deviceUidHash))
-
-          // Add on-chain devices missing locally
-          const localHashes = new Set(validLocal.map((d) => d.deviceUidHash))
-          const missing = onChain.filter((d) => !localHashes.has(d.deviceUidHash))
-          const added = missing.map((d) => ({
-            id: d.deviceUidHash.slice(0, 16),
-            userId: user.id ?? 'restored',
-            deviceUidHash: d.deviceUidHash,
-            label: `Device ${d.deviceUidHash.slice(0, 6)}`,
-            status: 'active' as const,
-            agentPublicKey: d.agentPublicKey,
-            dailySpendLimitCents: 500_000,
-            accumulatedTodayCents: 0,
-            lastTapAt: null,
-            createdAt: d.createdAt || new Date().toISOString(),
-          }))
-
-          const merged = [...validLocal, ...added]
-          if (merged.length !== devices.length) {
-            console.log(`[on-chain sync] updating devices: ${devices.length} → ${merged.length}`)
-            setDevices(merged)
+          // An empty chain read is ambiguous: it means either "this wallet has
+          // no devices" or "the RPC did not answer properly". Pruning on that
+          // would silently wipe every linked card from a bad read, so when the
+          // chain says nothing and local state says something, keep local and
+          // wait for a read that actually returns.
+          const ambiguousEmptyRead = onChain.length === 0 && devices.length > 0
+          if (ambiguousEmptyRead) {
+            logger.warn('[on-chain sync] empty chain read with local devices present — keeping local state')
           } else {
-            console.log(`[on-chain sync] devices unchanged (${devices.length})`)
+            const chainHashes = new Set(onChain.map((d) => d.deviceUidHash))
+            logger.debug(`[on-chain sync] ${onChain.length} devices on chain, ${devices.length} local`)
+
+            // Drop local devices whose hash is gone from the chain
+            const validLocal = devices.filter((d) => chainHashes.has(d.deviceUidHash))
+
+            // Add on-chain devices missing locally
+            const localHashes = new Set(validLocal.map((d) => d.deviceUidHash))
+            const missing = onChain.filter((d) => !localHashes.has(d.deviceUidHash))
+            const added = missing.map((d) => ({
+              id: d.deviceUidHash.slice(0, 16),
+              userId: user.id ?? 'restored',
+              deviceUidHash: d.deviceUidHash,
+              label: `Device ${d.deviceUidHash.slice(0, 6)}`,
+              status: 'active' as const,
+              agentPublicKey: d.agentPublicKey,
+              dailySpendLimitCents: 500_000,
+              accumulatedTodayCents: 0,
+              lastTapAt: null,
+              createdAt: d.createdAt || new Date().toISOString(),
+            }))
+
+            const merged = [...validLocal, ...added]
+            if (merged.length !== devices.length) {
+              logger.debug(`[on-chain sync] updating devices: ${devices.length} → ${merged.length}`)
+              setDevices(merged)
+            } else {
+              logger.debug(`[on-chain sync] devices unchanged (${devices.length})`)
+            }
           }
         }
       } catch (e: any) {
-        console.warn('[on-chain sync] failed:', e?.message)
+        logger.warn('[on-chain sync] failed:', e?.message)
       }
 
       // Push notification registration
@@ -146,7 +162,10 @@ export default function RootLayout() {
           const token = await Notifications.getExpoPushTokenAsync()
           await apiService.registerPushToken(token.data)
         }
-      } catch {}
+      } catch {
+        // Deliberately silent: push notifications are an enhancement, and a
+        // denied permission is a user choice, not a fault to report back.
+      }
 
       setReady(true)
     }
@@ -188,8 +207,7 @@ export default function RootLayout() {
         const lockedAt = Date.now()
         appStateRef.current = nextState
         setTimeout(async () => {
-          const hasPin = await getItem<string>(PIN_KEY)
-          if (hasPin) {
+          if (await hasPin()) {
             router.replace('/lock')
           }
         }, security.backgroundLockTimeoutSec * 1000)
@@ -208,6 +226,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
+      <ToastProvider>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
         <Stack.Screen name="index" />
@@ -228,11 +247,12 @@ export default function RootLayout() {
         <Stack.Screen name="settings/notifications" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="agent/[id]" options={{ animation: 'slide_from_right' }} />
       </Stack>
+      </ToastProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   )
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#000000' },
+  root: { flex: 1, backgroundColor: Colors.black },
 })

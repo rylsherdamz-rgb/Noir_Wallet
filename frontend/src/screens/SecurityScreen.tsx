@@ -13,11 +13,20 @@ import type { ToastType } from '@/types'
 import { walletService } from '@/services/wallet'
 import { x402 } from '@/domain/x402'
 import { apiService } from '@/services/api'
+import { usePreventScreenCapture } from 'expo-screen-capture'
+import { authenticate, checkAvailability, unavailableMessage } from '@/services/biometrics'
+import { useToast } from '@/components/ToastProvider'
 
 const TIMEOUT_OPTIONS = [30, 60, 120, 300]
 
 export function SecurityScreen() {
   const router = useRouter()
+  // The recovery phrase and private key can be revealed on this screen.
+  usePreventScreenCapture('security-settings')
+
+  // The app-wide host, so a message survives the navigation away from here.
+  const appToast = useToast()
+
   const {
     security,
     setBiometricLockEnabled,
@@ -34,6 +43,29 @@ export function SecurityScreen() {
 
   const showToast = (title: string, message?: string, type: ToastType = 'info') => {
     setToast({ visible: true, type, title, message })
+  }
+
+  /**
+   * Turning the switch on has to prove the device can actually do this, and
+   * that the person flipping it owns the enrolled biometric — otherwise the
+   * setting is a claim rather than a control.
+   */
+  const handleBiometricToggle = async (next: boolean) => {
+    if (!next) {
+      setBiometricLockEnabled(false)
+      return
+    }
+    const availability = await checkAvailability()
+    if (!availability.available) {
+      showToast('Biometrics Unavailable', unavailableMessage(availability.reason), 'error')
+      return
+    }
+    const result = await authenticate('Confirm to enable biometric unlock')
+    if (!result.ok) {
+      showToast('Not Enabled', result.message, 'error')
+      return
+    }
+    setBiometricLockEnabled(true)
   }
 
   const handleShowRecoveryPhrase = async () => {
@@ -57,7 +89,9 @@ export function SecurityScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
         </PressableScale>
         <Text style={styles.headerTitle}>Security</Text>
@@ -88,9 +122,13 @@ export function SecurityScreen() {
               </View>
               <Switch
                 value={security.biometricLockEnabled}
-                onValueChange={setBiometricLockEnabled}
+                onValueChange={handleBiometricToggle}
                 trackColor={{ false: Colors.lightGrey, true: Colors.gold + '60' }}
                 thumbColor={security.biometricLockEnabled ? Colors.gold : Colors.mutedWhite}
+                accessibilityRole="switch"
+                accessibilityLabel="Biometric lock"
+                accessibilityHint="Requires Face ID or fingerprint to unlock the wallet"
+                accessibilityState={{ checked: security.biometricLockEnabled }}
               />
             </View>
 
@@ -147,7 +185,9 @@ export function SecurityScreen() {
 
             <View style={styles.divider} />
 
-            <PressableScale style={styles.settingRow} onPress={handleShowPrivateKey}>
+            <PressableScale style={styles.settingRow} onPress={handleShowPrivateKey}
+              accessibilityLabel="Hide"
+            >
               <View style={styles.settingInfo}>
                 <Ionicons name="eye-off-outline" size={20} color={Colors.white} />
                 <View style={styles.settingText}>
@@ -194,6 +234,8 @@ export function SecurityScreen() {
           <PressableScale
             style={styles.deleteBtn}
             onPress={() => setShowDeleteConfirm(true)}
+          
+            accessibilityLabel="Delete"
           >
             <Ionicons name="trash-outline" size={20} color={Colors.danger} />
             <Text style={styles.deleteLabel}>Delete Account</Text>
@@ -218,9 +260,21 @@ export function SecurityScreen() {
         icon="trash-outline"
         onConfirm={async () => {
           setDeleting(true)
+          // The local wipe proceeds either way — the keys are what matter — but
+          // the user is told when the server copy was not confirmed deleted,
+          // rather than being shown an unqualified success.
+          let serverDeleted = true
           try {
             await apiService.request('/auth/account', { method: 'DELETE' })
-          } catch {}
+          } catch {
+            serverDeleted = false
+          }
+          if (!serverDeleted) {
+            appToast.error(
+              'Deleted on this device only',
+              'The server could not be reached, so your account record may still exist. Try again from a connected device.',
+            )
+          }
           await walletService.clearKeys()
           await x402.clearAgent()
           reset()

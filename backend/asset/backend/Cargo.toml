@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 actix-web = "4"
-actix-cors = "0.7"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -14,21 +13,22 @@ aes-gcm = "0.10"
 sqlx = { version = "0.7", features = ["postgres", "runtime-tokio", "uuid", "chrono", "json"] }
 uuid = { version = "1.6", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
+# PDAX session cache uses parking_lot::RwLock.
 parking_lot = "0.12"
 thiserror = "1.0"
 log = "0.4"
 env_logger = "0.10"
 futures = "0.3"
-anyhow = "1.0"
 dotenv = "0.15"
 hex = "0.4"
-signal-hook = "0.3"
 base64 = "0.21"
 reqwest = { version = "0.11", features = ["json"] }
+# Wallet-signature auth: strkey decodes the G-address, dalek verifies the
+# signature over the challenge nonce. No transaction building, so no
+# stellar-xdr.
 stellar-strkey = "0.0.18"
 rand = "0.8"
 ed25519-dalek = "2"
-stellar-xdr = { version = "27.0.0", features = ["base64", "std", "alloc"] }
 
 [dev-dependencies]
 tokio-test = "0.4"

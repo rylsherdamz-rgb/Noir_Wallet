@@ -19,7 +19,7 @@ import { useAppStore } from '@/store/useAppStore'
 import { x402 } from '@/domain/x402'
 import type { AgentWallet } from '@/domain/x402'
 import { DesignTokens, colorWithOpacity } from '@/constants/designTokens'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts, Gradient } from '@/constants/theme'
 import { SignalRipple } from '@/components/brand/SignalRipple'
 import { TapGlyph } from '@/components/brand/BrandGlyph'
 import { StatusPill } from '@/components/StatusPill'
@@ -77,7 +77,7 @@ export function AgentListScreen() {
 
         {/* Shared Agent Wallet Card */}
         <LinearGradient
-          colors={['#1a1a1a', '#101010']}
+          colors={[Gradient.peak, Gradient.mid]}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
           style={styles.agentWalletCard}
@@ -147,7 +147,7 @@ export function AgentListScreen() {
                 accessibilityLabel={`${device.label}, ${device.status}`}
               >
                 <LinearGradient
-                  colors={['#161616', '#101010']}
+                  colors={[Gradient.high, Gradient.mid]}
                   start={{ x: 0.5, y: 0 }}
                   end={{ x: 0.5, y: 1 }}
                   style={styles.deviceCard}
@@ -234,7 +234,7 @@ function EmptyAgents({ onLink }: { onLink: () => void }) {
           end={{ x: 0, y: 1 }}
           style={styles.cta}
         >
-          <TapGlyph size={18} color="#151107" />
+          <TapGlyph size={18} color={Colors.onGold} />
           <Text style={styles.ctaText}>Link a Device</Text>
         </LinearGradient>
       </PressableScale>
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md, paddingHorizontal: Spacing.xl, borderRadius: BorderRadius.md, minHeight: 52,
     ...DesignTokens.shadows.goldGlow,
   },
-  ctaText: { fontFamily: Fonts.display, fontSize: FontSize.md, color: '#151107', letterSpacing: 1, textTransform: 'uppercase' },
+  ctaText: { fontFamily: Fonts.display, fontSize: FontSize.md, color: Colors.onGold, letterSpacing: 1, textTransform: 'uppercase' },
 
   // Loading
   loadingBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, paddingVertical: Spacing.lg },
@@ -309,14 +309,14 @@ const styles = StyleSheet.create({
   balanceUnit: { fontSize: FontSize.lg, color: Colors.mutedWhite },
   budgetRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
   budgetTile: {
-    flex: 1, backgroundColor: '#0E0E0E', borderRadius: BorderRadius.md,
+    flex: 1, backgroundColor: Gradient.raised, borderRadius: BorderRadius.md,
     borderWidth: 1, borderColor: Colors.borderGrey, padding: Spacing.sm, alignItems: 'center',
   },
   budgetLabel: { fontSize: FontSize.xs, color: Colors.mutedWhite, letterSpacing: 1, marginBottom: 2 },
   budgetValue: { fontFamily: Fonts.display, fontSize: FontSize.md, color: Colors.white, fontVariant: ['tabular-nums'] },
   budgetUnit: { fontSize: FontSize.xs, color: Colors.mutedWhite },
   meterWrap: { marginTop: Spacing.xs },
-  meterTrack: { height: 7, borderRadius: 4, backgroundColor: '#1B1B1B', marginBottom: Spacing.sm },
+  meterTrack: { height: 7, borderRadius: 4, backgroundColor: Gradient.track, marginBottom: Spacing.sm },
   meterFill: { height: 7, borderRadius: 4, position: 'relative' },
   meterEndpoint: {
     position: 'absolute', right: -1, top: -2, bottom: -2, width: 3, borderRadius: 2,

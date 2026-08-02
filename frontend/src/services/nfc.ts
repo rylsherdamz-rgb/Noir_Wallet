@@ -1,4 +1,5 @@
 import { NFCTag } from '@/types'
+import { logger } from '@/lib/logger'
 
 /**
  * react-native-nfc-manager is a NATIVE module. It is unavailable in Expo Go and
@@ -106,7 +107,7 @@ class NFCService {
         maxCapacity: tag.maxSize ?? 0,
       }
     } catch (error) {
-      console.error('NFC readTag error:', error)
+      logger.error('NFC readTag error:', error)
       return null
     } finally {
       clearTimeout(timer)

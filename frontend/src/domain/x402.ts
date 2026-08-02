@@ -2,6 +2,7 @@ import { Keypair, xdr, Address } from '@stellar/stellar-sdk'
 import { secureGetItem, secureSetItem, secureDeleteItem } from '@/services/secureStorage'
 import { stellarService } from '@/services/stellar-service'
 import { AppConfig } from '@/constants/config'
+import { logger } from '@/lib/logger'
 
 const SecureStore = {
   getItemAsync: secureGetItem,
@@ -69,7 +70,7 @@ export const x402 = {
     try {
       await stellarService.fundAccount(keys.agentPublic)
     } catch {
-      console.warn('Agent funding skipped — friendbot may be unavailable.')
+      logger.warn('Agent funding skipped — friendbot may be unavailable.')
     }
 
     let balanceStroops = 0

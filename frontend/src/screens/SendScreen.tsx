@@ -1,35 +1,50 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TextInput,
 } from 'react-native'
+import * as Haptics from 'expo-haptics'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter, useGlobalSearchParams } from 'expo-router'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius, FontScaleCap } from '@/constants/theme'
 import { Button } from '@/components/Button'
 import { NumericKeypad } from '@/components/NumericKeypad'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Avatar } from '@/components/Avatar'
 import { SmartTip } from '@/components/SmartTip'
+import { EmptyState } from '@/components/EmptyState'
+import { KeyboardAwareScreen } from '@/components/KeyboardAwareScreen'
+import { useToast } from '@/components/ToastProvider'
 import { useAppStore } from '@/store/useAppStore'
 import { walletService } from '@/services/wallet'
 import { stellarService } from '@/services/stellar-service'
+import {
+  isValidStellarAddress,
+  isValidMemoText,
+  memoByteLength,
+  spendableBalance,
+  minimumBalance,
+  toStellarAmount,
+  BASE_FEE_XLM,
+  MEMO_TEXT_MAX_BYTES,
+} from '@/lib/stellarAccount'
+import { humanizeStellarError } from '@/lib/stellarErrors'
 
 export function SendScreen() {
   const router = useRouter()
   const params = useGlobalSearchParams()
+  const toast = useToast()
   const { balance, devices } = useAppStore()
   const [amount, setAmount] = useState('')
   const [recipient, setRecipient] = useState((params?.scannedAddress as string) || '')
+  const [recipientTouched, setRecipientTouched] = useState(false)
   const [note, setNote] = useState('')
   const [step, setStep] = useState<'amount' | 'recipient' | 'review'>('amount')
-  const [showRecipients, setShowRecipients] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -48,7 +63,26 @@ export function SendScreen() {
   }, [params?.scannedAddress])
 
   const amountNum = parseFloat(amount) || 0
-  const insufficientFunds = amountNum > balance.xlm
+
+  // The network holds back two base reserves plus one per subentry, and the fee
+  // comes out on top. Checking against the raw balance is what made "send max"
+  // fail on chain *after* the user had already confirmed.
+  const spendable = useMemo(
+    () => spendableBalance(balance.xlm, balance.subentryCount ?? 0),
+    [balance.xlm, balance.subentryCount]
+  )
+  const reserve = minimumBalance(balance.subentryCount ?? 0)
+  const insufficientFunds = amountNum > spendable
+
+  const trimmedRecipient = recipient.trim()
+  const recipientValid = isValidStellarAddress(trimmedRecipient)
+  const recipientError =
+    recipientTouched && trimmedRecipient.length > 0 && !recipientValid
+      ? 'That is not a valid Stellar address. It should start with G and be 56 characters.'
+      : null
+
+  const memoValid = isValidMemoText(note)
+  const total = amountNum + BASE_FEE_XLM
 
   const handleContinue = () => {
     if (amountNum <= 0) {
@@ -56,7 +90,9 @@ export function SendScreen() {
       return
     }
     if (insufficientFunds) {
-      setError('Insufficient XLM balance')
+      setError(
+        `You can send at most ${toStellarAmount(spendable)} XLM. ${toStellarAmount(reserve)} XLM stays locked as the account reserve, plus the network fee.`
+      )
       return
     }
     setStep('recipient')
@@ -64,7 +100,17 @@ export function SendScreen() {
 
   const handleSelectRecipient = (addr: string) => {
     setRecipient(addr)
-    setShowRecipients(false)
+    setRecipientTouched(true)
+    setStep('review')
+  }
+
+  const handleReview = () => {
+    setRecipientTouched(true)
+    if (!recipientValid) {
+      setError('Enter a valid Stellar address before continuing.')
+      return
+    }
+    setError(null)
     setStep('review')
   }
 
@@ -78,16 +124,22 @@ export function SendScreen() {
       }
       const result = await stellarService.submitPayment({
         sourceSecret: keys.stellarSecret,
-        destination: recipient,
-        amount: amount,
+        destination: trimmedRecipient,
+        amount: toStellarAmount(amountNum),
+        memo: note.trim() || undefined,
       })
       if ('error' in result) {
         throw new Error(result.error)
       }
       setShowConfirm(false)
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      toast.success(
+        `Sent ${toStellarAmount(amountNum)} XLM`,
+        `To ${trimmedRecipient.slice(0, 6)}…${trimmedRecipient.slice(-4)} · ${result.hash.slice(0, 8)}…`
+      )
       router.back()
     } catch (e: any) {
-      setError(e.message || 'Transaction failed')
+      setError(humanizeStellarError(e))
     } finally {
       setSending(false)
     }
@@ -97,7 +149,9 @@ export function SendScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel="Close"
+          >
             <Ionicons name="close" size={24} color={Colors.white} />
           </PressableScale>
           <Text style={styles.headerTitle}>Send</Text>
@@ -106,11 +160,16 @@ export function SendScreen() {
 
         <View style={styles.amountSection}>
           <Text style={styles.balanceLabel}>XLM · Stellar Lumens</Text>
-          <Text style={styles.amountDisplay}>
+          <Text style={styles.amountDisplay} maxFontSizeMultiplier={FontScaleCap.display}>
             {amount || '0'}
           </Text>
           <Text style={styles.balanceLabel}>
             Balance: {balance.xlm.toLocaleString()} XLM
+          </Text>
+          <Text style={styles.spendableLabel}>
+            Available to send: {toStellarAmount(spendable)} XLM
+            {'  ·  '}
+            {toStellarAmount(reserve)} XLM reserved
           </Text>
           {error ? <ErrorMessage message={error} variant="inline" /> : null}
         </View>
@@ -119,6 +178,12 @@ export function SendScreen() {
           <NumericKeypad value={amount} onChangeValue={handleChangeValue} />
           <View style={styles.amountActions}>
             <Button variant="ghost" label="Cancel" onPress={() => router.back()} />
+            <Button
+              label="Max"
+              variant="ghost"
+              onPress={() => handleChangeValue(toStellarAmount(spendable))}
+              disabled={spendable <= 0}
+            />
             <Button
               label="Continue"
               onPress={handleContinue}
@@ -133,48 +198,72 @@ export function SendScreen() {
 
   if (step === 'recipient') {
     return (
-      <SafeAreaView style={styles.container}>
+      <KeyboardAwareScreen scroll contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <PressableScale onPress={() => setStep('amount')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <PressableScale
+            onPress={() => setStep('amount')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel="Back to amount"
+          >
             <Ionicons name="arrow-back" size={24} color={Colors.white} />
           </PressableScale>
           <Text style={styles.headerTitle}>Send to</Text>
           <View style={styles.spacer24} />
         </View>
 
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-          <View style={styles.inputWrap}>
-            <TextInput
-              style={styles.addressInput}
-              value={recipient}
-              onChangeText={setRecipient}
-              placeholder="Enter Stellar address or scan NFC"
-              placeholderTextColor={Colors.mutedWhite}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            <PressableScale style={styles.scanBtn} onPress={() => router.push('/scan-qr')}>
-              <Ionicons name="qr-code-outline" size={20} color={Colors.gold} />
-            </PressableScale>
-          </View>
-
-          <SmartTip
-            title="Tip: NFC Scan"
-            description="Tap the QR icon to scan a recipient's address from their NFC tag or QR code."
-            variant="tip"
+        <View style={[styles.inputWrap, recipientError && styles.inputWrapError]}>
+          <TextInput
+            style={styles.addressInput}
+            value={recipient}
+            onChangeText={(text) => {
+              setError(null)
+              setRecipient(text)
+            }}
+            onBlur={() => setRecipientTouched(true)}
+            placeholder="Enter Stellar address or scan NFC"
+            placeholderTextColor={Colors.mutedWhite}
+            autoCapitalize="none"
+            autoCorrect={false}
+            accessibilityLabel="Recipient Stellar address"
           />
+          <PressableScale
+            style={styles.scanBtn}
+            onPress={() => router.push('/scan-qr')}
+            accessibilityRole="button"
+            accessibilityLabel="Scan a QR code"
+            accessibilityHint="Opens the camera to read a recipient address"
+          >
+            <Ionicons name="qr-code-outline" size={20} color={Colors.gold} />
+          </PressableScale>
+        </View>
 
-          <Text style={styles.sectionLabel}>Saved Devices</Text>
-          {devices.length === 0 ? (
-            <Text style={styles.noDevices}>No linked devices. Link one in the Devices tab.</Text>
-          ) : (
-            devices
-              .filter((device) => !!device.agentPublicKey)
-              .map((device) => (
+        {recipientError ? <ErrorMessage message={recipientError} variant="inline" /> : null}
+        {error ? <ErrorMessage message={error} variant="inline" /> : null}
+
+        <SmartTip
+          title="Tip: NFC Scan"
+          description="Tap the QR icon to scan a recipient's address from their NFC tag or QR code."
+          variant="tip"
+        />
+
+        <Text style={styles.sectionLabel}>Saved Devices</Text>
+        {devices.filter((device) => !!device.agentPublicKey).length === 0 ? (
+          <EmptyState
+            icon="hardware-chip-outline"
+            title="No linked devices"
+            description="Link a card in the Devices tab to send to it by name."
+          />
+        ) : (
+          devices
+            .filter((device) => !!device.agentPublicKey)
+            .map((device) => (
               <PressableScale
                 key={device.id}
                 style={styles.recipientRow}
                 onPress={() => device.agentPublicKey && handleSelectRecipient(device.agentPublicKey)}
+                accessibilityRole="button"
+                accessibilityLabel={`Send to ${device.label}`}
               >
                 <Avatar name={device.label} size={44} variant="device" />
                 <View style={styles.recipientInfo}>
@@ -186,85 +275,98 @@ export function SendScreen() {
                 <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
               </PressableScale>
             ))
-          )}
-        </ScrollView>
+        )}
 
         <View style={styles.bottomActions}>
-          <Button
-            label="Review Send"
-            onPress={() => setStep('review')}
-            disabled={!recipient.trim()}
-          />
+          <Button label="Review Send" onPress={handleReview} disabled={!recipientValid} />
         </View>
-      </SafeAreaView>
+      </KeyboardAwareScreen>
     )
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <KeyboardAwareScreen scroll contentContainerStyle={styles.scrollContent}>
       <View style={styles.header}>
-        <PressableScale onPress={() => setStep('recipient')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <PressableScale
+          onPress={() => setStep('recipient')}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Back to recipient"
+        >
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
         </PressableScale>
         <Text style={styles.headerTitle}>Review Send</Text>
-        <View style={{ width: 24 }} />
+        <View style={styles.spacer24} />
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.reviewCard}>
-          <View style={styles.reviewRow}>
-            <Text style={styles.reviewLabel}>Amount</Text>
-            <Text style={styles.reviewValue}>
-              {amount} XLM
-            </Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.reviewRow}>
-            <Text style={styles.reviewLabel}>To</Text>
-            <Text style={styles.reviewValueMono}>{recipient}</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.reviewRow}>
-            <Text style={styles.reviewLabel}>Fee</Text>
-            <Text style={styles.reviewValue}>~0.00001 XLM</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.reviewRow}>
-            <Text style={styles.reviewLabel}>Total</Text>
-            <Text style={styles.reviewValueGold}>
-              {amount} XLM + fee
-            </Text>
-          </View>
+      <View style={styles.reviewCard}>
+        <View style={styles.reviewRow}>
+          <Text style={styles.reviewLabel} maxFontSizeMultiplier={FontScaleCap.row}>Amount</Text>
+          <Text style={styles.reviewValue} maxFontSizeMultiplier={FontScaleCap.row}>{toStellarAmount(amountNum)} XLM</Text>
         </View>
-
-        <View style={styles.noteSection}>
-          <TextInput
-            style={styles.noteInput}
-            value={note}
-            onChangeText={setNote}
-            placeholder="Add a note (optional)"
-            placeholderTextColor={Colors.mutedWhite}
-          />
+        <View style={styles.divider} />
+        <View style={styles.reviewRow}>
+          <Text style={styles.reviewLabel} maxFontSizeMultiplier={FontScaleCap.row}>To</Text>
+          <Text style={styles.reviewValueMono} maxFontSizeMultiplier={FontScaleCap.row}>{trimmedRecipient}</Text>
         </View>
+        <View style={styles.divider} />
+        <View style={styles.reviewRow}>
+          <Text style={styles.reviewLabel} maxFontSizeMultiplier={FontScaleCap.row}>Network fee</Text>
+          <Text style={styles.reviewValue} maxFontSizeMultiplier={FontScaleCap.row}>{toStellarAmount(BASE_FEE_XLM)} XLM</Text>
+        </View>
+        {note.trim() ? (
+          <>
+            <View style={styles.divider} />
+            <View style={styles.reviewRow}>
+              <Text style={styles.reviewLabel} maxFontSizeMultiplier={FontScaleCap.row}>Note</Text>
+              <Text style={styles.reviewValueMono} maxFontSizeMultiplier={FontScaleCap.row}>{note.trim()}</Text>
+            </View>
+          </>
+        ) : null}
+        <View style={styles.divider} />
+        <View style={styles.reviewRow}>
+          <Text style={styles.reviewLabel} maxFontSizeMultiplier={FontScaleCap.row}>Total</Text>
+          <Text style={styles.reviewValueGold} maxFontSizeMultiplier={FontScaleCap.row}>{toStellarAmount(total)} XLM</Text>
+        </View>
+      </View>
 
-        {error ? <ErrorMessage message={error} variant="card" onRetry={() => setError(null)} /> : null}
-      </ScrollView>
+      <View style={styles.noteSection}>
+        <TextInput
+          style={[styles.noteInput, !memoValid && styles.noteInputError]}
+          value={note}
+          onChangeText={setNote}
+          placeholder="Add a note (optional) — sent on-chain"
+          placeholderTextColor={Colors.mutedWhite}
+          accessibilityLabel="Transaction note, sent as a public Stellar memo"
+        />
+        <Text style={[styles.noteHint, !memoValid && styles.noteHintError]}>
+          {memoValid
+            ? `Public on-chain memo · ${memoByteLength(note)}/${MEMO_TEXT_MAX_BYTES} bytes`
+            : `Too long — ${memoByteLength(note)}/${MEMO_TEXT_MAX_BYTES} bytes`}
+        </Text>
+      </View>
+
+      {error ? <ErrorMessage message={error} variant="card" onRetry={() => setError(null)} /> : null}
 
       <View style={styles.bottomActions}>
-          <Button label="Confirm Send" onPress={() => setShowConfirm(true)} />
+        <Button
+          label="Confirm Send"
+          onPress={() => setShowConfirm(true)}
+          disabled={!memoValid || !recipientValid || amountNum <= 0}
+        />
       </View>
 
       <ConfirmDialog
         visible={showConfirm}
         title="Confirm Send"
-        message={`Send ${amount} XLM to ${recipient}? This cannot be undone.`}
+        message={`Send ${toStellarAmount(amountNum)} XLM to ${trimmedRecipient}? Total with fee: ${toStellarAmount(total)} XLM. This cannot be undone.`}
         confirmLabel={sending ? 'Sending...' : 'Send'}
         icon="send-outline"
         onConfirm={handleSend}
         onCancel={() => setShowConfirm(false)}
         loading={sending}
       />
-    </SafeAreaView>
+    </KeyboardAwareScreen>
   )
 }
 
@@ -327,6 +429,12 @@ const styles = StyleSheet.create({
     color: Colors.mutedWhite,
     marginTop: Spacing.sm,
   },
+  spendableLabel: {
+    fontSize: FontSize.xs,
+    color: Colors.mutedWhite,
+    marginTop: Spacing.xs,
+    textAlign: 'center',
+  },
   keypadSection: {
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.md,
@@ -356,7 +464,9 @@ const styles = StyleSheet.create({
     paddingLeft: Spacing.md,
     marginBottom: Spacing.md,
   },
-  noDevices: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', paddingVertical: Spacing.lg },
+  inputWrapError: {
+    borderColor: Colors.danger,
+  },
   addressInput: {
     flex: 1,
     height: 52,
@@ -457,6 +567,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.borderGrey,
     height: 52,
+  },
+  noteInputError: {
+    borderColor: Colors.danger,
+  },
+  noteHint: {
+    fontSize: FontSize.xs,
+    color: Colors.mutedWhite,
+    marginTop: Spacing.xs,
+  },
+  noteHintError: {
+    color: Colors.danger,
   },
   bottomActions: {
     paddingHorizontal: Spacing.md,

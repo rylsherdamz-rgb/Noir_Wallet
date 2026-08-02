@@ -8,6 +8,7 @@ import {
   Networks,
 } from '@stellar/stellar-sdk'
 import { Config } from '@/constants/config'
+import { logger } from '@/lib/logger'
 
 class StellarService {
   private server: Horizon.Server
@@ -29,7 +30,7 @@ class StellarService {
   async fundTestnetAccount(publicKey: string): Promise<boolean> {
     try {
       await this.server.loadAccount(publicKey)
-      console.log('Account already exists on-chain')
+      logger.debug('Account already exists on-chain')
       return true
     } catch {
       // doesn't exist yet, proceed to fund
@@ -44,7 +45,7 @@ class StellarService {
 
       if (!response.ok) {
         const text = await response.text()
-        console.warn('Friendbot returned error:', text)
+        logger.warn('Friendbot returned error:', text)
         return false
       }
 
@@ -52,26 +53,26 @@ class StellarService {
       const json = JSON.parse(text)
 
       if (json.hash) {
-        console.log('Account funded via Friendbot:', json.hash)
+        logger.debug('Account funded via Friendbot:', json.hash)
         for (let i = 0; i < 10; i++) {
           try {
             await this.server.loadAccount(publicKey)
-            console.log('Account verified on-chain')
+            logger.debug('Account verified on-chain')
             return true
           } catch {
             await new Promise(r => setTimeout(r, 1000))
           }
         }
-        console.warn('Account funded but still not visible after 10s')
+        logger.warn('Account funded but still not visible after 10s')
         return true
       }
 
       return false
     } catch (e: any) {
       if (e.name === 'AbortError') {
-        console.warn('Friendbot request timed out')
+        logger.warn('Friendbot request timed out')
       } else {
-        console.warn('Friendbot failed:', e.message)
+        logger.warn('Friendbot failed:', e.message)
       }
       return false
     }

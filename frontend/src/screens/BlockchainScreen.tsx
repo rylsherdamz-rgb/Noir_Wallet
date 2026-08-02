@@ -37,7 +37,7 @@ export function BlockchainScreen() {
   const refreshBalances = useCallback(async () => {
     if (!user?.stellarPublicKey) return
     const onChain = await stellarService.getBalance(user.stellarPublicKey)
-    setBalance({ xlm: onChain.xlm })
+    setBalance({ xlm: onChain.xlm, subentryCount: onChain.subentryCount })
   }, [user?.stellarPublicKey, setBalance])
 
   const onRefresh = useCallback(async () => {

@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { NoirLogo } from '@/components/brand/NoirLogo'
 import { Button } from '@/components/Button'
+import { usePreventScreenCapture } from 'expo-screen-capture'
 
 interface SeedVerifyScreenProps {
   phrase: string[]
@@ -23,6 +24,9 @@ function shuffle(arr: string[]): string[] {
 }
 
 export function SeedVerifyScreen({ phrase, onComplete, onBack }: SeedVerifyScreenProps) {
+  // The phrase words are on screen here too, so the same capture block applies.
+  usePreventScreenCapture('seed-verify')
+
   const indices = useMemo(() => {
     const shuffled = [...Array(12).keys()].sort(() => Math.random() - 0.5)
     return shuffled.slice(0, 4)
@@ -68,7 +72,9 @@ export function SeedVerifyScreen({ phrase, onComplete, onBack }: SeedVerifyScree
 
   return (
     <SafeAreaView style={styles.container}>
-      <PressableScale onPress={onBack} style={styles.backBtn}>
+      <PressableScale onPress={onBack} style={styles.backBtn}
+        accessibilityLabel="Go back"
+      >
         <Ionicons name="arrow-back" size={24} color={Colors.white} />
       </PressableScale>
 
@@ -89,7 +95,9 @@ export function SeedVerifyScreen({ phrase, onComplete, onBack }: SeedVerifyScree
                 {answers[idx] || '______'}
               </Text>
               {answers[idx] && (
-                <PressableScale onPress={() => removeAnswer(idx)}>
+                <PressableScale onPress={() => removeAnswer(idx)}
+                  accessibilityLabel="Clear"
+                >
                   <Ionicons name="close-circle" size={18} color={Colors.danger} />
                 </PressableScale>
               )}

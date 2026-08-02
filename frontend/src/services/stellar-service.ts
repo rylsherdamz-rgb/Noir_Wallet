@@ -4,6 +4,7 @@ import {
   Contract,
   Operation,
   Asset,
+  Memo,
   BASE_FEE,
   Networks,
   rpc,
@@ -15,6 +16,7 @@ import {
 import { Buffer } from 'buffer'
 import { TransactionBase } from '@stellar/stellar-sdk/axios'
 import type { Transaction, AssetCode } from '@/types'
+import { logger } from '@/lib/logger'
 
 declare const __DEV__: boolean | undefined
 
@@ -53,6 +55,11 @@ export interface StellarServiceOptions {
 
 export interface BalanceResult {
   xlm: number
+  /**
+   * Trustlines, offers, signers and data entries. Each one locks another base
+   * reserve, so spendable balance cannot be computed without it.
+   */
+  subentryCount: number
 }
 
 export interface InvokeParams {
@@ -110,7 +117,7 @@ export class StellarService {
       isTestnet ? 'https://soroban-testnet.stellar.org' : 'https://soroban.stellar.org',
     ) as rpc.Server
     this.networkPassphrase = isTestnet ? Networks.TESTNET : Networks.PUBLIC
-    console.log(`[StellarService] network switched to ${this.network}`)
+    logger.debug(`[StellarService] network switched to ${this.network}`)
   }
 
   private get friendbotUrl(): string | null {
@@ -152,17 +159,18 @@ export class StellarService {
 
       return {
         xlm: parseFloat(xlmBalance?.balance ?? '0'),
+        subentryCount: (account as any).subentry_count ?? 0,
       }
     } catch (e: any) {
       const status = e?.response?.status ?? e?.response?.statusCode
       const isNotFound = status === 404 || e?.name === 'NotFoundError'
       if (!isNotFound) {
-        console.warn(
+        logger.warn(
           `[getBalance] non-404 error for ${publicKey.slice(0, 8)}... on ${this.network}:`,
           e?.message ?? e,
         )
       }
-      return { xlm: 0 }
+      return { xlm: 0, subentryCount: 0 }
     }
   }
 
@@ -172,6 +180,8 @@ export class StellarService {
     amount: string
     assetCode?: string
     assetIssuer?: string
+    /** Optional MEMO_TEXT. Stellar caps this at 28 bytes; longer text is rejected. */
+    memo?: string
   }): Promise<{ hash: string } | { error: string }> {
     try {
       const sourceKp = Keypair.fromSecret(params.sourceSecret)
@@ -196,19 +206,21 @@ export class StellarService {
           ? new Asset(params.assetCode, params.assetIssuer)
           : Asset.native()
 
-      const tx = new TransactionBuilder(sourceAccount, {
+      const builder = new TransactionBuilder(sourceAccount, {
         fee: BASE_FEE,
         networkPassphrase: this.networkPassphrase,
-      })
-        .addOperation(
-          Operation.payment({
-            destination: params.destination,
-            asset,
-            amount: params.amount,
-          }),
-        )
-        .setTimeout(30)
-        .build()
+      }).addOperation(
+        Operation.payment({
+          destination: params.destination,
+          asset,
+          amount: params.amount,
+        }),
+      )
+
+      const memoText = params.memo?.trim()
+      if (memoText) builder.addMemo(Memo.text(memoText))
+
+      const tx = builder.setTimeout(30).build()
 
       tx.sign(sourceKp)
       const result = await this.horizon.submitTransaction(tx)
@@ -233,13 +245,13 @@ export class StellarService {
     if (exists) return true
 
     if (!this.friendbotUrl) {
-      console.warn('Friendbot only available on testnet')
+      logger.warn('Friendbot only available on testnet')
       return false
     }
 
     for (let attempt = 0; attempt <= retries; attempt++) {
       if (attempt > 0) {
-        console.warn(`Friendbot retry ${attempt}/${retries}...`)
+        logger.warn(`Friendbot retry ${attempt}/${retries}...`)
         await new Promise(r => setTimeout(r, 2000))
       }
 
@@ -253,7 +265,7 @@ export class StellarService {
 
         if (!response.ok) {
           const text = await response.text()
-          console.warn('Friendbot error:', text)
+          logger.warn('Friendbot error:', text)
           if (text.includes('already') || text.includes('exist')) return true
           continue
         }
@@ -270,10 +282,10 @@ export class StellarService {
         return true
       } catch (e: any) {
         if (e.name === 'AbortError') {
-          console.warn('Friendbot timed out — account may still be funding')
+          logger.warn('Friendbot timed out — account may still be funding')
           continue
         }
-        console.warn('Friendbot failed:', e.message)
+        logger.warn('Friendbot failed:', e.message)
       }
     }
     return false
@@ -302,11 +314,11 @@ export class StellarService {
   async invokeContract(params: InvokeParams): Promise<string> {
     const sourceKp = Keypair.fromSecret(params.signerSecret)
     const sourcePub = sourceKp.publicKey()
-    console.log(`[invokeContract] source=${sourcePub.slice(0, 8)}... method=${params.method} network=${this.network}`)
+    logger.debug(`[invokeContract] source=${sourcePub.slice(0, 8)}... method=${params.method} network=${this.network}`)
 
     const funded = await this.ensureAccountFunded(sourcePub)
     if (!funded) {
-      console.warn(
+      logger.warn(
         `Account ${sourcePub.slice(0, 8)}... not confirmed on ${this.network} — ` +
         `attempting transaction anyway.`
       )
@@ -335,7 +347,7 @@ export class StellarService {
 
     const txXdr = tx.toXDR()
     if (IS_DEV) {
-      console.log(`[invokeContract] tx XDR: ${txXdr.substring(0, 80)}...`)
+      logger.debug(`[invokeContract] tx XDR: ${txXdr.substring(0, 80)}...`)
     }
 
     // ── Simulate + Assemble (dApp skill pattern) ───────────────────
@@ -347,11 +359,11 @@ export class StellarService {
     try {
       simulation = await this.soroban.simulateTransaction(tx)
       if (IS_DEV) {
-        console.log(`[invokeContract] simulateTransaction OK for ${params.method}`)
+        logger.debug(`[invokeContract] simulateTransaction OK for ${params.method}`)
       }
     } catch (e: any) {
       const errMsg = typeof e === 'object' ? (e?.message ?? e?.data ?? JSON.stringify(e)) : String(e)
-      console.error(`[invokeContract] simulateTransaction failed for ${params.method}`, {
+      logger.error(`[invokeContract] simulateTransaction failed for ${params.method}`, {
         error: errMsg,
         xdrPrefix: txXdr.substring(0, 80),
         source: params.signerSecret.slice(0, 8) + '...',
@@ -360,7 +372,7 @@ export class StellarService {
     }
 
     if (rpc.Api.isSimulationError(simulation)) {
-      console.error(`[invokeContract] simulation error for ${params.method}`, simulation.error)
+      logger.error(`[invokeContract] simulation error for ${params.method}`, simulation.error)
       throw new Error(`Simulation error: ${simulation.error}`)
     }
 
@@ -369,11 +381,11 @@ export class StellarService {
       const assembled = rpc.assembleTransaction(tx, simulation)
       prepared = assembled.build()
       if (IS_DEV) {
-        console.log(`[invokeContract] assembleTransaction OK for ${params.method}`)
+        logger.debug(`[invokeContract] assembleTransaction OK for ${params.method}`)
       }
     } catch (e: any) {
       const errMsg = typeof e === 'object' ? (e?.message ?? e?.data ?? JSON.stringify(e)) : String(e)
-      console.error(`[invokeContract] assembleTransaction failed for ${params.method}`, {
+      logger.error(`[invokeContract] assembleTransaction failed for ${params.method}`, {
         error: errMsg,
       })
       throw new Error(`Transaction assembly failed: ${errMsg}`)
@@ -389,11 +401,11 @@ export class StellarService {
       const ops = env.v1().tx().operations()
       const invokeBody = ops[0].body().value() as xdr.InvokeHostFunctionOp
       const authEntries = Array.from(invokeBody.auth())
-      if (IS_DEV) console.log(`[invokeContract] auth entries:`, authEntries.length)
+      if (IS_DEV) logger.debug(`[invokeContract] auth entries:`, authEntries.length)
       if (authEntries.length > 0) {
         const { sequence } = await this.soroban.getLatestLedger()
         const validUntil = sequence + 10
-        if (IS_DEV) console.log(`[invokeContract] signing ${authEntries.length} auth entries, validUntil=${validUntil}`)
+        if (IS_DEV) logger.debug(`[invokeContract] signing ${authEntries.length} auth entries, validUntil=${validUntil}`)
         const signed = await Promise.all(
           authEntries.map((entry: any) =>
             authorizeEntry(entry, sourceKp, validUntil, this.networkPassphrase)
@@ -417,12 +429,12 @@ export class StellarService {
           .setTimeout(30)
           .build()
         if (IS_DEV) {
-          console.log(`[invokeContract] signed ${signed.length} auth entr${signed.length === 1 ? 'y' : 'ies'} for ${params.method}`)
+          logger.debug(`[invokeContract] signed ${signed.length} auth entr${signed.length === 1 ? 'y' : 'ies'} for ${params.method}`)
         }
       }
     } catch (e: any) {
       const errMsg = typeof e === 'object' ? (e?.message ?? e?.data ?? JSON.stringify(e)) : String(e)
-      console.error(`[invokeContract] auth signing failed for ${params.method}`, {
+      logger.error(`[invokeContract] auth signing failed for ${params.method}`, {
         error: errMsg,
         xdrPrefix: txXdr.substring(0, 80),
         source: params.signerSecret.slice(0, 8) + '...',
@@ -437,7 +449,7 @@ export class StellarService {
       sendResult = await this.soroban.sendTransaction(prepared)
     } catch (e: any) {
       const errMsg = typeof e === 'object' ? (e?.message ?? e?.data ?? JSON.stringify(e)) : String(e)
-      console.error(`[invokeContract] sendTransaction failed for ${params.method}`, {
+      logger.error(`[invokeContract] sendTransaction failed for ${params.method}`, {
         error: errMsg,
         source: params.signerSecret.slice(0, 8) + '...',
       })
@@ -448,7 +460,7 @@ export class StellarService {
 
     if (sendResult.status === 'ERROR') {
       const errXdr = sendResult.errorResultXdr
-      console.warn(`[invokeContract] sendTransaction ERROR for ${params.method}`, {
+      logger.warn(`[invokeContract] sendTransaction ERROR for ${params.method}`, {
         hash,
         errorResultXdr: errXdr,
       })
@@ -486,7 +498,7 @@ export class StellarService {
             msg = `Operation error: ${opCode}`
           }
         } catch (_) {}
-        console.error(`[invokeContractAndWait] transaction FAILED for ${params.method}`, { hash, msg })
+        logger.error(`[invokeContractAndWait] transaction FAILED for ${params.method}`, { hash, msg })
         throw new Error(msg)
       }
       await new Promise(r => setTimeout(r, 1000))
@@ -545,7 +557,7 @@ export class StellarService {
 
     const txXdr = tx.toXDR()
     if (IS_DEV) {
-      console.log(`[readContract] tx XDR: ${txXdr.substring(0, 80)}...`)
+      logger.debug(`[readContract] tx XDR: ${txXdr.substring(0, 80)}...`)
     }
 
     const sim = await this.soroban.simulateTransaction(tx)
@@ -610,14 +622,14 @@ export function createService(): StellarService {
     const config = require('@/constants/config').Config
     const stellarNetworkConfig = require('@/constants/config').stellarNetwork
     const network: 'testnet' | 'mainnet' = stellarNetworkConfig === 'mainnet' ? 'mainnet' : 'testnet'
-    console.log(`[StellarService] Creating service for ${network}`)
+    logger.debug(`[StellarService] Creating service for ${network}`)
     return new StellarService({
       network,
       sorobanRpcUrl: config.sorobanRpcUrl,
       networkPassphrase: config.networkPassphrase,
     })
   } catch (e) {
-    console.warn('[StellarService] Failed to load config, defaulting to testnet:', e)
+    logger.warn('[StellarService] Failed to load config, defaulting to testnet:', e)
     return new StellarService({ network: 'testnet' })
   }
 }

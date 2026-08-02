@@ -12,7 +12,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { DesignTokens } from '@/constants/designTokens'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts, Gradient } from '@/constants/theme'
 import { SkeletonLoader } from './SkeletonLoader'
 import { CurrencyToken } from './brand/CurrencyToken'
 import { useCountUp } from '@/hooks/useCountUp'
@@ -23,22 +23,22 @@ function HeroFacets() {
       <Svg width={172} height={172} viewBox="0 0 100 100">
         <Defs>
           <SvgLinearGradient id="fgH" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor="#E9C482" />
-            <Stop offset="1" stopColor="#C6A15B" />
+            <Stop offset="0" stopColor={Gradient.goldLight} />
+            <Stop offset="1" stopColor={Colors.gold} />
           </SvgLinearGradient>
           <SvgLinearGradient id="fgM" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor="#C6A15B" />
-            <Stop offset="1" stopColor="#8F6C33" />
+            <Stop offset="0" stopColor={Colors.gold} />
+            <Stop offset="1" stopColor={Gradient.goldShade} />
           </SvgLinearGradient>
           <SvgLinearGradient id="fgD" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor="#A57E3D" />
-            <Stop offset="1" stopColor="#6E5327" />
+            <Stop offset="0" stopColor={Colors.goldDeep} />
+            <Stop offset="1" stopColor={Gradient.goldDark} />
           </SvgLinearGradient>
         </Defs>
-        <Polygon points="50,4 92,26 78,60 44,52" fill="url(#fgH)" stroke="#0D0D0D" strokeWidth={0.5} strokeLinejoin="round" />
-        <Polygon points="44,52 78,60 60,96 30,74" fill="url(#fgM)" stroke="#0D0D0D" strokeWidth={0.5} strokeLinejoin="round" />
-        <Polygon points="8,30 50,4 44,52 14,64" fill="url(#fgD)" stroke="#0D0D0D" strokeWidth={0.5} strokeLinejoin="round" />
-        <Polygon points="14,64 44,52 30,74 12,86" fill="url(#fgH)" stroke="#0D0D0D" strokeWidth={0.5} strokeLinejoin="round" />
+        <Polygon points="50,4 92,26 78,60 44,52" fill="url(#fgH)" stroke={Gradient.base} strokeWidth={0.5} strokeLinejoin="round" />
+        <Polygon points="44,52 78,60 60,96 30,74" fill="url(#fgM)" stroke={Gradient.base} strokeWidth={0.5} strokeLinejoin="round" />
+        <Polygon points="8,30 50,4 44,52 14,64" fill="url(#fgD)" stroke={Gradient.base} strokeWidth={0.5} strokeLinejoin="round" />
+        <Polygon points="14,64 44,52 30,74 12,86" fill="url(#fgH)" stroke={Gradient.base} strokeWidth={0.5} strokeLinejoin="round" />
       </Svg>
     </View>
   )
@@ -123,7 +123,7 @@ export function BalanceCard({
           style={styles.heroBorder}
         >
           <LinearGradient
-            colors={['#191919', '#0E0E0E']}
+            colors={[Gradient.elevated, Gradient.raised]}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
             style={styles.heroInner}
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
   heroBorder: {
     borderRadius: 22,
     padding: 1.5,
-    shadowColor: '#000000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 16 },
     shadowOpacity: 0.6,
     shadowRadius: 26,

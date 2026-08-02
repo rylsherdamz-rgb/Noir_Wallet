@@ -58,7 +58,9 @@ export function SmartTip({
           <Text style={styles.description}>{description}</Text>
         </View>
         {dismissible && (
-          <PressableScale onPress={() => setDismissed(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <PressableScale onPress={() => setDismissed(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel="Close"
+          >
             <Ionicons name="close" size={16} color={Colors.mutedWhite} />
           </PressableScale>
         )}

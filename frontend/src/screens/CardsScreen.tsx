@@ -87,7 +87,9 @@ export function CardsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
         </PressableScale>
         <Text style={styles.headerTitle} accessibilityRole="header">

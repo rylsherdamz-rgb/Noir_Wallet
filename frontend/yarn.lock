@@ -683,10 +683,10 @@
   dependencies:
     "@types/hammerjs" "^2.0.36"
 
-"@esbuild/win32-x64@0.28.1":
+"@esbuild/darwin-arm64@0.28.1":
   version "0.28.1"
-  resolved "https://registry.npmjs.org/@esbuild/win32-x64/-/win32-x64-0.28.1.tgz"
-  integrity sha512-bm4Mowrv+GXMlpWX++EcXw/iLyd1o3+bJkC2DkWXYVvgZCqD/bSj9ctZeAMC3cIxgjRVR2Dufaiu4YPxr5gW1A==
+  resolved "https://registry.npmjs.org/@esbuild/darwin-arm64/-/darwin-arm64-0.28.1.tgz"
+  integrity sha512-TZbWkQY7kvTAXbXUT7uVACR5cMHsDiSz9z7ZKAX/RTq/WJEk3QyRr0wZpNhBDX+/0CtdqUIJlOiodQcta6tY3Q==
 
 "@exodus/bytes@^1.11.0", "@exodus/bytes@^1.15.0", "@exodus/bytes@^1.6.0":
   version "1.15.1"
@@ -1557,10 +1557,10 @@
     invariant "^2.2.4"
     nullthrows "^1.1.1"
 
-"@rolldown/binding-win32-x64-msvc@1.1.4":
+"@rolldown/binding-darwin-arm64@1.1.4":
   version "1.1.4"
-  resolved "https://registry.npmjs.org/@rolldown/binding-win32-x64-msvc/-/binding-win32-x64-msvc-1.1.4.tgz"
-  integrity sha512-M1lpniBePobTfsa7Ks9a199e1akxsXn+GYBUKsEzv3YFzOm1HJAMNwKI3qr0Zq+mxwx9gOZoTdP1yXRYsZUocQ==
+  resolved "https://registry.npmjs.org/@rolldown/binding-darwin-arm64/-/binding-darwin-arm64-1.1.4.tgz"
+  integrity sha512-aUi+HBvmYb7j8krl1+qJgkG8C17fO79gk3c+jPw4S8glRFc1DTija9S3EyaTSQUm5GJXYKDAsugBEhFHH2vYiQ==
 
 "@rolldown/pluginutils@^1.0.0":
   version "1.0.1"
@@ -3019,6 +3019,13 @@ expo-linking@^57.0.2, expo-linking@~57.0.1:
     expo-constants "~57.0.3"
     invariant "^2.2.4"
 
+expo-local-authentication@~57.0.2:
+  version "57.0.2"
+  resolved "https://registry.npmjs.org/expo-local-authentication/-/expo-local-authentication-57.0.2.tgz"
+  integrity sha512-8K4zcrQ5wZkRS1rwEWY8qHbeGVMNh35e9D1VTVKlMHz1O47itW+pW6iBVuqwGFLozN4fRBeEDQH8hu9Gt58YuQ==
+  dependencies:
+    invariant "^2.2.4"
+
 expo-manifests@~57.0.0:
   version "57.0.0"
   resolved "https://registry.npmjs.org/expo-manifests/-/expo-manifests-57.0.0.tgz"
@@ -3095,6 +3102,11 @@ expo-router@*, expo-router@~57.0.3:
     shallowequal "^1.1.0"
     standard-navigation "^0.0.5"
     vaul "^1.1.2"
+
+expo-screen-capture@~57.0.1:
+  version "57.0.1"
+  resolved "https://registry.npmjs.org/expo-screen-capture/-/expo-screen-capture-57.0.1.tgz"
+  integrity sha512-toam1doTc0auN0SzQA2ziamXaDhevvCBxhrGyYdVMpfbmj0+0brm+u/pAUkJJMe/f+l3LvWRwltV0dLaMdiY9A==
 
 expo-secure-store@~57.0.0:
   version "57.0.0"
@@ -3310,6 +3322,11 @@ fresh@~0.5.2:
   version "0.5.2"
   resolved "https://registry.npmjs.org/fresh/-/fresh-0.5.2.tgz"
   integrity sha512-zJ2mQYM18rEFOudeV4GShTGIQ7RbzA7ozbU9I/XBpm7kqgMywgmylMwXHxZJmkVoYkna9d2pVXVXPdYTP9ej8Q==
+
+fsevents@~2.3.2, fsevents@~2.3.3:
+  version "2.3.3"
+  resolved "https://registry.npmjs.org/fsevents/-/fsevents-2.3.3.tgz"
+  integrity sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==
 
 function-bind@^1.1.2:
   version "1.1.2"
@@ -3771,15 +3788,15 @@ lighthouse-logger@^1.0.0:
     debug "^2.6.9"
     marky "^1.2.2"
 
-lightningcss-win32-x64-msvc@1.27.0:
+lightningcss-darwin-arm64@1.27.0:
   version "1.27.0"
-  resolved "https://registry.npmjs.org/lightningcss-win32-x64-msvc/-/lightningcss-win32-x64-msvc-1.27.0.tgz"
-  integrity sha512-/OJLj94Zm/waZShL8nB5jsNj3CfNATLCTyFxZyouilfTmSoLDX7VlVAmhPHoZWVFp4vdmoiEbPEYC8HID3m6yw==
+  resolved "https://registry.npmjs.org/lightningcss-darwin-arm64/-/lightningcss-darwin-arm64-1.27.0.tgz"
+  integrity sha512-Gl/lqIXY+d+ySmMbgDf0pgaWSqrWYxVHoc88q+Vhf2YNzZ8DwoRzGt5NZDVqqIW5ScpSnmmjcgXP87Dn2ylSSQ==
 
-lightningcss-win32-x64-msvc@1.32.0:
+lightningcss-darwin-arm64@1.32.0:
   version "1.32.0"
-  resolved "https://registry.npmjs.org/lightningcss-win32-x64-msvc/-/lightningcss-win32-x64-msvc-1.32.0.tgz"
-  integrity sha512-Amq9B/SoZYdDi1kFrojnoqPLxYhQ4Wo5XiL8EVJrVsB8ARoC1PWW6VGtT0WKCemjy8aC+louJnjS7U18x3b06Q==
+  resolved "https://registry.npmjs.org/lightningcss-darwin-arm64/-/lightningcss-darwin-arm64-1.32.0.tgz"
+  integrity sha512-RzeG9Ju5bag2Bv1/lwlVJvBE3q6TtXskdZLLCyfg5pt+HLz9BqlICO7LZM7VHNTTn/5PRhHFBSjk5lc4cmscPQ==
 
 lightningcss@^1.30.1, lightningcss@^1.32.0:
   version "1.32.0"

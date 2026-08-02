@@ -29,7 +29,9 @@ export function SearchBar({
         autoCorrect={false}
       />
       {value.length > 0 && (
-        <PressableScale onPress={() => { onChangeText(''); onClear?.() }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <PressableScale onPress={() => { onChangeText(''); onClear?.() }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="Clear"
+        >
           <Ionicons name="close-circle" size={18} color={Colors.mutedWhite} />
         </PressableScale>
       )}

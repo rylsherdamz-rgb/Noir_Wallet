@@ -7,7 +7,7 @@ import Svg, { Defs, RadialGradient, Stop, Circle, Polygon } from 'react-native-s
 import { Ionicons } from '@expo/vector-icons'
 import { useReducedMotion } from 'react-native-reanimated'
 import { DesignTokens, colorWithOpacity } from '@/constants/designTokens'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts, Gradient } from '@/constants/theme'
 import { TapGlyph } from '@/components/brand/BrandGlyph'
 
 interface WelcomeScreenProps {
@@ -64,7 +64,7 @@ export function WelcomeScreen({ onCreateWallet, onImportWallet }: WelcomeScreenP
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#000000', '#0A0A0A', '#141414']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={[Colors.black, Colors.surfaceBg, Colors.cardBg]} style={StyleSheet.absoluteFill} />
       <LinearGradient colors={['transparent', colorWithOpacity(Colors.gold, 0.04)]} locations={[0.5, 1]} style={StyleSheet.absoluteFill} />
       <SafeAreaView edges={['top', 'bottom']} style={styles.safe}>
         <ScrollView
@@ -118,7 +118,7 @@ export function WelcomeScreen({ onCreateWallet, onImportWallet }: WelcomeScreenP
               {features.map((f, i) => (
                 <LinearGradient
                   key={i}
-                  colors={['#161616', '#101010']}
+                  colors={[Gradient.high, Gradient.mid]}
                   start={{ x: 0.5, y: 0 }}
                   end={{ x: 0.5, y: 1 }}
                   style={styles.featureRow}
@@ -141,7 +141,7 @@ export function WelcomeScreen({ onCreateWallet, onImportWallet }: WelcomeScreenP
             <Animated.View style={[styles.actions, { transform: [{ translateY: slideUp }], opacity: fadeIn }]}>
               <PressableScale onPress={onCreateWallet} accessibilityRole="button" accessibilityLabel="Register my card">
                 <LinearGradient colors={[Colors.goldHi, Colors.gold]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.primaryBtn}>
-                  <TapGlyph size={18} color="#151107" />
+                  <TapGlyph size={18} color={Colors.onGold} />
                   <Text style={styles.primaryText}>Register My Card</Text>
                 </LinearGradient>
               </PressableScale>
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md, borderRadius: BorderRadius.md, minHeight: 54,
     ...DesignTokens.shadows.goldGlow,
   },
-  primaryText: { fontFamily: Fonts.display, fontSize: FontSize.md, color: '#151107', letterSpacing: 1, textTransform: 'uppercase' },
+  primaryText: { fontFamily: Fonts.display, fontSize: FontSize.md, color: Colors.onGold, letterSpacing: 1, textTransform: 'uppercase' },
   ghostBtn: { alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, minHeight: 48 },
   ghostText: { fontFamily: Fonts.displayMd, fontSize: FontSize.sm, color: Colors.gold, letterSpacing: 0.6 },
 })

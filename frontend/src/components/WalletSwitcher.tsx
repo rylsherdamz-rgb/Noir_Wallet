@@ -91,7 +91,9 @@ export function WalletSwitcher({ onImportRequest }: WalletSwitcherProps) {
             <View style={styles.handle} />
             <View style={styles.headerRow}>
               <Text style={styles.title}>My Wallets</Text>
-              <PressableScale onPress={() => setVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <PressableScale onPress={() => setVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityLabel="Close"
+              >
                 <Ionicons name="close" size={24} color={Colors.mutedWhite} />
               </PressableScale>
             </View>
