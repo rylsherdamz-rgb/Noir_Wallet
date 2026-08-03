@@ -175,15 +175,20 @@ code { font-family: 'SFMono-Regular', Consolas, monospace; background: var(--mid
 
 .hero-visual { display: flex; justify-content: center; }
 
-/* Phone frame: crops the wide promo-scene screenshots down to just the floating phone mockup */
+/* Phone frame: pre-cropped phone mockups (from the promo renders) shown edge-to-edge */
 .phone-frame {
   position: relative; width: 300px; aspect-ratio: 9 / 18.6; border-radius: 42px; overflow: hidden;
-  background: #050505; border: 1px solid rgba(255,255,255,0.06);
-  box-shadow: 0 30px 70px rgba(0,0,0,0.55), 0 0 60px rgba(198,161,91,0.12);
+  background: #050505; border: 1px solid rgba(198, 161, 91, 0.22);
+  box-shadow: 0 30px 70px rgba(0,0,0,0.55), 0 0 60px rgba(198,161,91,0.14);
+}
+.phone-frame::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255,255,255,0.06), transparent 18%, transparent 82%, rgba(0,0,0,0.35));
+  border-radius: inherit;
 }
 .phone-frame img {
   width: 100%; height: 100%;
-  object-fit: cover; object-position: 90% 50%;
+  object-fit: cover; object-position: 50% 50%;
 }
 .phone-frame-sm { width: 230px; }
 

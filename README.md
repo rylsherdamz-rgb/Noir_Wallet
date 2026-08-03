@@ -2,8 +2,6 @@
 
 **x402 — Contactless payments powered by Stellar. No app opens. No confirmation. Just tap and go.**
 
-**Hackathon Track:** Payment & Consumer Applications
-
 > 📊 **[View Pitch Deck](ppt/Noir-Wallet-Pitch.pptx)** — Slide deck covering the product, architecture, market, and demo walkthrough.
 
 ## Screenshots
@@ -24,6 +22,12 @@
 ## Demo
 
 <div align="center">
+
+<video src="assets/x-demo.mp4" width="100%" controls style="max-width:960px;border-radius:16px;border:1px solid #3A3A3A;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
+  Your browser does not support the video tag.
+</video>
+
+<em>▶ Demo — tap-to-pay with the x402 protocol, per-device agent wallets, and the full mobile app. [Original X post](https://x.com/ChichiCode0/status/2083815952635093215)</em>
 
 <video src="assets/noir-demo.mp4" width="100%" controls style="max-width:960px;border-radius:16px;border:1px solid #3A3A3A;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
   Your browser does not support the video tag.
@@ -284,30 +288,26 @@ cd frontend
 npm test
 ```
 
-
-
 ## User Feedback
 
-We collected structured feedback from 60 testers who registered devices, funded escrows, and completed payment flows on Stellar testnet. Raw responses and a summary of requested changes are linked below.
+We collected structured feedback from **60 testers** who registered devices, funded escrows, and completed payment flows on Stellar testnet. The results shaped our roadmap — here's what mattered most to them.
 
-| Resource | Link |
-|----------|------|
-| Feedback Form (submit) | [Google Form](https://docs.google.com/forms/d/1wk9T8bEfZn9rP6bBElFV44BC2lMzH2tGY2lIcDezAcY/viewform) |
-| Response Spreadsheet | [Google Sheets](https://docs.google.com/spreadsheets/d/1gr3p5WEBSLRDox_gSRaENWqyX1bP1q4jxdMWC2BVF90/edit?resourcekey=&gid=1410345740#gid=1410345740) |
-| Raw Export (Excel) | [`document/Noir_Wallet Feedbackform (Responses).xlsx`](document/Noir_Wallet%20Feedbackform%20(Responses).xlsx) |
+**Top requested improvements:**
 
-**Top requested improvements (from 60 respondents):**
+| Rank | Request | Why it mattered |
+|------|---------|-----------------|
+| 1 | **Onboarding tutorial** | Step-by-step guide for device provisioning and first payment |
+| 2 | **QR code scanner** | Scan wallet addresses on receive and send screens |
+| 3 | **Dark mode toggle** | Theme switch for late-night use |
+| 4 | **Transaction search & filters** | Find payments by date, amount, or counterparty |
+| 5 | **Push notifications** | Payment confirmations and escrow alerts |
+| 6 | **Better empty states** | Sample data or guided prompts on first launch |
+| 7 | **Haptic feedback** | Vibration on successful NFC tap |
+| 8 | **Custom NFC device names** | Rename tags instead of showing hashes |
+| 9 | **Multi-currency display** | Show USD/PHP equivalent alongside XLM |
+| 10 | **Spending limits per device** | Configurable per-NFC-card budgets |
 
-1. **Onboarding tutorial** — step-by-step guide for device provisioning and first payment
-2. **QR code scanner** — for wallet addresses on receive and send screens
-3. **Dark mode toggle** — theme switch for late-night use
-4. **Transaction search & filters** — find payments by date, amount, or counterparty
-5. **Push notifications** — payment confirmations and escrow alerts
-6. **Better empty states** — sample data or guided prompts on first launch
-7. **Haptic feedback** — vibration on successful NFC tap
-8. **Custom NFC device names** — rename tags instead of showing hashes
-9. **Multi-currency display** — show USD/PHP equivalent alongside XLM
-10. **Spending limits per device** — configurable per-NFC-card budgets
+> 💡 All ten improvements are shortlisted for the v1 roadmap — starting with the onboarding tutorial and NFC device naming.
 
 ## Team
 
