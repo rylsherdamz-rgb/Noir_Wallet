@@ -1,42 +1,31 @@
-#![allow(dead_code)]
+//! Noir Wallet PDAX bridge — HTTP entry point.
+//!
+//! No Stellar client, no signing keys, no background workers. The five workers
+//! that used to run here (submission, confirmation, contract sync, channel
+//! monitor, notification pruner) all existed to service a payment path that is
+//! now entirely on-chain. What remains is one janitor task that deletes expired
+//! rows.
 
-use actix_cors::Cors;
 use actix_web::{web, App, HttpServer};
-use auth::ApiKeyMiddleware;
 use log::{info, warn};
 use sqlx::postgres::PgPoolOptions;
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::task;
 
-mod api;
-mod auth;
-mod cache;
-mod channel_selector;
-mod channels;
-mod config;
-mod crypto;
-mod db;
-mod errors;
-mod fees;
-mod metrics;
-mod models;
-mod pdax;
-mod queue;
-mod rate_limiter;
-mod state;
-mod stellar;
-mod sync;
-mod transaction_builder;
-mod transaction_signer;
-mod validation;
-mod workers;
+// The binary consumes the library rather than re-declaring `mod` for each
+// file. Declaring them twice compiles every module a second time, and in that
+// copy anything used only by the library's own consumers — the integration
+// tests and the `examples/` binaries — looks like dead code.
+use noir_backend::api;
+use noir_backend::auth::SessionAuth;
+use noir_backend::config::Config;
+use noir_backend::db::Repository;
+use noir_backend::pdax;
+use noir_backend::rate_limiter::RateLimiter;
+use noir_backend::state::AppState;
 
-use channels::ChannelManager;
-use config::Config;
-use db::DeviceRepository;
-use state::AppState;
-use workers::{ChannelMonitor, ConfirmationPoller, ContractSyncWorker, NotificationPruner};
+/// How often expired challenges and finished rate-limit windows are swept.
+const JANITOR_INTERVAL_SECS: u64 = 300;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -45,13 +34,12 @@ async fn main() -> std::io::Result<()> {
     let config = Config::from_env().expect("Failed to load configuration");
     config.validate().expect("Invalid configuration");
 
-    info!("Starting Noir Wallet payment gateway");
+    info!("Starting Noir Wallet PDAX bridge");
     info!(
-        "Environment: {} | Network: {}",
-        config.environment, config.stellar_network
+        "Environment: {} | PDAX: {}",
+        config.environment, config.pdax_environment
     );
 
-    // DB pool with tuned settings
     let pool = PgPoolOptions::new()
         .max_connections(config.db_max_connections)
         .min_connections(config.db_min_connections)
@@ -71,210 +59,113 @@ async fn main() -> std::io::Result<()> {
         config.db_max_connections
     );
 
-    let stellar_client = stellar::StellarClient::new(
-        config.stellar_horizon_url.clone(),
-        config.stellar_rpc_url.clone(),
-        config.stellar_network.clone(),
-    );
-
-    let db = Arc::new(DeviceRepository::new(pool.clone()));
-    let stellar_arc = Arc::new(stellar_client.clone());
-
-    // Seed the fee channel row from CHANNEL_SECRET_KEY so channel selection and
-    // health reporting reflect the real, funded channel. The secret stays in
-    // memory only; the DB row holds just the public address + balance.
-    if !config.channel_secret_key.trim().is_empty() {
-        match transaction_signer::TransactionSigner::from_secret(config.channel_secret_key.trim()) {
-            Ok(signer) => {
-                let addr = signer.public_strkey();
-                let balance = stellar_arc.get_account_balance(&addr).await.unwrap_or(0);
-                match db.upsert_fee_channel(&addr, balance).await {
-                    Ok(_) => info!("Fee channel seeded: {addr} (balance {balance} stroops)"),
-                    Err(e) => warn!("Failed to seed fee channel {addr}: {e}"),
-                }
-            }
-            Err(e) => warn!("CHANNEL_SECRET_KEY invalid, cannot seed fee channel: {e}"),
-        }
-    } else {
-        warn!("CHANNEL_SECRET_KEY not set — no fee channel; payments will not submit");
-    }
-
-    let channel_manager = Arc::new(ChannelManager::new(
-        db.clone(),
-        stellar_arc.clone(),
-        config.channel_min_balance_stroops,
-    ));
-
-    // Build PDAX client
-    let pdax_client = crate::pdax::PdaxClient::new(
+    let pdax_client = pdax::PdaxClient::new(
         config.pdax_base_url().to_string(),
         config.pdax_username.clone(),
         config.pdax_password.clone(),
     );
 
-    // Login to PDAX at startup so the session is ready for cash-in/cash-out
+    // Seed the cached refresh token so the first conversion does not have to
+    // log in from scratch.
+    if !config.pdax_refresh_token.is_empty() {
+        pdax_client.seed_refresh_token(config.pdax_refresh_token.clone());
+    }
+
+    // Log in ahead of time so the session is warm. Failure is not fatal —
+    // authentication and order history work without PDAX, and each conversion
+    // re-attempts login on demand.
     {
         let pc = pdax_client.clone();
         task::spawn(async move {
             match pc.login().await {
-                Ok(outcome) => match outcome {
-                    crate::pdax::PdaxLoginOutcome::Authenticated(s) => {
-                        info!(
-                            "PDAX login OK — user={}, expires_at={:?}",
-                            s.username, s.expires_at
-                        );
-                    }
-                    crate::pdax::PdaxLoginOutcome::MfaRequired(_) => {
-                        warn!("PDAX login requires MFA — trading endpoints will fail");
-                    }
-                },
-                Err(e) => warn!("PDAX initial login failed: {}", e),
+                Ok(pdax::PdaxLoginOutcome::Authenticated(s)) => {
+                    info!(
+                        "PDAX login OK — user={}, expires_at={:?}",
+                        s.username, s.expires_at
+                    );
+                }
+                Ok(pdax::PdaxLoginOutcome::MfaRequired(_)) => {
+                    warn!("PDAX login requires MFA — conversion endpoints will fail");
+                }
+                Err(e) => warn!("PDAX initial login failed: {e}"),
             }
         });
     }
 
-    // Build app state with config-driven rate limiter
-    let app_state = {
-        let mut state = AppState::new(
-            pool.clone(),
-            stellar_client,
-            pdax_client,
-            vec![],
-            config.api_key.clone(),
-        );
-        state.rate_limiter = Arc::new(rate_limiter::RateLimiter::new(
+    let rate_limiter = RateLimiter::new(
+        config.rate_limit_window_secs,
+        config.rate_limit_max_requests,
+    );
+
+    // Sweep expired challenges and spent rate-limit windows. Unbounded growth
+    // in either table is the only way this service leaks resources now.
+    {
+        let repo = Repository::new(pool.clone());
+        let sweeper = RateLimiter::new(
             config.rate_limit_window_secs,
             config.rate_limit_max_requests,
-        ));
-        state.channel_secret_key = config.channel_secret_key.clone();
-        state.network = config.stellar_network.clone();
-        if config.master_key_id.trim().is_empty() {
-            warn!("MASTER_KEY_ID not set — custodial card provisioning/tap disabled");
-        } else {
-            match crypto::LocalKeyManager::new(config.master_key_id.trim(), 1) {
-                Ok(km) => {
-                    state.key_manager = Some(Arc::new(km));
-                    info!("Custodial key manager initialized");
+        );
+        task::spawn(async move {
+            loop {
+                tokio::time::sleep(Duration::from_secs(JANITOR_INTERVAL_SECS)).await;
+
+                match repo.prune_expired_challenges().await {
+                    Ok(n) if n > 0 => info!("Pruned {n} expired auth challenge(s)"),
+                    Err(e) => warn!("Challenge prune failed: {e}"),
+                    _ => {}
                 }
-                Err(e) => warn!("Invalid MASTER_KEY_ID: {e}"),
+
+                let horizon = sweeper.prune_before(chrono::Utc::now());
+                match repo.prune_rate_limits(horizon).await {
+                    Ok(n) if n > 0 => info!("Pruned {n} finished rate-limit window(s)"),
+                    Err(e) => warn!("Rate-limit prune failed: {e}"),
+                    _ => {}
+                }
             }
-        }
-        state
-    };
-    let app_state = web::Data::new(app_state);
+        });
+    }
 
-    // Spawn submission processor
-    let submission_processor = workers::SubmissionProcessor::new(
-        db.clone(),
-        stellar_arc.clone(),
-        channel_manager.clone(),
-        config.stellar_network.clone(),
-        config.submission_process_interval_secs,
-        config.channel_secret_key.clone(),
-    );
-    task::spawn(async move { submission_processor.run().await });
+    let app_state = web::Data::new(AppState::new(
+        pool.clone(),
+        pdax_client,
+        rate_limiter,
+        config.pdax_webhook_secret.clone(),
+        config.session_ttl_secs,
+        config.challenge_ttl_secs,
+    ));
 
-    // Spawn confirmation poller
-    let poller = ConfirmationPoller::new(
-        db.clone(),
-        stellar_arc.clone(),
-        config.confirmation_poll_interval_secs,
-    );
-    task::spawn(async move { poller.run().await });
-
-    // Spawn contract sync worker
-    let sync_worker = ContractSyncWorker::new(
-        db.clone(),
-        stellar_arc.clone(),
-        config.contract_sync_interval_secs,
-    );
-    task::spawn(async move { sync_worker.run().await });
-
-    // Spawn channel monitor
-    let min_bal = config.channel_min_balance_stroops;
-    let topup = config.channel_topup_target_stroops;
-    let monitor = ChannelMonitor::new(
-        channel_manager.clone(),
-        db.clone(),
-        stellar_arc.clone(),
-        config.channel_balance_check_interval_secs,
-        min_bal,
-        topup,
-    );
-    task::spawn(async move { monitor.run().await });
-
-    // Spawn notification pruner (keeps the ephemeral UI notification cache ephemeral)
-    let pruner = NotificationPruner::new(db.clone(), config.notification_prune_interval_secs);
-    task::spawn(async move { pruner.run().await });
-
-    let channel_manager_data = web::Data::new(channel_manager.clone());
     let max_body = config.max_request_body_bytes;
     let bind_addr = format!("{}:{}", config.api_host, config.api_port);
     let api_key = config.api_key.clone();
 
-    info!("Listening on {}", bind_addr);
+    info!("Listening on {bind_addr}");
 
     HttpServer::new(move || {
         App::new()
-            .wrap(ApiKeyMiddleware::new(api_key.clone()))
+            .wrap(SessionAuth::new(api_key.clone()))
             .app_data(web::JsonConfig::default().limit(max_body))
+            .app_data(web::PayloadConfig::new(max_body))
             .app_data(app_state.clone())
-            .app_data(channel_manager_data.clone())
+            // Ops
             .route("/health", web::get().to(api::health_check))
             .route("/metrics", web::get().to(api::get_metrics))
-            .route("/payment", web::post().to(api::process_payment))
-            .route("/payment/tap", web::post().to(api::tap_payment))
-            .route("/cards/provision", web::post().to(api::provision_card))
-            .route("/cards/revoke", web::post().to(api::revoke_card))
-            .route("/devices/register", web::post().to(api::register_device_frontend))
-            .route(
-                "/payment/{transaction_id}",
-                web::get().to(api::get_transaction_status),
-            )
-            .route(
-                "/device/{device_serial}/transactions",
-                web::get().to(api::get_device_transactions),
-            )
-            // Device management (frontend)
-            .route("/devices", web::get().to(api::get_devices))
-            .route(
-                "/devices/{device_id}/status",
-                web::patch().to(api::update_device_status),
-            )
-            .route("/balance", web::get().to(api::get_balance))
-            .route("/merchant/settings", web::get().to(api::get_merchant_settings))
-            .route(
-                "/merchant/settings",
-                web::put().to(api::update_merchant_settings),
-            )
-            .route("/pdax/quote", web::post().to(api::pdax_quote))
-            .route("/pdax/quote-frontend", web::post().to(api::pdax_quote_frontend))
-            .route("/pdax/balance", web::get().to(api::pdax_balance))
-            .route("/auth/signup", web::post().to(api::auth_signup))
-            .route("/auth/login", web::post().to(api::auth_login))
-            .route("/channels", web::get().to(api::list_fee_channels))
-            .route(
-                "/channels/{channel_address}",
-                web::get().to(api::get_channel_details),
-            )
-            // Frontend API endpoints
-            .route(
-                "/payments/initiate",
-                web::post().to(api::initiate_payment_frontend),
-            )
-            .route("/payments/batch", web::post().to(api::batch_payments))
-            .route("/transactions", web::get().to(api::list_transactions))
-            .route("/notifications", web::get().to(api::list_notifications))
-            .route(
-                "/notifications/register",
-                web::post().to(api::register_push_token),
-            )
+            // Auth — challenge and verify are public; the rest need a session
+            .route("/auth/challenge", web::post().to(api::auth_challenge))
+            .route("/auth/verify", web::post().to(api::auth_verify))
+            .route("/auth/logout", web::post().to(api::auth_logout))
             .route("/auth/account", web::delete().to(api::delete_account))
+            // Conversion
+            .route("/pdax/quote", web::post().to(api::pdax_quote))
             .route("/pdax/cash-in", web::post().to(api::pdax_cash_in))
             .route("/pdax/cash-out", web::post().to(api::pdax_cash_out))
+            .route("/pdax/balance", web::get().to(api::pdax_balance))
+            .route("/orders", web::get().to(api::list_orders))
+            .route("/orders/{idempotency_key}", web::get().to(api::get_order))
+            // Settlement callback — HMAC authenticated, not session
+            .route("/pdax/webhook", web::post().to(api::pdax_webhook))
     })
     .bind(&bind_addr)?
-    .shutdown_timeout(30) // seconds to drain in-flight requests on SIGTERM
+    .shutdown_timeout(30)
     .run()
     .await
 }

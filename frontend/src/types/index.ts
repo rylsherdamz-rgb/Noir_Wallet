@@ -53,6 +53,12 @@ export interface Transaction {
 
 export interface Balance {
   xlm: number
+  /**
+   * Subentries on the account (trustlines, offers, signers, data entries).
+   * Each locks an extra base reserve, so spendable balance depends on it.
+   * Optional because a freshly rehydrated store has not read the account yet.
+   */
+  subentryCount?: number
 }
 
 export interface MerchantSettings {

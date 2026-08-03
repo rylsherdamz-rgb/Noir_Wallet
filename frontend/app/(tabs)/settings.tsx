@@ -71,7 +71,9 @@ export default function SettingsScreen() {
         {/* Profile */}
         <SectionHeader title="Profile" />
         <Card style={styles.card}>
-          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/profile')}>
+          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/profile')}
+            accessibilityLabel="Profile"
+          >
             <View style={styles.rowLeft}>
               <Ionicons name="person-outline" size={20} color={Colors.silver} />
               <View>
@@ -120,7 +122,9 @@ export default function SettingsScreen() {
         {/* Notifications */}
         <SectionHeader title="Notifications" />
         <Card style={styles.card}>
-          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/settings/notifications')}>
+          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/settings/notifications')}
+            accessibilityLabel="Notifications"
+          >
             <View style={styles.rowLeft}>
               <Ionicons name="notifications-outline" size={20} color={Colors.silver} />
               <View>

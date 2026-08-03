@@ -51,7 +51,9 @@ export default function ScanQrRoute() {
       />
       <View style={styles.overlay}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel="Close"
+          >
             <Ionicons name="close" size={28} color={Colors.white} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Scan QR Code</Text>

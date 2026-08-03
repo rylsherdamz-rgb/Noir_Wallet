@@ -3,6 +3,7 @@ import { SeedPhraseScreen } from '@/screens/SeedPhraseScreen'
 import { useAppStore } from '@/store/useAppStore'
 import { WalletKeys } from '@/services/wallet'
 import { stellarService } from '@/services/stellar-service'
+import { logger } from '@/lib/logger'
 
 export default function SeedPhraseRoute() {
   const router = useRouter()
@@ -22,7 +23,7 @@ export default function SeedPhraseRoute() {
     const funded = await stellarService.fundAccount(keys.stellarPublic)
     
     if (!funded) {
-      console.warn('Account funding failed — will retry on dashboard')
+      logger.warn('Account funding failed — will retry on dashboard')
     }
     
     router.replace('/seed-verify')

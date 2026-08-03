@@ -1199,15 +1199,15 @@ impl PdaxClient {
 
         let inner = {
             let mut hasher = Sha256::new();
-            hasher.update(&ipad_key);
+            hasher.update(ipad_key);
             hasher.update(payload.as_bytes());
             hasher.finalize()
         };
 
         let computed = {
             let mut hasher = Sha256::new();
-            hasher.update(&opad_key);
-            hasher.update(&inner);
+            hasher.update(opad_key);
+            hasher.update(inner);
             hex::encode(hasher.finalize())
         };
 

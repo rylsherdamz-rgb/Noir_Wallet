@@ -1,553 +1,497 @@
-//! Integration tests — require a live Postgres instance.
+//! Integration tests against a live Postgres.
 //!
-//! Run locally with:
+//! Run with:
 //!   DATABASE_URL=postgres://noir_user:noir_password@localhost:5432/noir_wallet_test \
 //!   cargo test --test integration
 //!
-//! Each test runs inside a transaction that is rolled back on completion,
-//! so tests are fully isolated and leave no permanent state.
+//! `docker-compose.yml` in `backend/asset/` brings up a suitable instance.
+//!
+//! Every test starts with `let Some(pool) = test_pool().await else { return };`
+//! so the suite is a no-op without a database instead of failing. The previous
+//! version of this file did not compile at all — `test_pool()` returned
+//! `Option<PgPool>` and all thirteen tests passed `&pool` into functions taking
+//! `&PgPool` — so none of it had ever run.
 
+use noir_backend::db::Repository;
+use noir_backend::money::{self, CRYPTO_SCALE, PHP_SCALE};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::env;
 
 async fn test_pool() -> Option<PgPool> {
-    let url = match env::var("DATABASE_URL") {
-        Ok(u) => u,
-        Err(_) => return None,
-    };
+    let url = env::var("DATABASE_URL").ok()?;
 
-    PgPoolOptions::new()
+    let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect(&url)
         .await
-        .ok()
+        .ok()?;
+
+    sqlx::migrate!("./migrations").run(&pool).await.ok()?;
+    Some(pool)
 }
 
-// ── Repository helpers ────────────────────────────────────────────────────
-
-async fn insert_device(pool: &PgPool, hash: &str, wallet: &str) {
-    sqlx::query(
-        "INSERT INTO devices (device_hash, wallet_address, status, daily_limit_stroops)
-         VALUES ($1, $2, 'active', 1000000000)
-         ON CONFLICT (device_hash) DO NOTHING",
-    )
-    .bind(hash)
-    .bind(wallet)
-    .execute(pool)
-    .await
-    .expect("Failed to insert test device");
+/// Unique per test run so parallel tests never collide on a wallet address.
+/// Not a real Stellar address — no signature is verified at this layer.
+fn test_wallet(tag: &str) -> String {
+    let unique = uuid::Uuid::new_v4().simple().to_string();
+    format!("G{}{}", tag.to_uppercase(), unique)
+        .chars()
+        .take(56)
+        .collect()
 }
 
-async fn insert_fee_channel(pool: &PgPool, address: &str, balance: i64) {
-    sqlx::query(
-        "INSERT INTO fee_channels (channel_address, private_key_encrypted, balance_stroops, status)
-         VALUES ($1, $2, $3, 'active')
-         ON CONFLICT (channel_address) DO UPDATE SET balance_stroops = $3, status = 'active'",
-    )
-    .bind(address)
-    .bind(b"dummy-encrypted-key" as &[u8])
-    .bind(balance)
-    .execute(pool)
-    .await
-    .expect("Failed to insert test fee channel");
+async fn cleanup(pool: &PgPool, wallet: &str) {
+    let _ = sqlx::query("DELETE FROM pdax_orders WHERE wallet_address = $1")
+        .bind(wallet)
+        .execute(pool)
+        .await;
+    let _ = sqlx::query("DELETE FROM sessions WHERE wallet_address = $1")
+        .bind(wallet)
+        .execute(pool)
+        .await;
+    let _ = sqlx::query("DELETE FROM auth_challenges WHERE wallet_address = $1")
+        .bind(wallet)
+        .execute(pool)
+        .await;
+    let _ = sqlx::query("DELETE FROM app_users WHERE wallet_address = $1")
+        .bind(wallet)
+        .execute(pool)
+        .await;
 }
 
-// ── Device repository tests ───────────────────────────────────────────────
+// ── Challenges ───────────────────────────────────────────────────────────────
 
 #[tokio::test]
-async fn test_get_device_by_hash_found() {
-    let pool = test_pool().await;
-    let hash = "test_device_hash_001";
-    let wallet = "GABC1111111111111111111111111111111111111111111111111111";
+async fn challenge_can_only_be_consumed_once() {
+    let Some(pool) = test_pool().await else {
+        return;
+    };
+    let repo = Repository::new(pool.clone());
+    let wallet = test_wallet("chal");
+    let nonce = uuid::Uuid::new_v4().simple().to_string();
 
-    insert_device(&pool, hash, wallet).await;
+    repo.create_challenge(&wallet, &nonce, 300).await.unwrap();
 
-    let result = sqlx::query_as::<_, noir_backend::models::Device>(
-        "SELECT id, device_hash, wallet_address, registration_date, status, daily_limit_stroops, last_synced_on_chain
-         FROM devices WHERE device_hash = $1"
-    )
-    .bind(hash)
-    .fetch_optional(&pool)
-    .await
-    .expect("Query failed");
+    assert!(repo.consume_challenge(&wallet, &nonce).await.unwrap());
+    // Replaying a nonce must fail, or a captured challenge would be reusable.
+    assert!(!repo.consume_challenge(&wallet, &nonce).await.unwrap());
 
-    assert!(result.is_some());
-    let device = result.unwrap();
-    assert_eq!(device.device_hash, hash);
-    assert_eq!(device.wallet_address, wallet);
-    assert_eq!(device.status, "active");
-
-    // Cleanup
-    sqlx::query("DELETE FROM devices WHERE device_hash = $1")
-        .bind(hash)
-        .execute(&pool)
-        .await
-        .ok();
+    cleanup(&pool, &wallet).await;
 }
 
 #[tokio::test]
-async fn test_get_device_by_hash_not_found() {
-    let pool = test_pool().await;
+async fn challenge_is_bound_to_its_wallet() {
+    let Some(pool) = test_pool().await else {
+        return;
+    };
+    let repo = Repository::new(pool.clone());
+    let owner = test_wallet("owner");
+    let attacker = test_wallet("attack");
+    let nonce = uuid::Uuid::new_v4().simple().to_string();
 
-    let result = sqlx::query_as::<_, noir_backend::models::Device>(
-        "SELECT id, device_hash, wallet_address, registration_date, status, daily_limit_stroops, last_synced_on_chain
-         FROM devices WHERE device_hash = $1"
-    )
-    .bind("nonexistent_hash_xyz")
-    .fetch_optional(&pool)
-    .await
-    .expect("Query failed");
+    repo.create_challenge(&owner, &nonce, 300).await.unwrap();
 
-    assert!(result.is_none());
-}
+    // Someone else's nonce is not a credential.
+    assert!(!repo.consume_challenge(&attacker, &nonce).await.unwrap());
+    assert!(repo.consume_challenge(&owner, &nonce).await.unwrap());
 
-// ── Daily spend tests ─────────────────────────────────────────────────────
-
-#[tokio::test]
-async fn test_daily_spend_tracking() {
-    let pool = test_pool().await;
-    let hash = "test_device_spend_001";
-    let wallet = "GABC2222222222222222222222222222222222222222222222222222";
-    let today = chrono::Utc::now().date_naive();
-
-    insert_device(&pool, hash, wallet).await;
-
-    // Insert initial spend
-    sqlx::query(
-        "INSERT INTO daily_spends (device_hash, transaction_date, total_spent_stroops, transaction_count)
-         VALUES ($1, $2, $3, 1)"
-    )
-    .bind(hash)
-    .bind(today)
-    .bind(500_000_i64)
-    .execute(&pool)
-    .await
-    .expect("Failed to insert daily spend");
-
-    // Upsert additional spend
-    sqlx::query(
-        "INSERT INTO daily_spends (device_hash, transaction_date, total_spent_stroops, transaction_count)
-         VALUES ($1, $2, $3, 1)
-         ON CONFLICT (device_hash, transaction_date)
-         DO UPDATE SET total_spent_stroops = total_spent_stroops + $3, transaction_count = transaction_count + 1"
-    )
-    .bind(hash)
-    .bind(today)
-    .bind(300_000_i64)
-    .execute(&pool)
-    .await
-    .expect("Failed to upsert daily spend");
-
-    let row: (i64, i32) = sqlx::query_as(
-        "SELECT total_spent_stroops, transaction_count FROM daily_spends
-         WHERE device_hash = $1 AND transaction_date = $2",
-    )
-    .bind(hash)
-    .bind(today)
-    .fetch_one(&pool)
-    .await
-    .expect("Failed to fetch daily spend");
-
-    assert_eq!(row.0, 800_000);
-    assert_eq!(row.1, 2);
-
-    // Cleanup
-    sqlx::query("DELETE FROM daily_spends WHERE device_hash = $1")
-        .bind(hash)
-        .execute(&pool)
-        .await
-        .ok();
-    sqlx::query("DELETE FROM devices WHERE device_hash = $1")
-        .bind(hash)
-        .execute(&pool)
-        .await
-        .ok();
-}
-
-// ── Payment transaction tests ─────────────────────────────────────────────
-
-#[tokio::test]
-async fn test_store_and_retrieve_transaction() {
-    let pool = test_pool().await;
-    let device_hash = "test_device_tx_001";
-    let wallet = "GABC3333333333333333333333333333333333333333333333333333";
-    let tx_id = format!("test-tx-{}", uuid::Uuid::new_v4());
-    let idem_key = format!("idem-{}", uuid::Uuid::new_v4());
-
-    insert_device(&pool, device_hash, wallet).await;
-
-    sqlx::query(
-        "INSERT INTO payment_transactions
-         (transaction_id, device_hash, source_wallet, destination_wallet,
-          amount_stroops, fee_stroops, status, created_at, idempotency_key)
-         VALUES ($1, $2, 'pending', $3, $4, 200, 'pending', NOW(), $5)",
-    )
-    .bind(&tx_id)
-    .bind(device_hash)
-    .bind(wallet)
-    .bind(1_000_000_i64)
-    .bind(&idem_key)
-    .execute(&pool)
-    .await
-    .expect("Failed to insert transaction");
-
-    let result = sqlx::query_as::<_, noir_backend::models::PaymentTransaction>(
-        "SELECT id, transaction_id, device_hash, source_wallet, destination_wallet,
-                amount_stroops, fee_stroops, status, stellar_tx_hash, created_at,
-                submitted_at, confirmed_at, error_message, fee_channel_used
-         FROM payment_transactions WHERE transaction_id = $1",
-    )
-    .bind(&tx_id)
-    .fetch_optional(&pool)
-    .await
-    .expect("Query failed");
-
-    assert!(result.is_some());
-    let tx = result.unwrap();
-    assert_eq!(tx.transaction_id, tx_id);
-    assert_eq!(tx.amount_stroops, 1_000_000);
-    assert_eq!(tx.status, "pending");
-    assert!(tx.stellar_tx_hash.is_none());
-
-    // Cleanup
-    sqlx::query("DELETE FROM payment_transactions WHERE transaction_id = $1")
-        .bind(&tx_id)
-        .execute(&pool)
-        .await
-        .ok();
-    sqlx::query("DELETE FROM devices WHERE device_hash = $1")
-        .bind(device_hash)
-        .execute(&pool)
-        .await
-        .ok();
+    cleanup(&pool, &owner).await;
+    cleanup(&pool, &attacker).await;
 }
 
 #[tokio::test]
-async fn test_idempotency_key_uniqueness() {
-    let pool = test_pool().await;
-    let device_hash = "test_device_idem_001";
-    let wallet = "GABC4444444444444444444444444444444444444444444444444444";
-    let idem_key = format!("idem-unique-{}", uuid::Uuid::new_v4());
+async fn expired_challenge_is_rejected() {
+    let Some(pool) = test_pool().await else {
+        return;
+    };
+    let repo = Repository::new(pool.clone());
+    let wallet = test_wallet("expch");
+    let nonce = uuid::Uuid::new_v4().simple().to_string();
 
-    insert_device(&pool, device_hash, wallet).await;
+    // Negative TTL puts expiry in the past.
+    repo.create_challenge(&wallet, &nonce, -1).await.unwrap();
+    assert!(!repo.consume_challenge(&wallet, &nonce).await.unwrap());
 
-    let tx_id1 = format!("tx-idem-1-{}", uuid::Uuid::new_v4());
-    sqlx::query(
-        "INSERT INTO payment_transactions
-         (transaction_id, device_hash, source_wallet, destination_wallet,
-          amount_stroops, fee_stroops, status, created_at, idempotency_key)
-         VALUES ($1, $2, 'pending', $3, 500000, 200, 'pending', NOW(), $4)",
-    )
-    .bind(&tx_id1)
-    .bind(device_hash)
-    .bind(wallet)
-    .bind(&idem_key)
-    .execute(&pool)
-    .await
-    .expect("First insert failed");
-
-    let tx_id2 = format!("tx-idem-2-{}", uuid::Uuid::new_v4());
-    let duplicate = sqlx::query(
-        "INSERT INTO payment_transactions
-         (transaction_id, device_hash, source_wallet, destination_wallet,
-          amount_stroops, fee_stroops, status, created_at, idempotency_key)
-         VALUES ($1, $2, 'pending', $3, 500000, 200, 'pending', NOW(), $4)",
-    )
-    .bind(&tx_id2)
-    .bind(device_hash)
-    .bind(wallet)
-    .bind(&idem_key)
-    .execute(&pool)
-    .await;
-
-    // Must fail — idempotency_key is unique
-    assert!(
-        duplicate.is_err(),
-        "Duplicate idempotency_key should be rejected by DB"
-    );
-
-    // Cleanup
-    sqlx::query("DELETE FROM payment_transactions WHERE device_hash = $1")
-        .bind(device_hash)
-        .execute(&pool)
-        .await
-        .ok();
-    sqlx::query("DELETE FROM devices WHERE device_hash = $1")
-        .bind(device_hash)
-        .execute(&pool)
-        .await
-        .ok();
+    cleanup(&pool, &wallet).await;
 }
 
-// ── Fee channel tests ─────────────────────────────────────────────────────
+// ── Sessions ─────────────────────────────────────────────────────────────────
 
 #[tokio::test]
-async fn test_fee_channel_balance_decrement() {
-    let pool = test_pool().await;
-    let address = format!("GCHAN{}", uuid::Uuid::new_v4().simple());
-    let address = &address[..56.min(address.len())];
+async fn session_resolves_to_its_wallet_until_revoked() {
+    let Some(pool) = test_pool().await else {
+        return;
+    };
+    let repo = Repository::new(pool.clone());
+    let wallet = test_wallet("sess");
+    let token_hash = noir_backend::auth::hash_token(&uuid::Uuid::new_v4().to_string());
 
-    insert_fee_channel(&pool, address, 5_000_000).await;
-
-    sqlx::query(
-        "UPDATE fee_channels SET balance_stroops = balance_stroops - $1 WHERE channel_address = $2",
-    )
-    .bind(200_i64)
-    .bind(address)
-    .execute(&pool)
-    .await
-    .expect("Failed to decrement balance");
-
-    let balance: (i64,) =
-        sqlx::query_as("SELECT balance_stroops FROM fee_channels WHERE channel_address = $1")
-            .bind(address)
-            .fetch_one(&pool)
+    repo.create_session(&token_hash, &wallet, 3600)
+        .await
+        .unwrap();
+    assert_eq!(
+        repo.wallet_for_session(&token_hash)
             .await
-            .expect("Failed to fetch balance");
-
-    assert_eq!(balance.0, 4_999_800);
-
-    // Cleanup
-    sqlx::query("DELETE FROM fee_channels WHERE channel_address = $1")
-        .bind(address)
-        .execute(&pool)
-        .await
-        .ok();
-}
-
-#[tokio::test]
-async fn test_active_channels_ordered_by_balance() {
-    let pool = test_pool().await;
-    let suffix = uuid::Uuid::new_v4().simple().to_string();
-    let addr1 = format!("GLOW{}{}", &suffix[..10], "A".repeat(42));
-    let addr2 = format!("GHIG{}{}", &suffix[..10], "B".repeat(42));
-    let addr1 = &addr1[..56];
-    let addr2 = &addr2[..56];
-
-    insert_fee_channel(&pool, addr1, 2_000_000).await;
-    insert_fee_channel(&pool, addr2, 8_000_000).await;
-
-    let rows: Vec<(String, i64)> = sqlx::query_as(
-        "SELECT channel_address, balance_stroops FROM fee_channels
-         WHERE status = 'active' AND channel_address IN ($1, $2)
-         ORDER BY balance_stroops DESC",
-    )
-    .bind(addr1)
-    .bind(addr2)
-    .fetch_all(&pool)
-    .await
-    .expect("Query failed");
-
-    assert_eq!(rows.len(), 2);
-    // Highest balance first
-    assert_eq!(rows[0].1, 8_000_000);
-    assert_eq!(rows[1].1, 2_000_000);
-
-    // Cleanup
-    sqlx::query("DELETE FROM fee_channels WHERE channel_address IN ($1, $2)")
-        .bind(addr1)
-        .bind(addr2)
-        .execute(&pool)
-        .await
-        .ok();
-}
-
-// ── Merchant / app user tests (TSK-204) ──────────────────────────────────
-
-#[tokio::test]
-async fn test_create_and_fetch_merchant() {
-    let pool = test_pool().await;
-    let repo = noir_backend::db::DeviceRepository::new(pool.clone());
-    let merchant_uuid = uuid::Uuid::new_v4().to_string();
-    let wallet = format!("GMERCH{}", uuid::Uuid::new_v4().simple());
-
-    let id = repo
-        .create_merchant(&merchant_uuid, "Test Merchant Co", &wallet, None, 1)
-        .await
-        .expect("Failed to create merchant");
-    assert!(id > 0);
-
-    let merchant = repo
-        .get_merchant_by_uuid(&merchant_uuid)
-        .await
-        .expect("Failed to fetch merchant");
-    assert_eq!(merchant.business_name, "Test Merchant Co");
-    assert_eq!(merchant.settlement_wallet, wallet);
-    assert_eq!(merchant.status, "active");
-
-    // Cleanup
-    sqlx::query("DELETE FROM merchants WHERE merchant_uuid = $1")
-        .bind(&merchant_uuid)
-        .execute(&pool)
-        .await
-        .ok();
-}
-
-#[tokio::test]
-async fn test_create_and_fetch_app_user() {
-    let pool = test_pool().await;
-    let repo = noir_backend::db::DeviceRepository::new(pool.clone());
-    let user_uuid = uuid::Uuid::new_v4().to_string();
-    let wallet = format!("GUSER{}", uuid::Uuid::new_v4().simple());
-    let identity_hash = format!(
-        "{}{}",
-        uuid::Uuid::new_v4().simple(),
-        uuid::Uuid::new_v4().simple()
+            .unwrap()
+            .as_deref(),
+        Some(wallet.as_str())
     );
 
-    let id = repo
-        .create_app_user(
-            &user_uuid,
+    repo.revoke_session(&token_hash).await.unwrap();
+    assert!(repo
+        .wallet_for_session(&token_hash)
+        .await
+        .unwrap()
+        .is_none());
+
+    cleanup(&pool, &wallet).await;
+}
+
+#[tokio::test]
+async fn expired_session_does_not_resolve() {
+    let Some(pool) = test_pool().await else {
+        return;
+    };
+    let repo = Repository::new(pool.clone());
+    let wallet = test_wallet("expsess");
+    let token_hash = noir_backend::auth::hash_token(&uuid::Uuid::new_v4().to_string());
+
+    repo.create_session(&token_hash, &wallet, -1).await.unwrap();
+    assert!(repo
+        .wallet_for_session(&token_hash)
+        .await
+        .unwrap()
+        .is_none());
+
+    cleanup(&pool, &wallet).await;
+}
+
+// ── Orders: the isolation that matters most ──────────────────────────────────
+
+#[tokio::test]
+async fn one_wallet_cannot_read_another_wallets_orders() {
+    let Some(pool) = test_pool().await else {
+        return;
+    };
+    let repo = Repository::new(pool.clone());
+    let alice = test_wallet("alice");
+    let bob = test_wallet("bob");
+    let key = uuid::Uuid::new_v4().to_string();
+
+    repo.claim_order(&key, &alice, "cash_in", "USDC", 150_000)
+        .await
+        .unwrap()
+        .expect("alice claims the key");
+
+    // Bob's listing must not contain Alice's order. This is the regression that
+    // matters: the old service returned every device and transaction in the
+    // system to any caller holding the shared API key.
+    let bobs = repo.list_orders_for_wallet(&bob, 100, 0).await.unwrap();
+    assert!(bobs.is_empty());
+
+    let alices = repo.list_orders_for_wallet(&alice, 100, 0).await.unwrap();
+    assert_eq!(alices.len(), 1);
+    assert_eq!(alices[0].wallet_address, alice);
+
+    // The handler additionally rejects a cross-wallet fetch by key; the row
+    // itself carries the owner so that check cannot be bypassed.
+    let fetched = repo.get_order_by_key(&key).await.unwrap().unwrap();
+    assert_eq!(fetched.wallet_address, alice);
+    assert_ne!(fetched.wallet_address, bob);
+
+    cleanup(&pool, &alice).await;
+    cleanup(&pool, &bob).await;
+}
+
+#[tokio::test]
+async fn idempotency_key_can_only_be_claimed_once() {
+    let Some(pool) = test_pool().await else {
+        return;
+    };
+    let repo = Repository::new(pool.clone());
+    let wallet = test_wallet("idem");
+    let key = uuid::Uuid::new_v4().to_string();
+
+    let first = repo
+        .claim_order(&key, &wallet, "cash_in", "USDC", 150_000)
+        .await
+        .unwrap();
+    assert!(first.is_some(), "first claim wins");
+
+    // A retry must not place a second order — this is the whole point of
+    // claiming before any side effect.
+    let second = repo
+        .claim_order(&key, &wallet, "cash_in", "USDC", 150_000)
+        .await
+        .unwrap();
+    assert!(second.is_none(), "replay must not create a second order");
+
+    let all = repo.list_orders_for_wallet(&wallet, 100, 0).await.unwrap();
+    assert_eq!(all.len(), 1, "exactly one order exists for the key");
+
+    cleanup(&pool, &wallet).await;
+}
+
+#[tokio::test]
+async fn concurrent_claims_of_one_key_produce_exactly_one_order() {
+    let Some(pool) = test_pool().await else {
+        return;
+    };
+    let wallet = test_wallet("race");
+    let key = uuid::Uuid::new_v4().to_string();
+
+    // Fire several claims at once. The unique index is what makes this safe;
+    // a read-then-write would let more than one through.
+    let mut handles = Vec::new();
+    for _ in 0..8 {
+        let repo = Repository::new(pool.clone());
+        let key = key.clone();
+        let wallet = wallet.clone();
+        handles.push(tokio::spawn(async move {
+            repo.claim_order(&key, &wallet, "cash_in", "XLM", 50_000)
+                .await
+                .unwrap()
+                .is_some()
+        }));
+    }
+
+    let mut winners = 0;
+    for h in handles {
+        if h.await.unwrap() {
+            winners += 1;
+        }
+    }
+
+    assert_eq!(winners, 1, "exactly one concurrent claim may win");
+
+    let repo = Repository::new(pool.clone());
+    let all = repo.list_orders_for_wallet(&wallet, 100, 0).await.unwrap();
+    assert_eq!(all.len(), 1);
+
+    cleanup(&pool, &wallet).await;
+}
+
+#[tokio::test]
+async fn order_lifecycle_records_amounts_as_integer_minor_units() {
+    let Some(pool) = test_pool().await else {
+        return;
+    };
+    let repo = Repository::new(pool.clone());
+    let wallet = test_wallet("life");
+    let key = uuid::Uuid::new_v4().to_string();
+
+    // PHP 1,500.00 -> 150000 centavos.
+    let php_minor = money::parse_decimal("1500.00", PHP_SCALE).unwrap();
+    repo.claim_order(&key, &wallet, "cash_in", "USDC", php_minor)
+        .await
+        .unwrap()
+        .unwrap();
+
+    // 25.5 USDC -> 255000000 at scale 7.
+    let crypto_minor = money::parse_decimal("25.5", CRYPTO_SCALE).unwrap();
+    repo.record_quote(&key, "quote-abc", crypto_minor)
+        .await
+        .unwrap();
+    repo.record_order_placed(&key, "order-123").await.unwrap();
+    repo.record_withdrawal(&key, "withdraw-xyz").await.unwrap();
+
+    let order = repo.get_order_by_key(&key).await.unwrap().unwrap();
+    assert_eq!(order.php_minor, 150_000);
+    assert_eq!(order.crypto_minor, Some(255_000_000));
+    assert_eq!(order.status, "withdrawing");
+    assert_eq!(order.pdax_order_id.as_deref(), Some("order-123"));
+
+    cleanup(&pool, &wallet).await;
+}
+
+#[tokio::test]
+async fn non_positive_amounts_are_rejected_by_the_database() {
+    let Some(pool) = test_pool().await else {
+        return;
+    };
+    let repo = Repository::new(pool.clone());
+    let wallet = test_wallet("neg");
+
+    // The handler validates too, but the CHECK constraint is the backstop.
+    let result = repo
+        .claim_order(
+            &uuid::Uuid::new_v4().to_string(),
             &wallet,
-            &identity_hash,
-            b"dummy-encrypted-seed",
-            1,
+            "cash_in",
+            "USDC",
+            0,
         )
-        .await
-        .expect("Failed to create app user");
-    assert!(id > 0);
+        .await;
+    assert!(result.is_err());
 
-    let user = repo
-        .get_app_user_by_wallet(&wallet)
-        .await
-        .expect("Failed to fetch app user");
-    assert_eq!(user.user_uuid, user_uuid);
-    assert_eq!(user.status, "active");
+    let result = repo
+        .claim_order(
+            &uuid::Uuid::new_v4().to_string(),
+            &wallet,
+            "cash_in",
+            "USDC",
+            -100,
+        )
+        .await;
+    assert!(result.is_err());
 
-    // Cleanup
-    sqlx::query("DELETE FROM app_users WHERE user_uuid = $1")
-        .bind(&user_uuid)
-        .execute(&pool)
-        .await
-        .ok();
-}
-
-// ── Transaction notification (ephemeral UI cache) tests ─────────────────
-
-#[tokio::test]
-async fn test_notification_lifecycle_active_then_pruned() {
-    let pool = test_pool().await;
-    let repo = noir_backend::db::DeviceRepository::new(pool.clone());
-    let hash = "test_device_notif_001";
-    let wallet = "GABC5555555555555555555555555555555555555555555555555555";
-
-    insert_device(&pool, hash, wallet).await;
-
-    // Long-lived notification: should show up as active.
-    repo.insert_transaction_notification(
-        hash,
-        None,
-        "confirmed",
-        1_000_000,
-        serde_json::json!({"message": "payment confirmed"}),
-        300,
-    )
-    .await
-    .expect("Failed to insert notification");
-
-    let active = repo
-        .get_active_notifications_for_device(hash, 10)
-        .await
-        .expect("Failed to fetch active notifications");
-    assert_eq!(active.len(), 1);
-    assert_eq!(active[0].status, "confirmed");
-
-    // Already-expired notification: must not appear as active, and must be
-    // removed by the pruning sweep.
-    repo.insert_transaction_notification(
-        hash,
-        None,
-        "confirmed",
-        1_000_000,
-        serde_json::json!({"message": "stale"}),
-        -1,
-    )
-    .await
-    .expect("Failed to insert expired notification");
-
-    let active_after = repo
-        .get_active_notifications_for_device(hash, 10)
-        .await
-        .expect("Failed to fetch active notifications");
-    assert_eq!(
-        active_after.len(),
-        1,
-        "expired row must not count as active"
-    );
-
-    let pruned = repo
-        .prune_expired_notifications()
-        .await
-        .expect("Prune failed");
-    assert!(pruned >= 1);
-
-    let remaining: (i64,) =
-        sqlx::query_as("SELECT COUNT(*) FROM transaction_notifications WHERE device_hash = $1")
-            .bind(hash)
-            .fetch_one(&pool)
-            .await
-            .expect("Count query failed");
-    assert_eq!(
-        remaining.0, 1,
-        "only the still-active row should remain after pruning"
-    );
-
-    // Cleanup
-    sqlx::query("DELETE FROM transaction_notifications WHERE device_hash = $1")
-        .bind(hash)
-        .execute(&pool)
-        .await
-        .ok();
-    sqlx::query("DELETE FROM devices WHERE device_hash = $1")
-        .bind(hash)
-        .execute(&pool)
-        .await
-        .ok();
-}
-
-// ── Device hash index optimization tests ─────────────────────────────────
-//
-// These assert against pg_indexes rather than an EXPLAIN plan shape: on a
-// near-empty test database the planner will happily seq-scan a tiny devices
-// table regardless of which indexes exist, so a plan-shape assertion would
-// be flaky. What we actually need to guarantee is that the migration left
-// the schema in the intended state — no redundant index alongside the
-// UNIQUE constraint, and the new covering index present with the expected
-// definition.
-
-#[tokio::test]
-async fn test_duplicate_device_hash_index_removed() {
-    let pool = test_pool().await;
-
-    let exists: (bool,) = sqlx::query_as(
-        "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_devices_device_hash')",
-    )
-    .fetch_one(&pool)
-    .await
-    .expect("pg_indexes query failed");
-
-    assert!(
-        !exists.0,
-        "idx_devices_device_hash should have been dropped as redundant with the UNIQUE constraint"
-    );
+    cleanup(&pool, &wallet).await;
 }
 
 #[tokio::test]
-async fn test_covering_index_present_on_device_hash() {
-    let pool = test_pool().await;
+async fn unknown_asset_is_rejected_by_the_database() {
+    let Some(pool) = test_pool().await else {
+        return;
+    };
+    let repo = Repository::new(pool.clone());
+    let wallet = test_wallet("asset");
 
-    let row: Option<(String,)> = sqlx::query_as(
-        "SELECT indexdef FROM pg_indexes WHERE indexname = 'idx_devices_hash_covering'",
-    )
-    .fetch_optional(&pool)
-    .await
-    .expect("pg_indexes query failed");
+    let result = repo
+        .claim_order(
+            &uuid::Uuid::new_v4().to_string(),
+            &wallet,
+            "cash_in",
+            "DOGE",
+            1000,
+        )
+        .await;
+    assert!(result.is_err(), "asset CHECK constraint must reject DOGE");
 
-    let indexdef = row.expect("idx_devices_hash_covering should exist").0;
-    assert!(indexdef.contains("device_hash"));
-    assert!(indexdef.contains("INCLUDE"));
-    assert!(
-        indexdef.to_lowercase().contains("where"),
-        "covering index should be partial (status = 'active')"
-    );
+    cleanup(&pool, &wallet).await;
+}
+
+// ── Webhook application ──────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn webhook_redelivery_is_idempotent() {
+    let Some(pool) = test_pool().await else {
+        return;
+    };
+    let repo = Repository::new(pool.clone());
+    let wallet = test_wallet("hook");
+    let key = uuid::Uuid::new_v4().to_string();
+    let pdax_order_id = format!("ord-{}", uuid::Uuid::new_v4().simple());
+
+    repo.claim_order(&key, &wallet, "cash_in", "USDC", 10_000)
+        .await
+        .unwrap()
+        .unwrap();
+    repo.record_order_placed(&key, &pdax_order_id)
+        .await
+        .unwrap();
+
+    let event = "evt-1";
+    assert!(repo
+        .apply_webhook_event(&pdax_order_id, event, "settled")
+        .await
+        .unwrap());
+
+    // The same event arriving twice must not transition the order again.
+    assert!(!repo
+        .apply_webhook_event(&pdax_order_id, event, "settled")
+        .await
+        .unwrap());
+
+    let order = repo.get_order_by_key(&key).await.unwrap().unwrap();
+    assert_eq!(order.status, "settled");
+    assert_eq!(order.last_event_id.as_deref(), Some(event));
+
+    cleanup(&pool, &wallet).await;
+}
+
+#[tokio::test]
+async fn webhook_for_unknown_order_changes_nothing() {
+    let Some(pool) = test_pool().await else {
+        return;
+    };
+    let repo = Repository::new(pool.clone());
+
+    let applied = repo
+        .apply_webhook_event("no-such-order", "evt-x", "settled")
+        .await
+        .unwrap();
+    assert!(!applied);
+}
+
+// ── Rate limiting ────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn rate_limit_counter_is_shared_and_atomic() {
+    let Some(pool) = test_pool().await else {
+        return;
+    };
+    let bucket = format!("test:{}", uuid::Uuid::new_v4().simple());
+    let window = chrono::Utc::now();
+
+    // Separate Repository instances stand in for separate service instances.
+    // A process-local limiter would count each of these from zero.
+    let mut handles = Vec::new();
+    for _ in 0..10 {
+        let repo = Repository::new(pool.clone());
+        let bucket = bucket.clone();
+        handles.push(tokio::spawn(async move {
+            repo.increment_rate_limit(&bucket, window).await.unwrap()
+        }));
+    }
+
+    let mut counts: Vec<i32> = Vec::new();
+    for h in handles {
+        counts.push(h.await.unwrap());
+    }
+    counts.sort_unstable();
+
+    // Ten increments must yield exactly 1..=10 with no duplicates, which is
+    // only true if the upsert is atomic.
+    assert_eq!(counts, (1..=10).collect::<Vec<i32>>());
+
+    let _ = sqlx::query("DELETE FROM rate_limits WHERE bucket_key = $1")
+        .bind(&bucket)
+        .execute(&pool)
+        .await;
+}
+
+// ── Users ────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn account_deletion_is_scoped_to_one_wallet() {
+    let Some(pool) = test_pool().await else {
+        return;
+    };
+    let repo = Repository::new(pool.clone());
+    let leaving = test_wallet("leave");
+    let staying = test_wallet("stay");
+
+    repo.upsert_user(&leaving).await.unwrap();
+    repo.upsert_user(&staying).await.unwrap();
+
+    let affected = repo.mark_user_deleted(&leaving).await.unwrap();
+    assert_eq!(affected, 1, "exactly one account closes");
+
+    // The old implementation deleted by the literal wallet "pending", which was
+    // every placeholder user at once.
+    let other = repo.get_user_by_wallet(&staying).await.unwrap().unwrap();
+    assert_eq!(other.status, "active");
+
+    cleanup(&pool, &leaving).await;
+    cleanup(&pool, &staying).await;
+}
+
+#[tokio::test]
+async fn upsert_user_is_idempotent() {
+    let Some(pool) = test_pool().await else {
+        return;
+    };
+    let repo = Repository::new(pool.clone());
+    let wallet = test_wallet("upsert");
+
+    repo.upsert_user(&wallet).await.unwrap();
+    let first = repo.get_user_by_wallet(&wallet).await.unwrap().unwrap();
+
+    repo.upsert_user(&wallet).await.unwrap();
+    let second = repo.get_user_by_wallet(&wallet).await.unwrap().unwrap();
+
+    // Re-authenticating must not mint a new identity.
+    assert_eq!(first.user_uuid, second.user_uuid);
+
+    cleanup(&pool, &wallet).await;
 }

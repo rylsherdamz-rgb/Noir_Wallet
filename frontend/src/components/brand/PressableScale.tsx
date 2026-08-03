@@ -19,6 +19,15 @@ interface PressableScaleProps extends Omit<PressableProps, 'style'> {
 }
 
 /**
+ * Extra touch area applied to every PressableScale.
+ *
+ * Most icon buttons in the app render at 18–24pt, well under the 44pt minimum
+ * touch target. Defaulting the slop here fixes all of them at once; a call site
+ * that needs more can still pass its own `hitSlop`.
+ */
+const DEFAULT_HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 }
+
+/**
  * A Pressable that gently scales down on press (with a light haptic tick) —
  * the calm, premium press feedback used across Noir's primary actions.
  * Reduced-motion → no scale, but the press + haptic still fire.
@@ -29,6 +38,8 @@ export function PressableScale({
   scaleTo = 0.94,
   haptic = true,
   style,
+  hitSlop = DEFAULT_HIT_SLOP,
+  disabled,
   ...rest
 }: PressableScaleProps) {
   const reduced = useReducedMotion()
@@ -51,7 +62,11 @@ export function PressableScale({
         onPress?.()
       }}
       style={[style, animatedStyle]}
+      hitSlop={hitSlop}
+      disabled={disabled}
       accessibilityRole="button"
+      // Screen readers need the disabled state announced, not just enforced.
+      accessibilityState={{ disabled: !!disabled }}
       {...rest}
     >
       {children}

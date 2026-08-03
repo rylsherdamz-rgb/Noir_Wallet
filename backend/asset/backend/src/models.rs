@@ -1,224 +1,57 @@
-use chrono::{DateTime, NaiveDate, Utc};
+use crate::errors::{PaymentError, Result};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct Device {
-    pub id: i32,
-    pub device_hash: String,
-    pub wallet_address: String,
-    pub registration_date: DateTime<Utc>,
-    pub status: String,
-    pub daily_limit_stroops: i64,
-    pub last_synced_on_chain: Option<DateTime<Utc>>,
-}
+// ── Users and sessions ───────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct PaymentTransaction {
-    pub id: i64,
-    pub transaction_id: String,
-    pub device_hash: String,
-    pub source_wallet: String,
-    pub destination_wallet: String,
-    pub amount_stroops: i64,
-    pub fee_stroops: i64,
-    pub status: String,
-    pub stellar_tx_hash: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub submitted_at: Option<DateTime<Utc>>,
-    pub confirmed_at: Option<DateTime<Utc>>,
-    pub error_message: Option<String>,
-    pub fee_channel_used: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct DailySpend {
-    pub id: i32,
-    pub device_hash: String,
-    pub transaction_date: NaiveDate,
-    pub total_spent_stroops: i64,
-    pub transaction_count: i32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct FeeChannel {
-    pub id: i32,
-    pub channel_address: String,
-    pub balance_stroops: i64,
-    pub last_balance_check: DateTime<Utc>,
-    pub status: String,
-    pub created_at: DateTime<Utc>,
-}
-
-// NOTE: `config_encrypted` / `entropy_seed_encrypted` are deliberately not
-// fields on these structs, mirroring FeeChannel's exclusion of
-// `private_key_encrypted` — encrypted at-rest columns are only ever
-// touched via raw queries in db.rs, never through a Serialize-able model.
-
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct Merchant {
-    pub id: i64,
-    pub merchant_uuid: String,
-    pub business_name: String,
-    pub settlement_wallet: String,
-    pub status: String,
-    pub config_key_version: i32,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
-
+/// A wallet that has proven ownership of its key at least once. Identity is the
+/// Stellar address; there is no password, no email, and no stored entropy.
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct AppUser {
     pub id: i64,
     pub user_uuid: String,
     pub wallet_address: String,
-    pub identity_hash: String,
-    pub seed_key_version: i32,
     pub status: String,
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct TransactionNotification {
-    pub id: i64,
-    pub device_hash: String,
-    pub payment_transaction_id: Option<i64>,
-    pub status: String,
-    pub amount_stroops: i64,
-    pub payload: serde_json::Value,
-    pub created_at: DateTime<Utc>,
-    pub expires_at: DateTime<Utc>,
+/// The authenticated caller, injected into request extensions by
+/// `auth::SessionAuth` and extracted by handlers that act on a wallet.
+#[derive(Debug, Clone)]
+pub struct AuthenticatedWallet(pub String);
+
+// ── Auth DTOs ────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChallengeRequest {
+    /// Stellar public key (`G...`) the caller claims to control.
+    pub wallet: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct PaymentRequest {
-    pub device_serial: String,
-    pub destination_wallet: String,
-    pub amount_stroops: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub memo: Option<String>,
-    pub idempotency_key: String,
-    /// Base64 XDR of the inner payment transaction, already signed by the
-    /// user's wallet (non-custodial). The backend fee-bumps and submits it.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub signed_xdr: Option<String>,
+#[serde(rename_all = "camelCase")]
+pub struct ChallengeResponse {
+    /// Hex-encoded random nonce. Sign the **decoded bytes**, not the hex text.
+    pub nonce: String,
+    pub expires_at: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ProvisionCardRequest {
-    pub device_serial: String,
-    #[serde(default)]
-    pub daily_limit_stroops: Option<i64>,
-    /// Optional PIN required for tap payments above the threshold.
-    #[serde(default)]
-    pub pin: Option<String>,
+#[serde(rename_all = "camelCase")]
+pub struct VerifyRequest {
+    pub wallet: String,
+    pub nonce: String,
+    /// Base64 ed25519 signature over the decoded nonce bytes.
+    pub signature: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ProvisionCardResponse {
-    pub device_hash: String,
-    pub wallet_address: String,
-    pub status: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RevokeCardRequest {
-    pub device_serial: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TapPaymentRequest {
-    pub device_serial: String,
-    pub destination_wallet: String,
-    pub amount_stroops: u64,
-    #[serde(default)]
-    pub memo: Option<String>,
-    pub idempotency_key: String,
-    /// Required when the card has a PIN and the amount exceeds the threshold.
-    #[serde(default)]
-    pub pin: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RegisterDeviceRequest {
-    pub device_serial: String,
-    pub wallet_address: String,
-    #[serde(default)]
-    pub daily_limit_stroops: Option<i64>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RegisterDeviceResponse {
-    pub device_hash: String,
-    pub status: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PaymentResponse {
-    pub status: String,
-    pub transaction_id: String,
-    pub device_hash: String,
-    pub submitted_at: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stellar_tx_hash: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct StatusQueryResponse {
-    pub status: String,
-    pub transaction_id: String,
-    pub amount_stroops: u64,
-    pub destination: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub submitted_at: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub confirmed_at: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stellar_tx_hash: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error_message: Option<String>,
-}
-
-// ── Frontend API DTOs ─────────────────────────────────────────────────────
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct InitiatePaymentRequest {
-    pub raw_device_uid: String,
-    pub merchant_public_key: String,
-    pub amount_cents: u64,
-    pub asset_code: String,
-    pub terminal_id: Option<String>,
-    pub nonce: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct InitiatePaymentResponse {
-    pub status: String,
-    pub message: String,
-    #[serde(skip_serializing_if = "Option::is_none", rename = "txHash")]
-    pub tx_hash: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BatchPaymentRequest {
-    pub payments: Vec<serde_json::Value>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BatchPaymentResponse {
-    pub processed: usize,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct NotificationsListResponse {
-    pub notifications: Vec<serde_json::Value>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RegisterPushTokenRequest {
+#[serde(rename_all = "camelCase")]
+pub struct SessionResponse {
     pub token: String,
-    pub platform: String,
+    pub wallet: String,
+    pub expires_at: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -226,116 +59,128 @@ pub struct OkResponse {
     pub ok: bool,
 }
 
+// ── Assets ───────────────────────────────────────────────────────────────────
+
+/// The crypto side of a conversion. PHP is always the fiat side.
+///
+/// Previously `USDC` and the `USDCXLM` withdrawal code were hardcoded in three
+/// handlers; the caller now picks, and anything unrecognised is rejected before
+/// a quote is requested rather than failing deep inside PDAX.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CryptoAsset {
+    #[serde(rename = "USDC")]
+    Usdc,
+    #[serde(rename = "XLM")]
+    Xlm,
+}
+
+impl CryptoAsset {
+    pub fn parse(raw: &str) -> Result<Self> {
+        match raw.trim().to_ascii_uppercase().as_str() {
+            "USDC" => Ok(CryptoAsset::Usdc),
+            "XLM" => Ok(CryptoAsset::Xlm),
+            other => Err(PaymentError::InvalidPayload(format!(
+                "Unsupported asset '{other}' — supported: USDC, XLM"
+            ))),
+        }
+    }
+
+    /// Currency code used in trade quote and order calls.
+    pub fn trade_code(&self) -> &'static str {
+        match self {
+            CryptoAsset::Usdc => "USDC",
+            CryptoAsset::Xlm => "XLM",
+        }
+    }
+
+    /// Currency code used for on-chain withdrawal, which identifies the network
+    /// as well as the asset. Stellar-issued USDC withdraws as `USDCXLM`; native
+    /// lumens withdraw as `XLM`.
+    pub fn withdraw_code(&self) -> &'static str {
+        match self {
+            CryptoAsset::Usdc => "USDCXLM",
+            CryptoAsset::Xlm => "XLM",
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        self.trade_code()
+    }
+}
+
+/// PHP is the base currency on both sides; only the quote currency changes.
+/// Cash-in sells PHP for crypto, cash-out buys PHP with crypto.
+pub const FIAT_CURRENCY: &str = "PHP";
+
+// ── PDAX conversion DTOs ─────────────────────────────────────────────────────
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FiatCashRequest {
-    pub amount_cents: u64,
-    pub wallet_address: Option<String>,
+pub struct QuoteRequest {
+    /// PHP amount in centavos.
+    pub amount_php_minor: i64,
+    pub asset: String,
+    /// `cash_in` (PHP to crypto) or `cash_out` (crypto to PHP).
+    pub direction: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct FiatCashResponse {
-    pub reference: String,
+#[serde(rename_all = "camelCase")]
+pub struct CashRequest {
+    /// PHP amount in centavos. Must be positive.
+    pub amount_php_minor: i64,
+    pub asset: String,
+    /// Caller-supplied key. Retrying with the same key returns the original
+    /// order instead of placing a second one.
+    pub idempotency_key: String,
 }
 
-// ── Frontend-facing device registration ──────────────────────────────────────
-// The frontend sends `{deviceUidHash, label}` instead of the backend's internal
-// `{device_serial, wallet_address}`. This handler accepts the frontend format.
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct FrontendRegisterDeviceRequest {
-    #[serde(rename = "deviceUidHash")]
-    pub device_uid_hash: String,
-    pub label: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct FrontendRegisterDeviceResponse {
-    pub device_hash: String,
-    pub label: Option<String>,
-    pub status: String,
-}
-
-// ── Device status update ─────────────────────────────────────────────────────
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct UpdateDeviceStatusRequest {
-    pub status: String,
-}
-
-// ── Device list ──────────────────────────────────────────────────────────────
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct DeviceListEntry {
-    pub id: i32,
-    pub device_hash: String,
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct PdaxOrder {
+    pub id: i64,
+    pub idempotency_key: String,
     pub wallet_address: String,
+    pub direction: String,
+    pub asset: String,
+    pub php_minor: i64,
+    pub crypto_minor: Option<i64>,
+    pub pdax_order_id: Option<String>,
+    pub pdax_quote_id: Option<String>,
+    pub withdrawal_identifier: Option<String>,
     pub status: String,
-    pub daily_limit_stroops: i64,
-    pub registration_date: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct DeviceListResponse {
-    pub devices: Vec<DeviceListEntry>,
-}
-
-// ── Balance ──────────────────────────────────────────────────────────────────
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BalanceResponse {
-    pub balance_stroops: i64,
-    pub balance_xlm: String,
-}
-
-// ── Merchant settings ────────────────────────────────────────────────────────
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct MerchantSettings {
-    pub business_name: Option<String>,
-    pub settlement_wallet: Option<String>,
-    pub config: Option<serde_json::Value>,
-}
-
-// ── PDAX quote request (frontend-facing) ─────────────────────────────────────
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PdaxQuoteRequest {
-    pub quote_currency: String,
-    pub base_currency: String,
-    pub side: String,
-    pub base_quantity: String,
+    pub last_event_id: Option<String>,
+    pub error_message: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PdaxQuoteFrontendRequest {
-    pub amount_cents: u64,
-    pub from_asset: String,
-    pub to_asset: String,
+pub struct OrderResponse {
+    pub reference: String,
+    pub status: String,
+    pub direction: String,
+    pub asset: String,
+    pub amount_php_minor: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount_crypto_minor: Option<i64>,
+    /// The wallet the crypto was sent to. Always the authenticated wallet — it
+    /// is never accepted as a request parameter.
+    pub destination_wallet: String,
+    pub created_at: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PdaxBalanceResponse {
-    pub balances: Vec<serde_json::Value>,
-}
-
-// ── Auth (lightweight identity for frontend sessions) ────────────────────────
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SignupRequest {
-    pub email: Option<String>,
-    pub wallet_address: Option<String>,
-    pub identity_hash: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct LoginRequest {
-    pub identity_hash: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct AuthResponse {
-    pub user_id: String,
-    pub token: String,
+impl OrderResponse {
+    pub fn from_order(order: &PdaxOrder) -> Self {
+        OrderResponse {
+            reference: order.idempotency_key.clone(),
+            status: order.status.clone(),
+            direction: order.direction.clone(),
+            asset: order.asset.clone(),
+            amount_php_minor: order.php_minor,
+            amount_crypto_minor: order.crypto_minor,
+            destination_wallet: order.wallet_address.clone(),
+            created_at: order.created_at.to_rfc3339(),
+        }
+    }
 }

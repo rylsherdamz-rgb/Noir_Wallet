@@ -16,6 +16,7 @@ import { nfcService } from '@/services/nfc'
 import { x402 } from '@/domain/x402'
 import { stellarService } from '@/services/stellar-service'
 import { AppConfig } from '@/constants/config'
+import { logger } from '@/lib/logger'
 
 type ReceiveMode = 'address' | 'nfc'
 
@@ -80,7 +81,7 @@ export function ReceiveScreen() {
         return
       }
 
-      if (__DEV__) console.log('[Receive NFC] tag detected:', tag.uid)
+      if (__DEV__) logger.debug('[Receive NFC] tag detected:', tag.uid)
       setNfcState('processing')
 
       const hashBytes = sha256(new TextEncoder().encode(tag.uid))
@@ -102,7 +103,7 @@ export function ReceiveScreen() {
       if (!merchantAddr) throw new Error('No wallet configured')
 
       const amountXLM = amountUnits.toFixed(7)
-      if (__DEV__) console.log('[Receive NFC] paying', amountXLM, 'XLM from agent to', merchantAddr.slice(0, 8))
+      if (__DEV__) logger.debug('[Receive NFC] paying', amountXLM, 'XLM from agent to', merchantAddr.slice(0, 8))
       const payResult = await x402.payWithAgent({
         destination: merchantAddr,
         amount: amountXLM,
@@ -110,7 +111,7 @@ export function ReceiveScreen() {
       if ('error' in payResult) throw new Error(payResult.error)
       const txHash = payResult.hash
 
-      if (__DEV__) console.log('[Receive NFC] queued:', txHash)
+      if (__DEV__) logger.debug('[Receive NFC] queued:', txHash)
       setNfcState('success')
       setReceivedAmount(amount)
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
@@ -136,14 +137,14 @@ export function ReceiveScreen() {
       if (user?.stellarPublicKey) {
         try {
           const onChain = await stellarService.getBalance(user.stellarPublicKey)
-          setBalance({ xlm: onChain.xlm })
+          setBalance({ xlm: onChain.xlm, subentryCount: onChain.subentryCount })
         } catch { /* non-critical */ }
       }
 
       resetTimerRef.current = setTimeout(() => { setNfcState('idle') }, 5000)
     } catch (e: any) {
       anim.stop()
-      console.error('[Receive NFC] error:', e?.message)
+      logger.error('[Receive NFC] error:', e?.message)
       setNfcState('error')
       setNfcError(e?.message ?? 'NFC receive failed')
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
@@ -177,7 +178,9 @@ export function ReceiveScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="Close"
+        >
           <Ionicons name="close" size={24} color={Colors.white} />
         </PressableScale>
         <Text style={styles.headerTitle}>Receive</Text>
@@ -189,6 +192,9 @@ export function ReceiveScreen() {
         <PressableScale
           style={[styles.modeChip, mode === 'address' && styles.modeChipActive]}
           onPress={() => { setMode('address'); resetNfc() }}
+        
+          accessibilityLabel="Scan QR code"
+          accessibilityHint="Opens the camera to read an address"
         >
           <Ionicons name="qr-code-outline" size={16} color={mode === 'address' ? Colors.black : Colors.mutedWhite} />
           <Text style={[styles.modeChipLabel, mode === 'address' && styles.modeChipLabelActive]}>Address</Text>
@@ -223,10 +229,15 @@ export function ReceiveScreen() {
                 <Text style={styles.addressText} numberOfLines={1}>
                   {address.slice(0, 12)}...{address.slice(-8)}
                 </Text>
-                <PressableScale style={styles.copyBtn} onPress={copyAddress}>
+                <PressableScale style={styles.copyBtn} onPress={copyAddress}
+                  accessibilityLabel="Copy"
+                  accessibilityHint="Copies the value to the clipboard"
+                >
                   <Ionicons name="copy-outline" size={18} color={Colors.gold} />
                 </PressableScale>
-                <PressableScale style={styles.shareBtn} onPress={shareAddress}>
+                <PressableScale style={styles.shareBtn} onPress={shareAddress}
+                  accessibilityLabel="Share"
+                >
                   <Ionicons name="share-outline" size={18} color={Colors.gold} />
                 </PressableScale>
               </View>

@@ -63,3 +63,12 @@ expo-env.d.ts
 # --- ML models (large, not tracked) ---
 models/
 .mainnet-cost-estimate.json
+
+# --- Local agent config (not for push) ---
+.claude/
+.cursor/
+.windsurf/
+.clinerules/
+.opencode/
+.github/copilot-instructions.md
+skills-lock.json

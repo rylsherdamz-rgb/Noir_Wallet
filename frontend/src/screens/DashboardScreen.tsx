@@ -1,4 +1,4 @@
-import { memo, useCallback, useState, ReactNode, useRef } from 'react'
+import { memo, useCallback, useState, ReactNode, useRef, useEffect } from 'react'
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Linking, Image, TextInput, Modal, Alert } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -10,13 +10,15 @@ import { useAppStore } from '@/store/useAppStore'
 import { BalanceCard } from '@/components/BalanceCard'
 import { TestnetFaucetBanner } from '@/components/TestnetFaucetBanner'
 import { SkeletonLoader } from '@/components/SkeletonLoader'
+import { EmptyState } from '@/components/EmptyState'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SignalRipple } from '@/components/brand/SignalRipple'
 import { TapGlyph } from '@/components/brand/BrandGlyph'
 import { DesignTokens, colorWithOpacity } from '@/constants/designTokens'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts, Gradient } from '@/constants/theme'
 import { apiService } from '@/services/api'
 import { stellarService } from '@/services/stellar-service'
+import { hasContractsConfigured } from '@/constants/config'
 import { Transaction } from '@/types'
 
 const NOIR_MARK = require('../../assets/noir-mark.png')
@@ -28,6 +30,27 @@ const DEVICE_STATUS: Record<string, { color: string; label: string }> = {
   deactivated: { color: Colors.mutedWhite, label: 'Deactivated' },
 }
 const DEVICE_STATUS_FALLBACK = { color: Colors.mutedWhite, label: 'Unknown' }
+
+/** Which of the dashboard's three independent data sources failed on the last refresh. */
+interface SourceFlags {
+  /** Backend transaction history. */
+  history: boolean
+  /** Horizon transaction history. */
+  chainHistory: boolean
+  /** On-chain XLM balance — the only one the user can be materially misled by. */
+  balance: boolean
+}
+
+/** "just now" / "3m ago" / "2h ago", for the balance freshness line. */
+export function formatRelativeTime(timestamp: number, now: number = Date.now()): string {
+  const seconds = Math.max(0, Math.floor((now - timestamp) / 1000))
+  if (seconds < 45) return 'just now'
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${Math.max(1, minutes)}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
+}
 
 function greetingForHour(): string {
   const h = new Date().getHours()
@@ -45,59 +68,122 @@ export function DashboardScreen() {
   const [renameValue, setRenameValue] = useState('')
   const renameInputRef = useRef<TextInput>(null)
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true)
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+  // Each source is fetched independently and can fail on its own. Collapsing
+  // all three into a silent catch is what let the screen render a stale balance
+  // as if it were current — the worst possible lie for a wallet to tell.
+  const [sourceFailed, setSourceFailed] = useState<SourceFlags>({
+    history: false,
+    chainHistory: false,
+    balance: false,
+  })
+  const [balanceUpdatedAt, setBalanceUpdatedAt] = useState<number | null>(null)
+  const mounted = useRef(true)
 
-    try {
-      const txRes = await apiService.getTransactions()
-      if (txRes?.transactions) {
-        const backendIds = new Set(txRes.transactions.map((t: Transaction) => t.id))
-        const current = useAppStore.getState().transactions
-        const localOnly = current.filter((t) => !backendIds.has(t.id))
-        setTransactions([...txRes.transactions, ...localOnly])
-      }
-    } catch {
-      // backend unavailable
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
     }
+  }, [])
 
-    // Merge Horizon transaction history (filter out 0-amount records — old contracts,
-    // non-payment transactions with no amount data from Horizon)
-    if (user?.stellarPublicKey) {
+  /**
+   * @param userInitiated true for pull-to-refresh. A focus-triggered refresh
+   * must not animate the manual spinner, which is what made the indicator fire
+   * on every navigation back to this tab.
+   */
+  const onRefresh = useCallback(
+    async (userInitiated = true) => {
+      if (userInitiated) {
+        setRefreshing(true)
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+      }
+
+      const failures: SourceFlags = { history: false, chainHistory: false, balance: false }
+
       try {
-        const horizonTxs = await stellarService.getAccountTransactions(user.stellarPublicKey, 10)
-        if (horizonTxs.length) {
-          const existing = useAppStore.getState().transactions
-          const existingIds = new Set(existing.map((t) => t.id))
-          const missing = horizonTxs.filter((t) => !existingIds.has(t.id) && t.amountCents > 0)
-          if (missing.length) setTransactions([...missing, ...existing])
+        const txRes = await apiService.getTransactions()
+        if (txRes?.transactions) {
+          const backendIds = new Set(txRes.transactions.map((t: Transaction) => t.id))
+          const current = useAppStore.getState().transactions
+          const localOnly = current.filter((t) => !backendIds.has(t.id))
+          setTransactions([...txRes.transactions, ...localOnly])
         }
-      } catch { /* non-critical */ }
-    }
-
-    if (user?.stellarPublicKey) {
-      try {
-        const onChain = await stellarService.getBalance(user.stellarPublicKey)
-        setBalance({ xlm: onChain.xlm })
       } catch {
-        // horizon unavailable
+        failures.history = true
       }
-    }
 
-    setRefreshing(false)
-  }, [setTransactions, setBalance, user?.stellarPublicKey])
+      // Merge Horizon transaction history (filter out 0-amount records — old contracts,
+      // non-payment transactions with no amount data from Horizon)
+      if (user?.stellarPublicKey) {
+        try {
+          const horizonTxs = await stellarService.getAccountTransactions(user.stellarPublicKey, 10)
+          if (horizonTxs.length) {
+            const existing = useAppStore.getState().transactions
+            const existingIds = new Set(existing.map((t) => t.id))
+            const missing = horizonTxs.filter((t) => !existingIds.has(t.id) && t.amountCents > 0)
+            if (missing.length) setTransactions([...missing, ...existing])
+          }
+        } catch {
+          failures.chainHistory = true
+        }
+      }
 
-  // Prefetch on-chain balances + txs every time dashboard gains focus
+      if (user?.stellarPublicKey) {
+        try {
+          const onChain = await stellarService.getBalance(user.stellarPublicKey)
+          setBalance({ xlm: onChain.xlm, subentryCount: onChain.subentryCount })
+          if (mounted.current) setBalanceUpdatedAt(Date.now())
+        } catch {
+          failures.balance = true
+        }
+      }
+
+      // Navigating away mid-flight used to leave setRefreshing(false) to run on
+      // an unmounted component.
+      if (!mounted.current) return
+      setSourceFailed(failures)
+      if (userInitiated) setRefreshing(false)
+    },
+    [setTransactions, setBalance, user?.stellarPublicKey]
+  )
+
+  // Prefetch on-chain balances + txs every time dashboard gains focus, in the
+  // background — no spinner.
   useFocusEffect(
     useCallback(() => {
-      onRefresh()
+      onRefresh(false)
     }, [onRefresh])
   )
 
   const handleNetworkSwitch = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     const newNetwork = storeNetwork === 'mainnet' ? 'testnet' : 'mainnet'
-    setStoreNetwork(newNetwork)
+
+    // Crossing between play money and real money is worth one deliberate tap,
+    // and a network with no deployed contracts is a dead end worth naming.
+    const toMainnet = newNetwork === 'mainnet'
+    const missingContracts = !hasContractsConfigured(newNetwork)
+    Alert.alert(
+      toMainnet ? 'Switch to mainnet?' : 'Switch to testnet?',
+      [
+        toMainnet
+          ? 'Mainnet moves real XLM. Transactions cannot be reversed.'
+          : 'Testnet uses free test XLM. Balances and history are not real.',
+        missingContracts
+          ? `No ${newNetwork} contract IDs are configured in this build, so card and tap features will not work there.`
+          : '',
+      ]
+        .filter(Boolean)
+        .join(' '),
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: toMainnet ? 'Use mainnet' : 'Use testnet',
+          style: toMainnet ? 'destructive' : 'default',
+          onPress: () => setStoreNetwork(newNetwork),
+        },
+      ],
+    )
   }
 
   const copyAddress = async () => {
@@ -140,7 +226,7 @@ export function DashboardScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={onRefresh}
+            onRefresh={() => onRefresh(true)}
             tintColor={Colors.gold}
             colors={[Colors.gold]}
           />
@@ -228,6 +314,38 @@ export function DashboardScreen() {
           testID="dashboard-balance-card"
         />
 
+        {/*
+          Freshness line. A balance that failed to refresh is still shown —
+          there is nothing better to show — but it is never shown as if it were
+          current.
+        */}
+        <View style={styles.freshnessRow} accessibilityLiveRegion="polite">
+          {sourceFailed.balance ? (
+            <>
+              <Ionicons name="cloud-offline-outline" size={14} color={Colors.warning} />
+              <Text style={styles.freshnessWarn}>
+                Could not reach the network.
+                {balanceUpdatedAt
+                  ? ` Showing the balance from ${formatRelativeTime(balanceUpdatedAt)}.`
+                  : ' Balance may be out of date.'}
+              </Text>
+            </>
+          ) : (
+            <>
+              <Ionicons name="checkmark-circle-outline" size={14} color={Colors.mutedWhite} />
+              <Text style={styles.freshnessText}>
+                {balanceUpdatedAt ? `Updated ${formatRelativeTime(balanceUpdatedAt)}` : 'Updating…'}
+              </Text>
+            </>
+          )}
+        </View>
+
+        {(sourceFailed.history || sourceFailed.chainHistory) && !sourceFailed.balance ? (
+          <Text style={styles.freshnessWarn}>
+            Transaction history is incomplete — one source did not respond. Pull to retry.
+          </Text>
+        ) : null}
+
         {/* Quick Actions */}
         <View style={styles.quickActions} accessibilityRole="menu">
           <QuickAction label="Send" onPress={() => router.push('/send')} testID="quick-action-send">
@@ -305,6 +423,8 @@ export function DashboardScreen() {
                     style={styles.walletMoreBtn}
                     onPress={() => confirmDeleteWallet(device)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  
+                    accessibilityLabel="Delete"
                   >
                     <Ionicons name="trash-outline" size={14} color={Colors.mutedWhite} />
                   </PressableScale>
@@ -362,10 +482,20 @@ export function DashboardScreen() {
               ))}
             </View>
           ) : !Array.isArray(transactions) || transactions.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="receipt-outline" size={44} color={Colors.mutedWhite} />
-              <Text style={styles.emptyStateText}>No transactions yet</Text>
-            </View>
+            <EmptyState
+              icon="receipt-outline"
+              title={
+                sourceFailed.history && sourceFailed.chainHistory
+                  ? 'Could not load activity'
+                  : 'No transactions yet'
+              }
+              description={
+                sourceFailed.history && sourceFailed.chainHistory
+                  ? 'Both history sources are unreachable. This is not necessarily an empty wallet — pull down to retry.'
+                  : 'Payments you send, receive, or tap will appear here.'
+              }
+              testID="dashboard-activity-empty"
+            />
           ) : (
 <View style={styles.activityList}>
               {Array.isArray(transactions) && transactions.length > 0 ? transactions.slice(0, 5).map((tx, i) => (
@@ -490,6 +620,24 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
   },
+  freshnessRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginTop: Spacing.sm,
+    paddingHorizontal: Spacing.xs,
+  },
+  freshnessText: {
+    flex: 1,
+    fontSize: FontSize.xs,
+    color: Colors.mutedWhite,
+  },
+  freshnessWarn: {
+    flex: 1,
+    fontSize: FontSize.xs,
+    color: Colors.warning,
+    marginTop: Spacing.xs,
+  },
   scrollContent: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: 24,
@@ -550,7 +698,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#0E0E0E',
+    backgroundColor: Gradient.raised,
     borderWidth: 1,
     borderColor: Colors.borderGrey,
     borderRadius: BorderRadius.full,
@@ -627,7 +775,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: Colors.borderGrey,
-    backgroundColor: '#141414',
+    backgroundColor: Colors.cardBg,
     marginBottom: Spacing.sm,
     overflow: 'hidden',
   },

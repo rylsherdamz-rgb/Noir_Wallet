@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { secureGetItem, secureSetItem, secureDeleteItem } from '@/services/secureStorage'
 import { stellarService } from '@/services/stellar-service'
-import { stellarNetwork, AppConfig } from '@/constants/config'
+import { stellarNetwork, AppConfig, setActiveContractNetwork } from '@/constants/config'
 import {
   User,
   Device,
@@ -138,6 +138,9 @@ export const useAppStore = create<AppState>()(
         // Keep the on-chain service in lock-step with the UI toggle, otherwise
         // the app queries one network while the explorer link points at another.
         stellarService.setNetwork(network)
+        // Contract IDs have to move with the RPC. Re-pointing only the RPC left
+        // mainnet calling testnet contract addresses, which do not exist there.
+        setActiveContractNetwork(network)
         set({ network })
       },
       setBiometricLockEnabled: (val) =>

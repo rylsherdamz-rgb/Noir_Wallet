@@ -9,13 +9,14 @@ import { useAppStore } from '@/store/useAppStore'
 import { Keypair } from '@stellar/stellar-sdk/axios'
 import { x402 } from '@/domain/x402'
 import type { AgentWallet } from '@/domain/x402'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts, Gradient } from '@/constants/theme'
 import { colorWithOpacity } from '@/constants/designTokens'
 import { StatusPill } from '@/components/StatusPill'
 import { Toast } from '@/components/Toast'
 import { TransactionItem } from '@/components/TransactionItem'
 import { EmptyState } from '@/components/EmptyState'
 import { LinearGradient } from 'expo-linear-gradient'
+import { logger } from '@/lib/logger'
 
 export function AgentDetailScreen() {
   const router = useRouter()
@@ -96,10 +97,10 @@ export function AgentDetailScreen() {
               amount: recoverAmount,
             })
             if ('error' in recoverResult) {
-              console.warn('Agent XLM recovery failed:', recoverResult.error)
+              logger.warn('Agent XLM recovery failed:', recoverResult.error)
             }
           } catch (e: any) {
-            console.warn('Agent XLM recovery error:', e?.message)
+            logger.warn('Agent XLM recovery error:', e?.message)
           }
         }
 
@@ -110,7 +111,7 @@ export function AgentDetailScreen() {
             deviceHashHex: device.deviceUidHash,
           })
         } catch (e: any) {
-          console.warn('revokeAgentOnChain failed:', e?.message)
+          logger.warn('revokeAgentOnChain failed:', e?.message)
         }
 
         // 3. Revoke device on device_registry contract
@@ -120,7 +121,7 @@ export function AgentDetailScreen() {
             deviceHashHex: device.deviceUidHash,
           })
         } catch (e: any) {
-          console.warn('revokeDeviceOnChain failed:', e?.message)
+          logger.warn('revokeDeviceOnChain failed:', e?.message)
         }
       }
 
@@ -160,7 +161,9 @@ export function AgentDetailScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel="Go back"
+          >
             <Ionicons name="arrow-back" size={24} color={Colors.white} />
           </PressableScale>
           <Text style={styles.headerTitle}>Agent</Text>
@@ -177,7 +180,9 @@ export function AgentDetailScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
         </PressableScale>
         <Text style={styles.headerTitle}>{device.label}</Text>
@@ -193,7 +198,7 @@ export function AgentDetailScreen() {
       >
         {/* Agent Wallet Card */}
         <LinearGradient
-          colors={['#1a1a1a', '#101010']}
+          colors={[Gradient.peak, Gradient.mid]}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
           style={styles.walletCard}
@@ -317,6 +322,8 @@ export function AgentDetailScreen() {
         {/* Remove device (danger) */}
         <PressableScale
           style={styles.dangerBtn}
+          accessibilityLabel="Remove device"
+          accessibilityHint="Unlinks this device and deletes its agent keys"
           onPress={() =>
             Alert.alert(
               'Remove Device',
@@ -406,12 +413,12 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md },
   sectionTitle: { fontSize: FontSize.sm, color: Colors.cream, fontWeight: FontWeight.semibold },
   metricsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
-  metric: { flex: 1, backgroundColor: '#0E0E0E', borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.borderGrey, padding: Spacing.sm, alignItems: 'center' },
+  metric: { flex: 1, backgroundColor: Gradient.raised, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.borderGrey, padding: Spacing.sm, alignItems: 'center' },
   metricLabel: { fontSize: FontSize.xs, color: Colors.mutedWhite, marginBottom: 2 },
   metricValue: { fontSize: FontSize.md, color: Colors.white, fontWeight: FontWeight.bold, fontVariant: ['tabular-nums'] },
   metricValueGold: { color: Colors.gold },
   progressSection: { marginTop: Spacing.xs },
-  progressBg: { height: 6, borderRadius: 3, backgroundColor: '#1B1B1B', marginBottom: Spacing.xs },
+  progressBg: { height: 6, borderRadius: 3, backgroundColor: Gradient.track, marginBottom: Spacing.xs },
   progressFill: { height: 6, borderRadius: 3, backgroundColor: Colors.gold },
   progressLabel: { fontSize: FontSize.xs, color: Colors.mutedWhite },
 
@@ -422,7 +429,7 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#0E0E0E', borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.borderGrey,
+    backgroundColor: Gradient.raised, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.borderGrey,
     padding: Spacing.md,
   },
   actionContent: { flex: 1, marginLeft: Spacing.md },

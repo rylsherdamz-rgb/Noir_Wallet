@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius, FontScaleCap } from '@/constants/theme'
 import { TxFilter } from '@/types'
 
 interface FilterChip {
@@ -28,8 +28,18 @@ export function FilterChips({ options, selected, onSelect }: FilterChipsProps) {
             key={opt.key}
             style={[styles.chip, isActive && styles.chipActive]}
             onPress={() => onSelect(opt.key)}
+            // Selection is conveyed only by colour otherwise, which a screen
+            // reader cannot see.
+            accessibilityRole="tab"
+            accessibilityLabel={`${opt.label} filter`}
+            accessibilityState={{ selected: isActive }}
           >
-            <Text style={[styles.label, isActive && styles.labelActive]}>{opt.label}</Text>
+            <Text
+              style={[styles.label, isActive && styles.labelActive]}
+              maxFontSizeMultiplier={FontScaleCap.row}
+            >
+              {opt.label}
+            </Text>
           </PressableScale>
         )
       })}

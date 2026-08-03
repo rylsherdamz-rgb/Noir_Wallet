@@ -43,7 +43,9 @@ export function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
         </PressableScale>
         <Text style={styles.headerTitle}>Profile</Text>
@@ -152,7 +154,9 @@ export function ProfileScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Preferences</Text>
-          <PressableScale style={styles.settingRow} onPress={() => router.push('/settings/notifications')}>
+          <PressableScale style={styles.settingRow} onPress={() => router.push('/settings/notifications')}
+            accessibilityLabel="Notifications"
+          >
             <Ionicons name="notifications-outline" size={20} color={Colors.white} />
             <Text style={styles.settingLabel}>Notification Preferences</Text>
             <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />

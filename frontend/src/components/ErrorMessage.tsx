@@ -36,7 +36,9 @@ export function ErrorMessage({
         <Text style={styles.fullTitle}>{title}</Text>
         <Text style={styles.fullMessage}>{message}</Text>
         {onRetry && (
-          <PressableScale style={styles.retryBtn} onPress={onRetry}>
+          <PressableScale style={styles.retryBtn} onPress={onRetry}
+            accessibilityLabel="Refresh"
+          >
             <Ionicons name="refresh" size={18} color={Colors.black} />
             <Text style={styles.retryLabel}>{retryLabel}</Text>
           </PressableScale>
