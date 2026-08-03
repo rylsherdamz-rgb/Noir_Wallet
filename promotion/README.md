@@ -15,7 +15,7 @@
 
 https://github.com/user-attachments/assets/noir-wallet-promo.mp4
 
-> **Note**: Render the video locally with `npx remotion render NoirPromo out/noir-promo.mp4` and replace the placeholder above.
+> **Note**: Render the video locally with `npm run render` (produces `out/noir-demo.mp4`) and replace the placeholder above.
 
 ---
 
@@ -52,9 +52,17 @@ npx tsx generate-voiceover.ts
 # Start the Remotion Studio preview
 npm run dev
 
-# Render final MP4
-npx remotion render NoirPromo out/noir-promo.mp4
+# Render final MP4 (high quality: PNG frames, CRF 16, 320k audio, slow x264)
+npm run render
+
+# 4K master (renders at 3840x2160 — sharpest when downscaled)
+npm run render-4k
 ```
+
+> **Render quality**: exports default to lossless PNG frame extraction, `--crf 16`,
+> `--audio-bitrate 320k` and the `slow` x264 preset (set in `remotion.config.ts`)
+> so UI text stays crisp with no JPEG artifacts. Tune per run with CLI flags,
+> e.g. `npx remotion render NoirDemo out/demo.mp4 --crf=14 --x264-preset=slower`.
 
 ### Requirements
 

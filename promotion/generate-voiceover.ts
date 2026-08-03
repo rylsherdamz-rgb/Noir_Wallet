@@ -9,7 +9,7 @@ import { resolve } from "path";
  * The API key can be overridden via the ELEVENLABS_API_KEY env var.
  */
 
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+const ELEVENLABS_API_KEY: string = process.env.ELEVENLABS_API_KEY ?? "";
 if (!ELEVENLABS_API_KEY) {
   console.error("ELEVENLABS_API_KEY env var must be set");
   process.exit(1);
@@ -24,50 +24,47 @@ interface Scene {
 }
 
 // Order + ids MUST match DEMO_SCENES in src/NoirDemo.tsx
+// Demo-only narration: tight and descriptive, ~45s total (intro/problem/outro dropped).
 const SCENES: Scene[] = [
   {
-    id: "scene-01-intro",
-    text: "This is Noir Wallet. Contactless payments powered by Stellar. Tap, pay, done.",
-  },
-  {
-    id: "scene-02-problem",
-    text: "Paying should be invisible. No app to open, no screen to unlock, no confirmation to tap. Noir debits the instant your tag touches the terminal.",
-  },
-  {
     id: "scene-03-welcome",
-    text: "It starts here. Your wallet becomes your identity — linked to an N F C card, a sticker, or a wearable.",
+    text: "Your wallet, your identity — linked to the N F C card in your hand.",
   },
   {
     id: "scene-04-dashboard",
-    text: "Every asset in one glance. Your Philippine peso, U S D C, and Stellar Lumens balances, all live, with independent limits for every linked device.",
+    text: "Every asset in one glance — plus your devices and their limits.",
   },
   {
     id: "scene-05-link",
-    text: "Linking a device takes seconds. Hold your tag to the phone, sign once, and the Soroban smart contract registers it on-chain.",
+    text: "Tap the tag to your phone, sign once — and it's registered on-chain in seconds.",
   },
   {
     id: "scene-06-agent",
-    text: "Here's the key idea. Every device gets its own x402 agent — a dedicated wallet you fund with a balance and a daily limit. The agent pays on your behalf, so you can tap contactlessly without friction, and your main wallet stays untouched.",
+    text: "Fund each device with a balance and a daily limit — its agent pays on its own.",
+  },
+  {
+    id: "scene-06b-revoke",
+    text: "Lose your tag? Revoke it in one tap — the balance flows right back.",
   },
   {
     id: "scene-07-tap",
-    text: "And this is the x402 moment. One tap, and the agent is debited instantly. No unlock. No app. No confirmation. Just pay and go.",
+    text: "Now tap to pay — instant debit, no unlock, no confirmation.",
+  },
+  {
+    id: "scene-07b-escrow",
+    text: "The terminal authorizes instantly and queues each charge, then settles one transaction — even offline.",
   },
   {
     id: "scene-08-send",
-    text: "Send value across Stellar in U S D C, Lumens, or pesos — with fees that are a fraction of a cent.",
+    text: "Send pesos, U S D C, or Lumens across Stellar — for a fraction of a cent.",
   },
   {
     id: "scene-09-receive",
-    text: "Receiving is just as simple. Share a Q R code and get paid straight to your wallet.",
+    text: "Receiving is just a scan — one Q R code, and the money's in.",
   },
   {
     id: "scene-10-transactions",
-    text: "Transit turnstiles, campus canteens, event gates, retail checkout — every tap confirmed on Stellar in under two seconds.",
-  },
-  {
-    id: "scene-11-outro",
-    text: "Noir Wallet. Tap the future.",
+    text: "Every transaction, confirmed on Stellar in under two seconds.",
   },
 ];
 

@@ -28,6 +28,7 @@
     "dev": "remotion studio",
     "build": "remotion bundle",
     "render": "remotion render NoirDemo out/noir-demo.mp4",
+    "render-4k": "remotion render NoirDemo out/noir-demo-4k.mp4 --scale=2",
     "render-promo": "remotion render NoirPromo out/noir-promo.mp4",
     "voiceover": "npx tsx generate-voiceover.ts",
     "upgrade": "remotion upgrade",
