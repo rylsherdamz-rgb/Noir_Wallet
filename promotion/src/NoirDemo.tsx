@@ -8,6 +8,8 @@ import {
 } from "remotion";
 import { z } from "zod";
 import { ProgressBar } from "./DemoShell";
+import { Subtitle } from "./demo-scenes/Subtitle";
+import { SCENE_SCRIPT } from "./voiceover-script";
 import {
   WelcomeScene,
   DashboardScene,
@@ -69,6 +71,7 @@ export const NoirDemo: React.FC<z.infer<typeof NoirDemoPropsSchema>> = ({
             }}
           >
             <Component durationInFrames={duration} />
+            <Subtitle text={SCENE_SCRIPT[i]?.subtitle ?? ""} durationInFrames={duration} />
             <Audio src={staticFile(`voiceover/noir-demo/${audio}.mp3`)} />
           </Sequence>
         );

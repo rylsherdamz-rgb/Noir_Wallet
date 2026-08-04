@@ -437,7 +437,7 @@ export const PosEscrowScene: React.FC<SceneProps> = ({ durationInFrames }) => {
       </AbsoluteFill>
 
       {/* Caption */}
-      <AbsoluteFill style={{ justifyContent: "flex-end", alignItems: "center", paddingBottom: 96 }}>
+      <AbsoluteFill style={{ justifyContent: "flex-end", alignItems: "center", paddingBottom: 150 }}>
         <div style={{ ...useReveal(8, 26), textAlign: "center", maxWidth: 1160 }}>
           <div
             style={{
