@@ -7,6 +7,7 @@ vi.mock('@/services/stellar-service', () => ({
   stellarService: {
     fundAccount: vi.fn().mockResolvedValue(true),
     submitPayment: vi.fn().mockResolvedValue({ hash: 'test-mock-hash' }),
+    submitCreateAccount: vi.fn().mockResolvedValue({ hash: 'test-create-hash' }),
     getBalance: vi.fn().mockResolvedValue({ xlm: 500 }),
     invokeContract: vi.fn().mockResolvedValue('mock-invoke-hash'),
     readContract: vi.fn().mockResolvedValue('0'),
@@ -133,6 +134,8 @@ describe('x402 createAgent logic', () => {
     const { x402 } = await import('@/domain/x402')
     await x402.clearAgent()
     vi.clearAllMocks()
+    const { stellarService } = await import('@/services/stellar-service')
+    ;(stellarService.accountExists as ReturnType<typeof vi.fn>).mockResolvedValue(true)
   })
 
   it('generates keypair on first creation', async () => {
@@ -201,5 +204,83 @@ describe('x402 createAgent logic', () => {
     await x402.payWithAgent({ destination: 'GABC', amount: '10' })
     const after = await x402.getAgent()
     expect(after!.totalSpentStroops).toBeGreaterThan(before!.totalSpentStroops)
+  })
+
+  it('rejects payment exceeding remaining budget', async () => {
+    const { x402 } = await import('@/domain/x402')
+    await x402.createAgent()
+    const result = await x402.payWithAgent({ destination: 'GABC', amount: '600' })
+    expect('error' in result).toBe(true)
+  })
+
+  it('does not submit when budget is exceeded', async () => {
+    const { x402 } = await import('@/domain/x402')
+    const { stellarService } = await import('@/services/stellar-service')
+    await x402.createAgent()
+    await x402.payWithAgent({ destination: 'GABC', amount: '600' })
+    expect(stellarService.submitPayment).not.toHaveBeenCalled()
+  })
+
+  it('does not friendbot-fund the agent', async () => {
+    const { x402 } = await import('@/domain/x402')
+    const { stellarService } = await import('@/services/stellar-service')
+    await x402.createAgent()
+    expect(stellarService.fundAccount).not.toHaveBeenCalled()
+  })
+
+  it('payWithAgent returns error when agent account missing on-chain', async () => {
+    const { x402 } = await import('@/domain/x402')
+    const { stellarService } = await import('@/services/stellar-service')
+    ;(stellarService.accountExists as ReturnType<typeof vi.fn>).mockResolvedValue(false)
+    await x402.createAgent()
+    const result = await x402.payWithAgent({ destination: 'GABC', amount: '1' })
+    expect('error' in result).toBe(true)
+    expect(stellarService.submitPayment).not.toHaveBeenCalled()
+  })
+
+  it('sweepAgentFunds sends full balance minus fee', async () => {
+    const { x402 } = await import('@/domain/x402')
+    const { stellarService } = await import('@/services/stellar-service')
+    await x402.createAgent()
+    const result = await x402.sweepAgentFunds('GA7OPG4EHTL7X7JQKRLFNIJF7E4X5Y4JT3Q2H6CVT6JKJNZ5DOJ3BNKC')
+    expect('hash' in result).toBe(true)
+    expect(stellarService.submitPayment).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: '499.9990000' }),
+    )
+  })
+
+  it('sweepAgentFunds bypasses the budget check', async () => {
+    const { x402 } = await import('@/domain/x402')
+    await x402.createAgent()
+    const result = await x402.sweepAgentFunds('GABC')
+    expect('hash' in result).toBe(true)
+  })
+
+  it('topUpAgent creates the account when agent missing on-chain', async () => {
+    const { x402 } = await import('@/domain/x402')
+    const { stellarService } = await import('@/services/stellar-service')
+    await x402.createAgent()
+    ;(stellarService.accountExists as ReturnType<typeof vi.fn>).mockResolvedValue(false)
+    const { walletService } = await import('@/services/wallet')
+    const keys = await walletService.loadKeys()
+    const hash = await x402.topUpAgent(50, keys.stellarSecret)
+    expect(hash).toBe('test-create-hash')
+    expect(stellarService.submitCreateAccount).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: '50.0000000' }),
+    )
+    expect(stellarService.submitPayment).not.toHaveBeenCalled()
+  })
+
+  it('topUpAgent pays normally when agent exists on-chain', async () => {
+    const { x402 } = await import('@/domain/x402')
+    const { stellarService } = await import('@/services/stellar-service')
+    await x402.createAgent()
+    const { walletService } = await import('@/services/wallet')
+    const keys = await walletService.loadKeys()
+    const hash = await x402.topUpAgent(50, keys.stellarSecret)
+    expect(hash).toBe('test-mock-hash')
+    expect(stellarService.submitPayment).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: '50.0000000' }),
+    )
   })
 })

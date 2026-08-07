@@ -67,12 +67,8 @@ export const x402 = {
 
     const created = await syncCreatedTimestamp()
 
-    try {
-      await stellarService.fundAccount(keys.agentPublic)
-    } catch {
-      logger.warn('Agent funding skipped — friendbot may be unavailable.')
-    }
-
+    // The agent starts with a zero balance — the user tops it up from their own
+    // wallet. No friendbot funding here.
     let balanceStroops = 0
     try {
       const onChain = await stellarService.getBalance(keys.agentPublic)
@@ -82,7 +78,7 @@ export const x402 = {
     return {
       publicKey: keys.agentPublic,
       balanceStroops,
-      spendingBudgetStroops: balanceStroops,
+      spendingBudgetStroops: DEFAULT_BUDGET_XLM * 10_000_000,
       totalSpentStroops: 0,
       isActive: true,
       createdAt: created,
@@ -98,14 +94,23 @@ export const x402 = {
     const secret = await SecureStore.getItemAsync(AGENT_SECRET_KEY)
     if (!secret) return { error: 'No agent wallet' }
 
-    // Ensure agent account exists on-chain before paying
     const agentPub = Keypair.fromSecret(secret).publicKey()
+
+    // Refuse to pay if the agent has not been topped up yet. The agent is never
+    // friendbot-funded — the user fills it from their own wallet.
     const exists = await stellarService.accountExists(agentPub)
     if (!exists) {
-      const funded = await stellarService.fundAccount(agentPub)
-      if (!funded) {
-        return { error: 'Agent wallet not funded — fund your wallet first via Settings → Fund Wallet' }
-      }
+      return { error: 'Agent wallet has no funds — top it up from Settings → Payment Agent' }
+    }
+
+    // Enforce the spending budget BEFORE submitting: cost cannot exceed the
+    // remaining allowance. This stops overspending even when the wallet still
+    // holds a balance.
+    const cost = Math.ceil(parseFloat(params.amount) * 10_000_000)
+    const budgetRaw = await SecureStore.getItemAsync(AGENT_BUDGET_KEY)
+    const budget = budgetRaw ? parseInt(budgetRaw, 10) : DEFAULT_BUDGET_XLM * 10_000_000
+    if (cost > budget) {
+      return { error: `Agent spending budget exhausted — ${(budget / 10_000_000).toFixed(2)} XLM remaining` }
     }
 
     const result = await stellarService.submitPayment({
@@ -114,19 +119,44 @@ export const x402 = {
     })
 
     if ('hash' in result) {
-      const budget = parseInt(await SecureStore.getItemAsync(AGENT_BUDGET_KEY) || '0', 10)
-      const cost = Math.ceil(parseFloat(params.amount) * 10_000_000)
-      await SecureStore.setItemAsync(AGENT_BUDGET_KEY, String(Math.max(0, budget - cost)))
+      await SecureStore.setItemAsync(AGENT_BUDGET_KEY, String(budget - cost))
     }
 
     return result
   },
 
   /**
+   * Sends the agent's ENTIRE on-chain XLM balance (minus a 0.001 fee cushion)
+   * back to the given destination, then returns the tx hash. Unlike the budget
+   * check, this is a full sweep and is used when revoking a device.
+   */
+  async sweepAgentFunds(destination: string): Promise<{ hash: string } | { error: string }> {
+    const secret = await SecureStore.getItemAsync(AGENT_SECRET_KEY)
+    if (!secret) return { error: 'No agent wallet' }
+
+    const agentPub = Keypair.fromSecret(secret).publicKey()
+    const exists = await stellarService.accountExists(agentPub)
+    if (!exists) return { error: 'Agent wallet is empty — nothing to recover' }
+
+    const bal = await stellarService.getBalance(agentPub)
+    const sweepable = bal.xlm - 0.001
+    if (sweepable <= 0.001) return { error: 'Agent wallet has no recoverable funds' }
+
+    return stellarService.submitPayment({
+      sourceSecret: secret,
+      destination,
+      amount: sweepable.toFixed(7),
+      assetCode: 'XLM',
+    })
+  },
+
+  /**
    * Register both device and agent in sequence, sharing one Horizon account
    * load to eliminate redundant network calls.
-   * Each step independently handles AlreadyRegistered so a re-provision doesn't
-   * block the other from completing.
+   * Read-first: checks on-chain state before writing, so re-provisioning an
+   * already-registered tag skips the writes entirely (no failed simulations,
+   * no AlreadyRegistered error spam). Each write independently tolerates
+   * AlreadyRegistered as a race fallback.
    */
   async registerDeviceAndAgentOnChain(params: {
     walletSecret: string
@@ -147,38 +177,75 @@ export const x402 = {
     const pub = kp.publicKey()
     const account = await stellarService.loadSourceAccount(pub)
 
+    const walletScVal = stellarService.walletAddressScVal(pub)
+    const deviceHashScVal = stellarService.deviceHashScVal(params.deviceHashHex)
+    const agentScVal = stellarService.walletAddressScVal(params.agentPublicKey)
+
+    // ── Read-first: skip writes that would fail with AlreadyRegistered ──
+    // get_device returns DeviceInfo when the hash is registered, and panics
+    // with Error(Contract, #2) / DeviceNotFound when it isn't.
+    let deviceRegistered = false
     try {
-      await stellarService.invokeContract({
+      await stellarService.readContract({
         contractId: contractIdDevice,
-        method: 'register',
-        args: [
-          stellarService.walletAddressScVal(pub),
-          stellarService.deviceHashScVal(params.deviceHashHex),
-          stellarService.walletAddressScVal(params.agentPublicKey),
-        ],
-        signerSecret: params.walletSecret,
-        sourceAccount: account,
+        method: 'get_device',
+        args: [deviceHashScVal],
+        source: pub,
       })
+      deviceRegistered = true
     } catch (e: any) {
-      if (!isAlreadyRegistered(e)) throw e
+      const msg = e?.message ?? ''
+      if (!msg.includes('Error(Contract, #2)') && !msg.includes('DeviceNotFound')) {
+        logger.debug(`[x402] device pre-check failed (falling back to write): ${msg}`)
+      }
     }
 
-    account.incrementSequenceNumber()
-
+    let agentRegistered = false
     try {
-      await stellarService.invokeContract({
+      const auth = await stellarService.readContract({
         contractId: contractIdAgent,
-        method: 'register_agent',
-        args: [
-          stellarService.walletAddressScVal(pub),
-          stellarService.deviceHashScVal(params.deviceHashHex),
-          stellarService.walletAddressScVal(params.agentPublicKey),
-        ],
-        signerSecret: params.walletSecret,
-        sourceAccount: account,
+        method: 'is_auth',
+        args: [deviceHashScVal, agentScVal],
+        source: pub,
       })
+      agentRegistered = auth.b() === true
     } catch (e: any) {
-      if (!isAlreadyRegistered(e)) throw e
+      logger.debug(`[x402] agent pre-check failed (falling back to write): ${e?.message ?? e}`)
+    }
+
+    let registerSubmitted = false
+    if (!deviceRegistered) {
+      try {
+        await stellarService.invokeContract({
+          contractId: contractIdDevice,
+          method: 'register',
+          args: [walletScVal, deviceHashScVal, agentScVal],
+          signerSecret: params.walletSecret,
+          sourceAccount: account,
+        })
+        registerSubmitted = true
+      } catch (e: any) {
+        if (!isAlreadyRegistered(e)) throw e
+      }
+    }
+
+    // Only bump the in-memory sequence if a tx actually went out. If register
+    // failed at simulation (e.g. AlreadyRegistered), no tx consumed a sequence
+    // number, and bumping anyway makes register_agent submit a bad sequence.
+    if (registerSubmitted) account.incrementSequenceNumber()
+
+    if (!agentRegistered) {
+      try {
+        await stellarService.invokeContract({
+          contractId: contractIdAgent,
+          method: 'register_agent',
+          args: [walletScVal, deviceHashScVal, agentScVal],
+          signerSecret: params.walletSecret,
+          sourceAccount: account,
+        })
+      } catch (e: any) {
+        if (!isAlreadyRegistered(e)) throw e
+      }
     }
   },
 
@@ -362,6 +429,20 @@ export const x402 = {
     const secret = await SecureStore.getItemAsync(AGENT_SECRET_KEY)
     if (!secret) throw new Error('No agent wallet configured')
     const agentPub = Keypair.fromSecret(secret).publicKey()
+
+    // If the agent account was never created on-chain, a regular payment would
+    // fail — Stellar requires the destination to exist. Create it instead.
+    const exists = await stellarService.accountExists(agentPub)
+    if (!exists) {
+      const created = await stellarService.submitCreateAccount({
+        sourceSecret: fromSecret,
+        destination: agentPub,
+        amount: amountXlm.toFixed(7),
+      })
+      if ('error' in created) throw new Error(created.error)
+      return created.hash
+    }
+
     const result = await stellarService.submitPayment({
       sourceSecret: fromSecret,
       destination: agentPub,

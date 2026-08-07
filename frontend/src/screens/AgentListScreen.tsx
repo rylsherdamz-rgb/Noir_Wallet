@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator, Linking } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -29,7 +29,7 @@ const NOIR_MARK = require('../../assets/noir-mark.png')
 export function AgentListScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { devices } = useAppStore()
+  const { devices, network } = useAppStore()
   const [agent, setAgent] = useState<AgentWallet | null>(null)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -94,6 +94,21 @@ export function AgentListScreen() {
                 </Text>
               )}
             </View>
+            {agent?.publicKey && (
+              <PressableScale
+                onPress={() => {
+                  const baseUrl = network === 'testnet'
+                    ? 'https://stellar.expert/explorer/testnet/account'
+                    : 'https://stellar.expert/explorer/public/account'
+                  Linking.openURL(`${baseUrl}/${agent.publicKey}`)
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="View agent wallet on Stellar Expert"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="open-outline" size={16} color={Colors.goldHi} />
+              </PressableScale>
+            )}
             {agent?.createdAt && (
               <Text style={styles.walletCreated}>
                 {new Date(agent.createdAt).toLocaleDateString()}

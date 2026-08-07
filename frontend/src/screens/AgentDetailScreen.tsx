@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Alert } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Alert, Linking } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -22,7 +22,7 @@ export function AgentDetailScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { id } = useLocalSearchParams<{ id: string }>()
-  const { devices, transactions, addTransaction, removeDevice } = useAppStore()
+  const { devices, transactions, addTransaction, removeDevice, network: storeNetwork } = useAppStore()
   const [agent, setAgent] = useState<AgentWallet | null>(null)
   const [toast, setToast] = useState<{ visible: boolean; type: 'success' | 'info'; title: string; message?: string }>({
     visible: false, type: 'success', title: '',
@@ -87,21 +87,15 @@ export function AgentDetailScreen() {
       const { walletService } = await import('@/services/wallet')
       const keys = await walletService.loadKeys()
       if (keys?.stellarSecret) {
-        // 1. Recover agent XLM balance to main wallet before revoking
-        const agentBal = await x402.getAgentBalanceXlm()
-        if (agentBal > 0.01) {
-          try {
-            const recoverAmount = (agentBal - 0.001).toFixed(7)
-            const recoverResult = await x402.payWithAgent({
-              destination: Keypair.fromSecret(keys.stellarSecret).publicKey(),
-              amount: recoverAmount,
-            })
-            if ('error' in recoverResult) {
-              logger.warn('Agent XLM recovery failed:', recoverResult.error)
-            }
-          } catch (e: any) {
-            logger.warn('Agent XLM recovery error:', e?.message)
+        // 1. Recover ALL agent XLM back to the main wallet before revoking
+        const mainWallet = Keypair.fromSecret(keys.stellarSecret).publicKey()
+        try {
+          const recoverResult = await x402.sweepAgentFunds(mainWallet)
+          if ('error' in recoverResult) {
+            logger.warn('Agent XLM recovery failed:', recoverResult.error)
           }
+        } catch (e: any) {
+          logger.warn('Agent XLM recovery error:', e?.message)
         }
 
         // 2. Revoke agent on agent_registry contract
@@ -238,6 +232,23 @@ export function AgentDetailScreen() {
                 </PressableScale>
               )}
             </View>
+          )}
+
+          {agent?.publicKey && (
+            <PressableScale
+              style={styles.expertLink}
+              onPress={() => {
+                const baseUrl = storeNetwork === 'testnet'
+                  ? 'https://stellar.expert/explorer/testnet/account'
+                  : 'https://stellar.expert/explorer/public/account'
+                Linking.openURL(`${baseUrl}/${agent.publicKey}`)
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="View agent wallet on Stellar Expert"
+            >
+              <Ionicons name="open-outline" size={13} color={Colors.gold} />
+              <Text style={styles.expertLinkText}>View on Stellar Expert</Text>
+            </PressableScale>
           )}
         </LinearGradient>
 
@@ -404,6 +415,8 @@ const styles = StyleSheet.create({
   authText: { fontSize: FontSize.xs, color: Colors.mutedWhite },
   registerLink: { marginLeft: 'auto' },
   registerLinkText: { fontSize: FontSize.xs, color: Colors.gold, fontWeight: FontWeight.semibold },
+  expertLink: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: Spacing.sm, alignSelf: 'flex-start' },
+  expertLinkText: { fontSize: FontSize.xs, color: Colors.gold, fontWeight: FontWeight.semibold },
 
   // Section card
   sectionCard: {
