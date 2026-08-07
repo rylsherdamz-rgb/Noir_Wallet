@@ -55,7 +55,9 @@ export function TransactionDetailScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel="Go back"
+          >
             <Ionicons name="arrow-back" size={24} color={Colors.white} />
           </PressableScale>
           <Text style={styles.headerTitle}>Transaction Details</Text>
@@ -72,11 +74,15 @@ export function TransactionDetailScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
         </PressableScale>
         <Text style={styles.headerTitle}>Transaction Details</Text>
-        <PressableScale onPress={shareTx} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <PressableScale onPress={shareTx} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="Share"
+        >
           <Ionicons name="share-outline" size={22} color={Colors.gold} />
         </PressableScale>
       </View>
@@ -121,12 +127,16 @@ export function TransactionDetailScreen() {
         </View>
 
         <View style={styles.actionsCard}>
-          <PressableScale style={styles.actionRow} onPress={shareTx}>
+          <PressableScale style={styles.actionRow} onPress={shareTx}
+            accessibilityLabel="Share"
+          >
             <Ionicons name="share-outline" size={18} color={Colors.gold} />
             <Text style={styles.actionLabel}>Share Receipt</Text>
           </PressableScale>
           {tx.stellarTxHash && explorerUrl && (
-            <PressableScale style={styles.actionRow} onPress={openExplorer}>
+            <PressableScale style={styles.actionRow} onPress={openExplorer}
+              accessibilityLabel="Open in browser"
+            >
               <Ionicons name="open-outline" size={18} color={Colors.gold} />
               <Text style={styles.actionLabel}>View on Stellar Explorer</Text>
             </PressableScale>

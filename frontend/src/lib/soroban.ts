@@ -11,6 +11,7 @@ import {
 import { Buffer } from 'buffer'
 import { TransactionBase } from '@stellar/stellar-sdk/axios'
 import { Config } from '@/constants/config'
+import { logger } from '@/lib/logger'
 
 TransactionBase.prototype.toXDR = function () {
   const raw = this.toEnvelope().toXDR()
@@ -57,7 +58,7 @@ export async function readContract(
     .build()
 
   if (__DEV__) {
-    console.log(`[soroban/readContract] tx XDR: ${tx.toXDR().substring(0, 80)}...`)
+    logger.debug(`[soroban/readContract] tx XDR: ${tx.toXDR().substring(0, 80)}...`)
   }
 
   const sim = await server.simulateTransaction(tx)
@@ -117,7 +118,7 @@ export async function invokeContract(
     .build()
 
   if (__DEV__) {
-    console.log(`[soroban/invokeContract] tx XDR: ${tx.toXDR().substring(0, 80)}...`)
+    logger.debug(`[soroban/invokeContract] tx XDR: ${tx.toXDR().substring(0, 80)}...`)
   }
 
   const prepared = await server.prepareTransaction(tx)

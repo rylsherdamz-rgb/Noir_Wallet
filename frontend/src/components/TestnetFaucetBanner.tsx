@@ -21,7 +21,7 @@ export function TestnetFaucetBanner() {
     const success = await stellarService.fundAccount(user.stellarPublicKey)
     if (success) {
       const onChain = await stellarService.getBalance(user.stellarPublicKey)
-      setBalance({ xlm: onChain.xlm })
+      setBalance({ xlm: onChain.xlm, subentryCount: onChain.subentryCount })
     }
     setFunding(false)
     setDismissed(true)

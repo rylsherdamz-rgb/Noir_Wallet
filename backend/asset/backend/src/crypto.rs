@@ -4,7 +4,6 @@ use aes_gcm::{
     Aes256Gcm, Key, Nonce,
 };
 use base64::{engine::general_purpose::STANDARD, Engine};
-use sha2::{Digest, Sha256};
 
 const NONCE_LEN: usize = 12;
 
@@ -170,51 +169,13 @@ pub fn decrypt_at_rest(key_manager: &dyn KeyManager, blob: &[u8]) -> Result<Vec<
         .map_err(|e| PaymentError::EncryptionError(format!("Decryption failed: {}", e)))
 }
 
-pub fn hash_device_serial(serial: &str) -> Result<String> {
-    if serial.is_empty() {
-        return Err(PaymentError::InvalidPayload(
-            "Device serial cannot be empty".to_string(),
-        ));
-    }
-
-    let mut hasher = Sha256::new();
-    hasher.update(serial.as_bytes());
-    let result = hasher.finalize();
-
-    Ok(hex::encode(result))
-}
+// `hash_device_serial` lived here. Device hashing moved into the
+// `device_registry` contract, which now takes the raw UID and computes the
+// hash on-chain rather than trusting one supplied by a client.
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_hash_consistency() {
-        let serial = "DEVICE_SN_12345";
-        let hash1 = hash_device_serial(serial).unwrap();
-        let hash2 = hash_device_serial(serial).unwrap();
-        assert_eq!(hash1, hash2);
-    }
-
-    #[test]
-    fn test_hash_length() {
-        let serial = "DEVICE_SN_12345";
-        let hash = hash_device_serial(serial).unwrap();
-        assert_eq!(hash.len(), 64); // SHA256 produces 64 hex characters
-    }
-
-    #[test]
-    fn test_empty_serial_error() {
-        let result = hash_device_serial("");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_different_serials_different_hashes() {
-        let hash1 = hash_device_serial("DEVICE_SN_001").unwrap();
-        let hash2 = hash_device_serial("DEVICE_SN_002").unwrap();
-        assert_ne!(hash1, hash2);
-    }
 
     fn test_key_manager() -> LocalKeyManager {
         // 32 zero bytes, base64-encoded — fine for tests, never for prod.

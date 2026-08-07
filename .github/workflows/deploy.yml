@@ -11,7 +11,53 @@ env:
   SERVICE: noir-backend
 
 jobs:
+  # Nothing ships without a green build and test run. Previously every push to
+  # main went straight to Cloud Run with no verification at all.
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: noir_user
+          POSTGRES_PASSWORD: noir_password
+          POSTGRES_DB: noir_wallet_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backend/asset/backend
+
+      - name: Format check
+        working-directory: backend/asset/backend
+        run: cargo fmt --check
+
+      - name: Clippy
+        working-directory: backend/asset/backend
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Unit and integration tests
+        working-directory: backend/asset/backend
+        env:
+          DATABASE_URL: postgres://noir_user:noir_password@localhost:5432/noir_wallet_test
+        run: cargo test --all-targets
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -60,17 +106,17 @@ jobs:
           service: ${{ env.SERVICE }}
           image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/noir-backend/${{ env.SERVICE }}:latest
           region: ${{ env.REGION }}
+          # No Stellar variables: the service no longer talks to the network.
+          # CHANNEL_SECRET_KEY and MASTER_KEY_ID are gone with custody — the
+          # backend holds no keys. Those two secrets can be deleted from
+          # Secret Manager once this deploy is live.
           env_vars: |
-            ENVIRONMENT=development
-            STELLAR_NETWORK=testnet
-            STELLAR_RPC_URL=https://soroban-testnet.stellar.org
+            ENVIRONMENT=production
             PDAX_ENVIRONMENT=uat
             API_PORT=8080
           secrets: |
             DATABASE_URL=DATABASE_URL:latest
             PDAX_USERNAME=PDAX_USERNAME:latest
             PDAX_PASSWORD=PDAX_PASSWORD:latest
-            CHANNEL_SECRET_KEY=CHANNEL_SECRET_KEY:latest
-            MASTER_KEY_ID=MASTER_KEY_ID:latest
             PDAX_WEBHOOK_SECRET=PDAX_WEBHOOK_SECRET:latest
             API_KEY=API_KEY:latest

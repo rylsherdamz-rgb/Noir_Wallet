@@ -4,6 +4,7 @@ import {
   Contract,
   Operation,
   Asset,
+  Memo,
   BASE_FEE,
   Networks,
   rpc,
@@ -15,6 +16,7 @@ import {
 import { Buffer } from 'buffer'
 import { TransactionBase } from '@stellar/stellar-sdk/axios'
 import type { Transaction, AssetCode } from '@/types'
+import { logger } from '@/lib/logger'
 
 declare const __DEV__: boolean | undefined
 
@@ -23,6 +25,26 @@ const IS_DEV = typeof __DEV__ !== 'undefined' ? __DEV__ : false
 TransactionBase.prototype.toXDR = function () {
   const raw = this.toEnvelope().toXDR()
   return Buffer.from(raw).toString('base64')
+}
+
+// Horizon's submitTransaction does NOT call TransactionBase.toXDR — it calls
+// `transaction.toEnvelope().toXDR().toString('base64')` directly on the
+// envelope.  In React Native, js-xdr's envelope toXDR returns a native
+// Uint8Array whose `.toString('base64')` is ignored (comma-separated bytes),
+// so Horizon rejects the payload.  Patch the envelope class the same way.
+const origEnvelopeToXDR = xdr.TransactionEnvelope.prototype.toXDR
+type EnvelopeToXDR = (format?: 'raw' | 'base64' | 'hex') => any
+const patchEnvelopeToXDR = (proto: any, orig: EnvelopeToXDR) => {
+  proto.toXDR = function (format?: 'raw' | 'base64' | 'hex') {
+    const raw = orig.call(this)
+    if (format && format !== 'raw') return Buffer.from(raw).toString(format)
+    return Buffer.from(raw)
+  }
+}
+patchEnvelopeToXDR(xdr.TransactionEnvelope.prototype, origEnvelopeToXDR as EnvelopeToXDR)
+if (xdr.FeeBumpTransactionEnvelope.prototype.toXDR !== xdr.TransactionEnvelope.prototype.toXDR) {
+  const origFeeBumpToXDR = xdr.FeeBumpTransactionEnvelope.prototype.toXDR
+  patchEnvelopeToXDR(xdr.FeeBumpTransactionEnvelope.prototype, origFeeBumpToXDR as EnvelopeToXDR)
 }
 
 const CACHE_TTL_MS = 30000
@@ -45,6 +67,27 @@ function makeCache<T>(): (key: string, ttl: number, fetcher: () => Promise<T>) =
   }
 }
 
+const DEFAULT_TIMEOUT_MS = 20000
+
+/**
+ * Fail fast instead of hanging forever. Horizon and Soroban RPC calls on the
+ * public testnet regularly stall without an HTTP error, and the SDK configures
+ * no request timeout — a stuck request would otherwise block the UI
+ * indefinitely. The underlying promise is NOT cancelled; it settles later and
+ * is ignored.
+ */
+function withTimeout<T>(promise: Promise<T>, label: string, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${Math.round(timeoutMs / 1000)}s — Stellar is slow or unreachable, check your connection and retry`))
+    }, timeoutMs)
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value) },
+      (error) => { clearTimeout(timer); reject(error) },
+    )
+  })
+}
+
 export interface StellarServiceOptions {
   network?: 'testnet' | 'mainnet'
   sorobanRpcUrl?: string
@@ -53,6 +96,11 @@ export interface StellarServiceOptions {
 
 export interface BalanceResult {
   xlm: number
+  /**
+   * Trustlines, offers, signers and data entries. Each one locks another base
+   * reserve, so spendable balance cannot be computed without it.
+   */
+  subentryCount: number
 }
 
 export interface InvokeParams {
@@ -110,7 +158,7 @@ export class StellarService {
       isTestnet ? 'https://soroban-testnet.stellar.org' : 'https://soroban.stellar.org',
     ) as rpc.Server
     this.networkPassphrase = isTestnet ? Networks.TESTNET : Networks.PUBLIC
-    console.log(`[StellarService] network switched to ${this.network}`)
+    logger.debug(`[StellarService] network switched to ${this.network}`)
   }
 
   private get friendbotUrl(): string | null {
@@ -128,16 +176,18 @@ export class StellarService {
     return this.existsCache(publicKey, CACHE_TTL_MS, async () => {
       for (let attempt = 0; attempt <= retries; attempt++) {
         try {
-          await this.horizon.loadAccount(publicKey)
+          await withTimeout(this.horizon.loadAccount(publicKey), '[accountExists]', 12000)
           return true
         } catch (e: any) {
           const status = e?.response?.status ?? e?.response?.statusCode
           const isNotFound = status === 404 || e?.name === 'NotFoundError'
-          if (!isNotFound && attempt < retries) {
+          const timedOut = typeof e?.message === 'string' && e.message.includes('timed out')
+          if (!isNotFound && !timedOut && attempt < retries) {
             await new Promise(r => setTimeout(r, 1500))
             continue
           }
           if (isNotFound) return false
+          if (timedOut) return false
         }
       }
       return false
@@ -146,23 +196,24 @@ export class StellarService {
 
   async getBalance(publicKey: string): Promise<BalanceResult> {
     try {
-      const account = await this.horizon.loadAccount(publicKey)
+      const account = await withTimeout(this.horizon.loadAccount(publicKey), '[getBalance]', 12000)
       const balances = account.balances as any[]
       const xlmBalance = balances.find((b: any) => b.asset_type === 'native')
 
       return {
         xlm: parseFloat(xlmBalance?.balance ?? '0'),
+        subentryCount: (account as any).subentry_count ?? 0,
       }
     } catch (e: any) {
       const status = e?.response?.status ?? e?.response?.statusCode
       const isNotFound = status === 404 || e?.name === 'NotFoundError'
       if (!isNotFound) {
-        console.warn(
+        logger.warn(
           `[getBalance] non-404 error for ${publicKey.slice(0, 8)}... on ${this.network}:`,
           e?.message ?? e,
         )
       }
-      return { xlm: 0 }
+      return { xlm: 0, subentryCount: 0 }
     }
   }
 
@@ -172,6 +223,8 @@ export class StellarService {
     amount: string
     assetCode?: string
     assetIssuer?: string
+    /** Optional MEMO_TEXT. Stellar caps this at 28 bytes; longer text is rejected. */
+    memo?: string
   }): Promise<{ hash: string } | { error: string }> {
     try {
       const sourceKp = Keypair.fromSecret(params.sourceSecret)
@@ -180,8 +233,11 @@ export class StellarService {
       // Verify source exists on Horizon
       let sourceAccount
       try {
-        sourceAccount = await this.horizon.loadAccount(sourcePub)
-      } catch {
+        sourceAccount = await withTimeout(this.horizon.loadAccount(sourcePub), '[submitPayment]', 12000)
+      } catch (e: any) {
+        if (typeof e?.message === 'string' && e.message.includes('timed out')) {
+          return { error: e.message }
+        }
         return { error: 'Source account not found — fund it first' }
       }
 
@@ -196,22 +252,69 @@ export class StellarService {
           ? new Asset(params.assetCode, params.assetIssuer)
           : Asset.native()
 
-      const tx = new TransactionBuilder(sourceAccount, {
+      const builder = new TransactionBuilder(sourceAccount, {
         fee: BASE_FEE,
         networkPassphrase: this.networkPassphrase,
-      })
-        .addOperation(
-          Operation.payment({
-            destination: params.destination,
-            asset,
-            amount: params.amount,
-          }),
-        )
-        .setTimeout(30)
-        .build()
+      }).addOperation(
+        Operation.payment({
+          destination: params.destination,
+          asset,
+          amount: params.amount,
+        }),
+      )
+
+      const memoText = params.memo?.trim()
+      if (memoText) builder.addMemo(Memo.text(memoText))
+
+      const tx = builder.setTimeout(30).build()
 
       tx.sign(sourceKp)
-      const result = await this.horizon.submitTransaction(tx)
+      const result = await withTimeout(this.horizon.submitTransaction(tx), '[submitPayment]', 20000)
+      return { hash: result.hash }
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || err?.response?.data?.title || err?.message || 'Transaction failed'
+      return { error: msg }
+    }
+  }
+
+  async submitCreateAccount(params: {
+    sourceSecret: string
+    destination: string
+    amount: string
+  }): Promise<{ hash: string } | { error: string }> {
+    try {
+      const sourceKp = Keypair.fromSecret(params.sourceSecret)
+      const sourcePub = sourceKp.publicKey()
+
+      // Verify source exists on Horizon
+      let sourceAccount
+      try {
+        sourceAccount = await withTimeout(this.horizon.loadAccount(sourcePub), '[submitCreateAccount]', 12000)
+      } catch (e: any) {
+        if (typeof e?.message === 'string' && e.message.includes('timed out')) {
+          return { error: e.message }
+        }
+        return { error: 'Source account not found — fund it first' }
+      }
+
+      const checkAmount = parseFloat(params.amount)
+      if (checkAmount < 1) {
+        return { error: 'First top-up must be at least 1 XLM to create the account' }
+      }
+
+      const builder = new TransactionBuilder(sourceAccount, {
+        fee: BASE_FEE,
+        networkPassphrase: this.networkPassphrase,
+      }).addOperation(
+        Operation.createAccount({
+          destination: params.destination,
+          startingBalance: params.amount,
+        }),
+      )
+
+      const tx = builder.setTimeout(30).build()
+      tx.sign(sourceKp)
+      const result = await withTimeout(this.horizon.submitTransaction(tx), '[submitCreateAccount]', 20000)
       return { hash: result.hash }
     } catch (err: any) {
       const msg = err?.response?.data?.detail || err?.response?.data?.title || err?.message || 'Transaction failed'
@@ -233,19 +336,19 @@ export class StellarService {
     if (exists) return true
 
     if (!this.friendbotUrl) {
-      console.warn('Friendbot only available on testnet')
+      logger.warn('Friendbot only available on testnet')
       return false
     }
 
     for (let attempt = 0; attempt <= retries; attempt++) {
       if (attempt > 0) {
-        console.warn(`Friendbot retry ${attempt}/${retries}...`)
+        logger.warn(`Friendbot retry ${attempt}/${retries}...`)
         await new Promise(r => setTimeout(r, 2000))
       }
 
       try {
         const controller = new AbortController()
-        const timer = setTimeout(() => controller.abort(), 15000)
+        const timer = setTimeout(() => controller.abort(), 30000)
         const response = await fetch(`${this.friendbotUrl}?addr=${publicKey}`, {
           signal: controller.signal,
         })
@@ -253,7 +356,7 @@ export class StellarService {
 
         if (!response.ok) {
           const text = await response.text()
-          console.warn('Friendbot error:', text)
+          logger.warn('Friendbot error:', text)
           if (text.includes('already') || text.includes('exist')) return true
           continue
         }
@@ -263,17 +366,17 @@ export class StellarService {
 
         for (let i = 0; i < 10; i++) {
           try {
-            await this.horizon.loadAccount(publicKey)
+            await withTimeout(this.horizon.loadAccount(publicKey), '[fundAccount]', 12000)
             return true
           } catch { await new Promise(r => setTimeout(r, 1000)) }
         }
         return true
       } catch (e: any) {
         if (e.name === 'AbortError') {
-          console.warn('Friendbot timed out — account may still be funding')
+          logger.warn('Friendbot timed out — account may still be funding')
           continue
         }
-        console.warn('Friendbot failed:', e.message)
+        logger.warn('Friendbot failed:', e.message)
       }
     }
     return false
@@ -302,11 +405,11 @@ export class StellarService {
   async invokeContract(params: InvokeParams): Promise<string> {
     const sourceKp = Keypair.fromSecret(params.signerSecret)
     const sourcePub = sourceKp.publicKey()
-    console.log(`[invokeContract] source=${sourcePub.slice(0, 8)}... method=${params.method} network=${this.network}`)
+    logger.debug(`[invokeContract] source=${sourcePub.slice(0, 8)}... method=${params.method} network=${this.network}`)
 
     const funded = await this.ensureAccountFunded(sourcePub)
     if (!funded) {
-      console.warn(
+      logger.warn(
         `Account ${sourcePub.slice(0, 8)}... not confirmed on ${this.network} — ` +
         `attempting transaction anyway.`
       )
@@ -335,7 +438,7 @@ export class StellarService {
 
     const txXdr = tx.toXDR()
     if (IS_DEV) {
-      console.log(`[invokeContract] tx XDR: ${txXdr.substring(0, 80)}...`)
+      logger.debug(`[invokeContract] tx XDR: ${txXdr.substring(0, 80)}...`)
     }
 
     // ── Simulate + Assemble (dApp skill pattern) ───────────────────
@@ -345,13 +448,13 @@ export class StellarService {
     // present on the prepared transaction.
     let simulation: any
     try {
-      simulation = await this.soroban.simulateTransaction(tx)
+      simulation = await withTimeout(this.soroban.simulateTransaction(tx), `[invokeContract ${params.method}]`, 20000)
       if (IS_DEV) {
-        console.log(`[invokeContract] simulateTransaction OK for ${params.method}`)
+        logger.debug(`[invokeContract] simulateTransaction OK for ${params.method}`)
       }
     } catch (e: any) {
       const errMsg = typeof e === 'object' ? (e?.message ?? e?.data ?? JSON.stringify(e)) : String(e)
-      console.error(`[invokeContract] simulateTransaction failed for ${params.method}`, {
+      logger.error(`[invokeContract] simulateTransaction failed for ${params.method}`, {
         error: errMsg,
         xdrPrefix: txXdr.substring(0, 80),
         source: params.signerSecret.slice(0, 8) + '...',
@@ -360,7 +463,7 @@ export class StellarService {
     }
 
     if (rpc.Api.isSimulationError(simulation)) {
-      console.error(`[invokeContract] simulation error for ${params.method}`, simulation.error)
+      logger.error(`[invokeContract] simulation error for ${params.method}`, simulation.error)
       throw new Error(`Simulation error: ${simulation.error}`)
     }
 
@@ -369,11 +472,11 @@ export class StellarService {
       const assembled = rpc.assembleTransaction(tx, simulation)
       prepared = assembled.build()
       if (IS_DEV) {
-        console.log(`[invokeContract] assembleTransaction OK for ${params.method}`)
+        logger.debug(`[invokeContract] assembleTransaction OK for ${params.method}`)
       }
     } catch (e: any) {
       const errMsg = typeof e === 'object' ? (e?.message ?? e?.data ?? JSON.stringify(e)) : String(e)
-      console.error(`[invokeContract] assembleTransaction failed for ${params.method}`, {
+      logger.error(`[invokeContract] assembleTransaction failed for ${params.method}`, {
         error: errMsg,
       })
       throw new Error(`Transaction assembly failed: ${errMsg}`)
@@ -389,11 +492,11 @@ export class StellarService {
       const ops = env.v1().tx().operations()
       const invokeBody = ops[0].body().value() as xdr.InvokeHostFunctionOp
       const authEntries = Array.from(invokeBody.auth())
-      if (IS_DEV) console.log(`[invokeContract] auth entries:`, authEntries.length)
+      if (IS_DEV) logger.debug(`[invokeContract] auth entries:`, authEntries.length)
       if (authEntries.length > 0) {
-        const { sequence } = await this.soroban.getLatestLedger()
+        const { sequence } = await withTimeout(this.soroban.getLatestLedger(), '[invokeContract getLatestLedger]', 10000)
         const validUntil = sequence + 10
-        if (IS_DEV) console.log(`[invokeContract] signing ${authEntries.length} auth entries, validUntil=${validUntil}`)
+        if (IS_DEV) logger.debug(`[invokeContract] signing ${authEntries.length} auth entries, validUntil=${validUntil}`)
         const signed = await Promise.all(
           authEntries.map((entry: any) =>
             authorizeEntry(entry, sourceKp, validUntil, this.networkPassphrase)
@@ -407,7 +510,7 @@ export class StellarService {
           func: invokeBody.hostFunction(),
           auth: signed,
         })
-        const freshAccount = params.sourceAccount ?? await this.horizon.loadAccount(sourcePub)
+        const freshAccount = params.sourceAccount ?? await withTimeout(this.horizon.loadAccount(sourcePub), '[invokeContract loadAccount]', 10000)
         prepared = new TransactionBuilder(freshAccount, {
           fee: BASE_FEE,
           networkPassphrase: this.networkPassphrase,
@@ -417,12 +520,12 @@ export class StellarService {
           .setTimeout(30)
           .build()
         if (IS_DEV) {
-          console.log(`[invokeContract] signed ${signed.length} auth entr${signed.length === 1 ? 'y' : 'ies'} for ${params.method}`)
+          logger.debug(`[invokeContract] signed ${signed.length} auth entr${signed.length === 1 ? 'y' : 'ies'} for ${params.method}`)
         }
       }
     } catch (e: any) {
       const errMsg = typeof e === 'object' ? (e?.message ?? e?.data ?? JSON.stringify(e)) : String(e)
-      console.error(`[invokeContract] auth signing failed for ${params.method}`, {
+      logger.error(`[invokeContract] auth signing failed for ${params.method}`, {
         error: errMsg,
         xdrPrefix: txXdr.substring(0, 80),
         source: params.signerSecret.slice(0, 8) + '...',
@@ -434,10 +537,10 @@ export class StellarService {
 
     let sendResult: any
     try {
-      sendResult = await this.soroban.sendTransaction(prepared)
+      sendResult = await withTimeout(this.soroban.sendTransaction(prepared), `[invokeContract ${params.method}]`, 20000)
     } catch (e: any) {
       const errMsg = typeof e === 'object' ? (e?.message ?? e?.data ?? JSON.stringify(e)) : String(e)
-      console.error(`[invokeContract] sendTransaction failed for ${params.method}`, {
+      logger.error(`[invokeContract] sendTransaction failed for ${params.method}`, {
         error: errMsg,
         source: params.signerSecret.slice(0, 8) + '...',
       })
@@ -448,14 +551,53 @@ export class StellarService {
 
     if (sendResult.status === 'ERROR') {
       const errXdr = sendResult.errorResultXdr
-      console.warn(`[invokeContract] sendTransaction ERROR for ${params.method}`, {
+      logger.warn(`[invokeContract] sendTransaction ERROR for ${params.method}`, {
         hash,
         errorResultXdr: errXdr,
       })
-      // Network rejected at submission stage — still return hash so the caller
-      // (invokeContractAndWait or txMonitor) can poll getTransaction for the
-      // final result or retry if needed.
-      return hash
+      // Network rejected at submission stage. Decode the rejection so the
+      // caller can distinguish already-registered (#3/#4) from real failures
+      // instead of silently proceeding.
+      let rejection = 'Transaction rejected by network'
+      if (errXdr) {
+        try {
+          const txRes: any = xdr.TransactionResult.fromXDR(errXdr, 'base64')
+          const opResults = txRes.result().value()
+          const opRes = opResults?.[0]
+          const opCode = opRes?.switch?.()?.name ?? opRes?.switch?.name
+          if (opCode === 'opINNER') {
+            const inner = opRes.value()
+            const innerVal = inner?.value?.() ?? inner?.value
+            const errSwitch = innerVal?.switch?.()?.name ?? innerVal?.switch?.name ?? 'unknown'
+            if (errSwitch === 'scHostError') {
+              const hostErr = innerVal.value()
+              const code = hostErr?.value?.()?.value ?? hostErr?.code
+              rejection = `Error(Contract, #${String(code)})`
+            } else if (errSwitch === 'scContractError') {
+              const contractCode = innerVal.value()
+              rejection = `Error(Contract, #${String(contractCode)})`
+            } else {
+              rejection = `Operation error: ${errSwitch}`
+            }
+          } else {
+            rejection = `Transaction error: ${opCode}`
+          }
+        } catch (e: any) {
+          logger.warn(`[invokeContract] could not decode rejection for ${params.method}:`, e?.message)
+        }
+      } else {
+        // No error XDR — poll briefly; the tx may still be pending.
+        for (let i = 0; i < 15; i++) {
+          const r: any = await withTimeout(this.soroban.getTransaction(hash), '[invokeContract getTransaction]', 15000)
+          if (r.status === 'SUCCESS') return hash
+          if (r.status === 'FAILED') {
+            rejection = `Transaction failed: ${r.resultString || 'no details'}`
+            break
+          }
+          await new Promise(res => setTimeout(res, 1000))
+        }
+      }
+      throw new Error(rejection)
     }
 
     // Fire-and-forget: returns hash immediately, no polling.
@@ -467,7 +609,7 @@ export class StellarService {
     const hash = await this.invokeContract(params)
 
     for (let i = 0; i < 60; i++) {
-      const result: any = await this.soroban.getTransaction(hash)
+      const result: any = await withTimeout(this.soroban.getTransaction(hash), '[invokeContractAndWait getTransaction]', 15000)
       if (result.status === 'SUCCESS') {
         return hash
       }
@@ -486,7 +628,7 @@ export class StellarService {
             msg = `Operation error: ${opCode}`
           }
         } catch (_) {}
-        console.error(`[invokeContractAndWait] transaction FAILED for ${params.method}`, { hash, msg })
+        logger.error(`[invokeContractAndWait] transaction FAILED for ${params.method}`, { hash, msg })
         throw new Error(msg)
       }
       await new Promise(r => setTimeout(r, 1000))
@@ -500,7 +642,7 @@ export class StellarService {
     returnValue?: xdr.ScVal
     error?: string
   }> {
-    const r: any = await this.soroban.getTransaction(hash)
+    const r: any = await withTimeout(this.soroban.getTransaction(hash), '[getTransactionStatus]', 15000)
     return {
       status: r.status,
       returnValue: r.returnValue,
@@ -509,12 +651,16 @@ export class StellarService {
   }
 
   async loadSourceAccount(publicKey: string): Promise<any> {
-    return this.horizon.loadAccount(publicKey)
+    return withTimeout(this.horizon.loadAccount(publicKey), '[loadSourceAccount]', 10000)
   }
 
   async getPaymentStatus(hash: string): Promise<'confirmed' | 'failed' | 'not_found'> {
     try {
-      const tx: any = await this.horizon.transactions().transaction(hash)
+      const tx: any = await withTimeout(
+        (async () => (await this.horizon.transactions().transaction(hash)) as any)(),
+        '[getPaymentStatus]',
+        10000,
+      )
       if (!tx) return 'not_found'
       return tx.successful ? 'confirmed' : 'failed'
     } catch (e: any) {
@@ -532,7 +678,7 @@ export class StellarService {
     // Horizon is the source of the account sequence. Do not block contract
     // reads on `rpc.getAccount`, which is inconsistently supported by RPC
     // providers for classic accounts.
-    const account = await this.horizon.loadAccount(params.source)
+    const account = await withTimeout(this.horizon.loadAccount(params.source), '[readContract]', 10000)
     const contract = new Contract(params.contractId)
 
     const tx = new TransactionBuilder(account, {
@@ -545,10 +691,10 @@ export class StellarService {
 
     const txXdr = tx.toXDR()
     if (IS_DEV) {
-      console.log(`[readContract] tx XDR: ${txXdr.substring(0, 80)}...`)
+      logger.debug(`[readContract] tx XDR: ${txXdr.substring(0, 80)}...`)
     }
 
-    const sim = await this.soroban.simulateTransaction(tx)
+    const sim = await withTimeout(this.soroban.simulateTransaction(tx), `[readContract ${params.method}]`, 20000)
 
     if (rpc.Api.isSimulationError(sim)) {
       throw new Error(sim.error)
@@ -568,7 +714,11 @@ export class StellarService {
       for (let i = 0; i < 3 && records.length < limit; i++) {
         const builder = this.horizon.transactions().forAccount(publicKey).order('desc').limit(limit)
         if (cursor) builder.cursor(cursor)
-        const page: any = await builder.call()
+        const page: any = await withTimeout(
+          (async () => (await builder.call()) as any)(),
+          '[getAccountTransactions]',
+          15000,
+        )
         records.push(...page.records)
         cursor = page.records[page.records.length - 1]?.paging_token
       }
@@ -610,14 +760,14 @@ export function createService(): StellarService {
     const config = require('@/constants/config').Config
     const stellarNetworkConfig = require('@/constants/config').stellarNetwork
     const network: 'testnet' | 'mainnet' = stellarNetworkConfig === 'mainnet' ? 'mainnet' : 'testnet'
-    console.log(`[StellarService] Creating service for ${network}`)
+    logger.debug(`[StellarService] Creating service for ${network}`)
     return new StellarService({
       network,
       sorobanRpcUrl: config.sorobanRpcUrl,
       networkPassphrase: config.networkPassphrase,
     })
   } catch (e) {
-    console.warn('[StellarService] Failed to load config, defaulting to testnet:', e)
+    logger.warn('[StellarService] Failed to load config, defaulting to testnet:', e)
     return new StellarService({ network: 'testnet' })
   }
 }

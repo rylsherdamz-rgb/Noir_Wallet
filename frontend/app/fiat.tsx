@@ -104,7 +104,9 @@ export default function FiatScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="Close"
+        >
           <Ionicons name="close" size={24} color={Colors.white} />
         </PressableScale>
         <Text style={styles.headerTitle}>

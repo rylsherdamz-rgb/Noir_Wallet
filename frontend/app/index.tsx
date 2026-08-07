@@ -48,7 +48,7 @@ export default function Index() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#000000', '#0A0A0A', '#000000']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={[Colors.black, Colors.surfaceBg, Colors.black]} style={StyleSheet.absoluteFill} />
       <LinearGradient
         colors={['transparent', Colors.gold + '06', 'transparent']}
         locations={[0, 0.5, 1]}

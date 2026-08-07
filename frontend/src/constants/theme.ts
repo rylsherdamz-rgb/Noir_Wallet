@@ -39,12 +39,18 @@ export const Colors = {
   danger: DesignTokens.colors.semantic.danger,
   error: DesignTokens.colors.semantic.error,
 
+  // Text/glyphs on a gold fill
+  onGold: DesignTokens.colors.special.onGold,
+
   // Legacy aliases
   accentGreen: DesignTokens.colors.semantic.success,
   accentRed: DesignTokens.colors.semantic.danger,
   accentYellow: DesignTokens.colors.semantic.warning,
   overlay: DesignTokens.colors.special.overlay,
 }
+
+/** Gradient stops and near-black elevations. See DesignTokens.colors.gradient. */
+export const Gradient = DesignTokens.colors.gradient
 
 // Backward compatible spacing exports
 export const Spacing = {
@@ -66,6 +72,27 @@ export const FontSize = {
   xxl: DesignTokens.typography.size.xxl,
   xxxl: DesignTokens.typography.size.xxxl,
   hero: DesignTokens.typography.size.hero,
+}
+
+/**
+ * Dynamic Type caps.
+ *
+ * Text should scale with the user's system font size — that is the whole point
+ * of the setting. But a few layouts are geometry-bound and simply clip at the
+ * largest accessibility sizes: the fixed-diameter keypad keys, and the
+ * label/value rows that must stay on one line to stay readable.
+ *
+ * Passing one of these as `maxFontSizeMultiplier` lets those elements grow as
+ * far as they can and then stop, instead of either ignoring the setting
+ * outright or overflowing. Everything else should stay uncapped.
+ */
+export const FontScaleCap = {
+  /** Fixed-size circular controls (numeric keypad). */
+  keypad: 1.3,
+  /** Two-column label/value rows that must not wrap. */
+  row: 1.4,
+  /** Large display numerals that would otherwise push content off-screen. */
+  display: 1.2,
 }
 
 // Backward compatible font weight exports

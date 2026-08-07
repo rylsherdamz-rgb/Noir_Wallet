@@ -75,26 +75,34 @@ export function ReadyToTapIndicator({
 
   // Glow animation
   useEffect(() => {
-    if (isActive && (state === 'active' || state === 'processing')) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(glowAnim, {
-            toValue: 1,
-            duration: 1500,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(glowAnim, {
-            toValue: 0,
-            duration: 1500,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-        ]),
-      ).start()
-    } else {
+    if (!isActive || (state !== 'active' && state !== 'processing')) {
       glowAnim.setValue(0)
+      return
     }
+
+    // The loop has to be captured and stopped on cleanup, exactly as the pulse
+    // and rotate effects above do. `setValue(0)` does not halt a running loop —
+    // it only moves the value, so the animation kept running for the lifetime
+    // of the screen.
+    const glow = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, {
+          toValue: 1,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(glowAnim, {
+          toValue: 0,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    )
+
+    glow.start()
+    return () => glow.stop()
   }, [isActive, state])
 
   // Success/Error animation

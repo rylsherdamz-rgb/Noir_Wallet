@@ -58,6 +58,41 @@ export const DesignTokens = {
       goldGlow: 'rgba(198, 161, 91, 0.3)',
       black: '#000000',
       white: '#FFFFFF',
+      /**
+       * Text and glyphs sitting *on* a gold fill. Near-black with a gold tint
+       * so it reads as part of the brand rather than as pure black on gold.
+       */
+      onGold: '#151107',
+    },
+
+    /**
+     * Gradient stops and the near-black elevations between `surface.bg` and
+     * `surface.card`. These were previously written as loose hex literals at
+     * ~30 call sites, which is how the palette drifted out of the token file.
+     */
+    gradient: {
+      /** Deepest stop — sits under `surface.bg`. */
+      base: '#0D0D0D',
+      /** Panel/metric fill, a touch above the app background. */
+      raised: '#0E0E0E',
+      /** Mid stop for card gradients. */
+      mid: '#101010',
+      /** Upper stop for card gradients. */
+      high: '#161616',
+      /** Elevated card top stop. */
+      elevated: '#191919',
+      /** Highest dark stop, used for hero gradients. */
+      peak: '#1A1A1A',
+      /** Track fill behind progress bars. */
+      track: '#1B1B1B',
+      /** Divider-weight fill on raised panels. */
+      panel: '#242424',
+      /** Gold gradient highlight. */
+      goldLight: '#E9C482',
+      /** Gold gradient mid-shadow. */
+      goldShade: '#8F6C33',
+      /** Gold gradient deepest shadow. */
+      goldDark: '#6E5327',
     },
   },
 

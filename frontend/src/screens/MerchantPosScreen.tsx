@@ -24,6 +24,7 @@ import { NumericKeypad } from '@/components/NumericKeypad'
 import { ReadyToTapIndicator } from '@/components/ReadyToTapIndicator'
 import { DesignTokens } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { logger } from '@/lib/logger'
 
 export function MerchantPosScreen() {
   const router = useRouter()
@@ -76,7 +77,7 @@ export function MerchantPosScreen() {
       tag = await nfcService.readTag(10000) // 10 second timeout
 
       if (!tag) {
-        console.log('No NFC tag detected')
+        logger.debug('No NFC tag detected')
         setPaymentState('error')
         if (Platform.OS !== 'web') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
@@ -85,21 +86,21 @@ export function MerchantPosScreen() {
         return
       }
 
-      console.log('NFC tag detected:', tag.uid)
+      logger.debug('NFC tag detected:', tag.uid)
       const scanned = tag
 
       // Hash the UID
       const hashBytes = sha256(new TextEncoder().encode(scanned.uid))
       scannedHash = Buffer.from(hashBytes).toString('hex')
 
-      console.log('Tag hash:', scannedHash)
+      logger.debug('Tag hash:', scannedHash)
 
       const linkedDevice = devices.find((d) => d.deviceUidHash === scannedHash)
       const hasAgent = await x402.hasAgent()
       let txHash: string | null = null
 
       if (hasAgent && linkedDevice?.agentPublicKey) {
-        console.log('Paying from agent wallet')
+        logger.debug('Paying from agent wallet')
         setAgentMode(true)
         const result = await x402.payWithAgent({
           destination: user?.stellarPublicKey || '',
@@ -111,7 +112,7 @@ export function MerchantPosScreen() {
         // Passive NFC card: it only carries a UID and cannot sign. The merchant
         // sends the UID + amount to the backend, which signs from the card's
         // custodied wallet and fee-bumps it. Verified end-to-end on testnet.
-        console.log('Using custodial UID-authorized tap payment')
+        logger.debug('Using custodial UID-authorized tap payment')
         const merchant = user?.stellarPublicKey || ''
         if (!merchant) throw new Error('No merchant wallet configured')
 
@@ -131,7 +132,7 @@ export function MerchantPosScreen() {
       }
 
       if (txHash) {
-        console.log('Payment queued:', txHash)
+        logger.debug('Payment queued:', txHash)
         setPaymentState('success')
 
         const { addPendingTxHash } = useAppStore.getState()
@@ -159,7 +160,7 @@ export function MerchantPosScreen() {
         }, 2000)
       }
     } catch (err: any) {
-      console.error('Payment error:', err)
+      logger.error('Payment error:', err)
       setPaymentState('error')
       setLastError(err?.message ?? 'Unknown error')
       if (Platform.OS !== 'web') {

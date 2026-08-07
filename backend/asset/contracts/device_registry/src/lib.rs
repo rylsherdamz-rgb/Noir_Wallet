@@ -70,7 +70,7 @@ impl DeviceRegistry {
         wallet.require_auth();
 
         let device_key = DataKey::Device(device_hash.clone());
-        let mut info: DeviceInfo = env.storage().persistent()
+        let info: DeviceInfo = env.storage().persistent()
             .get(&device_key)
             .unwrap_or_else(|| panic_with_error!(&env, Error::DeviceNotFound));
 
@@ -78,8 +78,41 @@ impl DeviceRegistry {
             panic_with_error!(&env, Error::NotOwner);
         }
 
-        info.status = 1;
-        env.storage().persistent().set(&device_key, &info);
+        // Fully remove the device so it can be registered again. A soft status
+        // flag would leave the entry behind and block re-registration with
+        // Error::AlreadyRegistered.
+
+        // Compaction: walk the wallet's index list, drop the released slot, and
+        // shift the remaining entries so the list stays dense.
+        let count_key = DataKey::WalletDeviceCount(wallet.clone());
+        let count: u32 = env.storage().persistent().get(&count_key).unwrap_or(0);
+
+        let mut released: i64 = -1;
+        for i in 0..count {
+            let slot_key = DataKey::WalletDeviceByIndex(wallet.clone(), i);
+            let stored: BytesN<32> = env.storage().persistent()
+                .get(&slot_key)
+                .unwrap_or_else(|| panic_with_error!(&env, Error::DeviceNotFound));
+            if stored == device_hash {
+                released = i as i64;
+            }
+        }
+
+        if released >= 0 {
+            let released = released as u32;
+            for i in released..count {
+                let from = DataKey::WalletDeviceByIndex(wallet.clone(), i + 1);
+                if env.storage().persistent().has(&from) {
+                    let next: BytesN<32> = env.storage().persistent().get::<_, BytesN<32>>(&from)
+                        .unwrap_or_else(|| panic_with_error!(&env, Error::DeviceNotFound));
+                    env.storage().persistent().set(&DataKey::WalletDeviceByIndex(wallet.clone(), i), &next);
+                    env.storage().persistent().remove(&from);
+                }
+            }
+            env.storage().persistent().set(&count_key, &(count - 1));
+        }
+
+        env.storage().persistent().remove(&device_key);
 
         env.events().publish((symbol_short!("revoke"), device_hash), ());
     }

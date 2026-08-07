@@ -25,6 +25,7 @@ import { stellarService } from '@/services/stellar-service'
 import { AppConfig } from '@/constants/config'
 import { Device } from '@/types'
 import { useRouter } from 'expo-router'
+import { logger } from '@/lib/logger'
 
 type Step = 'intro' | 'scanning' | 'confirm' | 'registering' | 'success' | 'error'
 
@@ -181,7 +182,7 @@ export function DeviceProvisioningScreen() {
         setNfcWritten(true)
       } catch (e: any) {
         setNfcWritten(false)
-        console.warn('NFC write failure (non-blocking):', e?.message)
+        logger.warn('NFC write failure (non-blocking):', e?.message)
       }
 
       setStatusMessage('Confirmed on-chain!')
@@ -401,6 +402,8 @@ export function DeviceProvisioningScreen() {
               onPress={goToNfcSettings}
               disabled={!isSupported}
              
+            
+              accessibilityLabel="Settings"
             >
               <Ionicons name="settings-outline" size={20} color={Colors.black} />
               <Text style={styles.primaryBtnText}>Open NFC Settings</Text>

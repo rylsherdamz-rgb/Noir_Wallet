@@ -1,59 +1,48 @@
-use crate::cache::TransactionCache;
-use crate::crypto::KeyManager;
-use crate::db::DeviceRepository;
-use crate::fees::FeeChannelManager;
+use crate::db::Repository;
 use crate::metrics::MetricsCollector;
 use crate::pdax::PdaxClient;
 use crate::rate_limiter::RateLimiter;
-use crate::stellar::StellarClient;
-use crate::validation::DeviceValidator;
 use sqlx::PgPool;
 use std::sync::Arc;
 
+/// Shared state for the PDAX bridge.
+///
+/// Notably absent: any Stellar client, any signing key, any key manager. The
+/// backend no longer builds, signs, or submits transactions, and holds no
+/// wallet secrets — those moved on-chain with the payment path.
 pub struct AppState {
-    pub db_pool: PgPool,
-    pub db: Arc<DeviceRepository>,
-    pub stellar_client: Arc<StellarClient>,
+    pub db: Arc<Repository>,
     pub pdax_client: Arc<PdaxClient>,
-    pub validator: Arc<DeviceValidator>,
-    pub fee_manager: Arc<FeeChannelManager>,
     pub metrics: Arc<MetricsCollector>,
-    pub tx_cache: TransactionCache,
     pub rate_limiter: Arc<RateLimiter>,
-    pub api_key: String,
-    /// Envelope-encryption key manager for custodied card wallets (set in main).
-    pub key_manager: Option<Arc<dyn KeyManager>>,
-    /// Channel signing key (S...) used to fee-bump custodial tap payments.
-    pub channel_secret_key: String,
-    /// Stellar network name (testnet/mainnet) for tx building.
-    pub network: String,
+    /// HMAC secret for verifying PDAX settlement webhooks. Read from config at
+    /// startup rather than from the environment per request.
+    pub pdax_webhook_secret: String,
+    /// How long an issued session stays valid.
+    pub session_ttl_secs: i64,
+    /// How long an auth challenge stays claimable.
+    pub challenge_ttl_secs: i64,
 }
 
 impl AppState {
     pub fn new(
         db_pool: PgPool,
-        stellar_client: StellarClient,
         pdax_client: PdaxClient,
-        fee_channels: Vec<String>,
-        api_key: String,
+        rate_limiter: RateLimiter,
+        pdax_webhook_secret: String,
+        session_ttl_secs: i64,
+        challenge_ttl_secs: i64,
     ) -> Self {
-        let db = Arc::new(DeviceRepository::new(db_pool.clone()));
-        let validator = Arc::new(DeviceValidator::new(db.clone()));
+        let db = Arc::new(Repository::new(db_pool));
 
         AppState {
-            db_pool,
             db,
-            stellar_client: Arc::new(stellar_client),
             pdax_client: Arc::new(pdax_client),
-            validator,
-            fee_manager: Arc::new(FeeChannelManager::new(fee_channels)),
             metrics: Arc::new(MetricsCollector::new()),
-            tx_cache: TransactionCache::new(300),
-            rate_limiter: Arc::new(RateLimiter::new(60, 10)),
-            api_key,
-            key_manager: None,
-            channel_secret_key: String::new(),
-            network: "testnet".to_string(),
+            rate_limiter: Arc::new(rate_limiter),
+            pdax_webhook_secret,
+            session_ttl_secs,
+            challenge_ttl_secs,
         }
     }
 }

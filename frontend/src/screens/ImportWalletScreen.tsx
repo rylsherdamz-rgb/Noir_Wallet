@@ -48,7 +48,9 @@ export function ImportWalletScreen({ onComplete, onBack }: ImportWalletScreenPro
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <PressableScale onPress={onBack} style={styles.backBtn}>
+        <PressableScale onPress={onBack} style={styles.backBtn}
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
         </PressableScale>
 

@@ -179,6 +179,22 @@ vi.mock('expo-modules-core', () => ({
   requireNativeViewManager: vi.fn(() => ({})),
 }))
 
+// Mock expo-local-authentication (native biometric APIs)
+vi.mock('expo-local-authentication', () => ({
+  hasHardwareAsync: vi.fn().mockResolvedValue(true),
+  isEnrolledAsync: vi.fn().mockResolvedValue(true),
+  supportedAuthenticationTypesAsync: vi.fn().mockResolvedValue([1]),
+  authenticateAsync: vi.fn().mockResolvedValue({ success: true }),
+  AuthenticationType: { FINGERPRINT: 1, FACIAL_RECOGNITION: 2, IRIS: 3 },
+}))
+
+// Mock expo-screen-capture (native screenshot blocking)
+vi.mock('expo-screen-capture', () => ({
+  usePreventScreenCapture: vi.fn(),
+  preventScreenCaptureAsync: vi.fn().mockResolvedValue(undefined),
+  allowScreenCaptureAsync: vi.fn().mockResolvedValue(undefined),
+}))
+
 // Mock expo-clipboard
 vi.mock('expo-clipboard', () => ({
   default: { setStringAsync: vi.fn(), getStringAsync: vi.fn() },

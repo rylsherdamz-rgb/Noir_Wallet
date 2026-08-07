@@ -3,7 +3,7 @@ import { PressableScale } from '@/components/brand/PressableScale'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { DesignTokens } from '@/constants/designTokens'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius, FontScaleCap } from '@/constants/theme'
 
 const SCREEN_WIDTH = Dimensions.get('window').width
 const KEY_SIZE = Math.min(Math.floor((SCREEN_WIDTH - Spacing.lg * 2 - Spacing.md * 4) / 3), 80)
@@ -66,7 +66,9 @@ export function NumericKeypad({
                   accessibilityRole="button"
                   accessibilityLabel="Clear all"
                 >
-                  <Text style={styles.specialKeyText}>Clear</Text>
+                  <Text style={styles.specialKeyText} maxFontSizeMultiplier={FontScaleCap.keypad}>
+                    Clear
+                  </Text>
                 </PressableScale>
               )
             }
@@ -93,7 +95,9 @@ export function NumericKeypad({
                 accessibilityRole="button"
                 accessibilityLabel={`Digit ${key}`}
               >
-                <Text style={styles.keyText}>{key}</Text>
+                <Text style={styles.keyText} maxFontSizeMultiplier={FontScaleCap.keypad}>
+                  {key}
+                </Text>
               </PressableScale>
             )
           })}

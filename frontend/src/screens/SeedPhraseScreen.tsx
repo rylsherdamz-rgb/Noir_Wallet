@@ -7,7 +7,8 @@ import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants
 import { NoirLogo } from '@/components/brand/NoirLogo'
 import { Button } from '@/components/Button'
 import { walletService, WalletKeys } from '@/services/wallet'
-import * as Clipboard from 'expo-clipboard'
+import { usePreventScreenCapture } from 'expo-screen-capture'
+import { logger } from '@/lib/logger'
 
 interface SeedPhraseScreenProps {
   onNext: (keys: WalletKeys) => void | Promise<void>
@@ -15,20 +16,18 @@ interface SeedPhraseScreenProps {
 }
 
 export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
+  // Blocks screenshots and screen recording while this screen is mounted. The
+  // recovery phrase is the wallet — a screenshot puts it in the photo library,
+  // which syncs to the cloud.
+  usePreventScreenCapture('seed-phrase')
+
   const [phrase, setPhrase] = useState<string[]>([])
   const [revealed, setRevealed] = useState(false)
-  const [copied, setCopied] = useState(false)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     walletService.generateMnemonic().then((m) => setPhrase(m.split(' ')))
   }, [])
-
-  const handleCopy = async () => {
-    await Clipboard.setStringAsync(phrase.join(' '))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
 
   const handleConfirm = async () => {
     setLoading(true)
@@ -42,7 +41,7 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
       })
       await onNext(keys)
     } catch (e) {
-      console.error('Failed to save keys:', e)
+      logger.error('Failed to save keys:', e)
       setLoading(false)
     }
   }
@@ -50,7 +49,9 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <PressableScale onPress={onBack} style={styles.backBtn}>
+        <PressableScale onPress={onBack} style={styles.backBtn}
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
         </PressableScale>
 
@@ -69,7 +70,9 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
 
         <View style={styles.phraseBox}>
           {!revealed ? (
-            <PressableScale style={styles.revealBtn} onPress={() => setRevealed(true)}>
+            <PressableScale style={styles.revealBtn} onPress={() => setRevealed(true)}
+              accessibilityLabel="Show"
+            >
               <Ionicons name="eye-outline" size={24} color={Colors.gold} />
               <Text style={styles.revealText}>Tap to reveal phrase</Text>
             </PressableScale>
@@ -86,12 +89,10 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
         </View>
 
         {revealed && (
-          <PressableScale style={styles.copyBtn} onPress={handleCopy}>
-            <Ionicons name="copy-outline" size={18} color={copied ? Colors.success : Colors.gold} />
-            <Text style={[styles.copyText, copied && { color: Colors.success }]}>
-              {copied ? 'Copied!' : 'Copy to Clipboard'}
-            </Text>
-          </PressableScale>
+          <Text style={styles.copyNote}>
+            Copying is disabled on purpose — the clipboard syncs across your devices and is
+            readable by other apps. Write the words down instead.
+          </Text>
         )}
 
         <View style={styles.actions}>
@@ -121,7 +122,6 @@ const styles = StyleSheet.create({
   wordRow: { flexDirection: 'row', alignItems: 'center', width: '33%', paddingVertical: Spacing.xs },
   wordNum: { fontSize: FontSize.xs, color: Colors.mutedWhite, width: 24, textAlign: 'right', marginRight: 4 },
   word: { fontSize: FontSize.md, color: Colors.white, fontWeight: FontWeight.medium },
-  copyBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, marginTop: Spacing.md, paddingVertical: Spacing.sm },
-  copyText: { fontSize: FontSize.sm, color: Colors.gold, fontWeight: FontWeight.medium },
+  copyNote: { fontSize: FontSize.xs, color: Colors.mutedWhite, textAlign: 'center', marginTop: Spacing.md, lineHeight: 18 },
   actions: { marginTop: Spacing.xl, gap: Spacing.md },
 })

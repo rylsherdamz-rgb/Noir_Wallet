@@ -36,14 +36,76 @@ export const stellarNetwork: 'testnet' | 'mainnet' =
 
 export const apiKey = process.env.EXPO_PUBLIC_API_KEY ?? ''
 
-export const AppConfig = {
-  appName: 'Noir Wallet',
-  appVersion: Constants.expoConfig?.version ?? '1.0.0',
-  stellar: {
+/**
+ * Contract IDs per network.
+ *
+ * A contract deployed to testnet does not exist on mainnet. The network toggle
+ * used to re-point the RPC while leaving a single set of contract IDs in place,
+ * so switching to mainnet sent calls to addresses that resolve nowhere.
+ *
+ * `process.env` keys must be written out literally — Expo inlines them at build
+ * time and cannot resolve a computed key.
+ */
+const CONTRACTS = {
+  testnet: {
     issuerAddress: process.env.EXPO_PUBLIC_ISSUER_ADDRESS ?? '',
     deviceRegistryContract: process.env.EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT ?? '',
     agentRegistryContract: process.env.EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT ?? '',
     paymentEscrowContract: process.env.EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT ?? '',
+  },
+  mainnet: {
+    issuerAddress: process.env.EXPO_PUBLIC_ISSUER_ADDRESS_MAINNET ?? '',
+    deviceRegistryContract: process.env.EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT_MAINNET ?? '',
+    agentRegistryContract: process.env.EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT_MAINNET ?? '',
+    paymentEscrowContract: process.env.EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT_MAINNET ?? '',
+  },
+} as const
+
+export type StellarNetworkName = keyof typeof CONTRACTS
+
+export function contractsFor(network: StellarNetworkName) {
+  return CONTRACTS[network]
+}
+
+/**
+ * The network the app is currently pointed at. Held here rather than read from
+ * the store so `config` stays free of a circular import; the store's
+ * `setNetwork` is the single writer.
+ */
+let activeNetwork: StellarNetworkName = stellarNetwork
+
+export function setActiveContractNetwork(network: StellarNetworkName): void {
+  activeNetwork = network
+}
+
+export function getActiveContractNetwork(): StellarNetworkName {
+  return activeNetwork
+}
+
+/** False when the given network has no deployment recorded for the contract chain. */
+export function hasContractsConfigured(network: StellarNetworkName = activeNetwork): boolean {
+  const c = CONTRACTS[network]
+  return Boolean(c.deviceRegistryContract && c.agentRegistryContract && c.paymentEscrowContract)
+}
+
+export const AppConfig = {
+  appName: 'Noir Wallet',
+  appVersion: Constants.expoConfig?.version ?? '1.0.0',
+  // Getters, so every existing `AppConfig.stellar.x` read resolves against the
+  // network that is live right now rather than the one present at import time.
+  stellar: {
+    get issuerAddress() {
+      return CONTRACTS[activeNetwork].issuerAddress
+    },
+    get deviceRegistryContract() {
+      return CONTRACTS[activeNetwork].deviceRegistryContract
+    },
+    get agentRegistryContract() {
+      return CONTRACTS[activeNetwork].agentRegistryContract
+    },
+    get paymentEscrowContract() {
+      return CONTRACTS[activeNetwork].paymentEscrowContract
+    },
   },
   nfc: {
     readTimeout: 5000,
