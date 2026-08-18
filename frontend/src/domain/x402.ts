@@ -213,7 +213,6 @@ export const x402 = {
       logger.debug(`[x402] agent pre-check failed (falling back to write): ${e?.message ?? e}`)
     }
 
-    let registerSubmitted = false
     if (!deviceRegistered) {
       try {
         await stellarService.invokeContract({
@@ -223,16 +222,15 @@ export const x402 = {
           signerSecret: params.walletSecret,
           sourceAccount: account,
         })
-        registerSubmitted = true
       } catch (e: any) {
         if (!isAlreadyRegistered(e)) throw e
       }
     }
 
-    // Only bump the in-memory sequence if a tx actually went out. If register
-    // failed at simulation (e.g. AlreadyRegistered), no tx consumed a sequence
-    // number, and bumping anyway makes register_agent submit a bad sequence.
-    if (registerSubmitted) account.incrementSequenceNumber()
+    // No manual sequence bump: the v16 TransactionBuilder auto-increments the
+    // in-memory account on every build(). If the in-memory sequence ever
+    // drifts from the chain, invokeContract's txBadSeq retry reloads the
+    // account from Horizon and retries with the correct sequence.
 
     if (!agentRegistered) {
       try {

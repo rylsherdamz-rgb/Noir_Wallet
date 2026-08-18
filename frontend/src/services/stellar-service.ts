@@ -22,6 +22,14 @@ declare const __DEV__: boolean | undefined
 
 const IS_DEV = typeof __DEV__ !== 'undefined' ? __DEV__ : false
 
+/** Thrown when the network rejects a tx because the sequence number is stale. */
+class StaleSequenceError extends Error {
+  constructor() {
+    super('txBadSeq')
+    this.name = 'StaleSequenceError'
+  }
+}
+
 TransactionBase.prototype.toXDR = function () {
   const raw = this.toEnvelope().toXDR()
   return Buffer.from(raw).toString('base64')
@@ -403,6 +411,27 @@ export class StellarService {
   }
 
   async invokeContract(params: InvokeParams): Promise<string> {
+    try {
+      return await this.invokeContractAttempt(params)
+    } catch (e: any) {
+      // A pre-loaded account (or a lagging Horizon response) can carry a stale
+      // sequence number, which the network rejects with txBadSeq. Reload the
+      // account from Horizon and retry once before surfacing the error.
+      if (e instanceof StaleSequenceError) {
+        const sourceKp = Keypair.fromSecret(params.signerSecret)
+        const freshAccount = await withTimeout(
+          this.horizon.loadAccount(sourceKp.publicKey()),
+          '[invokeContract retry loadAccount]',
+          10000,
+        )
+        logger.warn(`[invokeContract] stale sequence — reloaded account and retried once for ${params.method}`)
+        return await this.invokeContractAttempt({ ...params, sourceAccount: freshAccount })
+      }
+      throw e
+    }
+  }
+
+  async invokeContractAttempt(params: InvokeParams): Promise<string> {
     const sourceKp = Keypair.fromSecret(params.signerSecret)
     const sourcePub = sourceKp.publicKey()
     logger.debug(`[invokeContract] source=${sourcePub.slice(0, 8)}... method=${params.method} network=${this.network}`)
@@ -416,6 +445,10 @@ export class StellarService {
     }
 
     // Obtain the sequence from Horizon, or use a pre-loaded account.
+    // TransactionBuilder emits `source.sequenceNumber() + 1` (verified on the
+    // axios/esm build Metro resolves). AccountResponse.sequenceNumber() is the
+    // raw Horizon `sequence` (last-used), so the built tx gets the next valid
+    // sequence. Do NOT pre-seed +1 here — the builder already adds it.
     let account
     if (params.sourceAccount) {
       account = params.sourceAccount
@@ -503,22 +536,17 @@ export class StellarService {
           )
         )
 
-        // Rebuild with signed auth — use the *original* TransactionBuilder
-        // (not cloneFrom) and attach the sorobanData from the assembled tx.
-        const sorobanData = env.v1().tx().ext().sorobanData()
-        const newOp = Operation.invokeHostFunction({
-          func: invokeBody.hostFunction(),
-          auth: signed,
-        })
-        const freshAccount = params.sourceAccount ?? await withTimeout(this.horizon.loadAccount(sourcePub), '[invokeContract loadAccount]', 10000)
-        prepared = new TransactionBuilder(freshAccount, {
-          fee: BASE_FEE,
-          networkPassphrase: this.networkPassphrase,
-          sorobanData,
-        })
-          .addOperation(newOp)
-          .setTimeout(30)
-          .build()
+        // Rebuild with signed auth — mutate the assembled envelope in place
+        // (it already carries the correct sequence, fees, and sorobanData)
+        // and wrap it with fromXDR. Do NOT rebuild via
+        // `new TransactionBuilder(sourceAccount, ...)`: build() emits
+        // source.sequenceNumber() + 1 AND increments the source, so reusing
+        // the (already-incremented) account emits seq +2 → txBadSeq.
+        const env = xdr.TransactionEnvelope.fromXDR(prepared.toXDR(), 'base64')
+        const ops = env.v1().tx().operations()
+        const invokeBody = ops[0].body().value() as xdr.InvokeHostFunctionOp
+        invokeBody.auth(signed)
+        prepared = TransactionBuilder.fromXDR(env, this.networkPassphrase)
         if (IS_DEV) {
           logger.debug(`[invokeContract] signed ${signed.length} auth entr${signed.length === 1 ? 'y' : 'ies'} for ${params.method}`)
         }
@@ -550,6 +578,11 @@ export class StellarService {
     const hash = sendResult.hash
 
     if (sendResult.status === 'ERROR') {
+      // SDK v16: `parseRawSendTransaction` deletes `errorResultXdr` from the
+      // response and exposes a decoded `errorResult` (TransactionResult)
+      // instead — `errorResultXdr` is always undefined here. Decode
+      // `errorResult` first, fall back to the raw XDR for older SDKs.
+      const decodedResult: any = sendResult.errorResult
       const errXdr = sendResult.errorResultXdr
       logger.warn(`[invokeContract] sendTransaction ERROR for ${params.method}`, {
         hash,
@@ -559,36 +592,55 @@ export class StellarService {
       // caller can distinguish already-registered (#3/#4) from real failures
       // instead of silently proceeding.
       let rejection = 'Transaction rejected by network'
-      if (errXdr) {
+      let txResult: any = decodedResult
+      if (!txResult && errXdr) {
         try {
-          const txRes: any = xdr.TransactionResult.fromXDR(errXdr, 'base64')
-          const opResults = txRes.result().value()
-          const opRes = opResults?.[0]
-          const opCode = opRes?.switch?.()?.name ?? opRes?.switch?.name
-          if (opCode === 'opINNER') {
-            const inner = opRes.value()
-            const innerVal = inner?.value?.() ?? inner?.value
-            const errSwitch = innerVal?.switch?.()?.name ?? innerVal?.switch?.name ?? 'unknown'
-            if (errSwitch === 'scHostError') {
-              const hostErr = innerVal.value()
-              const code = hostErr?.value?.()?.value ?? hostErr?.code
-              rejection = `Error(Contract, #${String(code)})`
-            } else if (errSwitch === 'scContractError') {
-              const contractCode = innerVal.value()
-              rejection = `Error(Contract, #${String(contractCode)})`
+          txResult = xdr.TransactionResult.fromXDR(errXdr, 'base64')
+        } catch (e: any) {
+          logger.warn(`[invokeContract] could not decode rejection for ${params.method}:`, e?.message)
+        }
+      }
+      if (txResult) {
+        try {
+          const code = txResult.result().switch().name
+          if (code === 'txBadSeq') {
+            // Sequence number is stale (pre-loaded account or Horizon lag).
+            throw new StaleSequenceError()
+          }
+          if (code === 'txFailed') {
+            const opResults = txResult.result().value()
+            const opRes = opResults?.[0]
+            const opCode = opRes?.switch?.()?.name ?? opRes?.switch?.name
+            if (opCode === 'opINNER') {
+              const inner = opRes.value()
+              const innerVal = inner?.value?.() ?? inner?.value
+              const errSwitch = innerVal?.switch?.()?.name ?? innerVal?.switch?.name ?? 'unknown'
+              if (errSwitch === 'scHostError') {
+                const hostErr = innerVal.value()
+                const code = hostErr?.value?.()?.value ?? hostErr?.code
+                rejection = `Error(Contract, #${String(code)})`
+              } else if (errSwitch === 'scContractError') {
+                const contractCode = innerVal.value()
+                rejection = `Error(Contract, #${String(contractCode)})`
+              } else {
+                rejection = `Operation error: ${errSwitch}`
+              }
             } else {
-              rejection = `Operation error: ${errSwitch}`
+              rejection = `Transaction error: ${opCode}`
             }
           } else {
-            rejection = `Transaction error: ${opCode}`
+            rejection = `Transaction rejected: ${code}`
           }
         } catch (e: any) {
+          if (e instanceof StaleSequenceError) throw e
           logger.warn(`[invokeContract] could not decode rejection for ${params.method}:`, e?.message)
         }
       } else {
         // No error XDR — poll briefly; the tx may still be pending.
-        for (let i = 0; i < 15; i++) {
-          const r: any = await withTimeout(this.soroban.getTransaction(hash), '[invokeContract getTransaction]', 15000)
+        // Bounded: a long silent poll (was 15×15s ≈ 4 min) made the NFC flow
+        // appear frozen. 3×2s is enough to catch a tx that did get in.
+        for (let i = 0; i < 3; i++) {
+          const r: any = await withTimeout(this.soroban.getTransaction(hash), '[invokeContract getTransaction]', 2000)
           if (r.status === 'SUCCESS') return hash
           if (r.status === 'FAILED') {
             rejection = `Transaction failed: ${r.resultString || 'no details'}`
@@ -597,6 +649,7 @@ export class StellarService {
           await new Promise(res => setTimeout(res, 1000))
         }
       }
+      logger.warn(`[invokeContract] rejected ${params.method}: ${rejection}`, { hash })
       throw new Error(rejection)
     }
 
@@ -608,8 +661,10 @@ export class StellarService {
   async invokeContractAndWait(params: InvokeParams): Promise<string> {
     const hash = await this.invokeContract(params)
 
-    for (let i = 0; i < 60; i++) {
-      const result: any = await withTimeout(this.soroban.getTransaction(hash), '[invokeContractAndWait getTransaction]', 15000)
+    // Bounded polling: 15×4s ≈ 60s max. A 15-minute silent loop made the
+    // NFC linking flow appear frozen when the tx was actually lost.
+    for (let i = 0; i < 15; i++) {
+      const result: any = await withTimeout(this.soroban.getTransaction(hash), '[invokeContractAndWait getTransaction]', 4000)
       if (result.status === 'SUCCESS') {
         return hash
       }
@@ -634,7 +689,7 @@ export class StellarService {
       await new Promise(r => setTimeout(r, 1000))
     }
 
-    throw new Error('Transaction timed out after 60s')
+    throw new Error('Transaction timed out after ~60s')
   }
 
   async getTransactionStatus(hash: string): Promise<{
@@ -651,6 +706,12 @@ export class StellarService {
   }
 
   async loadSourceAccount(publicKey: string): Promise<any> {
+    // Return the raw AccountResponse. TransactionBuilder emits
+    // `source.sequenceNumber() + 1` (verified on the axios/esm build Metro
+    // resolves), and AccountResponse.sequenceNumber() is the raw Horizon
+    // `sequence` (last-used) — so the built tx carries the next valid
+    // sequence. in-memory incrementSequenceNumber() works for two-step flows
+    // (register → register_agent). Do NOT pre-seed +1: the builder adds it.
     return withTimeout(this.horizon.loadAccount(publicKey), '[loadSourceAccount]', 10000)
   }
 
