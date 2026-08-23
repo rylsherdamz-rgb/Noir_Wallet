@@ -3,6 +3,12 @@ name: Deploy to Cloud Run
 on:
   push:
     branches: [main]
+    # Only run when the backend actually changes. Landing page, docs, video,
+    # and promo commits were previously triggering full Rust test runs plus
+    # Docker builds and Artifact Registry pushes for nothing.
+    paths:
+      - 'backend/asset/backend/**'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
 env:
@@ -10,10 +16,37 @@ env:
   REGION: us-central1
   SERVICE: noir-backend
 
+concurrency:
+  group: cloud-run-deploy
+  cancel-in-progress: true
+
 jobs:
-  # Nothing ships without a green build and test run. Previously every push to
-  # main went straight to Cloud Run with no verification at all.
+  # Fail in seconds with an actionable message instead of burning a five
+  # minute Docker build before dying on "billing must be enabled".
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify GCP secrets are configured
+        env:
+          WIF_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          SA_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+        run: |
+          missing=0
+          if [ -z "$WIF_PROVIDER" ]; then
+            echo "::error::Secret GCP_WORKLOAD_IDENTITY_PROVIDER is not set."
+            missing=1
+          fi
+          if [ -z "$SA_EMAIL" ]; then
+            echo "::error::Secret GCP_SERVICE_ACCOUNT is not set."
+            missing=1
+          fi
+          if [ $missing -eq 1 ]; then
+            echo "::error::Configure the GCP secrets under Settings > Secrets and variables > Actions, or remove this workflow."
+            exit 1
+          fi
+
   test:
+    needs: preflight
     runs-on: ubuntu-latest
 
     services:
