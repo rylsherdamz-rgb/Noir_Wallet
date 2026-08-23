@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
+import { colorWithOpacity } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius, FontScaleCap } from '@/constants/theme'
 import { TxFilter } from '@/types'
 
@@ -62,7 +63,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderGrey,
   },
   chipActive: {
-    backgroundColor: Colors.gold + '20',
+    backgroundColor: colorWithOpacity(Colors.gold, 0.12),
     borderColor: Colors.gold,
   },
   label: {

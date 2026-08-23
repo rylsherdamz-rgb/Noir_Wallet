@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { colorWithOpacity } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 
 export type TxStatus = 'pending' | 'confirmed' | 'failed'
@@ -35,7 +36,7 @@ export function StatusPill({ status }: StatusPillProps) {
   const { color, icon, label } = CONFIG[status as string] ?? FALLBACK_CONFIG
   return (
     <View
-      style={[styles.pill, { backgroundColor: color + '20', borderColor: color + '55' }]}
+      style={[styles.pill, { backgroundColor: colorWithOpacity(color, 0.12), borderColor: colorWithOpacity(color, 0.35) }]}
       accessibilityLabel={`Status: ${label}`}
     >
       <Ionicons name={icon} size={14} color={color} />

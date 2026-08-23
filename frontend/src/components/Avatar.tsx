@@ -1,5 +1,6 @@
 import { View, Text, Image, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { colorWithOpacity } from '@/constants/designTokens'
 import { Colors, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 
 interface AvatarProps {
@@ -37,7 +38,7 @@ export function Avatar({ uri, name, size = 40, variant = 'user' }: AvatarProps) 
           width: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: Colors.gold + '15',
+          backgroundColor: colorWithOpacity(Colors.gold, 0.1),
         },
       ]}
     >
@@ -59,7 +60,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: Colors.gold + '30',
+    borderColor: colorWithOpacity(Colors.gold, 0.2),
   },
   initials: {
     color: Colors.gold,

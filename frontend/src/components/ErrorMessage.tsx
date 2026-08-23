@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { PressableScale } from '@/components/brand/PressableScale'
+import { colorWithOpacity } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 
 interface ErrorMessageProps {
@@ -90,7 +91,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: Colors.danger + '15',
+    backgroundColor: colorWithOpacity(Colors.danger, 0.1),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.md,
@@ -126,7 +127,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.cardBg,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: Colors.danger + '30',
+    borderColor: colorWithOpacity(Colors.danger, 0.2),
     padding: Spacing.md,
   },
   cardRow: {

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { View, Text, StyleSheet, Modal, Alert } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { Ionicons } from '@expo/vector-icons'
+import { colorWithOpacity } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
 import { walletService, WalletListItem } from '@/services/wallet'
 import { Button } from '@/components/Button'
@@ -269,7 +270,7 @@ const styles = StyleSheet.create({
   },
   walletRowActive: {
     borderColor: Colors.gold,
-    backgroundColor: Colors.gold + '10',
+    backgroundColor: colorWithOpacity(Colors.gold, 0.08),
   },
   walletIcon: {
     width: 40,
@@ -300,7 +301,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.gold + '20',
+    backgroundColor: colorWithOpacity(Colors.gold, 0.12),
   },
   activeBadgeText: {
     fontSize: FontSize.xs,

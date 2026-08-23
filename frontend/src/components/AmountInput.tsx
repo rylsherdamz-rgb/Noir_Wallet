@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { PressableScale } from '@/components/brand/PressableScale'
 import * as Haptics from 'expo-haptics'
 import { useState } from 'react'
-import { DesignTokens } from '@/constants/designTokens'
+import { DesignTokens, colorWithOpacity } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 
 interface AmountInputProps {
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
   maxButton: {
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.sm,
-    backgroundColor: Colors.gold + '20',
+    backgroundColor: colorWithOpacity(Colors.gold, 0.12),
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
     borderColor: Colors.gold,

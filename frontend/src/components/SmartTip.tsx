@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { Ionicons } from '@expo/vector-icons'
+import { colorWithOpacity } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 
 interface SmartTipProps {
@@ -16,20 +17,20 @@ interface SmartTipProps {
 const VARIANT_STYLES = {
   tip: {
     icon: 'bulb-outline' as const,
-    bg: Colors.gold + '10',
-    border: Colors.gold + '25',
+    bg: colorWithOpacity(Colors.gold, 0.08),
+    border: colorWithOpacity(Colors.gold, 0.15),
     iconColor: Colors.gold,
   },
   warning: {
     icon: 'warning-outline' as const,
-    bg: Colors.warning + '10',
-    border: Colors.warning + '25',
+    bg: colorWithOpacity(Colors.warning, 0.08),
+    border: colorWithOpacity(Colors.warning, 0.15),
     iconColor: Colors.warning,
   },
   success: {
     icon: 'checkmark-circle-outline' as const,
-    bg: Colors.success + '10',
-    border: Colors.success + '25',
+    bg: colorWithOpacity(Colors.success, 0.08),
+    border: colorWithOpacity(Colors.success, 0.15),
     iconColor: Colors.success,
   },
 }
@@ -50,7 +51,7 @@ export function SmartTip({
   return (
     <View style={[styles.card, { backgroundColor: v.bg, borderColor: v.border }]}>
       <View style={styles.row}>
-        <View style={[styles.iconWrap, { backgroundColor: v.iconColor + '15' }]}>
+        <View style={[styles.iconWrap, { backgroundColor: colorWithOpacity(v.iconColor, 0.1) }]}>
           <Ionicons name={icon || v.icon} size={20} color={v.iconColor} />
         </View>
         <View style={styles.textWrap}>

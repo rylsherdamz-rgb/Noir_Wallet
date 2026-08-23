@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, Modal } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { PressableScale } from '@/components/brand/PressableScale'
+import { colorWithOpacity } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 
 interface ConfirmDialogProps {
@@ -83,13 +84,13 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.gold + '15',
+    backgroundColor: colorWithOpacity(Colors.gold, 0.1),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.md,
   },
   iconDanger: {
-    backgroundColor: Colors.danger + '15',
+    backgroundColor: colorWithOpacity(Colors.danger, 0.1),
   },
   title: {
     fontSize: FontSize.lg,
