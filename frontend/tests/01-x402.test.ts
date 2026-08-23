@@ -263,7 +263,8 @@ describe('x402 createAgent logic', () => {
     ;(stellarService.accountExists as ReturnType<typeof vi.fn>).mockResolvedValue(false)
     const { walletService } = await import('@/services/wallet')
     const keys = await walletService.loadKeys()
-    const hash = await x402.topUpAgent(50, keys.stellarSecret)
+    expect(keys).not.toBeNull()
+    const hash = await x402.topUpAgent(50, keys!.stellarSecret)
     expect(hash).toBe('test-create-hash')
     expect(stellarService.submitCreateAccount).toHaveBeenCalledWith(
       expect.objectContaining({ amount: '50.0000000' }),
@@ -277,7 +278,8 @@ describe('x402 createAgent logic', () => {
     await x402.createAgent()
     const { walletService } = await import('@/services/wallet')
     const keys = await walletService.loadKeys()
-    const hash = await x402.topUpAgent(50, keys.stellarSecret)
+    expect(keys).not.toBeNull()
+    const hash = await x402.topUpAgent(50, keys!.stellarSecret)
     expect(hash).toBe('test-mock-hash')
     expect(stellarService.submitPayment).toHaveBeenCalledWith(
       expect.objectContaining({ amount: '50.0000000' }),
