@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useAppStore } from '@/store/useAppStore'
 import { Colors, Spacing, FontSize } from '@/constants/theme'
+import { colorWithOpacity } from '@/constants/designTokens'
 
 const NOIR_MARK = require('../assets/noir-mark.png')
 const MIN_SPLASH_MS = 600
@@ -50,7 +51,7 @@ export default function Index() {
     <View style={styles.container}>
       <LinearGradient colors={[Colors.black, Colors.surfaceBg, Colors.black]} style={StyleSheet.absoluteFill} />
       <LinearGradient
-        colors={['transparent', Colors.gold + '06', 'transparent']}
+        colors={['transparent', colorWithOpacity(Colors.gold, 0.02), 'transparent']}
         locations={[0, 0.5, 1]}
         style={StyleSheet.absoluteFill}
       />
@@ -73,7 +74,7 @@ export default function Index() {
         </Animated.View>
 
         <Animated.View style={{ opacity: brandOpacity, marginTop: Spacing.xxl }}>
-          <ActivityIndicator size="small" color={Colors.gold + '60'} />
+          <ActivityIndicator size="small" color={colorWithOpacity(Colors.gold, 0.38)} />
         </Animated.View>
       </View>
     </View>

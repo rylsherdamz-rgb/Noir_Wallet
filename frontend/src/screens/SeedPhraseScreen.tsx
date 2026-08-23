@@ -1,3 +1,4 @@
+import { colorWithOpacity } from '@/constants/designTokens'
 import { useState, useEffect } from 'react'
 import { View, Text, StyleSheet, ScrollView } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
@@ -113,7 +114,7 @@ const styles = StyleSheet.create({
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md },
   title: { fontSize: FontSize.xl, color: Colors.white, fontWeight: FontWeight.bold, textAlign: 'center', marginTop: Spacing.md },
   subtitle: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', marginTop: Spacing.sm, lineHeight: 20 },
-  warningBox: { flexDirection: 'row', gap: Spacing.sm, backgroundColor: Colors.warning + '10', borderRadius: BorderRadius.md, padding: Spacing.md, marginTop: Spacing.lg, borderWidth: 1, borderColor: Colors.warning + '25' },
+  warningBox: { flexDirection: 'row', gap: Spacing.sm, backgroundColor: colorWithOpacity(Colors.warning, 0.08), borderRadius: BorderRadius.md, padding: Spacing.md, marginTop: Spacing.lg, borderWidth: 1, borderColor: colorWithOpacity(Colors.warning, 0.15) },
   warningText: { flex: 1, fontSize: FontSize.xs, color: Colors.warning, lineHeight: 18 },
   phraseBox: { backgroundColor: Colors.cardBg, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: Colors.borderGrey, padding: Spacing.md, marginTop: Spacing.lg, minHeight: 180, alignItems: 'center', justifyContent: 'center' },
   revealBtn: { alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.xl },

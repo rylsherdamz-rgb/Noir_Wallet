@@ -1,3 +1,4 @@
+import { colorWithOpacity } from '@/constants/designTokens'
 import { useState } from 'react'
 import { View, Text, StyleSheet, ScrollView, TextInput, Alert } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
@@ -119,7 +120,7 @@ export function ProfileScreen() {
           <View style={styles.kycCard}>
             <View style={styles.kycRow}>
               <Text style={styles.kycLabel}>KYC Level</Text>
-              <View style={[styles.kycBadge, { backgroundColor: kycColors[kycLevel] + '20' }]}>
+              <View style={[styles.kycBadge, { backgroundColor: colorWithOpacity(kycColors[kycLevel], 0.12) }]}>
                 <Text style={[styles.kycBadgeLabel, { color: kycColors[kycLevel] }]}>
                   {kycLabels[kycLevel]}
                 </Text>

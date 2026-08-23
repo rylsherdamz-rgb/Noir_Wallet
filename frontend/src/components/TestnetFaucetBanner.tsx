@@ -1,3 +1,4 @@
+import { colorWithOpacity } from '@/constants/designTokens'
 import { useState } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
@@ -51,10 +52,10 @@ export function TestnetFaucetBanner() {
 
 const styles = StyleSheet.create({
   banner: {
-    backgroundColor: Colors.gold + '18',
+    backgroundColor: colorWithOpacity(Colors.gold, 0.1),
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: Colors.gold + '30',
+    borderColor: colorWithOpacity(Colors.gold, 0.2),
     marginBottom: Spacing.md,
   },
   content: {

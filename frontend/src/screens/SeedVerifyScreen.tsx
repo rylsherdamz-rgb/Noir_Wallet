@@ -1,3 +1,4 @@
+import { colorWithOpacity } from '@/constants/designTokens'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { View, Text, StyleSheet, ScrollView } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
@@ -144,7 +145,7 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', marginTop: Spacing.xs },
   prompts: { gap: Spacing.sm, marginVertical: Spacing.xl },
   promptRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.cardBg, borderRadius: BorderRadius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.borderGrey, gap: Spacing.md },
-  promptRowFilled: { borderColor: Colors.gold + '40' },
+  promptRowFilled: { borderColor: colorWithOpacity(Colors.gold, 0.25) },
   promptNum: { fontSize: FontSize.xs, color: Colors.mutedWhite, width: 60 },
   promptAnswer: { flex: 1, fontSize: FontSize.md, color: Colors.white, fontWeight: FontWeight.semibold },
   promptEmpty: { color: Colors.mutedWhite, letterSpacing: 2 },

@@ -1,3 +1,4 @@
+import { colorWithOpacity } from '@/constants/designTokens'
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import {
   View,
@@ -407,7 +408,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderGrey,
   },
   assetChipActive: {
-    backgroundColor: Colors.gold + '20',
+    backgroundColor: colorWithOpacity(Colors.gold, 0.12),
     borderColor: Colors.gold,
   },
   assetChipLabel: {

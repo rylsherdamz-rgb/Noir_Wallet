@@ -1,3 +1,4 @@
+import { colorWithOpacity } from '@/constants/designTokens'
 import { useState, useCallback } from 'react'
 import {
   View,
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: FontSize.sm, color: Colors.mutedWhite, fontWeight: FontWeight.semibold, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: Spacing.sm, marginTop: Spacing.md },
   card: { marginBottom: Spacing.md },
   walletHeader: { flexDirection: 'row', gap: Spacing.md, alignItems: 'center', marginBottom: Spacing.md },
-  walletIcon: { width: 44, height: 44, borderRadius: BorderRadius.full, backgroundColor: Colors.gold + '15', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.gold + '25' },
+  walletIcon: { width: 44, height: 44, borderRadius: BorderRadius.full, backgroundColor: colorWithOpacity(Colors.gold, 0.1), alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colorWithOpacity(Colors.gold, 0.15) },
   walletInfo: { flex: 1 },
   walletLabel: { fontSize: FontSize.xs, color: Colors.mutedWhite },
   addrRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: 2 },
@@ -238,7 +239,7 @@ const styles = StyleSheet.create({
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   statusText: { fontSize: FontSize.xs, color: Colors.success },
   txRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.borderGrey, gap: Spacing.md },
-  txIcon: { width: 36, height: 36, borderRadius: BorderRadius.full, backgroundColor: Colors.gold + '10', alignItems: 'center', justifyContent: 'center' },
+  txIcon: { width: 36, height: 36, borderRadius: BorderRadius.full, backgroundColor: colorWithOpacity(Colors.gold, 0.08), alignItems: 'center', justifyContent: 'center' },
   txInfo: { flex: 1 },
   txType: { fontSize: FontSize.sm, color: Colors.white, fontWeight: FontWeight.medium },
   txTime: { fontSize: FontSize.xs, color: Colors.mutedWhite, marginTop: 1 },

@@ -127,7 +127,7 @@ const NotificationRow = memo(function NotificationRow({
       style={[styles.notifRow, !item.read && styles.notifUnread]}
       onPress={onPress}
     >
-      <View style={[styles.notifIcon, { backgroundColor: TYPE_COLORS[item.type] + '15' }]}>
+      <View style={[styles.notifIcon, { backgroundColor: colorWithOpacity(TYPE_COLORS[item.type], 0.1) }]}>
         <Ionicons name={TYPE_ICONS[item.type]} size={20} color={TYPE_COLORS[item.type]} />
       </View>
       <View style={styles.notifContent}>
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderGrey,
   },
   notifUnread: {
-    borderColor: Colors.gold + '40',
+    borderColor: colorWithOpacity(Colors.gold, 0.25),
     borderLeftWidth: 3,
     borderLeftColor: Colors.gold,
     backgroundColor: colorWithOpacity(Colors.gold, 0.05),

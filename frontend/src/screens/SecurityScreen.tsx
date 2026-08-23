@@ -1,3 +1,4 @@
+import { colorWithOpacity } from '@/constants/designTokens'
 import { useState } from 'react'
 import { View, Text, StyleSheet, ScrollView, Switch } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
@@ -123,7 +124,7 @@ export function SecurityScreen() {
               <Switch
                 value={security.biometricLockEnabled}
                 onValueChange={handleBiometricToggle}
-                trackColor={{ false: Colors.lightGrey, true: Colors.gold + '60' }}
+                trackColor={{ false: Colors.lightGrey, true: colorWithOpacity(Colors.gold, 0.38) }}
                 thumbColor={security.biometricLockEnabled ? Colors.gold : Colors.mutedWhite}
                 accessibilityRole="switch"
                 accessibilityLabel="Biometric lock"
@@ -322,7 +323,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: Colors.gold + '15',
+    backgroundColor: colorWithOpacity(Colors.gold, 0.1),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.md,
@@ -402,7 +403,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderGrey,
   },
   timeoutChipActive: {
-    backgroundColor: Colors.gold + '20',
+    backgroundColor: colorWithOpacity(Colors.gold, 0.12),
     borderColor: Colors.gold,
   },
   timeoutLabel: {
@@ -433,8 +434,8 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: Colors.danger + '30',
-    backgroundColor: Colors.danger + '08',
+    borderColor: colorWithOpacity(Colors.danger, 0.2),
+    backgroundColor: colorWithOpacity(Colors.danger, 0.03),
   },
   deleteLabel: {
     fontSize: FontSize.sm,

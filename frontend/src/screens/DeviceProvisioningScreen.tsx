@@ -1,3 +1,4 @@
+import { colorWithOpacity } from '@/constants/designTokens'
 import { useState, useEffect, useRef, Fragment } from 'react'
 import {
   View,
@@ -642,9 +643,9 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: Colors.gold + '20',
+    backgroundColor: colorWithOpacity(Colors.gold, 0.12),
     borderWidth: 1.5,
-    borderColor: Colors.gold + '30',
+    borderColor: colorWithOpacity(Colors.gold, 0.2),
     alignItems: 'center',
     justifyContent: 'center',
     top: '50%',
@@ -683,7 +684,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: Colors.gold + '15',
+    backgroundColor: colorWithOpacity(Colors.gold, 0.1),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -748,7 +749,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderGrey,
   },
   chipActive: {
-    backgroundColor: Colors.gold + '20',
+    backgroundColor: colorWithOpacity(Colors.gold, 0.12),
     borderColor: Colors.gold,
   },
   chipText: {
@@ -767,9 +768,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.gold + '15',
+    backgroundColor: colorWithOpacity(Colors.gold, 0.1),
     borderWidth: 1,
-    borderColor: Colors.gold + '25',
+    borderColor: colorWithOpacity(Colors.gold, 0.15),
   },
   agentBadgeText: {
     fontSize: FontSize.xs,
@@ -783,7 +784,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     backgroundColor: Colors.lightGrey,
     borderWidth: 1,
-    borderColor: Colors.gold + '50',
+    borderColor: colorWithOpacity(Colors.gold, 0.31),
     color: Colors.white,
     fontSize: FontSize.md,
     textAlign: 'center',
@@ -873,9 +874,9 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: Colors.gold + '15',
+    backgroundColor: colorWithOpacity(Colors.gold, 0.1),
     borderWidth: 1.5,
-    borderColor: Colors.gold + '30',
+    borderColor: colorWithOpacity(Colors.gold, 0.2),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.md,

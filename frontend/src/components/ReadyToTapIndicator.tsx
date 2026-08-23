@@ -1,3 +1,4 @@
+import { colorWithOpacity } from '@/constants/designTokens'
 import { useEffect, useRef } from 'react'
 import { View, Text, Animated, Easing, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
@@ -207,7 +208,7 @@ export function ReadyToTapIndicator({
               {
                 transform: [{ scale: pulseAnim }],
                 opacity: glowOpacity,
-                borderColor: getIconColor() + '40',
+                borderColor: colorWithOpacity(getIconColor(), 0.25),
               },
             ]}
           />
@@ -241,7 +242,7 @@ export function ReadyToTapIndicator({
           style={[
             styles.radarCenter,
             {
-              backgroundColor: getIconColor() + '15',
+              backgroundColor: colorWithOpacity(getIconColor(), 0.1),
               transform: [{ scale: successScale }],
             },
             (state === 'success' || state === 'error') && {

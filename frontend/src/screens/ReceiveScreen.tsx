@@ -1,3 +1,4 @@
+import { colorWithOpacity } from '@/constants/designTokens'
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { View, Text, StyleSheet, Share, TextInput, Animated, Easing, Platform } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
@@ -433,7 +434,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderGrey,
   },
   assetChipActive: {
-    backgroundColor: Colors.gold + '20',
+    backgroundColor: colorWithOpacity(Colors.gold, 0.12),
     borderColor: Colors.gold,
   },
   assetChipLabel: {
@@ -483,7 +484,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.gold + '15',
+    backgroundColor: colorWithOpacity(Colors.gold, 0.1),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -491,17 +492,17 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.gold + '15',
+    backgroundColor: colorWithOpacity(Colors.gold, 0.1),
     alignItems: 'center',
     justifyContent: 'center',
   },
   balanceCard: {
     width: '100%',
-    backgroundColor: Colors.gold + '10',
+    backgroundColor: colorWithOpacity(Colors.gold, 0.08),
     borderRadius: BorderRadius.md,
     padding: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.gold + '25',
+    borderColor: colorWithOpacity(Colors.gold, 0.15),
     alignItems: 'center',
   },
   balanceLabel: {
@@ -600,7 +601,7 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: Colors.gold + '15',
+    backgroundColor: colorWithOpacity(Colors.gold, 0.1),
     alignItems: 'center',
     justifyContent: 'center',
   },
