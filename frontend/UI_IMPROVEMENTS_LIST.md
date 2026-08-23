@@ -5,9 +5,24 @@
 
 ---
 
+## ✅ Status (August 2026 audit)
+
+| Item | Status |
+|------|--------|
+| 1. Inconsistent Background Colors | **RESOLVED** — all screens now use `Colors.surfaceBg` (camera viewfinder intentionally stays black) |
+| 2. TransactionItem Design Tokens | **RESOLVED** — uses `colorWithOpacity`, full accessibility labels |
+| 3. NumericKeypad Haptics | **RESOLVED** — Light haptics on clear/backspace, Medium on digits |
+| 4. SearchBar Accessibility | **RESOLVED** — `search` role on input, labeled clear button |
+| 5. EmptyState Component | **RESOLVED** — larger icon, action button prop, test IDs |
+| 6. Receive Screen copy/share haptics | **RESOLVED** — light haptic feedback added |
+| Hex-opacity concat (`+ '20'`) | **RESOLVED** — all 51 remaining sites migrated to `colorWithOpacity()` |
+
+---
+
 ## 🔴 Critical Issues (Fix First)
 
 ### 1. **Inconsistent Background Colors**
+- **Status:** RESOLVED
 - **Issue:** Mixed use of `Colors.black` vs `Colors.surfaceBg`
 - **Impact:** Visual inconsistency across screens
 - **Files affected:** 
@@ -16,6 +31,7 @@
 - **Fix:** Global find/replace `backgroundColor: Colors.black` → `backgroundColor: Colors.surfaceBg`
 
 ### 2. **TransactionItem Needs Design Token Integration**
+- **Status:** RESOLVED
 - **Issue:** Still using old color syntax (`+ '20'` for opacity)
 - **Impact:** Not using centralized design system
 - **Fix:** 
@@ -24,11 +40,13 @@
   - Add proper spacing, touch targets, accessibility
 
 ### 3. **NumericKeypad Missing Haptic Feedback**
+- **Status:** RESOLVED
 - **Issue:** No tactile feedback when pressing keys
 - **Impact:** Poor UX, feels unresponsive
 - **Fix:** Add `Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)` on key press
 
 ### 4. **SearchBar Missing Accessibility**
+- **Status:** RESOLVED
 - **Issue:** No accessibility labels or roles
 - **Impact:** Poor screen reader support
 - **Fix:** Add `accessibilityLabel`, `accessibilityHint`, `accessibilityRole`
@@ -38,6 +56,7 @@
 ## 🟡 High Priority (Important for UX)
 
 ### 5. **EmptyState Component Too Generic**
+- **Status:** RESOLVED
 - **Issue:** Icon size (28px) too small, lacks visual impact
 - **Impact:** Empty states don't feel polished
 - **Improvements:**
@@ -48,6 +67,7 @@
   - Add test IDs
 
 ### 6. **Receive Screen Layout Issues**
+- **Partially RESOLVED** — copy/share haptics added; layout polish still open
 - **Problems:**
   - QR code section not centered properly
   - Asset chips could be more prominent
