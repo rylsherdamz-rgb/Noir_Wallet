@@ -23,7 +23,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # @stellar/stellar-sdk v16 requires node >= 22
+          node-version: 22
           cache: yarn
           cache-dependency-path: frontend/yarn.lock
 
