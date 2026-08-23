@@ -213,7 +213,7 @@ export default function LockScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.black },
+  container: { flex: 1, backgroundColor: Colors.surfaceBg },
   content: {
     flex: 1,
     alignItems: 'center',

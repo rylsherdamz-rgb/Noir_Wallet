@@ -254,5 +254,5 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.black },
+  root: { flex: 1, backgroundColor: Colors.surfaceBg },
 })

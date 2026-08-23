@@ -22,7 +22,7 @@ export default function SeedVerifyRoute() {
   }, [])
 
   if (!phrase) {
-    return <View style={{ flex: 1, backgroundColor: Colors.black, alignItems: 'center', justifyContent: 'center' }}>
+    return <View style={{ flex: 1, backgroundColor: Colors.surfaceBg, alignItems: 'center', justifyContent: 'center' }}>
       <ActivityIndicator color={Colors.gold} />
     </View>
   }
