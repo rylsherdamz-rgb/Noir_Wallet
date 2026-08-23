@@ -45,11 +45,13 @@ export function ReceiveScreen() {
   const amountUnits = amount ? parseFloat(amount) : 0
 
   const copyAddress = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     await Clipboard.setStringAsync(address)
     setToast({ visible: true, type: 'success', title: 'Address Copied', message: 'Stellar address copied to clipboard' })
   }
 
   const shareAddress = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     await Share.share({ message: `Send ${selectedAsset} to my Noir Wallet: ${address}` })
   }
 

@@ -402,9 +402,8 @@ export function DeviceProvisioningScreen() {
               style={[styles.primaryBtn, !isSupported && styles.btnDisabled]}
               onPress={goToNfcSettings}
               disabled={!isSupported}
-             
-            
-              accessibilityLabel="Settings"
+              accessibilityLabel="Open NFC Settings"
+              accessibilityRole="button"
             >
               <Ionicons name="settings-outline" size={20} color={Colors.black} />
               <Text style={styles.primaryBtnText}>Open NFC Settings</Text>

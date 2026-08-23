@@ -126,7 +126,11 @@ export function BlockchainScreen() {
             </View>
             <View style={styles.walletInfo}>
               <Text style={styles.walletLabel}>Stellar Address</Text>
-              <PressableScale onPress={() => copyAddr(pubKey)} style={styles.addrRow}>
+              <PressableScale onPress={() => copyAddr(pubKey)} style={styles.addrRow}
+                accessibilityLabel="Copy Stellar address"
+                accessibilityHint="Copies your address to the clipboard"
+                accessibilityRole="button"
+              >
                 <Text style={styles.addrText} numberOfLines={1}>{pubKey}</Text>
                 <Ionicons name="copy-outline" size={14} color={Colors.gold} />
               </PressableScale>
