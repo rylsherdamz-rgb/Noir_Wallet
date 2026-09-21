@@ -75,7 +75,9 @@ export function SecurityScreen() {
       showToast('Not Available', 'No recovery phrase found on this device', 'error')
       return
     }
-    showToast('Recovery Phrase', keys.mnemonic, 'info')
+    // Secrets are never dumped into a toast — the export screen gates the
+    // reveal behind biometrics/PIN and offers masked copy instead.
+    router.push('/settings/export-keys')
   }
 
   const handleShowPrivateKey = async () => {
@@ -84,7 +86,7 @@ export function SecurityScreen() {
       showToast('Not Available', 'No private key found on this device', 'error')
       return
     }
-    showToast('Private Key', keys.stellarSecret, 'info')
+    router.push('/settings/export-keys')
   }
 
   return (
@@ -194,6 +196,25 @@ export function SecurityScreen() {
                 <View style={styles.settingText}>
                   <Text style={styles.settingLabel}>Private Key</Text>
                   <Text style={styles.settingDesc}>Export Stellar private key</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
+            </PressableScale>
+
+            <View style={styles.divider} />
+
+            <PressableScale
+              style={styles.settingRow}
+              onPress={() => router.push('/settings/export-keys')}
+              accessibilityRole="button"
+              accessibilityLabel="Export all keys"
+              accessibilityHint="Reveal and copy your recovery phrase, wallet secret, and agent keys"
+            >
+              <View style={styles.settingInfo}>
+                <Ionicons name="download-outline" size={20} color={Colors.gold} />
+                <View style={styles.settingText}>
+                  <Text style={styles.settingLabel}>Export All Keys</Text>
+                  <Text style={styles.settingDesc}>Recovery phrase, wallet secret & per-card agent keys</Text>
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />

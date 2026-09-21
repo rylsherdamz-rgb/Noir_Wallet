@@ -118,6 +118,5 @@ export const AppConfig = {
   limits: {
     defaultDailySpendCents: 500000,
     maxTapAmountCents: 5000000,
-    minKycForHighLimits: 2,
   },
 }

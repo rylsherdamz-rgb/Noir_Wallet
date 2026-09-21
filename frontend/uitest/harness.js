@@ -124,6 +124,22 @@ const ROUTES = [
       console.log('  ✗ agent-detail failed', e.message.split('\n')[0])
     }
 
+    // Export Keys screen (direct route) + Profile (KYC removed).
+    for (const r of [
+      { name: '11-export-keys', path: '/settings/export-keys' },
+      { name: '12-profile', path: '/profile' },
+      { name: '13-security', path: '/settings/security' },
+    ]) {
+      try {
+        await page.goto(BASE + r.path, { waitUntil: 'domcontentloaded' })
+        await page.waitForTimeout(3500)
+        await page.screenshot({ path: path.join(OUT, r.name + '.png') })
+        console.log('  \u2713 shot', r.name)
+      } catch (e) {
+        console.log('  \u2717 failed', r.name, e.message.split('\n')[0])
+      }
+    }
+
     // Verify agents self-healed: read the x402 index from localStorage.
     const healed = await page.evaluate(() => {
       const raw = localStorage.getItem('x402.agents.index')

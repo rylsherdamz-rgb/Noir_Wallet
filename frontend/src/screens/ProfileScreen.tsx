@@ -37,10 +37,6 @@ export function ProfileScreen() {
     setToast({ visible: true, type: 'success', title: 'Profile Updated', message: 'Your changes have been saved' })
   }
 
-  const kycLevel = user?.kycLevel || 0
-  const kycLabels = ['Unverified', 'Basic', 'Advanced', 'Full']
-  const kycColors = [Colors.danger, Colors.warning, Colors.gold, Colors.success]
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -114,37 +110,6 @@ export function ProfileScreen() {
             </>
           )}
         </Card>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Verification</Text>
-          <View style={styles.kycCard}>
-            <View style={styles.kycRow}>
-              <Text style={styles.kycLabel}>KYC Level</Text>
-              <View style={[styles.kycBadge, { backgroundColor: colorWithOpacity(kycColors[kycLevel], 0.12) }]}>
-                <Text style={[styles.kycBadgeLabel, { color: kycColors[kycLevel] }]}>
-                  {kycLabels[kycLevel]}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.kycProgress}>
-              {[1, 2, 3].map((level) => (
-                <View
-                  key={level}
-                  style={[
-                    styles.kycStep,
-                    level <= kycLevel && { backgroundColor: kycColors[kycLevel] },
-                  ]}
-                />
-              ))}
-            </View>
-            <PressableScale style={styles.kycAction} onPress={() => showToast('KYC Upgrade', 'KYC verification flow coming soon. Please check back later.')}>
-              <Text style={styles.kycActionLabel}>
-                {kycLevel < 3 ? 'Upgrade KYC for higher limits' : 'Verification complete'}
-              </Text>
-              {kycLevel < 3 && <Ionicons name="chevron-forward" size={16} color={Colors.gold} />}
-            </PressableScale>
-          </View>
-        </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Wallet Management</Text>
@@ -307,56 +272,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: Spacing.sm,
-  },
-  kycCard: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    padding: Spacing.md,
-  },
-  kycRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  kycLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.white,
-    fontWeight: FontWeight.medium,
-  },
-  kycBadge: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
-  },
-  kycBadgeLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.semibold,
-  },
-  kycProgress: {
-    flexDirection: 'row',
-    gap: Spacing.xs,
-    marginBottom: Spacing.md,
-  },
-  kycStep: {
-    flex: 1,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.lightGrey,
-  },
-  kycAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderGrey,
-  },
-  kycActionLabel: {
-    fontSize: FontSize.xs,
-    color: Colors.gold,
   },
   settingRow: {
     flexDirection: 'row',
