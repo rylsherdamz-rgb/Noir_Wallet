@@ -127,3 +127,16 @@ Use the GitHub issue templates. Search existing issues first. For bugs, include 
 ---
 
 Thanks for contributing. 🖤🪙
+
+## Branch Protection
+
+`main` is a protected branch. All changes land via pull request:
+
+- A pull request with **at least 1 approving review** is required.
+- The **Frontend CI `test`** check must pass, and your branch must be up to date with `main`.
+- **Conversations must be resolved** before merging.
+- **Linear history** is required — rebase your branch (`git rebase main`), don't merge `main` into it.
+- Force pushes and branch deletion on `main` are disabled.
+- Protection is **enforced for administrators** too — nobody pushes directly to `main`.
+
+Code review is routed via [`.github/CODEOWNERS`](.github/CODEOWNERS).
