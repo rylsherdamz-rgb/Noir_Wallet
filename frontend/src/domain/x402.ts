@@ -182,6 +182,78 @@ export const x402 = {
     return agents.sort((a, b) => a.index - b.index)
   },
 
+  /**
+   * Reconstruct/self-heal agents from the persisted device list. Fixes the
+   * "no agents after login" case: the device list survives login (Zustand
+   * persistence), but per-agent SecureStore metadata may be missing on a fresh
+   * device or after a cache-bust. For each device with an on-chain agent pubkey
+   * that has no local agent, re-derive the HD index that matches the pubkey and
+   * materialize it locally.
+   *
+   * `devices` come from the app store; each has { deviceUidHash, agentPublicKey,
+   * label, createdAt }. Deterministic HD derivation means the same mnemonic +
+   * index always reproduces the agent keypair, so we can rebuild without any
+   * secret ever leaving the device.
+   *
+   * Retired indexes are skipped. Scans up to `maxScan` indexes.
+   */
+  async syncAgentsFromDevices(
+    devices: { deviceUidHash: string; agentPublicKey?: string; label?: string; createdAt?: string }[],
+    maxScan = 64,
+  ): Promise<number> {
+    const { walletService } = await import('@/services/wallet')
+    const keys = await walletService.loadKeys()
+    if (!keys?.mnemonic) return 0
+
+    await ensureLegacyAgentMigrated()
+
+    // Which pubkeys do we already have materialized locally?
+    const existing = await this.listAgents()
+    const knownPubkeys = new Set(existing.map((a) => a.publicKey))
+
+    // Precompute derived pubkey -> index for the scan range (skip retired).
+    const retired = new Set(keys.retiredAgentIndexes ?? [])
+    const derivedByPubkey = new Map<string, number>()
+    for (let i = 1; i <= maxScan; i++) {
+      if (retired.has(i)) continue
+      try {
+        const d = walletService.deriveAgentAt(keys.mnemonic, i)
+        derivedByPubkey.set(d.public, i)
+      } catch { /* skip */ }
+    }
+
+    let healed = 0
+    let highestIndex = (keys.agentIndexNext ?? 2) - 1
+    for (const device of devices) {
+      const pub = device.agentPublicKey
+      if (!pub || knownPubkeys.has(pub)) continue
+
+      const index = derivedByPubkey.get(pub)
+      if (index == null) continue // agent for this device isn't from our seed (or beyond scan range)
+      if (retired.has(index)) continue
+
+      const derived = walletService.deriveAgentAt(keys.mnemonic, index)
+      await SecureStore.setItemAsync(legacySecretKey(index), derived.secret)
+      await SecureStore.setItemAsync(legacyPublicKey(index), derived.public)
+      const budgetExists = await SecureStore.getItemAsync(legacyBudgetKey(index))
+      if (!budgetExists) await SecureStore.setItemAsync(legacyBudgetKey(index), String(DEFAULT_BUDGET_STROOPS))
+      await SecureStore.setItemAsync(legacyCreatedKey(index), device.createdAt || new Date().toISOString())
+      await SecureStore.setItemAsync(legacyLabelKey(index), device.label || `Agent ${index}`)
+      await SecureStore.setItemAsync(legacyDeviceKey(index), device.deviceUidHash)
+      await addIndex(index)
+      knownPubkeys.add(pub)
+      if (index > highestIndex) highestIndex = index
+      healed++
+    }
+
+    // Keep the allocation counter ahead of any reconstructed index.
+    if (healed > 0 && (keys.agentIndexNext ?? 2) <= highestIndex) {
+      await walletService.saveKeys({ ...keys, agentIndexNext: highestIndex + 1 })
+    }
+
+    return healed
+  },
+
   /** Resolve the agent index linked to a device hash, if any. */
   async getAgentIndexForDevice(deviceHash: string): Promise<number | null> {
     const indexes = await readIndexes()

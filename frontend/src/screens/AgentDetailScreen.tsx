@@ -36,6 +36,15 @@ export function AgentDetailScreen() {
 
   const loadAgent = async () => {
     if (!device) { setAgent(null); return }
+    // Self-heal from the persisted device list first (fixes missing agent after login).
+    try {
+      await x402.syncAgentsFromDevices([{
+        deviceUidHash: device.deviceUidHash,
+        agentPublicKey: device.agentPublicKey,
+        label: device.label,
+        createdAt: device.createdAt,
+      }])
+    } catch { /* non-critical */ }
     // Resolve THIS device's own agent (multi-agent: one per card).
     let idx = await x402.getAgentIndexForDevice(device.deviceUidHash)
     if (idx == null) {

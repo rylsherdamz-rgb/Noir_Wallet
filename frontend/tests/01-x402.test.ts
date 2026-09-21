@@ -52,6 +52,10 @@ vi.mock('@/services/wallet', async () => {
         retiredAgentIndexes: state.retired,
       })),
       deriveAgentAt: (m: string, i: number) => svc.deriveAgentAt(m, i),
+      saveKeys: vi.fn().mockImplementation(async (k: any) => {
+        if (typeof k?.agentIndexNext === 'number') state.agentIndexNext = k.agentIndexNext
+        if (Array.isArray(k?.retiredAgentIndexes)) state.retired = [...k.retiredAgentIndexes]
+      }),
       allocateAgentIndex: vi.fn().mockImplementation(async () => {
         let index = state.agentIndexNext
         while (state.retired.includes(index)) index++
@@ -310,6 +314,44 @@ describe('x402 multi-agent logic', () => {
     const result = await x402.payWithAgent({ agentIndex: a.index, destination: 'GABC', amount: '1' })
     expect('error' in result).toBe(true)
     expect(stellarService.submitPayment).not.toHaveBeenCalled()
+  })
+
+  it('syncAgentsFromDevices rebuilds agents from persisted devices (no agents after login)', async () => {
+    const { x402 } = await import('@/domain/x402')
+    const { walletService } = await import('@/services/wallet')
+
+    // Simulate a fresh login: device list survives, but NO local agent metadata.
+    const agent2 = (walletService as any).deriveAgentAt(TEST_MNEMONIC, 2)
+    mockSecure.clear()
+
+    const before = await x402.listAgents()
+    expect(before.find((a) => a.publicKey === agent2.public)).toBeUndefined()
+
+    const healed = await x402.syncAgentsFromDevices([
+      { deviceUidHash: 'aabbcc', agentPublicKey: agent2.public, label: 'Office Card' },
+    ])
+    expect(healed).toBeGreaterThan(0)
+
+    // The agent is now materialized and linked to its device.
+    const after = await x402.listAgents()
+    expect(after.find((a) => a.publicKey === agent2.public)).toBeDefined()
+    expect(await x402.getAgentIndexForDevice('aabbcc')).toBe(2)
+  })
+
+  it('syncAgentsFromDevices never resurrects a retired agent', async () => {
+    const { x402 } = await import('@/domain/x402')
+    const { walletService } = await import('@/services/wallet')
+    const a = await x402.createAgent({ label: 'Card A', deviceHash: 'ddeeff' })
+    const pub = a.publicKey
+    await x402.retireAgent(a.index, 'GA7OPG4EHTL7X7JQKRLFNIJF7E4X5Y4JT3Q2H6CVT6JKJNZ5DOJ3BNKC')
+    expect(await walletService.isAgentIndexRetired(a.index)).toBe(true)
+
+    // Even with the device still referencing it, the retired agent stays gone.
+    await x402.syncAgentsFromDevices([
+      { deviceUidHash: 'ddeeff', agentPublicKey: pub, label: 'Card A' },
+    ])
+    const after = await x402.listAgents()
+    expect(after.find((x) => x.publicKey === pub)).toBeUndefined()
   })
 
 
