@@ -1,0 +1,11 @@
+# Code owners for Noir Wallet
+# These owners are requested for review on matching paths.
+
+# Default owner for everything
+*                       @rylsherdamz-rgb
+
+# Smart contracts — extra scrutiny on anything touching funds/auth
+/backend/                @rylsherdamz-rgb
+
+# CI / repo governance
+/.github/                @rylsherdamz-rgb
