@@ -1,0 +1,67 @@
+name: Bug report
+description: Report a problem with the app or smart contracts
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please search existing issues first to avoid duplicates.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug, including expected vs actual behavior.
+      placeholder: When I tap to pay, the payment...
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce this?
+      placeholder: |
+        1. Open the app
+        2. Go to POS
+        3. Tap the NFC tag
+        4. See error
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Frontend (app / UI)
+        - device_registry
+        - agent_registry
+        - payment_escrow
+        - NFC / provisioning
+        - Other / not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: network
+    attributes:
+      label: Network
+      options:
+        - Testnet
+        - Mainnet
+        - N/A
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Device, OS version, app/Expo version, relevant contract ID.
+      placeholder: iPhone 15, iOS 18, Expo 57, contract CDKZ...
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: Paste any relevant logs or attach screenshots. Redact any secrets.
+    validations:
+      required: false

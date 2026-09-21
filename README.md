@@ -309,6 +309,19 @@ We collected structured feedback from **60 testers** who registered devices, fun
 
 > 💡 All ten improvements are shortlisted for the v1 roadmap — starting with the onboarding tutorial and NFC device naming.
 
+## Contributing
+
+Contributions are welcome. Before you start, please read:
+
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — setup, workflow, coding standards, commit & PR conventions
+- **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)** — community expectations
+- **[SECURITY.md](SECURITY.md)** — responsible disclosure for vulnerabilities (do **not** open public issues for security bugs)
+- **[CHANGELOG.md](CHANGELOG.md)** — release history
+
+Use the GitHub issue templates to report bugs or request features, and the PR template when opening pull requests.
+
+Promotional assets and a browser-based pubmat editor live in [`promo/pubmat/`](promo/pubmat/README.md).
+
 ## Team
 
 | Role | Name |
