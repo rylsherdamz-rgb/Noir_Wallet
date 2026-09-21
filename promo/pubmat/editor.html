@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Noir Wallet — Pubmat Editor</title>
+<style>
+  /* ---- Brand fonts (falls back to system if offline) ---- */
+  @import url('https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&display=swap');
+
+  :root {
+    --gold: #C6A15B;
+    --gold-hi: #E9C482;
+    --cream: #EDE4D0;
+    --white: #FFFFFF;
+    --muted: #A9A9A9;
+    --dim: #666666;
+    --green: #3ED598;
+    --panel: #141414;
+    --panel-2: #1a1a1a;
+    --border: #2C2C2C;
+    --app-bg: #0d0d0d;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Jost', system-ui, sans-serif;
+    background: var(--app-bg);
+    color: var(--cream);
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ================= CONTROL PANEL ================= */
+  .panel {
+    width: 380px;
+    min-width: 380px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 24px;
+    overflow-y: auto;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+  }
+  .panel h1 {
+    font-size: 20px; font-weight: 600; letter-spacing: 0.5px;
+    color: var(--white); margin-bottom: 4px;
+  }
+  .panel h1 .g { color: var(--gold); }
+  .panel .sub { font-size: 12px; color: var(--muted); margin-bottom: 22px; }
+
+  .group { margin-bottom: 20px; }
+  .group > label {
+    display: block; font-size: 11px; font-weight: 600; letter-spacing: 1.2px;
+    text-transform: uppercase; color: var(--gold); margin-bottom: 8px;
+  }
+  .field { margin-bottom: 12px; }
+  .field label {
+    display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px;
+  }
+  input[type="text"], textarea, select {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--cream);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 9px 11px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  input[type="text"]:focus, textarea:focus, select:focus { border-color: var(--gold); }
+  textarea { resize: vertical; min-height: 62px; line-height: 1.4; }
+
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+
+  /* chip editors */
+  .chip-edit { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .chip-edit input[type="text"] { flex: 1; }
+  .chip-edit input[type="color"] {
+    width: 34px; height: 34px; padding: 0; border: 1px solid var(--border);
+    border-radius: 8px; background: none; cursor: pointer;
+  }
+  .chip-edit button {
+    width: 34px; height: 34px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--panel-2); color: var(--muted); cursor: pointer; font-size: 16px;
+  }
+  .chip-edit button:hover { color: var(--white); border-color: var(--gold); }
+
+  .btn {
+    width: 100%; padding: 11px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--panel-2); color: var(--cream); font-family: inherit;
+    font-size: 13px; font-weight: 500; cursor: pointer; transition: all .15s;
+  }
+  .btn:hover { border-color: var(--gold); color: var(--white); }
+  .btn.sm { padding: 8px; font-size: 12px; }
+
+  .upload {
+    display: block; text-align: center; padding: 14px;
+    border: 1.5px dashed var(--border); border-radius: 10px; cursor: pointer;
+    color: var(--muted); font-size: 13px; transition: all .15s;
+  }
+  .upload:hover { border-color: var(--gold); color: var(--cream); }
+  .upload input { display: none; }
+
+  .swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+  .swatch {
+    width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent; transition: transform .1s;
+  }
+  .swatch:hover { transform: scale(1.12); }
+  .swatch.active { border-color: var(--white); }
+
+  .seg { display: flex; gap: 6px; }
+  .seg button {
+    flex: 1; padding: 9px 6px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--panel-2); color: var(--muted); cursor: pointer;
+    font-family: inherit; font-size: 12px; font-weight: 500; transition: all .15s;
+  }
+  .seg button.active { border-color: var(--gold); color: var(--white); background: rgba(198,161,91,0.12); }
+
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .toggle-row span { font-size: 12px; color: var(--muted); }
+  .switch { position: relative; width: 40px; height: 22px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute; inset: 0; background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 999px; cursor: pointer; transition: .2s;
+  }
+  .slider:before {
+    content: ""; position: absolute; width: 16px; height: 16px; left: 2px; top: 2px;
+    background: var(--muted); border-radius: 50%; transition: .2s;
+  }
+  input:checked + .slider { background: rgba(198,161,91,0.25); border-color: var(--gold); }
+  input:checked + .slider:before { transform: translateX(18px); background: var(--gold); }
+
+  .export-btn {
+    width: 100%; padding: 14px; border-radius: 10px; border: none;
+    background: linear-gradient(135deg, var(--gold-hi), var(--gold));
+    color: #1a1408; font-family: inherit; font-size: 14px; font-weight: 700;
+    letter-spacing: 0.5px; cursor: pointer; margin-top: 4px;
+  }
+  .export-btn:hover { filter: brightness(1.06); }
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  /* ================= STAGE / PREVIEW ================= */
+  .workspace {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center;
+    padding: 40px;
+    overflow: auto;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(198,161,91,0.05), transparent 40%),
+      var(--app-bg);
+  }
+  .stage-wrap { box-shadow: 0 30px 80px rgba(0,0,0,0.6); border-radius: 4px; }
+
+  /* The pubmat itself — dimensions set by JS per aspect ratio */
+  .stage {
+    position: relative;
+    overflow: hidden;
+    font-family: 'Jost', sans-serif;
+    background:
+      radial-gradient(120% 130% at 78% 42%, rgba(198,161,91,0.16) 0%, rgba(198,161,91,0.04) 34%, rgba(198,161,91,0) 60%),
+      radial-gradient(100% 120% at 30% 26%, #17140F 0%, #0C0B09 46%, #050505 100%);
+    transform-origin: top left;
+  }
+  .stage .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(198,161,91,0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(198,161,91,0.05) 1px, transparent 1px);
+    background-size: 80px 80px;
+    -webkit-mask-image: radial-gradient(120% 100% at 50% 40%, #000 30%, transparent 78%);
+    mask-image: radial-gradient(120% 100% at 50% 40%, #000 30%, transparent 78%);
+  }
+  .stage .frame {
+    position: absolute; inset: 28px;
+    border: 1px solid rgba(58,58,58,0.55); border-radius: 22px; pointer-events: none;
+  }
+  .stage .content { position: absolute; left: 96px; top: 150px; width: 880px; }
+  .stage .eyebrow {
+    font-weight: 500; font-size: 21px; letter-spacing: 7px; color: var(--muted);
+    text-transform: uppercase; display: flex; align-items: center; gap: 14px;
+  }
+  .stage .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+  .stage .wordmark {
+    margin-top: 20px; font-weight: 600; font-size: 146px; line-height: 0.92;
+    letter-spacing: -4px; white-space: nowrap;
+  }
+  .stage .wordmark .noir { color: var(--cream); }
+  .stage .wordmark .wallet { color: var(--accent); margin-left: 30px; }
+  .stage .rule {
+    margin-top: 12px; height: 4px; width: 500px; border-radius: 2px;
+    background: linear-gradient(90deg, rgba(198,161,91,0) 0%, var(--accent) 16%, var(--gold-hi) 100%);
+  }
+  .stage .headline {
+    margin-top: 46px; font-weight: 600; font-size: 62px; line-height: 1.08;
+    letter-spacing: -2px; color: var(--white);
+  }
+  .stage .headline .accent { color: var(--accent); }
+  .stage .subhead {
+    margin-top: 26px; font-weight: 400; font-size: 26px; line-height: 1.5;
+    letter-spacing: 0.2px; color: var(--muted); max-width: 700px;
+  }
+  .stage .chips { margin-top: 40px; display: flex; gap: 16px; flex-wrap: wrap; }
+  .stage .chip {
+    display: flex; align-items: center; gap: 12px; padding: 15px 26px;
+    border: 1px solid var(--border); border-radius: 999px;
+    background: linear-gradient(180deg, #16150F 0%, #0F0E0B 100%);
+    font-weight: 500; font-size: 20px; color: var(--cream); letter-spacing: 0.3px;
+  }
+  .stage .chip .cd { width: 9px; height: 9px; border-radius: 50%; }
+  .stage .footer {
+    position: absolute; left: 96px; bottom: 56px;
+    display: flex; align-items: center; gap: 18px; color: var(--dim);
+  }
+  .stage .footer .handle { font-weight: 500; font-size: 21px; letter-spacing: 1.2px; }
+  .stage .footer .sep { width: 1px; height: 20px; background: var(--border); }
+  .stage .footer .tag { font-weight: 400; font-size: 19px; letter-spacing: 0.5px; }
+
+  .stage .motif {
+    position: absolute; right: 96px; top: 50%; transform: translateY(-50%);
+    width: 480px; height: 480px; display: flex; align-items: center; justify-content: center;
+  }
+  .stage .motif .halo {
+    position: absolute; inset: -40px;
+    background: radial-gradient(circle at 50% 46%, rgba(198,161,91,0.30) 0%, rgba(198,161,91,0.07) 46%, rgba(198,161,91,0) 68%);
+  }
+  .stage .motif .ring { position: absolute; inset: 0; border-radius: 50%; border: 1px solid rgba(198,161,91,0.22); }
+  .stage .motif .ring2 { position: absolute; inset: 34px; border-radius: 50%; border: 1px solid rgba(198,161,91,0.10); }
+  .stage .motif img {
+    width: 400px; height: auto;
+    mix-blend-mode: screen;
+    -webkit-mask-image: radial-gradient(circle at 50% 48%, #000 52%, transparent 68%);
+    mask-image: radial-gradient(circle at 50% 48%, #000 52%, transparent 68%);
+    filter: drop-shadow(0 18px 40px rgba(0,0,0,0.6)) contrast(1.08) saturate(1.06) brightness(1.05);
+  }
+  /* when the black-knockout blend is toggled off (for logos with transparent/light bg) */
+  .stage.plain-logo .motif img { mix-blend-mode: normal; -webkit-mask-image: none; mask-image: none; }
+</style>
+</head>
+<body>
+  <!-- ============ CONTROL PANEL ============ -->
+  <aside class="panel">
+    <h1>Pubmat <span class="g">Editor</span></h1>
+    <div class="sub">Edit text, swap the logo, export a PNG for X.</div>
+
+    <div class="group">
+      <label>Eyebrow / Kicker</label>
+      <div class="field"><input type="text" id="i-eyebrow" value="Stellar · Soroban · x402 Protocol"></div>
+    </div>
+
+    <div class="group">
+      <label>Wordmark</label>
+      <div class="row">
+        <div class="field"><label>Cream word</label><input type="text" id="i-word1" value="NOIR"></div>
+        <div class="field"><label>Gold word</label><input type="text" id="i-word2" value="WALLET"></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <label>Headline</label>
+      <div class="field"><label>Line 1 (white)</label><input type="text" id="i-head1" value="Tap and go."></div>
+      <div class="field"><label>Line 2 (accent)</label><input type="text" id="i-head2" value="No app. No confirm."></div>
+    </div>
+
+    <div class="group">
+      <label>Subhead</label>
+      <div class="field"><textarea id="i-sub">Contactless payments powered by Stellar. Your wallet is debited the moment hardware taps — settled on-chain in under 2 seconds.</textarea></div>
+    </div>
+
+    <div class="group">
+      <label>Feature Chips</label>
+      <div id="chip-list"></div>
+      <button class="btn sm" id="add-chip">+ Add chip</button>
+    </div>
+
+    <div class="group">
+      <label>Footer</label>
+      <div class="row">
+        <div class="field"><label>Handle</label><input type="text" id="i-handle" value="@ChichiCode0"></div>
+        <div class="field"><label>Tag</label><input type="text" id="i-tag" value="noirwallet.app"></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="group">
+      <label>Logo / Image</label>
+      <label class="upload">
+        <span id="upload-label">Click to upload image</span>
+        <input type="file" id="i-logo" accept="image/*">
+      </label>
+      <div class="toggle-row" style="margin-top:10px">
+        <span>Knock out black background</span>
+        <label class="switch"><input type="checkbox" id="i-knockout" checked><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <div class="group">
+      <label>Accent Color</label>
+      <div class="swatches" id="swatches"></div>
+      <div class="field" style="margin-top:10px"><input type="text" id="i-accent" value="#C6A15B"></div>
+    </div>
+
+    <div class="group">
+      <label>Aspect Ratio</label>
+      <div class="seg" id="ratio-seg">
+        <button data-w="1600" data-h="900" class="active">16:9</button>
+        <button data-w="1080" data-h="1080">1:1</button>
+        <button data-w="1080" data-h="1350">4:5</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="group">
+      <label>Export</label>
+      <div class="seg" id="scale-seg" style="margin-bottom:10px">
+        <button data-scale="1">1x</button>
+        <button data-scale="2" class="active">2x</button>
+        <button data-scale="3">3x</button>
+      </div>
+      <button class="export-btn" id="export">⬇ Download PNG</button>
+    </div>
+  </aside>
+
+  <!-- ============ PREVIEW ============ -->
+  <main class="workspace">
+    <div class="stage-wrap">
+      <div class="stage" id="stage">
+        <div class="grid"></div>
+        <div class="frame"></div>
+        <div class="content">
+          <div class="eyebrow"><span class="dot"></span><span id="p-eyebrow"></span></div>
+          <div class="wordmark"><span class="noir" id="p-word1"></span><span class="wallet" id="p-word2"></span></div>
+          <div class="rule"></div>
+          <div class="headline"><span id="p-head1"></span><br><span class="accent" id="p-head2"></span></div>
+          <div class="subhead" id="p-sub"></div>
+          <div class="chips" id="p-chips"></div>
+        </div>
+        <div class="motif">
+          <div class="halo"></div>
+          <div class="ring"></div>
+          <div class="ring2"></div>
+          <img id="p-logo" src="logo.jpg" alt="logo">
+        </div>
+        <div class="footer">
+          <span class="handle" id="p-handle"></span>
+          <span class="sep"></span>
+          <span class="tag" id="p-tag"></span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    const stage = $('stage');
+
+    // ---------- default chips ----------
+    let chips = [
+      { text: 'Zero-interaction', color: '#C6A15B' },
+      { text: 'Instant settle',   color: '#3ED598' },
+      { text: 'On-chain agents',  color: '#E9C482' },
+    ];
+
+    // ---------- text bindings ----------
+    const bind = (inputId, previewId) => {
+      const render = () => $(previewId).textContent = $(inputId).value;
+      $(inputId).addEventListener('input', render);
+      render();
+    };
+    bind('i-eyebrow','p-eyebrow');
+    bind('i-word1','p-word1');
+    bind('i-word2','p-word2');
+    bind('i-head1','p-head1');
+    bind('i-head2','p-head2');
+    bind('i-sub','p-sub');
+    bind('i-handle','p-handle');
+    bind('i-tag','p-tag');
+
+    // ---------- chips ----------
+    function renderChipPreview() {
+      const c = $('p-chips');
+      c.innerHTML = '';
+      chips.forEach(ch => {
+        const el = document.createElement('div');
+        el.className = 'chip';
+        el.innerHTML = `<span class="cd" style="background:${ch.color};box-shadow:0 0 8px ${ch.color}aa"></span>${escapeHtml(ch.text)}`;
+        c.appendChild(el);
+      });
+    }
+    function renderChipEditors() {
+      const list = $('chip-list');
+      list.innerHTML = '';
+      chips.forEach((ch, i) => {
+        const row = document.createElement('div');
+        row.className = 'chip-edit';
+        row.innerHTML = `
+          <input type="color" value="${ch.color}" data-i="${i}" class="chip-color">
+          <input type="text" value="${escapeAttr(ch.text)}" data-i="${i}" class="chip-text">
+          <button data-i="${i}" class="chip-del" title="Remove">×</button>`;
+        list.appendChild(row);
+      });
+      list.querySelectorAll('.chip-text').forEach(inp =>
+        inp.addEventListener('input', e => { chips[+e.target.dataset.i].text = e.target.value; renderChipPreview(); }));
+      list.querySelectorAll('.chip-color').forEach(inp =>
+        inp.addEventListener('input', e => { chips[+e.target.dataset.i].color = e.target.value; renderChipPreview(); }));
+      list.querySelectorAll('.chip-del').forEach(btn =>
+        btn.addEventListener('click', e => { chips.splice(+e.target.dataset.i,1); renderChipEditors(); renderChipPreview(); }));
+    }
+    $('add-chip').addEventListener('click', () => {
+      chips.push({ text: 'New feature', color: getComputedStyle(stage).getPropertyValue('--accent').trim() || '#C6A15B' });
+      renderChipEditors(); renderChipPreview();
+    });
+    function escapeHtml(s){ return s.replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+    function escapeAttr(s){ return s.replace(/"/g,'&quot;'); }
+
+    // ---------- logo upload ----------
+    $('i-logo').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => { $('p-logo').src = ev.target.result; $('upload-label').textContent = file.name; };
+      reader.readAsDataURL(file);
+    });
+    $('i-knockout').addEventListener('change', e => {
+      stage.classList.toggle('plain-logo', !e.target.checked);
+    });
+
+    // ---------- accent color ----------
+    const palette = ['#C6A15B','#E9C482','#3ED598','#4A90E2','#FF5A5F','#CECCD0','#B57EDC','#F0B429'];
+    const swatchWrap = $('swatches');
+    palette.forEach(col => {
+      const s = document.createElement('div');
+      s.className = 'swatch' + (col === '#C6A15B' ? ' active' : '');
+      s.style.background = col;
+      s.dataset.col = col;
+      s.addEventListener('click', () => setAccent(col, s));
+      swatchWrap.appendChild(s);
+    });
+    function setAccent(col, activeEl) {
+      stage.style.setProperty('--accent', col);
+      $('i-accent').value = col;
+      document.querySelectorAll('.swatch').forEach(x => x.classList.toggle('active', x === activeEl));
+    }
+    $('i-accent').addEventListener('input', e => {
+      stage.style.setProperty('--accent', e.target.value);
+      document.querySelectorAll('.swatch').forEach(x => x.classList.remove('active'));
+    });
+    stage.style.setProperty('--accent', '#C6A15B');
+
+    // ---------- aspect ratio + responsive scaling ----------
+    let baseW = 1600, baseH = 900;
+    function applyRatio(w, h) {
+      baseW = w; baseH = h;
+      stage.style.width = w + 'px';
+      stage.style.height = h + 'px';
+      // reflow content for square/portrait so it doesn't overflow
+      const portrait = h >= w;
+      stage.querySelector('.content').style.width = portrait ? (w - 160) + 'px' : '880px';
+      stage.querySelector('.motif').style.cssText = portrait
+        ? 'position:absolute; left:50%; top:64%; transform:translate(-50%,-50%); width:420px; height:420px; display:flex; align-items:center; justify-content:center;'
+        : 'position:absolute; right:96px; top:50%; transform:translateY(-50%); width:480px; height:480px; display:flex; align-items:center; justify-content:center;';
+      fitPreview();
+    }
+    function fitPreview() {
+      // scale the stage down to fit the workspace viewport
+      const ws = document.querySelector('.workspace');
+      const avail = Math.min(ws.clientWidth - 80, 1200);
+      const scale = Math.min(1, avail / baseW, (window.innerHeight - 120) / baseH);
+      stage.style.transform = `scale(${scale})`;
+      document.querySelector('.stage-wrap').style.width = (baseW * scale) + 'px';
+      document.querySelector('.stage-wrap').style.height = (baseH * scale) + 'px';
+    }
+    $('ratio-seg').querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        $('ratio-seg').querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        applyRatio(+btn.dataset.w, +btn.dataset.h);
+      });
+    });
+    window.addEventListener('resize', fitPreview);
+
+    // ---------- export ----------
+    let exportScale = 2;
+    $('scale-seg').querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        $('scale-seg').querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        exportScale = +btn.dataset.scale;
+      });
+    });
+    $('export').addEventListener('click', async () => {
+      const btn = $('export');
+      const prev = btn.textContent;
+      btn.textContent = 'Rendering…';
+      // temporarily reset transform so we capture at full native resolution
+      const savedTransform = stage.style.transform;
+      stage.style.transform = 'scale(1)';
+      try {
+        const dataUrl = await htmlToImage.toPng(stage, {
+          width: baseW, height: baseH,
+          pixelRatio: exportScale,
+          cacheBust: true,
+        });
+        const a = document.createElement('a');
+        a.download = `noir-pubmat-${baseW}x${baseH}@${exportScale}x.png`;
+        a.href = dataUrl;
+        a.click();
+      } catch (err) {
+        alert('Export failed: ' + err.message);
+      } finally {
+        stage.style.transform = savedTransform;
+        btn.textContent = prev;
+      }
+    });
+
+    // ---------- init ----------
+    renderChipEditors();
+    renderChipPreview();
+    applyRatio(1600, 900);
+  </script>
+</body>
+</html>
