@@ -15,6 +15,23 @@ export interface WalletKeys {
   agentSecret: string
   agentPublic: string
   label?: string
+  /**
+   * Next HD index to allocate for a new agent. Agents are derived at
+   * `m/44'/148'/0'/<index>'`. Index 1 is the legacy single agent
+   * (`agentSecret`/`agentPublic`), so allocation starts at 2.
+   */
+  agentIndexNext?: number
+  /**
+   * HD indexes that have been permanently revoked. A retired index is NEVER
+   * re-derived or reused, so a revoked agent can never be recovered.
+   */
+  retiredAgentIndexes?: number[]
+}
+
+export interface DerivedAgent {
+  index: number
+  secret: string
+  public: string
 }
 
 function toHex(bytes: Uint8Array): string {
@@ -49,7 +66,65 @@ export class WalletService {
       agentSecret: agentKp.secret(),
       agentPublic: agentKp.publicKey(),
       label,
+      // Legacy agent occupies index 1; new agents allocate from 2 onward.
+      agentIndexNext: 2,
+      retiredAgentIndexes: [],
     }
+  }
+
+  /**
+   * Deterministically derive the agent keypair at a given HD index from the
+   * mnemonic. Path: `m/44'/148'/0'/<index>'`. Index 1 is the legacy agent.
+   * Because derivation is deterministic, the same mnemonic + index always
+   * yields the same keypair — which is why retired indexes must never be reused.
+   */
+  deriveAgentAt(mnemonic: string, index: number): DerivedAgent {
+    if (!Number.isInteger(index) || index < 1) {
+      throw new Error(`Invalid agent index: ${index}`)
+    }
+    const cleaned = mnemonic.trim().toLowerCase()
+    // bip39.mnemonicToSeedSync is synchronous; safe here since it is pure CPU.
+    const seed = bip39.mnemonicToSeedSync(cleaned)
+    const seedHex = toHex(new Uint8Array(seed.buffer, seed.byteOffset, seed.byteLength))
+    const { key } = derivePath(`${STELLAR_PATH}/${index}'`, seedHex)
+    const kp = Keypair.fromRawEd25519Seed(Buffer.from(key.slice(0, 32)) as any)
+    return { index, secret: kp.secret(), public: kp.publicKey() }
+  }
+
+  /**
+   * Allocate the next available agent index, persisting the bumped counter.
+   * Skips any retired index defensively (retired indexes are never reused).
+   * Returns the derived agent for the freshly allocated index.
+   */
+  async allocateAgentIndex(): Promise<DerivedAgent> {
+    const keys = await this.loadKeys()
+    if (!keys?.mnemonic) throw new Error('Wallet must be initialized before allocating an agent')
+
+    const retired = new Set(keys.retiredAgentIndexes ?? [])
+    let index = keys.agentIndexNext ?? 2
+    while (retired.has(index)) index++
+
+    const agent = this.deriveAgentAt(keys.mnemonic, index)
+    await this.saveKeys({ ...keys, agentIndexNext: index + 1 })
+    return agent
+  }
+
+  /**
+   * Permanently retire an agent index. A retired index is recorded so it can
+   * never be re-derived or reallocated — the revoked agent is unrecoverable.
+   */
+  async retireAgentIndex(index: number): Promise<void> {
+    const keys = await this.loadKeys()
+    if (!keys) return
+    const retired = new Set(keys.retiredAgentIndexes ?? [])
+    retired.add(index)
+    await this.saveKeys({ ...keys, retiredAgentIndexes: Array.from(retired).sort((a, b) => a - b) })
+  }
+
+  /** True if an agent index has been permanently retired. */
+  async isAgentIndexRetired(index: number): Promise<boolean> {
+    const keys = await this.loadKeys()
+    return !!keys?.retiredAgentIndexes?.includes(index)
   }
 
   async saveKeys(keys: WalletKeys): Promise<void> {

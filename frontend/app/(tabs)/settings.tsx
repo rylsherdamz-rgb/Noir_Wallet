@@ -50,7 +50,7 @@ export default function SettingsScreen() {
           onPress: async () => {
             setBusy(true)
             await walletService.clearKeys()
-            await x402.clearAgent()
+            await x402.clearAllAgents()
             reset()
             router.replace('/onboarding')
           },

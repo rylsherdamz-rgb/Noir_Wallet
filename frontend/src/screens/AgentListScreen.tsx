@@ -34,8 +34,27 @@ export function AgentListScreen() {
   const [refreshing, setRefreshing] = useState(false)
 
   const loadAgent = async () => {
-    const a = await x402.getAgent()
-    setAgent(a)
+    // Aggregate across ALL agents (one per card) into a single summary card.
+    const all = await x402.listAgents()
+    if (all.length === 0) { setAgent(null); return }
+    const agg = all.reduce(
+      (acc, a) => ({
+        balanceStroops: acc.balanceStroops + a.balanceStroops,
+        spendingBudgetStroops: acc.spendingBudgetStroops + a.spendingBudgetStroops,
+        totalSpentStroops: acc.totalSpentStroops + a.totalSpentStroops,
+      }),
+      { balanceStroops: 0, spendingBudgetStroops: 0, totalSpentStroops: 0 },
+    )
+    setAgent({
+      index: all.length, // reused here as an agent count for display
+      publicKey: all[0].publicKey,
+      label: `${all.length} agent${all.length === 1 ? '' : 's'}`,
+      balanceStroops: agg.balanceStroops,
+      spendingBudgetStroops: agg.spendingBudgetStroops,
+      totalSpentStroops: agg.totalSpentStroops,
+      isActive: true,
+      createdAt: all[0].createdAt,
+    })
   }
 
   useEffect(() => { loadAgent() }, [])

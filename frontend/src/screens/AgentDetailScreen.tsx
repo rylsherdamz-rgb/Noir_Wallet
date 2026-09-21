@@ -24,6 +24,7 @@ export function AgentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const { devices, transactions, addTransaction, removeDevice, network: storeNetwork } = useAppStore()
   const [agent, setAgent] = useState<AgentWallet | null>(null)
+  const [agentIndex, setAgentIndex] = useState<number | null>(null)
   const [toast, setToast] = useState<{ visible: boolean; type: 'success' | 'info'; title: string; message?: string }>({
     visible: false, type: 'success', title: '',
   })
@@ -34,7 +35,17 @@ export function AgentDetailScreen() {
   const authorized = !!device?.agentPublicKey && !!agent
 
   const loadAgent = async () => {
-    const a = await x402.getAgent()
+    if (!device) { setAgent(null); return }
+    // Resolve THIS device's own agent (multi-agent: one per card).
+    let idx = await x402.getAgentIndexForDevice(device.deviceUidHash)
+    if (idx == null) {
+      // Fall back: match a live agent by the device's stored agentPublicKey.
+      const all = await x402.listAgents()
+      const match = all.find((a) => a.publicKey === device.agentPublicKey)
+      idx = match?.index ?? 1
+    }
+    setAgentIndex(idx)
+    const a = await x402.getAgent(idx)
     setAgent(a)
   }
 
@@ -65,7 +76,7 @@ export function AgentDetailScreen() {
       await x402.registerDeviceAndAgentOnChain({
         walletSecret: keys.stellarSecret,
         deviceHashHex: device.deviceUidHash,
-        agentPublicKey: keys.agentPublic,
+        agentPublicKey: agent?.publicKey ?? device.agentPublicKey ?? keys.agentPublic,
       })
       await loadAgent()
       setToast({ visible: true, type: 'success', title: 'Registered', message: 'Device and agent registered on-chain' })
@@ -87,18 +98,13 @@ export function AgentDetailScreen() {
       const { walletService } = await import('@/services/wallet')
       const keys = await walletService.loadKeys()
       if (keys?.stellarSecret) {
-        // 1. Recover ALL agent XLM back to the main wallet before revoking
         const mainWallet = Keypair.fromSecret(keys.stellarSecret).publicKey()
-        try {
-          const recoverResult = await x402.sweepAgentFunds(mainWallet)
-          if ('error' in recoverResult) {
-            logger.warn('Agent XLM recovery failed:', recoverResult.error)
-          }
-        } catch (e: any) {
-          logger.warn('Agent XLM recovery error:', e?.message)
-        }
 
-        // 2. Revoke agent on agent_registry contract
+        // Resolve which agent index this card uses.
+        let idx = agentIndex ?? (await x402.getAgentIndexForDevice(device.deviceUidHash))
+        if (idx == null) idx = 1
+
+        // 1. Revoke agent authorization on-chain (agent_registry).
         try {
           await x402.revokeAgentOnChain({
             walletSecret: keys.stellarSecret,
@@ -108,7 +114,7 @@ export function AgentDetailScreen() {
           logger.warn('revokeAgentOnChain failed:', e?.message)
         }
 
-        // 3. Revoke device on device_registry contract
+        // 2. Revoke device on-chain (device_registry).
         try {
           await x402.revokeDeviceOnChain({
             walletSecret: keys.stellarSecret,
@@ -117,16 +123,27 @@ export function AgentDetailScreen() {
         } catch (e: any) {
           logger.warn('revokeDeviceOnChain failed:', e?.message)
         }
+
+        // 3. PERMANENT retire: sweep ALL of the agent's XLM back to the owner,
+        //    wipe its keys, and retire its HD index so it can NEVER be
+        //    re-derived or recovered.
+        try {
+          const result = await x402.retireAgent(idx, mainWallet)
+          if ('error' in result) {
+            logger.warn('Agent retire/sweep reported:', result.error)
+          }
+        } catch (e: any) {
+          logger.warn('Agent retire error:', e?.message)
+        }
       }
 
-      // 4. Local cleanup
-      await x402.clearAgent()
+      // 4. Local cleanup.
       removeDevice(device.id)
       router.replace('/(tabs)/devices')
     } catch (e: any) {
       setToast({ visible: true, type: 'info', title: 'Remove Failed', message: e?.message ?? 'Unknown error' })
     }
-  }, [device, removeDevice, router])
+  }, [device, agentIndex, removeDevice, router])
 
   const handleTopUp = useCallback(async () => {
     setToppingUp(true)
@@ -134,7 +151,7 @@ export function AgentDetailScreen() {
       const { walletService } = await import('@/services/wallet')
       const keys = await walletService.loadKeys()
       if (!keys?.stellarSecret) throw new Error('No wallet configured')
-      await x402.topUpAgent(50, keys.stellarSecret)
+      await x402.topUpAgent(50, keys.stellarSecret, agentIndex ?? undefined)
       setToast({ visible: true, type: 'success', title: 'Agent topped up', message: '50 XLM sent to agent wallet' })
       await loadAgent()
     } catch (e: any) {
@@ -142,7 +159,7 @@ export function AgentDetailScreen() {
     } finally {
       setToppingUp(false)
     }
-  }, [])
+  }, [agentIndex])
 
   const xlmBalance = agent ? (agent.balanceStroops / 10_000_000).toFixed(2) : '—'
   const budget = agent ? (agent.spendingBudgetStroops / 10_000_000).toFixed(2) : '—'
@@ -337,17 +354,17 @@ export function AgentDetailScreen() {
           accessibilityHint="Unlinks this device and deletes its agent keys"
           onPress={() =>
             Alert.alert(
-              'Remove Device',
-              `Unlink "${device.label}" and delete its agent keys? This cannot be undone.`,
+              'Revoke Device',
+              `Revoke "${device.label}"? All XLM in its agent wallet will be returned to your main wallet, the agent will be revoked on-chain, and it can NEVER be recovered. This cannot be undone.`,
               [
                 { text: 'Cancel', style: 'cancel' },
-                { text: 'Remove', style: 'destructive', onPress: handleRemoveDevice },
+                { text: 'Revoke', style: 'destructive', onPress: handleRemoveDevice },
               ],
             )
           }
         >
           <Ionicons name="trash-outline" size={16} color={Colors.danger} />
-          <Text style={styles.dangerText}>Remove Device</Text>
+          <Text style={styles.dangerText}>Revoke Device & Agent</Text>
         </PressableScale>
       </ScrollView>
 

@@ -221,7 +221,7 @@ describe('1 — Sign-out cleanup', () => {
     mockSecureStore.set('x402.agent.public', 'G')
     const { x402 } = await import('@/domain/x402')
     expect(await x402.hasAgent()).toBe(true)
-    await x402.clearAgent()
+    await x402.clearAllAgents()
     expect(await x402.hasAgent()).toBe(false)
   })
 
@@ -534,13 +534,16 @@ describe('15 — Agent screens', () => {
 
   it('AgentWallet interface has correct shape', () => {
     const wallet = {
+      index: 1,
       publicKey: 'GABC',
+      label: 'Agent 1',
       balanceStroops: 10000000,
       spendingBudgetStroops: 500000000,
       totalSpentStroops: 0,
       isActive: true,
       createdAt: '2025-01-01',
     }
+    expect(wallet.index).toBe(1)
     expect(wallet.publicKey).toBe('GABC')
     expect(wallet.balanceStroops).toBe(10000000)
     expect(wallet.spendingBudgetStroops).toBe(500000000)
