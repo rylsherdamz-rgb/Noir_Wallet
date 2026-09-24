@@ -13,6 +13,19 @@ export default function Index() {
   const router = useRouter()
   const isOnboarded = useAppStore((s) => s.isOnboarded)
   const [readyToRoute, setReadyToRoute] = useState(false)
+  // The persisted store hydrates asynchronously (SecureStore / localStorage).
+  // Routing before hydration finishes reads the *initial* isOnboarded (false)
+  // and bounces an existing wallet to /onboarding — which also made agents and
+  // devices look empty right after login. Wait for hydration first.
+  const [hydrated, setHydrated] = useState(() => useAppStore.persist.hasHydrated())
+
+  useEffect(() => {
+    if (hydrated) return
+    const unsub = useAppStore.persist.onFinishHydration(() => setHydrated(true))
+    // Safety: if hydration never reports (storage unavailable), proceed anyway.
+    const fallback = setTimeout(() => setHydrated(true), 3000)
+    return () => { unsub?.(); clearTimeout(fallback) }
+  }, [hydrated])
 
   const opacity = useRef(new Animated.Value(0)).current
   const scale = useRef(new Animated.Value(0.8)).current
@@ -21,8 +34,12 @@ export default function Index() {
   const brandSlide = useRef(new Animated.Value(20)).current
 
   const navigate = useCallback(() => {
-    router.replace(isOnboarded ? '/(tabs)' : '/onboarding')
-  }, [isOnboarded, router])
+    // Read the store imperatively at navigation time. Using the subscribed
+    // `isOnboarded` value risked capturing the pre-hydration default (false)
+    // in this closure and bouncing an existing wallet to /onboarding.
+    const onboarded = useAppStore.getState().isOnboarded
+    router.replace(onboarded ? '/(tabs)' : '/onboarding')
+  }, [router])
 
   useEffect(() => {
     Animated.sequence([
@@ -38,12 +55,13 @@ export default function Index() {
     ]).start(() => setReadyToRoute(true))
   }, [opacity, scale, glow, brandOpacity, brandSlide])
 
-  // Route once the animation finishes AND the minimum splash time elapses
+  // Route once the animation finishes, the minimum splash time elapses, AND
+  // the persisted store has hydrated (so isOnboarded reflects real state).
   useEffect(() => {
-    if (!readyToRoute) return
+    if (!readyToRoute || !hydrated) return
     const timer = setTimeout(navigate, MIN_SPLASH_MS)
     return () => clearTimeout(timer)
-  }, [readyToRoute, navigate])
+  }, [readyToRoute, hydrated, navigate])
 
   const glowOpacity = glow.interpolate({ inputRange: [0, 1], outputRange: [0, 0.5] })
 

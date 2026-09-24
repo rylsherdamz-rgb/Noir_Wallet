@@ -135,22 +135,30 @@ export function DeviceProvisioningScreen() {
         return
       }
 
-      // HD-derived agent is the source of truth — never trust the x402 cache
-      // for which pubkey to register, since it may be stale from a prior wallet.
-      const derivedAgentPub = keys.agentPublic
-      let _agentPubKey = derivedAgentPub
-      setAgentPubKey(_agentPubKey)
-      setAgentCreated(true)
-      try {
-        // Sync the x402 SecureStore cache to the HD-derived agent keys.
-        await x402.createAgent()
-      } catch {
-        // x402 failure shouldn't block device linking
-      }
-
       setStatusMessage('Hashing device UID...')
       const hash = sha256(new TextEncoder().encode(tagUid))
       const hashHex = Buffer.from(hash.buffer, hash.byteOffset, hash.byteLength).toString('hex')
+
+      // Each NFC card gets its OWN agent (independent balance + budget).
+      // If this device hash already has an agent (re-provisioning), reuse it;
+      // otherwise allocate a fresh HD-derived agent index.
+      setStatusMessage('Creating agent for this card...')
+      let _agentPubKey: string
+      try {
+        const existingIdx = await x402.getAgentIndexForDevice(hashHex)
+        if (existingIdx != null) {
+          const existing = await x402.getAgent(existingIdx)
+          _agentPubKey = existing?.publicKey ?? keys.agentPublic
+        } else {
+          const fresh = await x402.createAgent({ label: displayLabel, deviceHash: hashHex })
+          _agentPubKey = fresh.publicKey
+        }
+      } catch (e: any) {
+        logger.warn('agent creation failed, falling back to legacy agent:', e?.message)
+        _agentPubKey = keys.agentPublic
+      }
+      setAgentPubKey(_agentPubKey)
+      setAgentCreated(true)
 
       if (!_agentPubKey) {
         setStep('error')

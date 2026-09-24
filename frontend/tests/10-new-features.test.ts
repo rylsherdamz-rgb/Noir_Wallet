@@ -221,7 +221,7 @@ describe('1 — Sign-out cleanup', () => {
     mockSecureStore.set('x402.agent.public', 'G')
     const { x402 } = await import('@/domain/x402')
     expect(await x402.hasAgent()).toBe(true)
-    await x402.clearAgent()
+    await x402.clearAllAgents()
     expect(await x402.hasAgent()).toBe(false)
   })
 
@@ -303,15 +303,50 @@ describe('3 — Recovery Phrase and Private Key display', () => {
   })
 })
 
-describe('4 — KYC upgrade', () => {
+describe('4 — Profile (KYC removed)', () => {
   it('imports ProfileScreen', async () => {
     const mod = await import('@/screens/ProfileScreen')
     expect(mod.ProfileScreen).toBeDefined()
   })
 
-  it('kycLevel defaults to 0 in store', async () => {
-    const { useAppStore } = await import('@/store/useAppStore')
-    expect(useAppStore.getState().user).toBeNull()
+  it('ProfileScreen no longer references KYC', async () => {
+    const fs = await import('node:fs/promises')
+    const src = await fs.readFile(
+      new URL('../src/screens/ProfileScreen.tsx', import.meta.url),
+      'utf8',
+    )
+    expect(src.toLowerCase()).not.toContain('kyc')
+  })
+
+  it('AppConfig.limits no longer exposes minKycForHighLimits', async () => {
+    const { AppConfig } = await import('@/constants/config')
+    expect((AppConfig.limits as Record<string, unknown>).minKycForHighLimits).toBeUndefined()
+  })
+})
+
+describe('4b — Export keys screen', () => {
+  it('imports ExportKeysScreen', async () => {
+    const mod = await import('@/screens/ExportKeysScreen')
+    expect(mod.ExportKeysScreen).toBeDefined()
+  })
+
+  it('export-keys route resolves', async () => {
+    const mod = await import('../../frontend/app/settings/export-keys')
+    expect(mod.default).toBeDefined()
+  })
+
+  it('does not reveal secrets without authentication', async () => {
+    // The screen must gate on biometrics/PIN — assert the source wires the
+    // auth services rather than reading keys unconditionally.
+    const fs = await import('node:fs/promises')
+    const src = await fs.readFile(
+      new URL('../src/screens/ExportKeysScreen.tsx', import.meta.url),
+      'utf8',
+    )
+    expect(src).toContain('authenticate')
+    expect(src).toContain('verifyPin')
+    // secrets must never be logged
+    expect(src).not.toMatch(/console\.log\([^)]*secret/i)
   })
 })
 
@@ -534,13 +569,16 @@ describe('15 — Agent screens', () => {
 
   it('AgentWallet interface has correct shape', () => {
     const wallet = {
+      index: 1,
       publicKey: 'GABC',
+      label: 'Agent 1',
       balanceStroops: 10000000,
       spendingBudgetStroops: 500000000,
       totalSpentStroops: 0,
       isActive: true,
       createdAt: '2025-01-01',
     }
+    expect(wallet.index).toBe(1)
     expect(wallet.publicKey).toBe('GABC')
     expect(wallet.balanceStroops).toBe(10000000)
     expect(wallet.spendingBudgetStroops).toBe(500000000)

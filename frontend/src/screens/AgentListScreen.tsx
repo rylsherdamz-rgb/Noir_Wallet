@@ -31,14 +31,50 @@ export function AgentListScreen() {
   const insets = useSafeAreaInsets()
   const { devices, network } = useAppStore()
   const [agent, setAgent] = useState<AgentWallet | null>(null)
+  const [agentCount, setAgentCount] = useState(0)
+  const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
   const loadAgent = async () => {
-    const a = await x402.getAgent()
-    setAgent(a)
+    // Self-heal: reconstruct agents from the persisted device list if the local
+    // per-agent metadata is missing (e.g. right after login on a fresh device).
+    try {
+      const relevant = devices
+        .filter((d) => !!d.agentPublicKey)
+        .map((d) => ({
+          deviceUidHash: d.deviceUidHash,
+          agentPublicKey: d.agentPublicKey,
+          label: d.label,
+          createdAt: d.createdAt,
+        }))
+      if (relevant.length > 0) await x402.syncAgentsFromDevices(relevant)
+    } catch { /* non-critical */ }
+
+    const all = await x402.listAgents()
+    setAgentCount(all.length)
+    if (all.length === 0) { setAgent(null); setLoading(false); return }
+    const agg = all.reduce(
+      (acc, a) => ({
+        balanceStroops: acc.balanceStroops + a.balanceStroops,
+        spendingBudgetStroops: acc.spendingBudgetStroops + a.spendingBudgetStroops,
+        totalSpentStroops: acc.totalSpentStroops + a.totalSpentStroops,
+      }),
+      { balanceStroops: 0, spendingBudgetStroops: 0, totalSpentStroops: 0 },
+    )
+    setAgent({
+      index: all[0].index,
+      publicKey: all[0].publicKey,
+      label: `${all.length} agent${all.length === 1 ? '' : 's'}`,
+      balanceStroops: agg.balanceStroops,
+      spendingBudgetStroops: agg.spendingBudgetStroops,
+      totalSpentStroops: agg.totalSpentStroops,
+      isActive: true,
+      createdAt: all[0].createdAt,
+    })
+    setLoading(false)
   }
 
-  useEffect(() => { loadAgent() }, [])
+  useEffect(() => { loadAgent() }, [devices.length])
 
   const onRefresh = async () => {
     setRefreshing(true)
@@ -63,19 +99,20 @@ export function AgentListScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.gold} />}
       >
-        <Text style={styles.screenTitle}>Payment Agent</Text>
+        <Text style={styles.screenTitle}>Payment Agents</Text>
         <Text style={styles.screenSub}>
-          Your x402 agent wallet signs and pays for NFC taps — no manual confirmation needed.
+          Each linked card has its own x402 agent wallet that signs and pays for NFC taps — no manual confirmation needed.
         </Text>
 
-        {!agentExists && devices.length > 0 && (
+        {loading && devices.length > 0 && !agentExists && (
           <View style={styles.loadingBox}>
             <ActivityIndicator size="small" color={Colors.gold} />
-            <Text style={styles.loadingText}>Loading agent wallet…</Text>
+            <Text style={styles.loadingText}>Loading agent wallets…</Text>
           </View>
         )}
 
-        {/* Shared Agent Wallet Card */}
+        {/* Aggregate Agent Wallet Card — only when at least one agent exists */}
+        {agentExists && (
         <LinearGradient
           colors={[Gradient.peak, Gradient.mid]}
           start={{ x: 0.5, y: 0 }}
@@ -87,36 +124,15 @@ export function AgentListScreen() {
               <Ionicons name="flash" size={20} color={Colors.goldHi} />
             </View>
             <View style={styles.walletTitleArea}>
-              <Text style={styles.walletTitle}>x402 Agent Wallet</Text>
-              {agent?.publicKey && (
-                <Text style={styles.walletSub}>
-                  {agent.publicKey.slice(0, 8)}…{agent.publicKey.slice(-6)}
-                </Text>
-              )}
-            </View>
-            {agent?.publicKey && (
-              <PressableScale
-                onPress={() => {
-                  const baseUrl = network === 'testnet'
-                    ? 'https://stellar.expert/explorer/testnet/account'
-                    : 'https://stellar.expert/explorer/public/account'
-                  Linking.openURL(`${baseUrl}/${agent.publicKey}`)
-                }}
-                accessibilityRole="button"
-                accessibilityLabel="View agent wallet on Stellar Expert"
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name="open-outline" size={16} color={Colors.goldHi} />
-              </PressableScale>
-            )}
-            {agent?.createdAt && (
-              <Text style={styles.walletCreated}>
-                {new Date(agent.createdAt).toLocaleDateString()}
+              <Text style={styles.walletTitle}>x402 Agent Wallets</Text>
+              <Text style={styles.walletSub}>
+                {agentCount} agent{agentCount === 1 ? '' : 's'} · {devices.length} device{devices.length === 1 ? '' : 's'}
               </Text>
-            )}
+            </View>
           </View>
 
           <Text style={styles.balanceAmount}>{xlmBalance}<Text style={styles.balanceUnit}> XLM</Text></Text>
+          <Text style={styles.balanceCaption}>Combined balance across all agents</Text>
 
           <View style={styles.budgetRow}>
             <View style={styles.budgetTile}>
@@ -145,10 +161,11 @@ export function AgentListScreen() {
                   <View style={styles.meterEndpoint} />
                 </LinearGradient>
               </View>
-              <Text style={styles.meterLabel}>{pct}% of budget used</Text>
+              <Text style={styles.meterLabel}>{pct}% of combined budget used</Text>
             </View>
           )}
         </LinearGradient>
+        )}
 
         {/* Device List */}
         {devices.length > 0 && (
@@ -322,6 +339,7 @@ const styles = StyleSheet.create({
   walletCreated: { fontSize: FontSize.xs, color: Colors.mutedWhite },
   balanceAmount: { fontSize: FontSize.xxxl, fontFamily: Fonts.display, color: Colors.white, marginBottom: Spacing.md },
   balanceUnit: { fontSize: FontSize.lg, color: Colors.mutedWhite },
+  balanceCaption: { fontSize: FontSize.xs, color: Colors.mutedWhite, marginTop: -Spacing.sm, marginBottom: Spacing.md },
   budgetRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
   budgetTile: {
     flex: 1, backgroundColor: Gradient.raised, borderRadius: BorderRadius.md,

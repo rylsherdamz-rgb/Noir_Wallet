@@ -10,15 +10,33 @@ const SecureStore = {
   deleteItemAsync: secureDeleteItem,
 }
 
-const AGENT_SECRET_KEY = 'x402.agent.secret'
-const AGENT_PUBLIC_KEY = 'x402.agent.public'
-const AGENT_BUDGET_KEY = 'x402.agent.budget'
-const AGENT_CREATED_KEY = 'x402.agent.created'
+// ── Per-agent SecureStore keys ──────────────────────────────────────────────
+// Each agent is namespaced by its HD index, so multiple agents coexist without
+// clobbering one another (the previous single-agent cache was the source of the
+// stale-key bugs). The set of live agent indexes lives in AGENTS_INDEX_KEY.
+const AGENTS_INDEX_KEY = 'x402.agents.index'
+const legacySecretKey = (i: number) => `x402.agent.${i}.secret`
+const legacyPublicKey = (i: number) => `x402.agent.${i}.public`
+const legacyBudgetKey = (i: number) => `x402.agent.${i}.budget`
+const legacyCreatedKey = (i: number) => `x402.agent.${i}.created`
+const legacyLabelKey = (i: number) => `x402.agent.${i}.label`
+const legacyDeviceKey = (i: number) => `x402.agent.${i}.device`
 
+// Legacy single-agent keys (pre-multi-agent). Migrated into index 1 on first use.
+const OLD_SECRET_KEY = 'x402.agent.secret'
+const OLD_PUBLIC_KEY = 'x402.agent.public'
+const OLD_BUDGET_KEY = 'x402.agent.budget'
+const OLD_CREATED_KEY = 'x402.agent.created'
+
+const LEGACY_AGENT_INDEX = 1
 const DEFAULT_BUDGET_XLM = 500
+const DEFAULT_BUDGET_STROOPS = DEFAULT_BUDGET_XLM * 10_000_000
 
 export interface AgentWallet {
+  index: number
   publicKey: string
+  label: string
+  deviceHash?: string
   balanceStroops: number
   spendingBudgetStroops: number
   totalSpentStroops: number
@@ -30,108 +48,361 @@ function addressScVal(addr: string): xdr.ScVal {
   return Address.fromString(addr).toScVal()
 }
 
-const deviceNonces = new Map<string, number>()
-
-async function ensureAgentInSecureStore(): Promise<void> {
-  const { walletService } = await import('@/services/wallet')
-  const keys = await walletService.loadKeys()
-  if (keys?.agentSecret) {
-    const cached = await SecureStore.getItemAsync(AGENT_SECRET_KEY)
-    if (cached !== keys.agentSecret) {
-      await SecureStore.setItemAsync(AGENT_SECRET_KEY, keys.agentSecret)
-      await SecureStore.setItemAsync(AGENT_PUBLIC_KEY, keys.agentPublic)
-    }
+async function readIndexes(): Promise<number[]> {
+  const raw = await SecureStore.getItemAsync(AGENTS_INDEX_KEY)
+  if (!raw) return []
+  try {
+    const arr = JSON.parse(raw)
+    return Array.isArray(arr) ? arr.filter((n) => Number.isInteger(n)) : []
+  } catch {
+    return []
   }
 }
 
-async function syncCreatedTimestamp(): Promise<string> {
-  let created = await SecureStore.getItemAsync(AGENT_CREATED_KEY)
-  if (!created) {
-    created = new Date().toISOString()
-    await SecureStore.setItemAsync(AGENT_CREATED_KEY, created)
+async function writeIndexes(indexes: number[]): Promise<void> {
+  const unique = Array.from(new Set(indexes)).sort((a, b) => a - b)
+  await SecureStore.setItemAsync(AGENTS_INDEX_KEY, JSON.stringify(unique))
+}
+
+async function addIndex(index: number): Promise<void> {
+  const idx = await readIndexes()
+  if (!idx.includes(index)) await writeIndexes([...idx, index])
+}
+
+async function removeIndex(index: number): Promise<void> {
+  const idx = await readIndexes()
+  await writeIndexes(idx.filter((i) => i !== index))
+}
+
+/**
+ * Migrate the pre-multi-agent single agent into agent index 1. Idempotent.
+ *
+ * IMPORTANT: this migrates ONLY a genuine legacy agent, identified by the old
+ * flat SecureStore keys (`x402.agent.secret` / `x402.agent.public`) that the
+ * single-agent build wrote. It must NOT fall back to the wallet's HD-derived
+ * `agentSecret`/`agentPublic`: `deriveKeys()` populates those for EVERY wallet,
+ * so using them here would auto-materialize a phantom "Agent 1" on every fresh
+ * wallet — even when the user has linked no devices and created no agents.
+ * Agents now come into existence only when the user links a device
+ * (`createAgent` / `registerDeviceAndAgentOnChain`) or when
+ * `syncAgentsFromDevices` rebuilds them from real on-chain devices.
+ */
+async function ensureLegacyAgentMigrated(): Promise<void> {
+  const already = await SecureStore.getItemAsync(legacySecretKey(LEGACY_AGENT_INDEX))
+  if (already) return
+
+  // Only migrate from the old single-agent flat cache. Absence of these keys
+  // means there is no legacy agent to preserve — a brand-new wallet lands here.
+  const secret = await SecureStore.getItemAsync(OLD_SECRET_KEY)
+  const publicKey =
+    (await SecureStore.getItemAsync(OLD_PUBLIC_KEY)) ||
+    (secret ? Keypair.fromSecret(secret).publicKey() : null)
+  if (!secret || !publicKey) return
+
+  // If a retired marker exists for index 1, do not resurrect it.
+  const { walletService } = await import('@/services/wallet')
+  if (await walletService.isAgentIndexRetired(LEGACY_AGENT_INDEX)) return
+
+  const budget = (await SecureStore.getItemAsync(OLD_BUDGET_KEY)) ?? String(DEFAULT_BUDGET_STROOPS)
+  const created = (await SecureStore.getItemAsync(OLD_CREATED_KEY)) ?? new Date().toISOString()
+
+  await SecureStore.setItemAsync(legacySecretKey(LEGACY_AGENT_INDEX), secret)
+  await SecureStore.setItemAsync(legacyPublicKey(LEGACY_AGENT_INDEX), publicKey)
+  await SecureStore.setItemAsync(legacyBudgetKey(LEGACY_AGENT_INDEX), budget)
+  await SecureStore.setItemAsync(legacyCreatedKey(LEGACY_AGENT_INDEX), created)
+  await SecureStore.setItemAsync(legacyLabelKey(LEGACY_AGENT_INDEX), 'Agent 1')
+  await addIndex(LEGACY_AGENT_INDEX)
+}
+
+async function loadAgentMeta(index: number): Promise<AgentWallet | null> {
+  const secret = await SecureStore.getItemAsync(legacySecretKey(index))
+  if (!secret) return null
+  const publicKey = (await SecureStore.getItemAsync(legacyPublicKey(index))) || Keypair.fromSecret(secret).publicKey()
+  const budgetRaw = await SecureStore.getItemAsync(legacyBudgetKey(index))
+  const created = (await SecureStore.getItemAsync(legacyCreatedKey(index))) || new Date().toISOString()
+  const label = (await SecureStore.getItemAsync(legacyLabelKey(index))) || `Agent ${index}`
+  const deviceHash = (await SecureStore.getItemAsync(legacyDeviceKey(index))) || undefined
+
+  const remainingBudget = budgetRaw ? parseInt(budgetRaw, 10) : DEFAULT_BUDGET_STROOPS
+  const totalSpent = Math.max(0, DEFAULT_BUDGET_STROOPS - remainingBudget)
+
+  let balanceStroops = 0
+  try {
+    const onChain = await stellarService.getBalance(publicKey)
+    balanceStroops = Math.floor(onChain.xlm * 10_000_000)
+  } catch { /* non-critical */ }
+
+  return {
+    index,
+    publicKey,
+    label,
+    deviceHash,
+    balanceStroops,
+    spendingBudgetStroops: DEFAULT_BUDGET_STROOPS,
+    totalSpentStroops: totalSpent,
+    isActive: true,
+    createdAt: created,
   }
-  return created
 }
 
 export const x402 = {
-  async createAgent(): Promise<AgentWallet> {
+  /**
+   * Create a NEW agent by allocating the next HD index from the wallet,
+   * deriving its keypair, and persisting per-agent metadata. Each agent starts
+   * with a zero balance — the owner tops it up from their own wallet.
+   * Returns the created agent. Pass a label and (optionally) the device hash it
+   * is being linked to.
+   */
+  async createAgent(opts?: { label?: string; deviceHash?: string }): Promise<AgentWallet> {
     const { walletService } = await import('@/services/wallet')
-    const keys = await walletService.loadKeys()
-    if (!keys?.agentSecret) {
-      throw new Error('Wallet must be initialized before creating agent')
-    }
+    const derived = await walletService.allocateAgentIndex()
 
-    await SecureStore.setItemAsync(AGENT_PUBLIC_KEY, keys.agentPublic)
-    await SecureStore.setItemAsync(AGENT_SECRET_KEY, keys.agentSecret)
-    await SecureStore.setItemAsync(AGENT_BUDGET_KEY, String(DEFAULT_BUDGET_XLM * 10_000_000))
-
-    const created = await syncCreatedTimestamp()
-
-    // The agent starts with a zero balance — the user tops it up from their own
-    // wallet. No friendbot funding here.
-    let balanceStroops = 0
-    try {
-      const onChain = await stellarService.getBalance(keys.agentPublic)
-      balanceStroops = Math.floor(onChain.xlm * 10_000_000)
-    } catch { /* non-critical */ }
+    await SecureStore.setItemAsync(legacySecretKey(derived.index), derived.secret)
+    await SecureStore.setItemAsync(legacyPublicKey(derived.index), derived.public)
+    await SecureStore.setItemAsync(legacyBudgetKey(derived.index), String(DEFAULT_BUDGET_STROOPS))
+    const created = new Date().toISOString()
+    await SecureStore.setItemAsync(legacyCreatedKey(derived.index), created)
+    await SecureStore.setItemAsync(legacyLabelKey(derived.index), opts?.label ?? `Agent ${derived.index}`)
+    if (opts?.deviceHash) await SecureStore.setItemAsync(legacyDeviceKey(derived.index), opts.deviceHash)
+    await addIndex(derived.index)
 
     return {
-      publicKey: keys.agentPublic,
-      balanceStroops,
-      spendingBudgetStroops: DEFAULT_BUDGET_XLM * 10_000_000,
+      index: derived.index,
+      publicKey: derived.public,
+      label: opts?.label ?? `Agent ${derived.index}`,
+      deviceHash: opts?.deviceHash,
+      balanceStroops: 0,
+      spendingBudgetStroops: DEFAULT_BUDGET_STROOPS,
       totalSpentStroops: 0,
       isActive: true,
       createdAt: created,
     }
   },
 
+  /** List all live agents (excludes permanently retired ones). */
+  async listAgents(): Promise<AgentWallet[]> {
+    await ensureLegacyAgentMigrated()
+    const indexes = await readIndexes()
+    const agents: AgentWallet[] = []
+    for (const i of indexes) {
+      const a = await loadAgentMeta(i)
+      if (a) agents.push(a)
+    }
+    return agents.sort((a, b) => a.index - b.index)
+  },
+
+  /**
+   * Reconstruct/self-heal agents from the persisted device list. Fixes the
+   * "no agents after login" case: the device list survives login (Zustand
+   * persistence), but per-agent SecureStore metadata may be missing on a fresh
+   * device or after a cache-bust. For each device with an on-chain agent pubkey
+   * that has no local agent, re-derive the HD index that matches the pubkey and
+   * materialize it locally.
+   *
+   * `devices` come from the app store; each has { deviceUidHash, agentPublicKey,
+   * label, createdAt }. Deterministic HD derivation means the same mnemonic +
+   * index always reproduces the agent keypair, so we can rebuild without any
+   * secret ever leaving the device.
+   *
+   * Retired indexes are skipped. Scans up to `maxScan` indexes.
+   */
+  async syncAgentsFromDevices(
+    devices: { deviceUidHash: string; agentPublicKey?: string; label?: string; createdAt?: string }[],
+    maxScan = 64,
+  ): Promise<number> {
+    const { walletService } = await import('@/services/wallet')
+    const keys = await walletService.loadKeys()
+    if (!keys?.mnemonic) return 0
+
+    await ensureLegacyAgentMigrated()
+
+    // Which pubkeys do we already have materialized locally?
+    const existing = await this.listAgents()
+    const knownPubkeys = new Set(existing.map((a) => a.publicKey))
+
+    // Precompute derived pubkey -> index for the scan range (skip retired).
+    const retired = new Set(keys.retiredAgentIndexes ?? [])
+    const derivedByPubkey = new Map<string, number>()
+    for (let i = 1; i <= maxScan; i++) {
+      if (retired.has(i)) continue
+      try {
+        const d = walletService.deriveAgentAt(keys.mnemonic, i)
+        derivedByPubkey.set(d.public, i)
+      } catch { /* skip */ }
+    }
+
+    let healed = 0
+    let highestIndex = (keys.agentIndexNext ?? 2) - 1
+    for (const device of devices) {
+      const pub = device.agentPublicKey
+      if (!pub || knownPubkeys.has(pub)) continue
+
+      const index = derivedByPubkey.get(pub)
+      if (index == null) continue // agent for this device isn't from our seed (or beyond scan range)
+      if (retired.has(index)) continue
+
+      const derived = walletService.deriveAgentAt(keys.mnemonic, index)
+      await SecureStore.setItemAsync(legacySecretKey(index), derived.secret)
+      await SecureStore.setItemAsync(legacyPublicKey(index), derived.public)
+      const budgetExists = await SecureStore.getItemAsync(legacyBudgetKey(index))
+      if (!budgetExists) await SecureStore.setItemAsync(legacyBudgetKey(index), String(DEFAULT_BUDGET_STROOPS))
+      await SecureStore.setItemAsync(legacyCreatedKey(index), device.createdAt || new Date().toISOString())
+      await SecureStore.setItemAsync(legacyLabelKey(index), device.label || `Agent ${index}`)
+      await SecureStore.setItemAsync(legacyDeviceKey(index), device.deviceUidHash)
+      await addIndex(index)
+      knownPubkeys.add(pub)
+      if (index > highestIndex) highestIndex = index
+      healed++
+    }
+
+    // Keep the allocation counter ahead of any reconstructed index.
+    if (healed > 0 && (keys.agentIndexNext ?? 2) <= highestIndex) {
+      await walletService.saveKeys({ ...keys, agentIndexNext: highestIndex + 1 })
+    }
+
+    return healed
+  },
+
+  /** Resolve the agent index linked to a device hash, if any. */
+  async getAgentIndexForDevice(deviceHash: string): Promise<number | null> {
+    const indexes = await readIndexes()
+    for (const i of indexes) {
+      const dev = await SecureStore.getItemAsync(legacyDeviceKey(i))
+      if (dev === deviceHash) return i
+    }
+    return null
+  },
+
+  /** Link an existing agent index to a device hash. */
+  async linkAgentToDevice(index: number, deviceHash: string): Promise<void> {
+    await SecureStore.setItemAsync(legacyDeviceKey(index), deviceHash)
+  },
+
+  /** Get a single agent's metadata + on-chain balance. Defaults to legacy agent 1. */
+  async getAgent(index: number = LEGACY_AGENT_INDEX): Promise<AgentWallet | null> {
+    await ensureLegacyAgentMigrated()
+    return loadAgentMeta(index)
+  },
+
+  /** Secret for a given agent index (defaults to legacy agent 1). */
+  async getAgentSecret(index: number = LEGACY_AGENT_INDEX): Promise<string | null> {
+    await ensureLegacyAgentMigrated()
+    return SecureStore.getItemAsync(legacySecretKey(index))
+  },
+
+  /** True if at least one agent exists. */
+  async hasAgent(): Promise<boolean> {
+    await ensureLegacyAgentMigrated()
+    return (await readIndexes()).length > 0
+  },
+
+  /**
+   * Wipe ALL local agent keys/metadata (used on account deletion / wallet
+   * reset). Does NOT retire HD indexes — a fresh wallet restore re-derives
+   * from the mnemonic. Retirement is reserved for explicit per-agent revoke.
+   */
+  async clearAllAgents(): Promise<void> {
+    const indexes = await readIndexes()
+    for (const i of indexes) {
+      await SecureStore.deleteItemAsync(legacySecretKey(i))
+      await SecureStore.deleteItemAsync(legacyPublicKey(i))
+      await SecureStore.deleteItemAsync(legacyBudgetKey(i))
+      await SecureStore.deleteItemAsync(legacyCreatedKey(i))
+      await SecureStore.deleteItemAsync(legacyLabelKey(i))
+      await SecureStore.deleteItemAsync(legacyDeviceKey(i))
+    }
+    await SecureStore.deleteItemAsync(AGENTS_INDEX_KEY)
+    // Also clear any lingering pre-migration flat keys.
+    await SecureStore.deleteItemAsync(OLD_SECRET_KEY)
+    await SecureStore.deleteItemAsync(OLD_PUBLIC_KEY)
+    await SecureStore.deleteItemAsync(OLD_BUDGET_KEY)
+    await SecureStore.deleteItemAsync(OLD_CREATED_KEY)
+  },
+
+  async getAgentBalanceXlm(index: number = LEGACY_AGENT_INDEX): Promise<number> {
+    const secret = await SecureStore.getItemAsync(legacySecretKey(index))
+    if (!secret) return 0
+    const kp = Keypair.fromSecret(secret)
+    const bal = await stellarService.getBalance(kp.publicKey())
+    return bal.xlm
+  },
+
+  /**
+   * Pay from a specific agent, enforcing that agent's own spending budget
+   * BEFORE submitting. Budgets are per-agent, so cards are isolated.
+   */
   async payWithAgent(params: {
+    agentIndex?: number
     destination: string
     amount: string
     assetCode?: string
     assetIssuer?: string
   }): Promise<{ hash: string } | { error: string }> {
-    const secret = await SecureStore.getItemAsync(AGENT_SECRET_KEY)
+    const index = params.agentIndex ?? LEGACY_AGENT_INDEX
+    const secret = await SecureStore.getItemAsync(legacySecretKey(index))
     if (!secret) return { error: 'No agent wallet' }
 
     const agentPub = Keypair.fromSecret(secret).publicKey()
-
-    // Refuse to pay if the agent has not been topped up yet. The agent is never
-    // friendbot-funded — the user fills it from their own wallet.
     const exists = await stellarService.accountExists(agentPub)
     if (!exists) {
-      return { error: 'Agent wallet has no funds — top it up from Settings → Payment Agent' }
+      return { error: 'Agent wallet has no funds — top it up from the agent screen' }
     }
 
-    // Enforce the spending budget BEFORE submitting: cost cannot exceed the
-    // remaining allowance. This stops overspending even when the wallet still
-    // holds a balance.
     const cost = Math.ceil(parseFloat(params.amount) * 10_000_000)
-    const budgetRaw = await SecureStore.getItemAsync(AGENT_BUDGET_KEY)
-    const budget = budgetRaw ? parseInt(budgetRaw, 10) : DEFAULT_BUDGET_XLM * 10_000_000
+    const budgetRaw = await SecureStore.getItemAsync(legacyBudgetKey(index))
+    const budget = budgetRaw ? parseInt(budgetRaw, 10) : DEFAULT_BUDGET_STROOPS
     if (cost > budget) {
       return { error: `Agent spending budget exhausted — ${(budget / 10_000_000).toFixed(2)} XLM remaining` }
     }
 
+    const { agentIndex, ...paymentParams } = params
     const result = await stellarService.submitPayment({
       sourceSecret: secret,
-      ...params,
+      ...paymentParams,
     })
 
     if ('hash' in result) {
-      await SecureStore.setItemAsync(AGENT_BUDGET_KEY, String(budget - cost))
+      await SecureStore.setItemAsync(legacyBudgetKey(index), String(budget - cost))
     }
-
     return result
   },
 
   /**
-   * Sends the agent's ENTIRE on-chain XLM balance (minus a 0.001 fee cushion)
-   * back to the given destination, then returns the tx hash. Unlike the budget
-   * check, this is a full sweep and is used when revoking a device.
+   * Top up a specific agent from the owner's wallet. Creates the agent's
+   * on-chain account if it does not exist yet.
    */
-  async sweepAgentFunds(destination: string): Promise<{ hash: string } | { error: string }> {
-    const secret = await SecureStore.getItemAsync(AGENT_SECRET_KEY)
+  async topUpAgent(amountXlm: number, fromSecret: string, index: number = LEGACY_AGENT_INDEX): Promise<string> {
+    const secret = await SecureStore.getItemAsync(legacySecretKey(index))
+    if (!secret) throw new Error('No agent wallet configured')
+    const agentPub = Keypair.fromSecret(secret).publicKey()
+
+    const exists = await stellarService.accountExists(agentPub)
+    if (!exists) {
+      const created = await stellarService.submitCreateAccount({
+        sourceSecret: fromSecret,
+        destination: agentPub,
+        amount: amountXlm.toFixed(7),
+      })
+      if ('error' in created) throw new Error(created.error)
+      return created.hash
+    }
+
+    const result = await stellarService.submitPayment({
+      sourceSecret: fromSecret,
+      destination: agentPub,
+      amount: amountXlm.toFixed(7),
+      assetCode: 'XLM',
+    })
+    if ('error' in result) throw new Error(result.error)
+    return result.hash
+  },
+
+  /**
+   * Sweep a specific agent's ENTIRE on-chain XLM balance (minus a fee cushion)
+   * back to the destination (the owner). Used during revocation.
+   */
+  async sweepAgentFunds(destination: string, index: number = LEGACY_AGENT_INDEX): Promise<{ hash: string } | { error: string }> {
+    const secret = await SecureStore.getItemAsync(legacySecretKey(index))
     if (!secret) return { error: 'No agent wallet' }
 
     const agentPub = Keypair.fromSecret(secret).publicKey()
@@ -151,13 +422,50 @@ export const x402 = {
   },
 
   /**
-   * Register both device and agent in sequence, sharing one Horizon account
-   * load to eliminate redundant network calls.
-   * Read-first: checks on-chain state before writing, so re-provisioning an
-   * already-registered tag skips the writes entirely (no failed simulations,
-   * no AlreadyRegistered error spam). Each write independently tolerates
-   * AlreadyRegistered as a race fallback.
+   * PERMANENTLY revoke an agent. Sweeps all XLM back to the owner, then wipes
+   * the agent's local keys and retires its HD index so it can NEVER be
+   * re-derived or recovered. On-chain agent/device revocation is handled by the
+   * caller (revokeAgentOnChain / revokeDeviceOnChain) since it needs the
+   * device hash and wallet secret.
+   *
+   * Returns the sweep result so the caller can surface the recovery tx hash.
    */
+  async retireAgent(index: number, ownerAddress: string): Promise<{ hash: string } | { error: string } | { skipped: true }> {
+    const secret = await SecureStore.getItemAsync(legacySecretKey(index))
+    if (!secret) {
+      // Nothing to sweep, but still ensure the index is retired.
+      const { walletService } = await import('@/services/wallet')
+      await walletService.retireAgentIndex(index)
+      return { skipped: true }
+    }
+
+    let sweep: { hash: string } | { error: string } | { skipped: true } = { skipped: true }
+    try {
+      const result = await this.sweepAgentFunds(ownerAddress, index)
+      sweep = result
+    } catch (e: any) {
+      logger.warn(`[x402] sweep during retire failed: ${e?.message ?? e}`)
+      sweep = { error: e?.message ?? 'sweep failed' }
+    }
+
+    // Wipe local keys/metadata.
+    await SecureStore.deleteItemAsync(legacySecretKey(index))
+    await SecureStore.deleteItemAsync(legacyPublicKey(index))
+    await SecureStore.deleteItemAsync(legacyBudgetKey(index))
+    await SecureStore.deleteItemAsync(legacyCreatedKey(index))
+    await SecureStore.deleteItemAsync(legacyLabelKey(index))
+    await SecureStore.deleteItemAsync(legacyDeviceKey(index))
+    await removeIndex(index)
+
+    // Permanently retire the HD index — never reused, never recoverable.
+    const { walletService } = await import('@/services/wallet')
+    await walletService.retireAgentIndex(index)
+
+    return sweep
+  },
+
+  // ── device_registry contract ──
+
   async registerDeviceAndAgentOnChain(params: {
     walletSecret: string
     deviceHashHex: string
@@ -181,9 +489,6 @@ export const x402 = {
     const deviceHashScVal = stellarService.deviceHashScVal(params.deviceHashHex)
     const agentScVal = stellarService.walletAddressScVal(params.agentPublicKey)
 
-    // ── Read-first: skip writes that would fail with AlreadyRegistered ──
-    // get_device returns DeviceInfo when the hash is registered, and panics
-    // with Error(Contract, #2) / DeviceNotFound when it isn't.
     let deviceRegistered = false
     try {
       await stellarService.readContract({
@@ -229,9 +534,6 @@ export const x402 = {
       }
     }
 
-    // Only bump the in-memory sequence if a tx actually went out. If register
-    // failed at simulation (e.g. AlreadyRegistered), no tx consumed a sequence
-    // number, and bumping anyway makes register_agent submit a bad sequence.
     if (registerSubmitted) account.incrementSequenceNumber()
 
     if (!agentRegistered) {
@@ -248,8 +550,6 @@ export const x402 = {
       }
     }
   },
-
-  // ── device_registry contract ──
 
   async registerDeviceOnChain(params: {
     walletSecret: string
@@ -329,12 +629,13 @@ export const x402 = {
     })
   },
 
-  async getEscrowBalance(deviceHashHex: string): Promise<number> {
+  // ── payment_escrow (views) ──
+
+  async getEscrowBalance(deviceHashHex: string, index: number = LEGACY_AGENT_INDEX): Promise<number> {
     const contractId = AppConfig.stellar.paymentEscrowContract
     if (!contractId) return 0
 
-    await ensureAgentInSecureStore()
-    const source = await SecureStore.getItemAsync(AGENT_PUBLIC_KEY)
+    const source = await SecureStore.getItemAsync(legacyPublicKey(index))
     if (!source) return 0
 
     const result = await stellarService.readContract({
@@ -346,59 +647,11 @@ export const x402 = {
     return Number(result)
   },
 
-  async hasAgent(): Promise<boolean> {
-    const cached = await SecureStore.getItemAsync(AGENT_SECRET_KEY)
-    if (cached) return true
-    const { walletService } = await import('@/services/wallet')
-    const keys = await walletService.loadKeys()
-    return !!keys?.agentSecret
-  },
-
-  async getAgent(): Promise<AgentWallet | null> {
-    await ensureAgentInSecureStore()
-    const agentSecret = await SecureStore.getItemAsync(AGENT_SECRET_KEY)
-    if (!agentSecret) return null
-
-    const pub = await SecureStore.getItemAsync(AGENT_PUBLIC_KEY)
-    const budgetRaw = await SecureStore.getItemAsync(AGENT_BUDGET_KEY)
-    const created = await SecureStore.getItemAsync(AGENT_CREATED_KEY)
-    const kp = Keypair.fromSecret(agentSecret)
-    const onChain = await stellarService.getBalance(kp.publicKey())
-
-    const budgetCap = DEFAULT_BUDGET_XLM * 10_000_000
-    const remainingBudget = budgetRaw ? parseInt(budgetRaw, 10) : budgetCap
-    const totalSpent = Math.max(0, budgetCap - remainingBudget)
-
-    return {
-      publicKey: pub || kp.publicKey(),
-      balanceStroops: Math.floor(onChain.xlm * 10_000_000),
-      spendingBudgetStroops: budgetCap,
-      totalSpentStroops: totalSpent,
-      isActive: true,
-      createdAt: created || new Date().toISOString(),
-    }
-  },
-
-  async getAgentSecret(): Promise<string | null> {
-    const { walletService } = await import('@/services/wallet')
-    const keys = await walletService.loadKeys()
-    if (keys?.agentSecret) {
-      const cached = await SecureStore.getItemAsync(AGENT_SECRET_KEY)
-      if (cached !== keys.agentSecret) {
-        await SecureStore.setItemAsync(AGENT_SECRET_KEY, keys.agentSecret)
-        await SecureStore.setItemAsync(AGENT_PUBLIC_KEY, keys.agentPublic)
-      }
-      return keys.agentSecret
-    }
-    return SecureStore.getItemAsync(AGENT_SECRET_KEY)
-  },
-
-  async getPendingBalance(merchantAddress: string): Promise<number> {
+  async getPendingBalance(merchantAddress: string, index: number = LEGACY_AGENT_INDEX): Promise<number> {
     const contractId = AppConfig.stellar.paymentEscrowContract
     if (!contractId) return 0
 
-    await ensureAgentInSecureStore()
-    const source = await SecureStore.getItemAsync(AGENT_PUBLIC_KEY)
+    const source = await SecureStore.getItemAsync(legacyPublicKey(index))
     if (!source) return 0
 
     const result = await stellarService.readContract({
@@ -410,53 +663,8 @@ export const x402 = {
     return Number(result)
   },
 
-  async clearAgent(): Promise<void> {
-    await SecureStore.deleteItemAsync(AGENT_SECRET_KEY)
-    await SecureStore.deleteItemAsync(AGENT_PUBLIC_KEY)
-    await SecureStore.deleteItemAsync(AGENT_BUDGET_KEY)
-    await SecureStore.deleteItemAsync(AGENT_CREATED_KEY)
-  },
-
-  async getAgentBalanceXlm(): Promise<number> {
-    const secret = await SecureStore.getItemAsync(AGENT_SECRET_KEY)
-    if (!secret) return 0
-    const kp = Keypair.fromSecret(secret)
-    const bal = await stellarService.getBalance(kp.publicKey())
-    return bal.xlm
-  },
-
-  async topUpAgent(amountXlm: number, fromSecret: string): Promise<string> {
-    const secret = await SecureStore.getItemAsync(AGENT_SECRET_KEY)
-    if (!secret) throw new Error('No agent wallet configured')
-    const agentPub = Keypair.fromSecret(secret).publicKey()
-
-    // If the agent account was never created on-chain, a regular payment would
-    // fail — Stellar requires the destination to exist. Create it instead.
-    const exists = await stellarService.accountExists(agentPub)
-    if (!exists) {
-      const created = await stellarService.submitCreateAccount({
-        sourceSecret: fromSecret,
-        destination: agentPub,
-        amount: amountXlm.toFixed(7),
-      })
-      if ('error' in created) throw new Error(created.error)
-      return created.hash
-    }
-
-    const result = await stellarService.submitPayment({
-      sourceSecret: fromSecret,
-      destination: agentPub,
-      amount: amountXlm.toFixed(7),
-      assetCode: 'XLM',
-    })
-    if ('error' in result) throw new Error(result.error)
-    return result.hash
-  },
-
   /**
-   * Query the device_registry contract for all devices owned by a wallet.
-   * Returns an array of { deviceUidHash, agentPublicKey, createdAt }.
-   * Throws if the contract is not configured or query fails.
+   * Query device_registry for all devices owned by a wallet.
    */
   async getOnChainDevices(walletAddress: string): Promise<{
     deviceUidHash: string
