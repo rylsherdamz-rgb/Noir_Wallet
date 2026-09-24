@@ -215,6 +215,29 @@ describe('x402 multi-agent logic', () => {
     expect(await x402.hasAgent()).toBe(true)
   })
 
+  it('a fresh wallet has NO agents until one is created (no phantom Agent 1)', async () => {
+    // Regression: deriveKeys() populates agentSecret/agentPublic for every
+    // wallet, and the legacy migration used to auto-materialize "Agent 1" from
+    // them — so a brand-new wallet with zero devices showed 1 agent on refresh.
+    // With no OLD flat keys present, listAgents must return empty.
+    const { x402 } = await import('@/domain/x402')
+    expect(await x402.listAgents()).toEqual([])
+    expect(await x402.hasAgent()).toBe(false)
+  })
+
+  it('still migrates a genuine legacy agent from the old flat keys', async () => {
+    // The pre-multi-agent build wrote flat SecureStore keys. Those, and only
+    // those, are the signal that a real prior agent must be preserved.
+    const { x402 } = await import('@/domain/x402')
+    const { Keypair } = await import('@stellar/stellar-sdk')
+    const legacy = Keypair.random()
+    mockSecure.set('x402.agent.secret', legacy.secret())
+    mockSecure.set('x402.agent.public', legacy.publicKey())
+    const list = await x402.listAgents()
+    expect(list.find((a) => a.publicKey === legacy.publicKey())).toBeDefined()
+    expect(await x402.hasAgent()).toBe(true)
+  })
+
   it('linkAgentToDevice + getAgentIndexForDevice resolve correctly', async () => {
     const { x402 } = await import('@/domain/x402')
     const a = await x402.createAgent({ label: 'Card A', deviceHash: 'deadbeef' })

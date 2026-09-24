@@ -31,6 +31,9 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
   }, [])
 
   const handleConfirm = async () => {
+    // Guard against a double-tap firing this twice before React re-renders the
+    // button into its disabled/loading state.
+    if (loading) return
     setLoading(true)
     try {
       const keys = await walletService.deriveKeys(phrase.join(' '), 'My Wallet')
@@ -100,7 +103,8 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
           <Button
             label={loading ? "Creating Account..." : "I've Saved My Phrase"}
             onPress={handleConfirm}
-            disabled={!revealed || loading}
+            loading={loading}
+            disabled={!revealed}
           />
         </View>
       </ScrollView>

@@ -75,23 +75,32 @@ async function removeIndex(index: number): Promise<void> {
 }
 
 /**
- * Migrate the pre-multi-agent single agent (flat SecureStore keys, or the
- * HD-derived agent from WalletKeys) into agent index 1. Idempotent.
+ * Migrate the pre-multi-agent single agent into agent index 1. Idempotent.
+ *
+ * IMPORTANT: this migrates ONLY a genuine legacy agent, identified by the old
+ * flat SecureStore keys (`x402.agent.secret` / `x402.agent.public`) that the
+ * single-agent build wrote. It must NOT fall back to the wallet's HD-derived
+ * `agentSecret`/`agentPublic`: `deriveKeys()` populates those for EVERY wallet,
+ * so using them here would auto-materialize a phantom "Agent 1" on every fresh
+ * wallet — even when the user has linked no devices and created no agents.
+ * Agents now come into existence only when the user links a device
+ * (`createAgent` / `registerDeviceAndAgentOnChain`) or when
+ * `syncAgentsFromDevices` rebuilds them from real on-chain devices.
  */
 async function ensureLegacyAgentMigrated(): Promise<void> {
   const already = await SecureStore.getItemAsync(legacySecretKey(LEGACY_AGENT_INDEX))
   if (already) return
 
-  // Prefer the HD-derived agent from the wallet (source of truth), fall back to
-  // the old flat cache.
-  const { walletService } = await import('@/services/wallet')
-  const keys = await walletService.loadKeys()
-
-  let secret = keys?.agentSecret ?? (await SecureStore.getItemAsync(OLD_SECRET_KEY)) ?? null
-  let publicKey = keys?.agentPublic ?? (await SecureStore.getItemAsync(OLD_PUBLIC_KEY)) ?? null
+  // Only migrate from the old single-agent flat cache. Absence of these keys
+  // means there is no legacy agent to preserve — a brand-new wallet lands here.
+  const secret = await SecureStore.getItemAsync(OLD_SECRET_KEY)
+  const publicKey =
+    (await SecureStore.getItemAsync(OLD_PUBLIC_KEY)) ||
+    (secret ? Keypair.fromSecret(secret).publicKey() : null)
   if (!secret || !publicKey) return
 
   // If a retired marker exists for index 1, do not resurrect it.
+  const { walletService } = await import('@/services/wallet')
   if (await walletService.isAgentIndexRetired(LEGACY_AGENT_INDEX)) return
 
   const budget = (await SecureStore.getItemAsync(OLD_BUDGET_KEY)) ?? String(DEFAULT_BUDGET_STROOPS)
