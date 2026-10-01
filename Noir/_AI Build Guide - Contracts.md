@@ -1,0 +1,164 @@
+---
+tags: [guide, contracts, soroban, ai, build, memory]
+aliases: [Contract Guide, AI Build Guide, Contract Functions]
+---
+
+# 🤖 AI Build Guide — Soroban Contracts (Complete)
+
+> Source-accurate reference for an AI (or human) building/extending Noir Wallet's on-chain layer. Derived directly from the Rust in `backend/asset/contracts/`, **not** the README (the README's method tables are out of date — trust this note). Linked from [[_Context - What We Are Building]], [[Smart Contracts]], and [[_SCF Instaward - Deliverables & Constraints]].
+
+## Ground rules for the AI
+
+- **Never store keys/secrets on the NFC tag.** The tag UID is read, SHA-256 hashed off-chain, and only the 32-byte hash (`BytesN<32>`) touches chain state.
+- **Auth is enforced on-chain**, not by the app. Every state-changing call has a `require_auth()` on the party who must consent. If you change who can call something, change the `require_auth` target.
+- **`no_std`** everywhere. Use `soroban_sdk` types (`Address`, `BytesN<32>`, `i128`, `u32`, `u64`, `Vec`, `Map`) — no `std`.
+- **Amounts are `i128` in stroops-style integers** (token's smallest unit). Never floats on-chain.
+- **Errors** are `#[contracterror] #[repr(u32)]` enums raised via `panic_with_error!`. Preserve existing numeric codes — the app and tests match on them.
+- **Events** are published on every mutation with `symbol_short!` topics — keep publishing them so indexers/tests can observe flows.
+- Contracts **compose**: `payment_escrow` imports `agent_registry` and `device_registry` WASM via `contractimport!` and calls them cross-contract. Build order matters (see below).
+
+## Build & deploy order (dependencies)
+
+`payment_escrow` `contractimport!`s the other two WASM files at compile time:
+```rust
+mod agent_registry  { contractimport!(file = "../../target/wasm32v1-none/release/agent_registry.wasm"); }
+mod device_registry { contractimport!(file = "../../target/wasm32v1-none/release/device_registry.wasm"); }
+```
+So you MUST build `agent_registry` and `device_registry` **before** `payment_escrow`:
+```bash
+cd backend/asset
+cargo build --release --target wasm32v1-none -p agent-registry -p device-registry
+cargo build --release --target wasm32v1-none -p payment-escrow
+```
+Deploy + init order: device_registry → agent_registry → payment_escrow (escrow init needs both IDs). See [[_Redeploy Contracts]].
+
+---
+
+## Contract 1 — [[DeviceRegistry]] (`device_registry`)
+
+Maps a device hash → `DeviceInfo { owner, agent, status, created_at }` and keeps a **dense per-wallet index** so a wallet can enumerate its devices.
+
+### Storage (`DataKey`)
+- `Admin` → `Address` (set once)
+- `Device(BytesN<32>)` → `DeviceInfo`
+- `WalletDeviceCount(Address)` → `u32`
+- `WalletDeviceByIndex(Address, u32)` → `BytesN<32>`
+
+`DeviceInfo`: `owner: Address`, `agent: Address`, `status: u32` (0 = active), `created_at: u64`.
+
+### Errors
+`AlreadyInitialized=1`, `DeviceNotFound=2`, `NotOwner=3`, `AlreadyRegistered=4`.
+
+### Functions
+| Fn | Signature | Auth | Behavior |
+|----|-----------|------|----------|
+| `initialize` | `(admin: Address)` | `admin` | Stores admin. Panics `AlreadyInitialized` if run twice. |
+| `register` | `(wallet, device_hash, agent)` | `wallet` | Panics `AlreadyRegistered` if the hash exists. Writes `DeviceInfo{owner=wallet, agent, status:0, created_at:now}`, appends hash to wallet's index list, increments count. Emits `("register", device_hash) → agent`. |
+| `revoke` | `(wallet, device_hash)` | `wallet` | Loads device (`DeviceNotFound`), checks `owner==wallet` (`NotOwner`). **Fully removes** the device entry + compacts the wallet index list (shifts entries down so list stays dense) and decrements count. Emits `("revoke", device_hash)`. Full removal (not a soft flag) is deliberate so the hash can be **re-registered** later. |
+| `get_device` | `(device_hash) -> DeviceInfo` | none (view) | Panics `DeviceNotFound` if absent. |
+| `wallet_device_count` | `(wallet) -> u32` | none | 0 if none. |
+| `wallet_device_at` | `(wallet, index) -> BytesN<32>` | none | Panics `DeviceNotFound` on bad index. |
+| `is_authorized` | `(device_hash, agent) -> bool` | none | `true` iff device exists AND `info.agent==agent` AND `info.status==0`. |
+| `get_agent` | `(device_hash) -> Address` | none | Agent for device; panics `DeviceNotFound`. |
+| `get_owner` | `(device_hash) -> Address` | none | Owner for device; panics `DeviceNotFound`. Used by escrow's `defund`. |
+
+> ⚠️ AI note: `device_registry` stores its own `agent` field, and `agent_registry` *also* stores an agent per device. They are two independent authorization records. Escrow checks **`agent_registry.is_auth`**, not `device_registry`. Keep them consistent when registering (register the same agent in both) unless you intentionally redesign.
+
+---
+
+## Contract 2 — [[AgentRegistry]] (`agent_registry`)
+
+The authority the escrow trusts for "may this agent spend for this device?".
+
+### Storage (`DataKey`)
+- `Admin` → `Address`
+- `AgentMap(BytesN<32>)` → `Address` (device_hash → authorized agent)
+
+### Errors
+`AlreadyInitialized=1`, `AgentNotFound=2`, `AlreadyRegistered=3`.
+
+### Functions
+| Fn | Signature | Auth | Behavior |
+|----|-----------|------|----------|
+| `initialize` | `(admin: Address)` | `admin` | Store admin once; panic `AlreadyInitialized` otherwise. |
+| `register_agent` | `(wallet, device_hash, agent)` | `wallet` | Panics `AlreadyRegistered` if a mapping already exists (must `revoke_agent` first to rotate). Sets `AgentMap[device_hash]=agent`. Emits `("agent_reg", device_hash) → agent`. |
+| `revoke_agent` | `(wallet, device_hash)` | `wallet` | Panics `AgentNotFound` if none. Removes mapping. Emits `("agent_rev", device_hash)`. |
+| `get_agent` | `(device_hash) -> Address` | none | Panics `AgentNotFound` if none. |
+| `is_auth` | `(device_hash, agent) -> bool` | none | `true` iff stored agent == `agent`. **This is the gate `payment_escrow.authorize` calls.** |
+
+> ⚠️ Rotating an agent = `revoke_agent` then `register_agent` (register alone panics if one exists).
+
+---
+
+## Contract 3 — [[PaymentEscrow]] (`payment_escrow`)
+
+Pre-funded per-device escrow. Agent authorizes instant deductions (with **replay-protecting nonce**); merchants batch-claim; owner can reclaim.
+
+### Storage (`DataKey`)
+- `Admin` → `Address`
+- `AgentRegistry` → `Address`, `DeviceRegistry` → `Address` (set at init)
+- `EscrowBalance(BytesN<32>)` → `i128` (persistent) — funds per device
+- `PendingIndex(Address)` → `u32` (persistent) — per-merchant running index / high-water mark
+- `PendingPayment((Address, u32))` → `Payment` (**temporary** storage) — one pending authorization
+- `AuthNonce((BytesN<32>, Address))` → `u64` (persistent) — last used nonce per (device, agent)
+
+`Payment`: `device_hash: BytesN<32>`, `amount: i128`, `timestamp: u64`.
+
+### Errors
+`AlreadyInitialized=1`, `InsufficientBalance=2`, `AgentNotAuthorized=3`, `NotDeviceOwner=4`, `NothingToClaim=5`, `DuplicateAuth=6`.
+
+### Functions
+| Fn | Signature | Auth | Behavior |
+|----|-----------|------|----------|
+| `initialize` | `(admin, agent_registry_id, device_registry_id)` | `admin` | Stores admin + both registry IDs. Panic `AlreadyInitialized` if repeated. **Note: takes BOTH registry IDs** (README wrongly lists only agent_registry). |
+| `fund_escrow` | `(token, wallet, device_hash, amount)` | `wallet` | `token.transfer(wallet → contract, amount)`, then `EscrowBalance[device] += amount`. Emits `("fund", device_hash) → amount`. Any `wallet` can fund any device (funding is permissionless top-up). |
+| `authorize` | `(agent, device_hash, merchant, amount, nonce)` | `agent` | **(1)** replay check: `nonce > last_nonce` for (device,agent) else `DuplicateAuth`; store new nonce. **(2)** cross-call `agent_registry.is_auth(device_hash, agent)` else `AgentNotAuthorized`. **(3)** `balance >= amount` else `InsufficientBalance`; deduct. **(4)** bump `PendingIndex[merchant]`, write `Payment` to **temporary** storage at that index. Emits `("authorize",(device_hash,merchant)) → amount`. No token transfer here — funds move only on claim. |
+| `claim` | `(token, merchant)` | `merchant` | Sums all pending `Payment`s from index `1..=PendingIndex[merchant]` (skips expired/absent temporary entries). If total 0 → `NothingToClaim`. Removes claimed entries, resets `PendingIndex[merchant]=0`, `token.transfer(contract → merchant, total)`. Emits `("claim", merchant) → total`. |
+| `defund_escrow` | `(token, device_hash, amount)` | device **owner** | Looks up owner via `device_registry.get_owner(device_hash)` and requires **that owner's** auth (`NotDeviceOwner` path if registry unset). `balance >= amount` else `InsufficientBalance`; deduct; `token.transfer(contract → owner, amount)`. Emits `("defund", device_hash) → amount`. |
+| `balance_of` | `(device_hash) -> i128` | none | Escrow balance (0 if none). |
+| `pending_balance` | `(merchant) -> i128` | none | Sum of merchant's still-present pending payments. |
+
+> ⚠️ **Temporary storage caveat (critical for AI):** pending payments live in **temporary** storage, which can expire if unclaimed for a long time. `claim`/`pending_balance` tolerate missing entries (they skip them), so an expired authorization silently drops. If you need durable pending payments, move `PendingPayment` to persistent storage and manage TTL — but that changes the settlement model, so confirm before doing it.
+>
+> ⚠️ **Nonce = replay protection.** `authorize` requires strictly increasing `nonce` per (device, agent). The app/agent must persist and increment its nonce. This is the on-chain half of the SOW's "replayed payment request rejected" requirement.
+
+---
+
+## End-to-end call sequence (the SOW's core proof)
+
+1. `device_registry.initialize(admin)` · `agent_registry.initialize(admin)` · `payment_escrow.initialize(admin, agent_registry_id, device_registry_id)`
+2. Owner: `device_registry.register(wallet, device_hash, agent)`
+3. Owner: `agent_registry.register_agent(wallet, device_hash, agent)`  ← the record escrow actually checks
+4. Owner: `payment_escrow.fund_escrow(token, wallet, device_hash, amount)`
+5. Tap → agent: `payment_escrow.authorize(agent, device_hash, merchant, amount, nonce++)`
+6. Merchant: `payment_escrow.claim(token, merchant)`
+7. Owner reclaim: `payment_escrow.defund_escrow(token, device_hash, amount)`
+8. Revoke: `agent_registry.revoke_agent(wallet, device_hash)` and/or `device_registry.revoke(wallet, device_hash)`
+
+See flows: [[Flow - Device Provisioning]] · [[Flow - Escrow Payment]] · [[Flow - Tap to Pay]].
+
+## Negative paths the AI must keep passing (maps to [[_SCF Instaward - Deliverables & Constraints]])
+
+- unregistered device → `authorize` fails `AgentNotAuthorized` (no agent mapping)
+- duplicate registration → `register`/`register_agent` fail `AlreadyRegistered`
+- unauthorized agent → `AgentNotAuthorized`
+- over-limit / underfunded → `InsufficientBalance`
+- revoked device/agent → `authorize` fails `AgentNotAuthorized` after `revoke_agent`
+- replayed request (nonce reuse) → `DuplicateAuth`
+- claim with nothing pending → `NothingToClaim`
+- defund by non-owner → owner `require_auth` fails
+- invalid asset/recipient → token transfer / auth failure
+
+Integration tests live at `backend/asset/contracts/*/tests/integration.rs` — extend these when adding behavior; do not weaken existing assertions.
+
+## When extending: checklist for the AI
+
+1. Add/modify the `DataKey` variant and keep migrations in mind (persistent vs temporary).
+2. Add the right `require_auth()` on the consenting party.
+3. Add a `#[contracterror]` code (append; never renumber existing).
+4. Publish an event on mutation.
+5. If it's cross-contract, wire the registry ID from storage (don't hardcode).
+6. Rebuild dependency WASM first (agent/device) before `payment_escrow`.
+7. Add positive + negative integration tests; run `cargo test`.
+8. Update `frontend/src/lib/soroban.ts` / [[x402]] bindings and the [[_Redeploy Contracts]] runbook.
+9. Redeploy → new Contract IDs → update `frontend/.env` + README + evidence pack.
