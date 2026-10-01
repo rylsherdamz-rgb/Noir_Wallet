@@ -1,13 +1,13 @@
 #![no_std]
 use soroban_sdk::{contract, contractimpl, contracttype, contracterror, panic_with_error, symbol_short, Address, BytesN, Env, Vec};
 
-mod agent_registry {
+pub mod agent_registry {
     soroban_sdk::contractimport!(
         file = "../../target/wasm32v1-none/release/agent_registry.wasm"
     );
 }
 
-mod device_registry {
+pub mod device_registry {
     soroban_sdk::contractimport!(
         file = "../../target/wasm32v1-none/release/device_registry.wasm"
     );
@@ -41,6 +41,7 @@ pub enum Error {
     NotDeviceOwner = 4,
     NothingToClaim = 5,
     DuplicateAuth = 6,
+    AgentStillActive = 7,
 }
 
 #[contract]
@@ -88,11 +89,14 @@ impl PaymentEscrow {
         agent: Address,
         device_hash: BytesN<32>,
         merchant: Address,
+        asset: Address,
         amount: i128,
         nonce: u64,
     ) {
         agent.require_auth();
 
+        // Replay protection: each (device, agent) pair carries a monotonically
+        // increasing nonce. A replayed or stale request is rejected.
         let nonce_key = DataKey::AuthNonce((device_hash.clone(), agent.clone()));
         let last_nonce: u64 = env.storage().persistent().get(&nonce_key).unwrap_or(0);
         if nonce <= last_nonce {
@@ -106,8 +110,12 @@ impl PaymentEscrow {
             .get(&DataKey::AgentRegistry)
             .unwrap_or_else(|| panic_with_error!(&env, Error::AgentNotAuthorized));
 
+        // Enforce the FULL constrained-authorization policy in one call: the
+        // agent must match, the asset must be the approved one, the amount must
+        // be positive and within the cap, and the authorization must not have
+        // expired. The agent_registry owns these rules; the escrow only asks.
         let reg = agent_registry::Client::new(&env, &agent_registry_id);
-        if !reg.is_auth(&device_hash, &agent) {
+        if !reg.check_payment(&device_hash, &agent, &asset, &amount) {
             panic_with_error!(&env, Error::AgentNotAuthorized);
         }
 
@@ -236,6 +244,72 @@ impl PaymentEscrow {
 
         env.events()
             .publish((symbol_short!("defund"), device_hash), amount);
+    }
+
+    /// Return a device's ENTIRE remaining escrow balance to its owner once the
+    /// agent authorization has been revoked.
+    ///
+    /// This is the on-revoke sweep: after the wallet owner calls
+    /// `agent_registry.revoke_agent`, the device has no authorized agent and
+    /// its escrow should no longer sit locked. This method confirms there is no
+    /// longer an active authorization for `agent` on the device, then transfers
+    /// the whole balance back to the owner (resolved from `device_registry`).
+    ///
+    /// Guarded so it cannot be used to pull funds while an agent is still live:
+    /// if the agent is still authorized, it panics `AgentStillActive`.
+    pub fn sweep_on_revoke(
+        env: Env,
+        token: Address,
+        device_hash: BytesN<32>,
+        agent: Address,
+    ) -> i128 {
+        let device_registry_id: Address = env
+            .storage()
+            .persistent()
+            .get(&DataKey::DeviceRegistry)
+            .unwrap_or_else(|| panic_with_error!(&env, Error::NotDeviceOwner));
+
+        let dev_reg = device_registry::Client::new(&env, &device_registry_id);
+        let owner = dev_reg.get_owner(&device_hash);
+        owner.require_auth();
+
+        // The sweep is only valid after revocation. If the agent is still
+        // authorized in the agent_registry, refuse — otherwise this would be a
+        // way to drain an active escrow out from under a working agent.
+        let agent_registry_id: Address = env
+            .storage()
+            .persistent()
+            .get(&DataKey::AgentRegistry)
+            .unwrap_or_else(|| panic_with_error!(&env, Error::AgentNotAuthorized));
+        let agent_reg = agent_registry::Client::new(&env, &agent_registry_id);
+        if agent_reg.is_auth(&device_hash, &agent) {
+            panic_with_error!(&env, Error::AgentStillActive);
+        }
+
+        let balance_key = DataKey::EscrowBalance(device_hash.clone());
+        let balance = env
+            .storage()
+            .persistent()
+            .get::<_, i128>(&balance_key)
+            .unwrap_or(0);
+
+        if balance <= 0 {
+            return 0;
+        }
+
+        env.storage().persistent().set(&balance_key, &0i128);
+
+        let token_client = soroban_sdk::token::Client::new(&env, &token);
+        token_client.transfer(
+            &env.current_contract_address(),
+            &owner,
+            &balance,
+        );
+
+        env.events()
+            .publish((symbol_short!("sweep"), device_hash), balance);
+
+        balance
     }
 
     pub fn balance_of(env: Env, device_hash: BytesN<32>) -> i128 {

@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use device_registry::{DeviceInfo, DeviceRegistry};
+    use device_registry::{DeviceRegistry, DeviceRegistryClient};
     use soroban_sdk::{testutils::Address as _, Address, BytesN, Env};
 
     fn random_address(env: &Env) -> Address {
@@ -11,159 +11,147 @@ mod tests {
         <BytesN<32> as soroban_sdk::testutils::BytesN<32>>::random(env)
     }
 
+    /// Deploy an initialized registry and return a client bound to it.
+    ///
+    /// The client pattern matters: every client call is its own invocation
+    /// frame, so `mock_all_auths` applies per-call. Calling the contract methods
+    /// directly inside a single `env.as_contract` closure instead collapses them
+    /// into one frame and a second `require_auth` for the same address trips
+    /// `Error(Auth, ExistingValue)` ("frame is already authorized").
+    fn deploy(env: &Env) -> DeviceRegistryClient<'_> {
+        let contract_id = env.register(DeviceRegistry, ());
+        let client = DeviceRegistryClient::new(env, &contract_id);
+        client.initialize(&random_address(env));
+        client
+    }
+
     #[test]
     fn test_initialize_happy_path() {
         let env = Env::default();
         env.mock_all_auths();
-
-        let contract_id = env.register(DeviceRegistry, ());
-        let admin = random_address(&env);
-
-        env.as_contract(&contract_id, || {
-            DeviceRegistry::initialize(env.clone(), admin);
-        });
+        deploy(&env);
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "Error(Contract, #1)")]
     fn test_initialize_double_init_guard() {
         let env = Env::default();
         env.mock_all_auths();
-
-        let contract_id = env.register(DeviceRegistry, ());
-        let admin = random_address(&env);
-
-        env.as_contract(&contract_id, || {
-            DeviceRegistry::initialize(env.clone(), admin.clone());
-            DeviceRegistry::initialize(env.clone(), random_address(&env));
-        });
+        let client = deploy(&env);
+        client.initialize(&random_address(&env));
     }
 
     #[test]
-    fn test_register_revoked_mapping() {
+    fn test_register_maps_device() {
         let env = Env::default();
         env.mock_all_auths();
+        let client = deploy(&env);
 
-        let contract_id = env.register(DeviceRegistry, ());
-        let admin = random_address(&env);
         let wallet = random_address(&env);
         let agent = random_address(&env);
         let device_hash = random_bytes_32(&env);
 
-        env.as_contract(&contract_id, || {
-            DeviceRegistry::initialize(env.clone(), admin.clone());
-            DeviceRegistry::register(env.clone(), wallet.clone(), device_hash.clone(), agent.clone());
+        client.register(&wallet, &device_hash, &agent);
 
-            // Verify it was authorized immediately after registration
-            assert!(DeviceRegistry::is_authorized(env.clone(), device_hash.clone(), agent.clone()));
-            assert_eq!(DeviceRegistry::wallet_device_count(env.clone(), wallet.clone()), 1);
-            assert_eq!(DeviceRegistry::wallet_device_at(env.clone(), wallet.clone(), 0), device_hash.clone());
-        });
+        assert!(client.is_authorized(&device_hash, &agent));
+        assert_eq!(client.wallet_device_count(&wallet), 1);
+        assert_eq!(client.wallet_device_at(&wallet, &0), device_hash);
+        assert_eq!(client.get_owner(&device_hash), wallet);
     }
 
     #[test]
     #[should_panic]
     fn test_unauthorized_register_rejected() {
         let env = Env::default();
-
         let contract_id = env.register(DeviceRegistry, ());
-        let admin = random_address(&env);
-        let wallet = random_address(&env);
-        let device_hash = random_bytes_32(&env);
-        let agent = random_address(&env);
+        let client = DeviceRegistryClient::new(&env, &contract_id);
 
-        env.as_contract(&contract_id, || {
-            // Mock auth for initialize only
-            env.mock_auths(&[]);
-            DeviceRegistry::initialize(env.clone(), admin.clone());
-            env.mock_auths(&[]);
+        env.mock_all_auths();
+        client.initialize(&random_address(&env));
 
-            // Register without auth - should panic
-            DeviceRegistry::register(env.clone(), wallet.clone(), device_hash.clone(), agent);
-        });
+        // No auth mocked for register -> require_auth panics.
+        env.set_auths(&[]);
+        client.register(&random_address(&env), &random_bytes_32(&env), &random_address(&env));
     }
 
     #[test]
     fn test_revoke_removes_entry_enabling_re_registration() {
         let env = Env::default();
         env.mock_all_auths();
+        let client = deploy(&env);
 
-        let contract_id = env.register(DeviceRegistry, ());
-        let admin = random_address(&env);
         let wallet = random_address(&env);
         let agent = random_address(&env);
         let device_hash = random_bytes_32(&env);
 
-        env.as_contract(&contract_id, || {
-            DeviceRegistry::initialize(env.clone(), admin.clone());
-            DeviceRegistry::register(env.clone(), wallet.clone(), device_hash.clone(), agent.clone());
+        client.register(&wallet, &device_hash, &agent);
+        client.revoke(&wallet, &device_hash);
 
-            DeviceRegistry::revoke(env.clone(), wallet.clone(), device_hash.clone());
+        // Deauthorized since the entry no longer exists.
+        assert!(!client.is_authorized(&device_hash, &agent));
+        // Wallet listing compacted back to zero.
+        assert_eq!(client.wallet_device_count(&wallet), 0);
 
-            // Device must be fully gone: get_device panics
-            let result = std::panic::catch_unwind(|| {
-                DeviceRegistry::get_device(env.clone(), device_hash.clone());
-            });
-            assert!(result.is_err());
+        // Re-registering must now succeed (previously it panicked AlreadyRegistered).
+        client.register(&wallet, &device_hash, &agent);
+        assert!(client.is_authorized(&device_hash, &agent));
+        assert_eq!(client.wallet_device_count(&wallet), 1);
+    }
 
-            // Deauthorized since the entry no longer exists
-            assert!(!DeviceRegistry::is_authorized(env.clone(), device_hash.clone(), agent.clone()));
+    #[test]
+    #[should_panic(expected = "Error(Contract, #2)")]
+    fn test_get_device_after_revoke_panics() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let client = deploy(&env);
 
-            // Wallet listing compacted back to zero
-            assert_eq!(DeviceRegistry::wallet_device_count(env.clone(), wallet.clone()), 0);
+        let wallet = random_address(&env);
+        let agent = random_address(&env);
+        let device_hash = random_bytes_32(&env);
 
-            // Re-registering must now succeed (previously it panicked AlreadyRegistered)
-            DeviceRegistry::register(env.clone(), wallet.clone(), device_hash.clone(), agent.clone());
-            assert!(DeviceRegistry::is_authorized(env.clone(), device_hash.clone(), agent.clone()));
-            assert_eq!(DeviceRegistry::wallet_device_count(env.clone(), wallet.clone()), 1);
-        });
+        client.register(&wallet, &device_hash, &agent);
+        client.revoke(&wallet, &device_hash);
+
+        // Device fully gone: get_device panics DeviceNotFound (#2).
+        client.get_device(&device_hash);
     }
 
     #[test]
     fn test_revoke_only_removes_owned_device() {
         let env = Env::default();
         env.mock_all_auths();
+        let client = deploy(&env);
 
-        let contract_id = env.register(DeviceRegistry, ());
-        let admin = random_address(&env);
         let wallet = random_address(&env);
         let agent = random_address(&env);
-        let other = random_address(&env);
         let device_hash = random_bytes_32(&env);
         let other_hash = random_bytes_32(&env);
 
-        env.as_contract(&contract_id, || {
-            DeviceRegistry::initialize(env.clone(), admin.clone());
-            DeviceRegistry::register(env.clone(), wallet.clone(), device_hash.clone(), agent.clone());
-            DeviceRegistry::register(env.clone(), wallet.clone(), other_hash.clone(), agent.clone());
+        client.register(&wallet, &device_hash, &agent);
+        client.register(&wallet, &other_hash, &agent);
 
-            DeviceRegistry::revoke(env.clone(), wallet.clone(), device_hash.clone());
+        client.revoke(&wallet, &device_hash);
 
-            // First device gone, second still present and slot shifted
-            assert_eq!(DeviceRegistry::wallet_device_count(env.clone(), wallet.clone()), 1);
-            assert_eq!(DeviceRegistry::wallet_device_at(env.clone(), wallet.clone(), 0), other_hash.clone());
-            assert!(DeviceRegistry::is_authorized(env.clone(), other_hash.clone(), agent.clone()));
-        });
+        // First device gone, second still present and slot shifted.
+        assert_eq!(client.wallet_device_count(&wallet), 1);
+        assert_eq!(client.wallet_device_at(&wallet, &0), other_hash);
+        assert!(client.is_authorized(&other_hash, &agent));
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "Error(Contract, #3)")]
     fn test_revoke_non_owner_rejected() {
         let env = Env::default();
         env.mock_all_auths();
+        let client = deploy(&env);
 
-        let contract_id = env.register(DeviceRegistry, ());
-        let admin = random_address(&env);
         let wallet = random_address(&env);
         let other = random_address(&env);
-        let device_hash = random_bytes_32(&env);
         let agent = random_address(&env);
+        let device_hash = random_bytes_32(&env);
 
-        env.as_contract(&contract_id, || {
-            DeviceRegistry::initialize(env.clone(), admin.clone());
-            DeviceRegistry::register(env.clone(), wallet.clone(), device_hash.clone(), agent.clone());
-            // Non-owner revoke must panic
-            DeviceRegistry::revoke(env.clone(), other.clone(), device_hash.clone());
-        });
+        client.register(&wallet, &device_hash, &agent);
+        // Non-owner revoke must panic NotOwner (#3).
+        client.revoke(&other, &device_hash);
     }
 }
