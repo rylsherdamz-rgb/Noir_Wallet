@@ -40,7 +40,7 @@ This maps every weekly deliverable to its status. Measure every commit against t
 - [x] Enforce policy in PaymentEscrow.authorize (over-limit / wrong-asset / expired rejection)
 - [x] Negative-path tests for both contracts (41 contract tests green)
 - [x] Build + test all contracts green
-- [ ] Deploy updated contracts to Testnet, record Contract IDs + WASM hashes — **BLOCKED: soroban/stellar CLI not installed in this env**
+- [x] Deploy updated contracts to Testnet, record Contract IDs + WASM hashes — **DONE** (see `deploy-evidence/`)
 - [x] Architecture documentation updated (Obsidian: AgentRegistry.md, PaymentEscrow.md, session note)
 
 ### Week 2 — NFC provisioning + register + association + agent auth + escrow fund (wire app ↔ contracts)  ⬜ NOT STARTED
@@ -98,9 +98,14 @@ Reject (all verified by contract tests):
 
 ## Deployed Contract IDs
 
-### Testnet (to be redeployed after Week 1 contract changes)
-| Contract | ID | WASM hash |
-|----------|----|-----------|
-| device_registry | `CAQCZOKW2FPKNHQQWIUHP3JRP6JLGIFU63TZSZTAOGOFBNVBSG7LRXG6` | _tbd_ |
-| agent_registry | `CADHGQY56B3PXOBCVTIWGIMPFIWLJZUZWCZMO63TCBE7PHWZBEXJFUWU` | _tbd (changing this week)_ |
-| payment_escrow | `CDFRLILPCCLRMQUCXDWDGZWWOEC6RBZI5LSWVNQHEDNAXDWBEOOFVUTY` | _tbd (changing this week)_ |
+### Testnet (redeployed 2026-10-01 with constrained-auth + sweep-on-revoke)
+Admin / deployer: `GCDAAT6G6BUANDLY432YEAFY2MHUDP4PVEQ6ODMKWMUL6THLDY4GY2KD` (identity `noir-deployer`)
+Full evidence (tx links, init args): `deploy-evidence/deploy-testnet-20261001T074804Z.md`
+
+| Contract | ID | WASM SHA-256 |
+|----------|----|--------------|
+| device_registry | `CCJQCI34FAW5W3U55HZERPZVZF3IIEVFP2ATGIZASDGSY2K2FAF6C2AM` | `2b258a496495a2a15cdf76ceb20d14dcd89ca316e74eb08a496b61e3af986817` |
+| agent_registry | `CAOVUFDVSOVCYJKMBLJWRERNEZOGA62D56ZZOKGLJWPROAV7SUV37GAA` | `2c9ee8f6aea1a44c317ba306cb22b782c7cef58fbbffafdcf30a8abdb275617a` |
+| payment_escrow | `CCSWYQ7ORLF2ZG5RBBPDX4VUVPYF2LGV5N3OYJERZUBVX7KMT5MG3DIU` | `068ce429550d6e7fb34c6b88975e6fad063d7463572aca38b5fb7db61e55280c` |
+
+Redeploy script: `scripts/redeploy-contracts.sh` (build → hash → deploy → initialize → write evidence).
