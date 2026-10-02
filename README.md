@@ -132,32 +132,48 @@ Mobile App / POS Terminal
 ### Contract Methods
 
 #### device_registry
-| Method | Args | Description |
-|--------|------|-------------|
-| `initialize` | `admin: Address` | Set contract admin (called once) |
-| `register` | `device_hash: BytesN<32>, wallet: Address` | Register a device to a wallet |
-| `unregister` | `device_hash: BytesN<32>` | Remove a device (admin only) |
-| `get_wallet` | `device_hash: BytesN<32>` | Look up wallet by device hash |
+| Method | Args | Auth | Description |
+|--------|------|------|-------------|
+| `initialize` | `admin: Address` | `admin` | Set contract admin (called once) |
+| `register` | `wallet: Address, device_hash: BytesN<32>, agent: Address` | `wallet` | Register a device to a wallet with its agent |
+| `revoke` | `wallet: Address, device_hash: BytesN<32>` | `wallet` | Remove the device entry (owner only), freeing the hash for re-registration |
+| `get_device` | `device_hash: BytesN<32>` | — | Returns `DeviceInfo { owner, agent, status, created_at }` |
+| `wallet_device_count` | `wallet: Address` | — | How many devices a wallet has registered |
+| `wallet_device_at` | `wallet: Address, index: u32` | — | Enumerate a wallet's device hashes |
+| `is_authorized` | `device_hash: BytesN<32>, agent: Address` | — | `true` if the device exists, is active, and maps to this agent |
+| `get_agent` | `device_hash: BytesN<32>` | — | Agent for a device |
+| `get_owner` | `device_hash: BytesN<32>` | — | Owner for a device |
+
+Errors: `AlreadyInitialized=1`, `DeviceNotFound=2`, `NotOwner=3`, `AlreadyRegistered=4`.
 
 #### agent_registry
-| Method | Args | Description |
-|--------|------|-------------|
-| `initialize` | `admin: Address` | Set contract admin (called once) |
-| `register_agent` | `wallet: Address, device_hash: BytesN<32>, agent: Address` | Authorize agent for device |
-| `revoke_agent` | `wallet: Address, device_hash: BytesN<32>` | Revoke agent access |
-| `get_agent` | `device_hash: BytesN<32>` | Look up agent by device hash |
-| `is_auth` | `device_hash: BytesN<32>, agent: Address` | Check if agent is authorized |
+| Method | Args | Auth | Description |
+|--------|------|------|-------------|
+| `initialize` | `admin: Address` | `admin` | Set contract admin (called once) |
+| `register_agent` | `wallet: Address, device_hash: BytesN<32>, agent: Address, max_amount: i128, asset: Address, expires_at: u64` | `wallet` | Authorize an agent under a constrained policy |
+| `revoke_agent` | `wallet: Address, device_hash: BytesN<32>` | `wallet` | Revoke agent access |
+| `get_agent` | `device_hash: BytesN<32>` | — | Look up agent by device hash |
+| `get_policy` | `device_hash: BytesN<32>` | — | Returns `AgentPolicy { agent, max_amount, asset, expires_at }` |
+| `is_auth` | `device_hash: BytesN<32>, agent: Address` | — | Agent matches and authorization has not expired |
+| `check_payment` | `device_hash: BytesN<32>, agent: Address, asset: Address, amount: i128` | — | Full policy predicate: agent + asset + `amount > 0` + within cap + not expired |
+
+`max_amount = 0` means uncapped; `expires_at = 0` means never expires (otherwise an absolute ledger timestamp).
+
+Errors: `AlreadyInitialized=1`, `AgentNotFound=2`, `AlreadyRegistered=3`, `InvalidPolicy=4`.
 
 #### payment_escrow
-| Method | Args | Description |
-|--------|------|-------------|
-| `initialize` | `admin: Address, agent_registry_id: Address` | Set admin + link to agent_registry |
-| `fund_escrow` | `token: Address, wallet: Address, device_hash: BytesN<32>, amount: i128` | Deposit into escrow for a device |
-| `authorize` | `agent: Address, device_hash: BytesN<32>, merchant: Address, amount: i128` | Instant payment auth from escrow |
-| `claim` | `token: Address, merchant: Address` | Batch-claim all pending payments |
-| `defund_escrow` | `token: Address, device_hash: BytesN<32>, amount: i128` | Wallet reclaims unused escrow funds |
-| `balance_of` | `device_hash: BytesN<32>` | Check escrow balance |
-| `pending_balance` | `merchant: Address` | Check unclaimed payments |
+| Method | Args | Auth | Description |
+|--------|------|------|-------------|
+| `initialize` | `admin: Address, agent_registry_id: Address, device_registry_id: Address` | `admin` | Set admin + link both registries |
+| `fund_escrow` | `token: Address, wallet: Address, device_hash: BytesN<32>, amount: i128` | `wallet` | Deposit into escrow for a device |
+| `authorize` | `agent: Address, device_hash: BytesN<32>, merchant: Address, asset: Address, amount: i128, nonce: u64` | `agent` | Instant payment auth, enforced against the agent policy with nonce replay protection |
+| `claim` | `token: Address, merchant: Address` | `merchant` | Batch-claim all pending payments |
+| `defund_escrow` | `token: Address, device_hash: BytesN<32>, amount: i128` | device owner | Wallet reclaims unused escrow funds |
+| `sweep_on_revoke` | `token: Address, device_hash: BytesN<32>, agent: Address` | device owner | After the agent is revoked, return the device's entire escrow balance to the owner |
+| `balance_of` | `device_hash: BytesN<32>` | — | Check escrow balance |
+| `pending_balance` | `merchant: Address` | — | Check unclaimed payments |
+
+Errors: `AlreadyInitialized=1`, `InsufficientBalance=2`, `AgentNotAuthorized=3`, `NotDeviceOwner=4`, `NothingToClaim=5`, `DuplicateAuth=6`, `AgentStillActive=7`.
 
 ## Project Structure
 
