@@ -552,7 +552,14 @@ export const x402 = {
       }
     }
 
-    if (registerSubmitted) account.incrementSequenceNumber()
+    // NOTE: do NOT manually increment here. invokeContract builds the tx with
+    // `TransactionBuilder(account, ...)`, and TransactionBuilder.build()
+    // already calls account.incrementSequenceNumber() internally (see
+    // @stellar/stellar-base transaction_builder.js). Incrementing again would
+    // leave a one-slot gap, so register_agent would submit with seq N+3 while
+    // the account is only at N+1 on-chain → txBAD_SEQ, which Soroban RPC
+    // surfaces as `sendTransaction status=ERROR, errorResultXdr=undefined`.
+    void registerSubmitted
 
     if (!agentRegistered) {
       try {

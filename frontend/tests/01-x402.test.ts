@@ -430,3 +430,113 @@ describe('x402 multi-agent logic', () => {
     )
   })
 })
+
+// Regression: registerDeviceAndAgentOnChain must advance the shared source
+// account by exactly ONE sequence per invokeContract call. Previously the
+// caller also called account.incrementSequenceNumber() manually, which — on
+// top of the increment TransactionBuilder.build() already performs — left a
+// one-slot gap. register_agent then submitted with seq N+3 while the account
+// was only at N+1 on-chain → txBAD_SEQ, surfaced by Soroban RPC as
+// `sendTransaction status=ERROR, errorResultXdr=undefined`.
+describe('x402 registerDeviceAndAgentOnChain sequence handling', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('submits register then register_agent with consecutive (gap-free) sequences', async () => {
+    const { Account, Keypair } = await import('@stellar/stellar-sdk')
+    const { stellarService } = await import('@/services/stellar-service')
+    const { x402 } = await import('@/domain/x402')
+    const { AppConfig } = await import('@/constants/config')
+    vi.spyOn(AppConfig.stellar, 'deviceRegistryContract', 'get').mockReturnValue('CDEVICE')
+    vi.spyOn(AppConfig.stellar, 'agentRegistryContract', 'get').mockReturnValue('CAGENT')
+
+    const wallet = Keypair.random()
+    const START_SEQ = '1000'
+    // Fresh Account that the flow will mutate, mirroring loadSourceAccount().
+    const sharedAccount = new Account(wallet.publicKey(), START_SEQ)
+
+    ;(stellarService.loadSourceAccount as any) = vi
+      .fn()
+      .mockResolvedValue(sharedAccount)
+
+    // Device not registered, agent not authorized → both writes run.
+    ;(stellarService.readContract as any) = vi.fn().mockImplementation(async ({ method }: any) => {
+      if (method === 'get_device') throw new Error('Error(Contract, #2)') // DeviceNotFound
+      if (method === 'is_auth') return { b: () => false }
+      return { b: () => false }
+    })
+
+    ;(stellarService.walletAddressScVal as any) = vi.fn().mockReturnValue({})
+    ;(stellarService.deviceHashScVal as any) = vi.fn().mockReturnValue({})
+
+    // Faithfully emulate invokeContract's effect on the shared account:
+    // TransactionBuilder.build() raises the source account sequence by one.
+    const seqAtCall: Record<string, string> = {}
+    ;(stellarService.invokeContract as any) = vi
+      .fn()
+      .mockImplementation(async ({ method, sourceAccount }: any) => {
+        // Builder stamps (currentSeq + 1) onto the tx, then increments.
+        const stamped = (BigInt(sourceAccount.sequenceNumber()) + 1n).toString()
+        seqAtCall[method] = stamped
+        sourceAccount.incrementSequenceNumber()
+        return `${method}-hash`
+      })
+
+    await x402.registerDeviceAndAgentOnChain({
+      walletSecret: wallet.secret(),
+      deviceHashHex: 'a'.repeat(64),
+      agentPublicKey: Keypair.random().publicKey(),
+    })
+
+    // register used START_SEQ+1, register_agent used START_SEQ+2 — no gap.
+    expect(seqAtCall['register']).toBe('1001')
+    expect(seqAtCall['register_agent']).toBe('1002')
+    expect(BigInt(seqAtCall['register_agent']) - BigInt(seqAtCall['register'])).toBe(1n)
+  })
+
+  it('still sequences register_agent correctly when register is skipped (already registered)', async () => {
+    process.env.EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT = 'CDEVICE'
+    process.env.EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT = 'CAGENT'
+    const { Account, Keypair } = await import('@stellar/stellar-sdk')
+    const { stellarService } = await import('@/services/stellar-service')
+    const { x402 } = await import('@/domain/x402')
+    const { AppConfig } = await import('@/constants/config')
+    vi.spyOn(AppConfig.stellar, 'deviceRegistryContract', 'get').mockReturnValue('CDEVICE')
+    vi.spyOn(AppConfig.stellar, 'agentRegistryContract', 'get').mockReturnValue('CAGENT')
+
+    const wallet = Keypair.random()
+    const sharedAccount = new Account(wallet.publicKey(), '2000')
+    ;(stellarService.loadSourceAccount as any) = vi.fn().mockResolvedValue(sharedAccount)
+
+    // Device already registered → register is skipped; agent still needs auth.
+    ;(stellarService.readContract as any) = vi.fn().mockImplementation(async ({ method }: any) => {
+      if (method === 'get_device') return { ok: true } // resolves → deviceRegistered
+      if (method === 'is_auth') return { b: () => false }
+      return { b: () => false }
+    })
+    ;(stellarService.walletAddressScVal as any) = vi.fn().mockReturnValue({})
+    ;(stellarService.deviceHashScVal as any) = vi.fn().mockReturnValue({})
+
+    const calls: string[] = []
+    const seqAtCall: Record<string, string> = {}
+    ;(stellarService.invokeContract as any) = vi
+      .fn()
+      .mockImplementation(async ({ method, sourceAccount }: any) => {
+        calls.push(method)
+        seqAtCall[method] = (BigInt(sourceAccount.sequenceNumber()) + 1n).toString()
+        sourceAccount.incrementSequenceNumber()
+        return `${method}-hash`
+      })
+
+    await x402.registerDeviceAndAgentOnChain({
+      walletSecret: wallet.secret(),
+      deviceHashHex: 'b'.repeat(64),
+      agentPublicKey: Keypair.random().publicKey(),
+    })
+
+    expect(calls).toEqual(['register_agent'])
+    // First (and only) write takes START_SEQ+1 with no skipped slot.
+    expect(seqAtCall['register_agent']).toBe('2001')
+  })
+})
