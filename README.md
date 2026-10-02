@@ -111,13 +111,15 @@ Mobile App / POS Terminal
 | **agent_registry** | On-chain agent authorization per device — allows wallet owner to authorize a signing key for tap-to-pay | `wallet.require_auth()` | `backend/asset/contracts/agent_registry/` |
 | **payment_escrow** | Escrow-based settlement — wallet pre-funds, agent authorizes payments instantly, merchants claim in batch | agent auth (via `agent_registry`) | `backend/asset/contracts/payment_escrow/` |
 
-**Testnet Contract IDs** (deployed 2026-07-25):
+**Testnet Contract IDs** (deployed 2026-10-01 — constrained delegated auth + sweep-on-revoke):
 
-| Contract | ID | Explorer |
-|----------|----|----------|
-| device_registry | `CDKZQSB7NLDACWF3MWE2ZMMMNYUOTHHROJHQYEFGYI4N237IDYESKOSU` | [view](https://stellar.expert/explorer/testnet/contract/CDKZQSB7NLDACWF3MWE2ZMMMNYUOTHHROJHQYEFGYI4N237IDYESKOSU) |
-| agent_registry | `CAFM4S6LIK5WD265P7OPDYMMU4QURD5ICGNOCH4ZGBF3IFJVDBGW2VH3` | [view](https://stellar.expert/explorer/testnet/contract/CAFM4S6LIK5WD265P7OPDYMMU4QURD5ICGNOCH4ZGBF3IFJVDBGW2VH3) |
-| payment_escrow | `CCRF6MGIPG2PQUPMEFBSVCP4LAZIVSQCS5VJBF6BLMBN4DT4JMH6OVPY` | [view](https://stellar.expert/explorer/testnet/contract/CCRF6MGIPG2PQUPMEFBSVCP4LAZIVSQCS5VJBF6BLMBN4DT4JMH6OVPY) |
+| Contract | ID | WASM SHA-256 | Explorer |
+|----------|----|--------------|----------|
+| device_registry | `CCJQCI34FAW5W3U55HZERPZVZF3IIEVFP2ATGIZASDGSY2K2FAF6C2AM` | `2b258a49…986817` | [view](https://stellar.expert/explorer/testnet/contract/CCJQCI34FAW5W3U55HZERPZVZF3IIEVFP2ATGIZASDGSY2K2FAF6C2AM) |
+| agent_registry | `CAOVUFDVSOVCYJKMBLJWRERNEZOGA62D56ZZOKGLJWPROAV7SUV37GAA` | `2c9ee8f6…75617a` | [view](https://stellar.expert/explorer/testnet/contract/CAOVUFDVSOVCYJKMBLJWRERNEZOGA62D56ZZOKGLJWPROAV7SUV37GAA) |
+| payment_escrow | `CCSWYQ7ORLF2ZG5RBBPDX4VUVPYF2LGV5N3OYJERZUBVX7KMT5MG3DIU` | `068ce429…55280c` | [view](https://stellar.expert/explorer/testnet/contract/CCSWYQ7ORLF2ZG5RBBPDX4VUVPYF2LGV5N3OYJERZUBVX7KMT5MG3DIU) |
+
+> Full deployment evidence (admin, init args, WASM hashes): [`deploy-evidence/`](deploy-evidence/).
 
 **Mainnet Contract IDs** (deployed 2026-07-18):
 
@@ -228,9 +230,9 @@ Copy `.env.example` to `.env` and configure:
 
 | Variable | Description | Current Value |
 |----------|-------------|---------------|
-| `EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT` | Soroban device registry contract ID | `CDKZQSB7NLDACWF3MWE2ZMMMNYUOTHHROJHQYEFGYI4N237IDYESKOSU` |
-| `EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT` | Soroban agent registry contract ID | `CAFM4S6LIK5WD265P7OPDYMMU4QURD5ICGNOCH4ZGBF3IFJVDBGW2VH3` |
-| `EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT` | Soroban payment escrow contract ID | `CCRF6MGIPG2PQUPMEFBSVCP4LAZIVSQCS5VJBF6BLMBN4DT4JMH6OVPY` |
+| `EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT` | Soroban device registry contract ID | `CCJQCI34FAW5W3U55HZERPZVZF3IIEVFP2ATGIZASDGSY2K2FAF6C2AM` |
+| `EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT` | Soroban agent registry contract ID | `CAOVUFDVSOVCYJKMBLJWRERNEZOGA62D56ZZOKGLJWPROAV7SUV37GAA` |
+| `EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT` | Soroban payment escrow contract ID | `CCSWYQ7ORLF2ZG5RBBPDX4VUVPYF2LGV5N3OYJERZUBVX7KMT5MG3DIU` |
 | `EXPO_PUBLIC_STELLAR_MASTER_KEY_ID` | Stellar master key ID | (configure per deployment) |
 | `EXPO_PUBLIC_CHANNEL_SECRET_KEY` | Fee channel secret | (configure per deployment) |
 | `EXPO_PUBLIC_ISSUER_ADDRESS` | Asset issuer address | (configure per deployment) |
