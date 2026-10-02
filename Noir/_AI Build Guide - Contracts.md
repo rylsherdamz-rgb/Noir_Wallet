@@ -5,7 +5,7 @@ aliases: [Contract Guide, AI Build Guide, Contract Functions]
 
 # 🤖 AI Build Guide — Soroban Contracts (Complete)
 
-> Source-accurate reference for an AI (or human) building/extending Noir Wallet's on-chain layer. Derived directly from the Rust in `backend/asset/contracts/`, **not** the README (the README's method tables are out of date — trust this note). Linked from [[_Context - What We Are Building]], [[Smart Contracts]], and [[_SCF Instaward - Deliverables & Constraints]].
+> Source-accurate reference for an AI (or human) building/extending Noir Wallet's on-chain layer. Derived directly from the Rust in `backend/asset/contracts/`. The README's contract tables were realigned to this source as of 2026-10-02, so the two now agree — but this note stays the canonical one: if they ever diverge, trust the Rust, then this note. Linked from [[_Context - What We Are Building]], [[Smart Contracts]], and [[_SCF Instaward - Deliverables & Constraints]].
 
 ## Ground rules for the AI
 
@@ -72,21 +72,27 @@ The authority the escrow trusts for "may this agent spend for this device?".
 
 ### Storage (`DataKey`)
 - `Admin` → `Address`
-- `AgentMap(BytesN<32>)` → `Address` (device_hash → authorized agent)
+- `AgentMap(BytesN<32>)` → `AgentPolicy` (device_hash → constrained authorization)
+
+`AgentPolicy`: `agent: Address`, `max_amount: i128` (`0` = uncapped), `asset: Address` (the only token this agent may spend), `expires_at: u64` (absolute ledger timestamp; `0` = never expires).
 
 ### Errors
-`AlreadyInitialized=1`, `AgentNotFound=2`, `AlreadyRegistered=3`.
+`AlreadyInitialized=1`, `AgentNotFound=2`, `AlreadyRegistered=3`, `InvalidPolicy=4`.
 
 ### Functions
 | Fn | Signature | Auth | Behavior |
 |----|-----------|------|----------|
 | `initialize` | `(admin: Address)` | `admin` | Store admin once; panic `AlreadyInitialized` otherwise. |
-| `register_agent` | `(wallet, device_hash, agent)` | `wallet` | Panics `AlreadyRegistered` if a mapping already exists (must `revoke_agent` first to rotate). Sets `AgentMap[device_hash]=agent`. Emits `("agent_reg", device_hash) → agent`. |
+| `register_agent` | `(wallet, device_hash, agent, max_amount, asset, expires_at)` | `wallet` | Panics `AlreadyRegistered` if a mapping exists (must `revoke_agent` first to rotate). Panics `InvalidPolicy` on a negative cap or an already-past expiry. Stores the full `AgentPolicy`. Emits `("agent_reg", device_hash) → agent`. |
 | `revoke_agent` | `(wallet, device_hash)` | `wallet` | Panics `AgentNotFound` if none. Removes mapping. Emits `("agent_rev", device_hash)`. |
-| `get_agent` | `(device_hash) -> Address` | none | Panics `AgentNotFound` if none. |
-| `is_auth` | `(device_hash, agent) -> bool` | none | `true` iff stored agent == `agent`. **This is the gate `payment_escrow.authorize` calls.** |
+| `get_agent` | `(device_hash) -> Address` | none | Policy's agent; panics `AgentNotFound` if none. |
+| `get_policy` | `(device_hash) -> AgentPolicy` | none | Full policy; panics `AgentNotFound` if none. |
+| `is_auth` | `(device_hash, agent) -> bool` | none | `true` iff stored agent == `agent` **and** the authorization has not expired. |
+| `check_payment` | `(device_hash, agent, asset, amount) -> bool` | none | **The single enforcement predicate** the escrow calls: agent matches + asset matches + `amount > 0` + within `max_amount` + not expired. |
 
 > ⚠️ Rotating an agent = `revoke_agent` then `register_agent` (register alone panics if one exists).
+>
+> ⚠️ `check_payment` is the gate `payment_escrow.authorize` uses. `is_auth` is the weaker agent+expiry check used for revocation state (e.g. escrow's `sweep_on_revoke` refuses while `is_auth` is still true).
 
 ---
 
@@ -105,16 +111,17 @@ Pre-funded per-device escrow. Agent authorizes instant deductions (with **replay
 `Payment`: `device_hash: BytesN<32>`, `amount: i128`, `timestamp: u64`.
 
 ### Errors
-`AlreadyInitialized=1`, `InsufficientBalance=2`, `AgentNotAuthorized=3`, `NotDeviceOwner=4`, `NothingToClaim=5`, `DuplicateAuth=6`.
+`AlreadyInitialized=1`, `InsufficientBalance=2`, `AgentNotAuthorized=3`, `NotDeviceOwner=4`, `NothingToClaim=5`, `DuplicateAuth=6`, `AgentStillActive=7`.
 
 ### Functions
 | Fn | Signature | Auth | Behavior |
 |----|-----------|------|----------|
-| `initialize` | `(admin, agent_registry_id, device_registry_id)` | `admin` | Stores admin + both registry IDs. Panic `AlreadyInitialized` if repeated. **Note: takes BOTH registry IDs** (README wrongly lists only agent_registry). |
+| `initialize` | `(admin, agent_registry_id, device_registry_id)` | `admin` | Stores admin + both registry IDs. Panic `AlreadyInitialized` if repeated. **Takes BOTH registry IDs.** |
 | `fund_escrow` | `(token, wallet, device_hash, amount)` | `wallet` | `token.transfer(wallet → contract, amount)`, then `EscrowBalance[device] += amount`. Emits `("fund", device_hash) → amount`. Any `wallet` can fund any device (funding is permissionless top-up). |
-| `authorize` | `(agent, device_hash, merchant, amount, nonce)` | `agent` | **(1)** replay check: `nonce > last_nonce` for (device,agent) else `DuplicateAuth`; store new nonce. **(2)** cross-call `agent_registry.is_auth(device_hash, agent)` else `AgentNotAuthorized`. **(3)** `balance >= amount` else `InsufficientBalance`; deduct. **(4)** bump `PendingIndex[merchant]`, write `Payment` to **temporary** storage at that index. Emits `("authorize",(device_hash,merchant)) → amount`. No token transfer here — funds move only on claim. |
+| `authorize` | `(agent, device_hash, merchant, asset, amount, nonce)` | `agent` | **(1)** replay check: `nonce > last_nonce` for (device,agent) else `DuplicateAuth`; store new nonce. **(2)** cross-call `agent_registry.check_payment(device_hash, agent, asset, amount)` — enforces agent + asset + cap + expiry — else `AgentNotAuthorized`. **(3)** `balance >= amount` else `InsufficientBalance`; deduct. **(4)** bump `PendingIndex[merchant]`, write `Payment` to **temporary** storage. Emits `("authorize",(device_hash,merchant)) → amount`. No token transfer here — funds move only on claim. |
 | `claim` | `(token, merchant)` | `merchant` | Sums all pending `Payment`s from index `1..=PendingIndex[merchant]` (skips expired/absent temporary entries). If total 0 → `NothingToClaim`. Removes claimed entries, resets `PendingIndex[merchant]=0`, `token.transfer(contract → merchant, total)`. Emits `("claim", merchant) → total`. |
 | `defund_escrow` | `(token, device_hash, amount)` | device **owner** | Looks up owner via `device_registry.get_owner(device_hash)` and requires **that owner's** auth (`NotDeviceOwner` path if registry unset). `balance >= amount` else `InsufficientBalance`; deduct; `token.transfer(contract → owner, amount)`. Emits `("defund", device_hash) → amount`. |
+| `sweep_on_revoke` | `(token, device_hash, agent) -> i128` | device **owner** | Resolves owner via `device_registry.get_owner` and requires owner auth. Refuses with `AgentStillActive` if `agent_registry.is_auth(device_hash, agent)` is still true. Otherwise transfers the device's **entire** escrow balance back to the owner and zeroes it; returns the amount swept (0 is a no-op, not an error). |
 | `balance_of` | `(device_hash) -> i128` | none | Escrow balance (0 if none). |
 | `pending_balance` | `(merchant) -> i128` | none | Sum of merchant's still-present pending payments. |
 
@@ -128,26 +135,31 @@ Pre-funded per-device escrow. Agent authorizes instant deductions (with **replay
 
 1. `device_registry.initialize(admin)` · `agent_registry.initialize(admin)` · `payment_escrow.initialize(admin, agent_registry_id, device_registry_id)`
 2. Owner: `device_registry.register(wallet, device_hash, agent)`
-3. Owner: `agent_registry.register_agent(wallet, device_hash, agent)`  ← the record escrow actually checks
+3. Owner: `agent_registry.register_agent(wallet, device_hash, agent, max_amount, asset, expires_at)`  ← the constrained policy escrow actually enforces
 4. Owner: `payment_escrow.fund_escrow(token, wallet, device_hash, amount)`
-5. Tap → agent: `payment_escrow.authorize(agent, device_hash, merchant, amount, nonce++)`
+5. Tap → agent: `payment_escrow.authorize(agent, device_hash, merchant, asset, amount, nonce++)`
 6. Merchant: `payment_escrow.claim(token, merchant)`
 7. Owner reclaim: `payment_escrow.defund_escrow(token, device_hash, amount)`
 8. Revoke: `agent_registry.revoke_agent(wallet, device_hash)` and/or `device_registry.revoke(wallet, device_hash)`
+9. Owner sweep after revoke: `payment_escrow.sweep_on_revoke(token, device_hash, agent)` → returns the device's whole remaining escrow balance to the owner
 
 See flows: [[Flow - Device Provisioning]] · [[Flow - Escrow Payment]] · [[Flow - Tap to Pay]].
 
 ## Negative paths the AI must keep passing (maps to [[_SCF Instaward - Deliverables & Constraints]])
 
-- unregistered device → `authorize` fails `AgentNotAuthorized` (no agent mapping)
+- unregistered device → `authorize` fails `AgentNotAuthorized` (no agent policy)
 - duplicate registration → `register`/`register_agent` fail `AlreadyRegistered`
 - unauthorized agent → `AgentNotAuthorized`
-- over-limit / underfunded → `InsufficientBalance`
+- **over-limit payment** → `check_payment` false → `AgentNotAuthorized`
+- **wrong asset** → `check_payment` false → `AgentNotAuthorized`
+- **expired authorization** → `check_payment`/`is_auth` false → `AgentNotAuthorized`
+- underfunded escrow → `InsufficientBalance`
 - revoked device/agent → `authorize` fails `AgentNotAuthorized` after `revoke_agent`
 - replayed request (nonce reuse) → `DuplicateAuth`
 - claim with nothing pending → `NothingToClaim`
+- sweep while the agent is still authorized → `AgentStillActive`
 - defund by non-owner → owner `require_auth` fails
-- invalid asset/recipient → token transfer / auth failure
+- invalid policy at registration (negative cap / past expiry) → `InvalidPolicy`
 
 Integration tests live at `backend/asset/contracts/*/tests/integration.rs` — extend these when adding behavior; do not weaken existing assertions.
 
