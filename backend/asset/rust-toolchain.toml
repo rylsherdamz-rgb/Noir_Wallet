@@ -1,0 +1,7 @@
+# Pinned so the contract WASM is byte-reproducible: the SHA-256 hashes published
+# in deploy-evidence/ (and asserted by .github/workflows/contracts.yml) only
+# reproduce when built with the same compiler that produced the deployed
+# artifacts. Bumping this will change the hashes and require a redeploy.
+[toolchain]
+channel = "1.98.1"
+targets = ["wasm32v1-none"]

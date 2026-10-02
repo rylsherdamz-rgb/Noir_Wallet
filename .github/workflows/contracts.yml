@@ -27,9 +27,12 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
-          # wasm32v1-none is the Soroban target for SDK 25
+          # Must match backend/asset/rust-toolchain.toml — the published WASM
+          # hashes only reproduce under the compiler that built the deployed
+          # artifacts. wasm32v1-none is the Soroban target for SDK 25.
+          toolchain: '1.98.1'
           targets: wasm32v1-none
 
       - name: Cache cargo
