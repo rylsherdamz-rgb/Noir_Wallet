@@ -80,6 +80,8 @@ A world where:
 
 ## Architecture
 
+> 📐 **[Full architecture reference](docs/architecture.md)** — rendered diagrams for the system overview, device provisioning, x402 tap-to-pay, and revocation/fund-recovery flows, plus the authorization model and trust boundaries.
+
 ```
 RFID / NFC Tag
     |
