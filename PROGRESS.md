@@ -69,6 +69,31 @@ This maps every weekly deliverable to its status. Measure every commit against t
 
 ---
 
+## CI Status
+
+Workflows live in `.github/workflows/`. Both now run on the Instaward branches (`instaward`, `instaward-staging`, `instaward-development`) as well as `main` — previously `frontend.yml` only triggered on `main`, so no Instaward push ever ran CI.
+
+| Workflow | Scope | Status |
+|----------|-------|--------|
+| `contracts.yml` | Builds all three contracts to `wasm32v1-none`, runs the 41 contract tests on the host target, then re-derives the WASM SHA-256 hashes and compares them to `deploy-evidence/` | 🟡 Tests green, hash assertion outstanding |
+| `frontend.yml` | `tsc --noEmit` + Vitest (220 tests) on Node 22 | ✅ Passing |
+
+**Contract tests in CI: passing.** Run [`37019373910`](https://github.com/rylsherdamz-rgb/Noir_Wallet/actions/runs/37019373910) executed 17 + 8 + 16 = 41 tests, 0 failures. This satisfies the SOW metric "automated contract tests passing in CI".
+
+**Outstanding — WASM hash assertion.** The final step of `contracts.yml` asserts the built WASM matches the hashes published in `deploy-evidence/`. It currently fails: CI built with `dtolnay/rust-toolchain@stable` while the deployed artifacts were built with rustc 1.98.1, and Soroban WASM output is not byte-identical across compiler versions.
+
+- Observed in CI: device `d26fc268…`, agent `f2d55011…`, escrow `8314a126…`
+- Published / locally reproduced under 1.98.1: device `2b258a49…`, agent `2c9ee8f6…`, escrow `068ce429…`
+
+Mitigation applied but **not yet verified in CI**: `backend/asset/rust-toolchain.toml` pins channel `1.98.1` + the `wasm32v1-none` target, and the workflow installs that exact version. The `[profile.release]` settings (`strip = "symbols"`, `debug = 0`, `codegen-units = 1`, `lto = true`) should make the build deterministic once the compiler matches.
+
+To close this out:
+1. Confirm a clean local rebuild under 1.98.1 still yields the three published hashes.
+2. Push and confirm `contracts.yml` goes green end to end.
+3. If the hashes still differ in CI despite the pin, demote the comparison to an informational step that records the hashes without failing the run — the tests passing is the SOW requirement; the hash match is an extra reproducibility proof and should not hold CI red.
+
+---
+
 ## Security Validation Checklist (positive + negative paths)
 
 Accept:
