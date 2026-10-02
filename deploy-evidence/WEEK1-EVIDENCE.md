@@ -44,7 +44,7 @@ These IDs are the single set used across the README, `frontend/.env.example`, an
 The published hashes are reproducible from source:
 
 ```bash
-cd backend/asset
+cd backend
 cargo build --release --target wasm32v1-none -p agent-registry -p device-registry
 cargo build --release --target wasm32v1-none -p payment-escrow
 sha256sum target/wasm32v1-none/release/{device_registry,agent_registry,payment_escrow}.wasm
@@ -65,7 +65,7 @@ sha256sum target/wasm32v1-none/release/{device_registry,agent_registry,payment_e
 Reproduce:
 
 ```bash
-cd backend/asset
+cd backend
 HOST=$(rustc -vV | awk '/host/{print $2}')
 cargo test -p device-registry -p agent-registry -p payment-escrow --target "$HOST"
 ```

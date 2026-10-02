@@ -172,7 +172,7 @@ A payment is accepted only when all of the following hold:
 ## 8. Build and deploy order
 
 ```bash
-cd backend/asset
+cd backend
 
 # dependencies first — payment_escrow imports these WASM files at compile time
 cargo build --release --target wasm32v1-none -p agent-registry -p device-registry

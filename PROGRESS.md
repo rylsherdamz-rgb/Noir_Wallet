@@ -88,7 +88,7 @@ Evidence of the divergence:
 - Local, `1.98.1`, clean rebuild: device `2b258a49…`, agent `2c9ee8f6…`, escrow `068ce429…` ✅ matches published `deploy-evidence/`
 - Confirmed path embedding: `strings device_registry.wasm | grep /home` → `/home/richie/.cargo/registry/.../soroban-sdk-25.3.1/src/ledger.rs`
 
-Resolution: the toolchain pin (`backend/asset/rust-toolchain.toml` → `1.98.1` + `wasm32v1-none`) is kept, and the `contracts.yml` hash step is demoted to a **non-blocking reproducibility report** (writes a table to the job summary, never exits non-zero). The published hashes remain reproducible on the maintainer's machine (verified by clean local rebuild) and are the authoritative values in `deploy-evidence/`. The SOW gate — automated contract tests passing in CI — is enforced by the build + test steps, which are green.
+Resolution: the toolchain pin (`backend/rust-toolchain.toml` → `1.98.1` + `wasm32v1-none`) is kept, and the `contracts.yml` hash step is demoted to a **non-blocking reproducibility report** (writes a table to the job summary, never exits non-zero). The published hashes remain reproducible on the maintainer's machine (verified by clean local rebuild) and are the authoritative values in `deploy-evidence/`. The SOW gate — automated contract tests passing in CI — is enforced by the build + test steps, which are green.
 
 Rationale: byte-identical cross-machine WASM would require full `--remap-path-prefix` normalization, which would *change* the hashes away from the already-published/deployed values and force a redeploy + evidence rewrite — a larger, misleading change for no SOW benefit. The hash match is an extra reproducibility proof, not a release gate, so it should not hold CI red.
 

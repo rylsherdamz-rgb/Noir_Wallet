@@ -4,20 +4,20 @@ on:
   push:
     branches: [main, instaward, instaward-staging, instaward-development]
     paths:
-      - 'backend/asset/contracts/**'
-      - 'backend/asset/Cargo.toml'
-      - 'backend/asset/Cargo.lock'
+      - 'backend/contracts/**'
+      - 'backend/Cargo.toml'
+      - 'backend/Cargo.lock'
       - '.github/workflows/contracts.yml'
   pull_request:
     paths:
-      - 'backend/asset/contracts/**'
-      - 'backend/asset/Cargo.toml'
-      - 'backend/asset/Cargo.lock'
+      - 'backend/contracts/**'
+      - 'backend/Cargo.toml'
+      - 'backend/Cargo.lock'
       - '.github/workflows/contracts.yml'
 
 defaults:
   run:
-    working-directory: backend/asset
+    working-directory: backend
 
 jobs:
   test:
@@ -29,7 +29,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          # Must match backend/asset/rust-toolchain.toml — the published WASM
+          # Must match backend/rust-toolchain.toml — the published WASM
           # hashes only reproduce under the compiler that built the deployed
           # artifacts. wasm32v1-none is the Soroban target for SDK 25.
           toolchain: '1.98.1'
@@ -41,8 +41,8 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            backend/asset/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('backend/asset/Cargo.lock') }}
+            backend/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('backend/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
       # payment_escrow uses contractimport! on the other two WASM files, so the

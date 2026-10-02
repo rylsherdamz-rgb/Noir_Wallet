@@ -109,9 +109,9 @@ Mobile App / POS Terminal
 
  | Contract | Description | Auth | Location |
 |----------|-------------|------|----------|
-| **device_registry** | Maps hardware device hashes to Stellar wallet addresses | `wallet.require_auth()` | `backend/asset/contracts/device_registry/` |
-| **agent_registry** | On-chain agent authorization per device — allows wallet owner to authorize a signing key for tap-to-pay | `wallet.require_auth()` | `backend/asset/contracts/agent_registry/` |
-| **payment_escrow** | Escrow-based settlement — wallet pre-funds, agent authorizes payments instantly, merchants claim in batch | agent auth (via `agent_registry`) | `backend/asset/contracts/payment_escrow/` |
+| **device_registry** | Maps hardware device hashes to Stellar wallet addresses | `wallet.require_auth()` | `backend/contracts/device_registry/` |
+| **agent_registry** | On-chain agent authorization per device — allows wallet owner to authorize a signing key for tap-to-pay | `wallet.require_auth()` | `backend/contracts/agent_registry/` |
+| **payment_escrow** | Escrow-based settlement — wallet pre-funds, agent authorizes payments instantly, merchants claim in batch | agent auth (via `agent_registry`) | `backend/contracts/payment_escrow/` |
 
 **Testnet Contract IDs** (deployed 2026-10-01 — constrained delegated auth + sweep-on-revoke):
 
@@ -193,15 +193,17 @@ Noir_Wallet/
 │       ├── constants/       # Theme (black/gold), network config
 │       └── types/           # TypeScript type definitions
 ├── backend/                 # Soroban smart contracts (Rust)
-│   └── asset/
-│           ├── contracts/device_registry/
-│           ├── contracts/agent_registry/
-│           └── contracts/payment_escrow/
+│   └── contracts/
+│       ├── device_registry/
+│       ├── agent_registry/
+│       └── payment_escrow/
 ├── assets/                  # Demo video, poster, branding
 ├── images/                  # Screenshots & diagrams
 ├── promo/                   # Promotional materials
 ├── models/                  # ML / design models
 ├── old/                     # Archived code (backward compat)
+├── unused/                  # Parked, not-in-use components
+│   └── pdax-backend/        # PDAX fiat-bridge API server (parked — not wired into the app)
 └── contextimages/           # Design inspiration and moodboards
 ```
 
@@ -269,7 +271,7 @@ Scan the QR code with Expo Go, or press `a` for Android / `i` for iOS simulator.
 ### Smart Contract Development
 
 ```bash
-cd backend/asset
+cd backend
 
 # Build all WASM
 cargo build --release --target wasm32v1-none -p device-registry -p agent-registry -p payment-escrow

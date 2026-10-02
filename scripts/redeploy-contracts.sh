@@ -30,7 +30,7 @@ UPDATE_ENV="${UPDATE_ENV:-0}"
 # Resolve repo paths relative to this script so it runs from anywhere.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-ASSET_DIR="$REPO_ROOT/backend/asset"
+ASSET_DIR="$REPO_ROOT/backend"
 WASM_DIR="$ASSET_DIR/target/wasm32v1-none/release"
 EVIDENCE_DIR="$REPO_ROOT/deploy-evidence"
 TS="$(date -u +%Y%m%dT%H%M%SZ)"
