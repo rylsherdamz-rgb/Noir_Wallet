@@ -42,6 +42,13 @@ This maps every weekly deliverable to its status. Measure every commit against t
 - [x] Build + test all contracts green
 - [x] Deploy updated contracts to Testnet, record Contract IDs + WASM hashes — **DONE** (see `deploy-evidence/`)
 - [x] Architecture documentation updated (Obsidian: AgentRegistry.md, PaymentEscrow.md, session note)
+- [x] Architecture diagrams published — `docs/architecture.md` (system overview, provisioning, tap-to-pay, revocation)
+- [x] Captured test-run output as evidence — `deploy-evidence/test-results-*.txt` (41 passed, 0 failed)
+- [x] Reconciled Contract IDs to one evidence-backed set across README, `.env.example`, and the Obsidian notes
+- [x] Corrected README contract method tables + build guide to match the Rust source
+- [x] Week 1 evidence index — `deploy-evidence/WEEK1-EVIDENCE.md`
+- [ ] Record deploy-time transaction hashes (needs the Stellar CLI; contract explorer links already published)
+- [ ] Capture wallet create/import evidence (screenshot or recording)
 
 ### Week 2 — NFC provisioning + register + association + agent auth + escrow fund (wire app ↔ contracts)  ⬜ NOT STARTED
 **Planned:** NTAG213 provisioning; device register via DeviceRegistry; wallet-to-device association; delegated payment agent authorization (with constraints); escrow funding; connect RN app to deployed contracts.
