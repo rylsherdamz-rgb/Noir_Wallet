@@ -1,0 +1,87 @@
+name: Contracts CI
+
+on:
+  push:
+    branches: [main, instaward, instaward-staging, instaward-development]
+    paths:
+      - 'backend/asset/contracts/**'
+      - 'backend/asset/Cargo.toml'
+      - 'backend/asset/Cargo.lock'
+      - '.github/workflows/contracts.yml'
+  pull_request:
+    paths:
+      - 'backend/asset/contracts/**'
+      - 'backend/asset/Cargo.toml'
+      - 'backend/asset/Cargo.lock'
+      - '.github/workflows/contracts.yml'
+
+defaults:
+  run:
+    working-directory: backend/asset
+
+jobs:
+  test:
+    name: Build + test Soroban contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # wasm32v1-none is the Soroban target for SDK 25
+          targets: wasm32v1-none
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            backend/asset/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('backend/asset/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      # payment_escrow uses contractimport! on the other two WASM files, so the
+      # dependency contracts MUST be built before it.
+      - name: Build dependency contracts (WASM)
+        run: cargo build --release --target wasm32v1-none -p agent-registry -p device-registry
+
+      - name: Build payment_escrow (WASM)
+        run: cargo build --release --target wasm32v1-none -p payment-escrow
+
+      - name: Run contract tests
+        run: |
+          HOST=$(rustc -vV | awk '/host/{print $2}')
+          cargo test -p device-registry -p agent-registry -p payment-escrow --target "$HOST"
+
+      # The deployed Contract IDs are published alongside these hashes in
+      # deploy-evidence/. Re-deriving them here proves the published hashes are
+      # reproducible from source, which is the Instaward evidence requirement.
+      - name: Verify WASM hashes match published deploy evidence
+        run: |
+          set -euo pipefail
+          declare -A expected=(
+            [device_registry]=2b258a496495a2a15cdf76ceb20d14dcd89ca316e74eb08a496b61e3af986817
+            [agent_registry]=2c9ee8f6aea1a44c317ba306cb22b782c7cef58fbbffafdcf30a8abdb275617a
+            [payment_escrow]=068ce429550d6e7fb34c6b88975e6fad063d7463572aca38b5fb7db61e55280c
+          )
+          status=0
+          for c in "${!expected[@]}"; do
+            actual=$(sha256sum "target/wasm32v1-none/release/$c.wasm" | awk '{print $1}')
+            if [ "$actual" = "${expected[$c]}" ]; then
+              echo "match    $c  $actual"
+            else
+              echo "MISMATCH $c"
+              echo "  expected ${expected[$c]}"
+              echo "  actual   $actual"
+              status=1
+            fi
+          done
+          if [ "$status" -ne 0 ]; then
+            echo
+            echo "A mismatch means the contract source no longer compiles to the"
+            echo "deployed WASM. Either redeploy and update deploy-evidence/ plus"
+            echo "the hashes in this workflow, or revert the source change."
+          fi
+          exit "$status"
