@@ -75,22 +75,22 @@ Workflows live in `.github/workflows/`. Both now run on the Instaward branches (
 
 | Workflow | Scope | Status |
 |----------|-------|--------|
-| `contracts.yml` | Builds all three contracts to `wasm32v1-none`, runs the 41 contract tests on the host target, then re-derives the WASM SHA-256 hashes and compares them to `deploy-evidence/` | 🟡 Tests green, hash assertion outstanding |
+| `contracts.yml` | Builds all three contracts to `wasm32v1-none`, runs the 41 contract tests on the host target, then prints a WASM SHA-256 reproducibility report (informational) | ✅ Passing |
 | `frontend.yml` | `tsc --noEmit` + Vitest (220 tests) on Node 22 | ✅ Passing |
 
 **Contract tests in CI: passing.** Run [`37019373910`](https://github.com/rylsherdamz-rgb/Noir_Wallet/actions/runs/37019373910) executed 17 + 8 + 16 = 41 tests, 0 failures. This satisfies the SOW metric "automated contract tests passing in CI".
 
-**Outstanding — WASM hash assertion.** The final step of `contracts.yml` asserts the built WASM matches the hashes published in `deploy-evidence/`. It currently fails: CI built with `dtolnay/rust-toolchain@stable` while the deployed artifacts were built with rustc 1.98.1, and Soroban WASM output is not byte-identical across compiler versions.
+**Resolved — WASM hash step is now informational.** The hash-match assertion used to fail CI. Root cause (diagnosed 2026-10-02): Soroban WASM is **not byte-identical across machines**, independent of compiler version. `soroban-sdk` embeds the absolute source path of the build host into the artifact — a panic-location string pointing at `/home/<user>/.cargo/registry/.../soroban-sdk-25.3.1/src/ledger.rs`. On a GitHub runner that prefix is `/home/runner/...`; on the maintainer's machine it is `/home/richie/...`. Different byte string → different WASM → different SHA-256, even under the pinned `1.98.1` compiler.
 
-- Observed in CI: device `d26fc268…`, agent `f2d55011…`, escrow `8314a126…`
-- Published / locally reproduced under 1.98.1: device `2b258a49…`, agent `2c9ee8f6…`, escrow `068ce429…`
+Evidence of the divergence:
+- CI, `@stable`: device `d26fc268…`, agent `f2d55011…`, escrow `8314a126…`
+- CI, pinned `1.98.1` (run `37021650785`): device `f531a8e5…`, agent `9b068271…`, escrow `b8883a60…`
+- Local, `1.98.1`, clean rebuild: device `2b258a49…`, agent `2c9ee8f6…`, escrow `068ce429…` ✅ matches published `deploy-evidence/`
+- Confirmed path embedding: `strings device_registry.wasm | grep /home` → `/home/richie/.cargo/registry/.../soroban-sdk-25.3.1/src/ledger.rs`
 
-Mitigation applied but **not yet verified in CI**: `backend/asset/rust-toolchain.toml` pins channel `1.98.1` + the `wasm32v1-none` target, and the workflow installs that exact version. The `[profile.release]` settings (`strip = "symbols"`, `debug = 0`, `codegen-units = 1`, `lto = true`) should make the build deterministic once the compiler matches.
+Resolution: the toolchain pin (`backend/asset/rust-toolchain.toml` → `1.98.1` + `wasm32v1-none`) is kept, and the `contracts.yml` hash step is demoted to a **non-blocking reproducibility report** (writes a table to the job summary, never exits non-zero). The published hashes remain reproducible on the maintainer's machine (verified by clean local rebuild) and are the authoritative values in `deploy-evidence/`. The SOW gate — automated contract tests passing in CI — is enforced by the build + test steps, which are green.
 
-To close this out:
-1. Confirm a clean local rebuild under 1.98.1 still yields the three published hashes.
-2. Push and confirm `contracts.yml` goes green end to end.
-3. If the hashes still differ in CI despite the pin, demote the comparison to an informational step that records the hashes without failing the run — the tests passing is the SOW requirement; the hash match is an extra reproducibility proof and should not hold CI red.
+Rationale: byte-identical cross-machine WASM would require full `--remap-path-prefix` normalization, which would *change* the hashes away from the already-published/deployed values and force a redeploy + evidence rewrite — a larger, misleading change for no SOW benefit. The hash match is an extra reproducibility proof, not a release gate, so it should not hold CI red.
 
 ---
 
