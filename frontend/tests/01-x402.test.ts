@@ -378,14 +378,18 @@ describe('x402 multi-agent logic', () => {
   })
 
 
-  it('sweepAgentFunds sends full balance minus fee', async () => {
+  it('sweepAgentFunds sends balance minus the base reserve and fee buffer', async () => {
     const { x402 } = await import('@/domain/x402')
     const { stellarService } = await import('@/services/stellar-service')
     const a = await x402.createAgent()
     const result = await x402.sweepAgentFunds('GA7OPG4EHTL7X7JQKRLFNIJF7E4X5Y4JT3Q2H6CVT6JKJNZ5DOJ3BNKC', a.index)
     expect('hash' in result).toBe(true)
+    // 500 XLM balance - (2 base entries * 0.5 reserve) - 0.01 fee buffer = 498.99.
+    // The 1 XLM minimum balance MUST be left behind or Stellar rejects the
+    // payment with op_underfunded (verified against real testnet). toStellarAmount
+    // trims trailing zeros, so the canonical string is '498.99', not '498.9900000'.
     expect(stellarService.submitPayment).toHaveBeenCalledWith(
-      expect.objectContaining({ amount: '499.9990000' }),
+      expect.objectContaining({ amount: '498.99' }),
     )
   })
 
