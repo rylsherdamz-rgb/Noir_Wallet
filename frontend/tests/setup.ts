@@ -53,6 +53,13 @@ vi.mock('@stellar/stellar-sdk', async () => {
       static native() { return new MockAsset('XLM', '') as any }
       getAssetType() { return (this as any).code === 'XLM' ? 'native' : 'credit_alphanum4' }
       getCode() { return (this as any).code }
+      contractId(passphrase: string) {
+        const RealAsset = (actual as any).Asset
+        const real = (this as any).code === 'XLM' && !(this as any).issuer
+          ? RealAsset.native()
+          : new RealAsset((this as any).code, (this as any).issuer)
+        return real.contractId(passphrase)
+      }
     },
     Horizon: {
       Server: class MockHorizonServer {

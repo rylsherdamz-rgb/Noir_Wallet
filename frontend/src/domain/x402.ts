@@ -1,4 +1,4 @@
-import { Keypair, xdr, Address } from '@stellar/stellar-sdk'
+import { Keypair, xdr, Address, Asset, nativeToScVal, scValToNative } from '@stellar/stellar-sdk'
 import { secureGetItem, secureSetItem, secureDeleteItem } from '@/services/secureStorage'
 import { stellarService } from '@/services/stellar-service'
 import { AppConfig } from '@/constants/config'
@@ -9,6 +9,50 @@ const SecureStore = {
   getItemAsync: secureGetItem,
   setItemAsync: secureSetItem,
   deleteItemAsync: secureDeleteItem,
+}
+
+// ── device ownership ────────────────────────────────────────────────────────
+
+/** On-chain ownership of a device hash, relative to the calling wallet. */
+export type DeviceOwnership =
+  | { status: 'free' }
+  | { status: 'mine' | 'other'; owner: string; agent: string; createdAt: number | null; active: boolean }
+
+/** Thrown when a tag is already bound to a different wallet on-chain. */
+export class DeviceOwnedByOtherWalletError extends Error {
+  constructor(public readonly owner: string, public readonly createdAt: number | null) {
+    super(`This tag is already linked to another wallet (${owner.slice(0, 4)}…${owner.slice(-4)})`)
+    this.name = 'DeviceOwnedByOtherWalletError'
+  }
+}
+
+/** Parse a `device_registry.get_device` DeviceInfo result. */
+function parseDeviceInfo(val: xdr.ScVal, walletPub: string): DeviceOwnership {
+  const info = scValToNative(val) as { owner: string; agent: string; status: number; created_at: bigint | number }
+  const created = info.created_at != null ? Number(info.created_at) : NaN
+  return {
+    status: info.owner === walletPub ? 'mine' : 'other',
+    owner: String(info.owner),
+    agent: String(info.agent),
+    createdAt: Number.isFinite(created) && created > 0 ? created : null,
+    active: Number(info.status) === 0,
+  }
+}
+
+// ── agent_registry policy args ──────────────────────────────────────────────
+// register_agent(wallet, device_hash, agent, max_amount: i128, asset: Address,
+// expires_at: u64). Agents spend native XLM via its Stellar Asset Contract.
+// max_amount = 0 → uncapped per payment; expires_at = 0 → never expires.
+function agentPolicyArgs(maxAmountStroops: bigint = 0n, expiresAt: bigint = 0n): xdr.ScVal[] {
+  const passphrase = stellarService.networkName === 'mainnet'
+    ? 'Public Global Stellar Network ; September 2015'
+    : 'Test SDF Network ; September 2015'
+  const xlmSac = Asset.native().contractId(passphrase)
+  return [
+    nativeToScVal(maxAmountStroops, { type: 'i128' }),
+    new Address(xlmSac).toScVal(),
+    nativeToScVal(expiresAt, { type: 'u64' }),
+  ]
 }
 
 // ── Per-agent SecureStore keys ──────────────────────────────────────────────
@@ -509,14 +553,24 @@ export const x402 = {
 
     let deviceRegistered = false
     try {
-      await stellarService.readContract({
+      const info = await stellarService.readContract({
         contractId: contractIdDevice,
         method: 'get_device',
         args: [deviceHashScVal],
         source: pub,
       })
       deviceRegistered = true
+      // A tag owned by another wallet must not be treated as "already done":
+      // register / register_agent would fail with AlreadyRegistered and the
+      // caller would wrongly report success while this wallet's agent is
+      // never authorized.
+      let ownership: DeviceOwnership | null = null
+      try { ownership = parseDeviceInfo(info, pub) } catch { /* unparseable → fall through */ }
+      if (ownership && ownership.status === 'other') {
+        throw new DeviceOwnedByOtherWalletError(ownership.owner, ownership.createdAt)
+      }
     } catch (e: any) {
+      if (e instanceof DeviceOwnedByOtherWalletError) throw e
       const msg = e?.message ?? ''
       if (!msg.includes('Error(Contract, #2)') && !msg.includes('DeviceNotFound')) {
         logger.debug(`[x402] device pre-check failed (falling back to write): ${msg}`)
@@ -566,13 +620,35 @@ export const x402 = {
         await stellarService.invokeContract({
           contractId: contractIdAgent,
           method: 'register_agent',
-          args: [walletScVal, deviceHashScVal, agentScVal],
+          args: [walletScVal, deviceHashScVal, agentScVal, ...agentPolicyArgs()],
           signerSecret: params.walletSecret,
           sourceAccount: account,
         })
       } catch (e: any) {
         if (!isAlreadyRegistered(e)) throw e
       }
+    }
+  },
+
+  /**
+   * Look up who owns `deviceHashHex` on-chain, relative to `walletPub`.
+   * Returns `{ status: 'free' }` when the device is not registered.
+   */
+  async getDeviceOwnership(deviceHashHex: string, walletPub: string): Promise<DeviceOwnership> {
+    const contractId = AppConfig.stellar.deviceRegistryContract
+    if (!contractId) throw new Error('deviceRegistryContract not configured')
+    try {
+      const val = await stellarService.readContract({
+        contractId,
+        method: 'get_device',
+        args: [stellarService.deviceHashScVal(deviceHashHex)],
+        source: walletPub,
+      })
+      return parseDeviceInfo(val, walletPub)
+    } catch (e: any) {
+      const msg = e?.message ?? ''
+      if (msg.includes('Error(Contract, #2)') || msg.includes('DeviceNotFound')) return { status: 'free' }
+      throw e
     }
   },
 
@@ -631,6 +707,7 @@ export const x402 = {
         stellarService.walletAddressScVal(Keypair.fromSecret(params.walletSecret).publicKey()),
         stellarService.deviceHashScVal(params.deviceHashHex),
         stellarService.walletAddressScVal(params.agentPublicKey),
+        ...agentPolicyArgs(),
       ],
       signerSecret: params.walletSecret,
     })

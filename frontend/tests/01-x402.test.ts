@@ -538,5 +538,76 @@ describe('x402 registerDeviceAndAgentOnChain sequence handling', () => {
     expect(calls).toEqual(['register_agent'])
     // First (and only) write takes START_SEQ+1 with no skipped slot.
     expect(seqAtCall['register_agent']).toBe('2001')
+
+    // register_agent must match the on-chain signature:
+    // (wallet, device_hash, agent, max_amount: i128, asset: Address, expires_at: u64)
+    const agentCall = (stellarService.invokeContract as any).mock.calls
+      .find(([p]: any) => p.method === 'register_agent')[0]
+    expect(agentCall.args).toHaveLength(6)
+    expect(agentCall.args[3].switch().name).toBe('scvI128')
+    expect(agentCall.args[4].switch().name).toBe('scvAddress')
+    expect(agentCall.args[5].switch().name).toBe('scvU64')
+  })
+})
+
+describe('x402 device ownership', () => {
+  const deviceInfo = async (owner: string, agent: string) => {
+    const { nativeToScVal, Address } = await import('@stellar/stellar-sdk')
+    return nativeToScVal({
+      agent: new Address(agent).toScVal(),
+      created_at: nativeToScVal(1791003657n, { type: 'u64' }),
+      owner: new Address(owner).toScVal(),
+      status: nativeToScVal(0, { type: 'u32' }),
+    })
+  }
+
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('classifies free / mine / other', async () => {
+    const { Keypair } = await import('@stellar/stellar-sdk')
+    const { stellarService } = await import('@/services/stellar-service')
+    const { x402 } = await import('@/domain/x402')
+    const { AppConfig } = await import('@/constants/config')
+    vi.spyOn(AppConfig.stellar, 'deviceRegistryContract', 'get').mockReturnValue('CDEVICE')
+    ;(stellarService.deviceHashScVal as any) = vi.fn().mockReturnValue({})
+
+    const me = Keypair.random().publicKey()
+    const other = Keypair.random().publicKey()
+    const agent = Keypair.random().publicKey()
+
+    ;(stellarService.readContract as any) = vi.fn().mockRejectedValue(new Error('HostError: Error(Contract, #2)'))
+    expect(await x402.getDeviceOwnership('a'.repeat(64), me)).toEqual({ status: 'free' })
+
+    const info = await deviceInfo(me, agent)
+    ;(stellarService.readContract as any) = vi.fn().mockResolvedValue(info)
+    expect(await x402.getDeviceOwnership('a'.repeat(64), me)).toMatchObject({
+      status: 'mine', owner: me, agent, createdAt: 1791003657, active: true,
+    })
+    expect(await x402.getDeviceOwnership('a'.repeat(64), other)).toMatchObject({ status: 'other', owner: me })
+  })
+
+  it('throws DeviceOwnedByOtherWalletError instead of silently succeeding', async () => {
+    const { Account, Keypair } = await import('@stellar/stellar-sdk')
+    const { stellarService } = await import('@/services/stellar-service')
+    const { x402, DeviceOwnedByOtherWalletError } = await import('@/domain/x402')
+    const { AppConfig } = await import('@/constants/config')
+    vi.spyOn(AppConfig.stellar, 'deviceRegistryContract', 'get').mockReturnValue('CDEVICE')
+    vi.spyOn(AppConfig.stellar, 'agentRegistryContract', 'get').mockReturnValue('CAGENT')
+
+    const wallet = Keypair.random()
+    const otherOwner = Keypair.random().publicKey()
+    const info = await deviceInfo(otherOwner, Keypair.random().publicKey())
+    ;(stellarService.loadSourceAccount as any) = vi.fn().mockResolvedValue(new Account(wallet.publicKey(), '1'))
+    ;(stellarService.readContract as any) = vi.fn().mockResolvedValue(info)
+    ;(stellarService.walletAddressScVal as any) = vi.fn().mockReturnValue({})
+    ;(stellarService.deviceHashScVal as any) = vi.fn().mockReturnValue({})
+    ;(stellarService.invokeContract as any) = vi.fn()
+
+    await expect(x402.registerDeviceAndAgentOnChain({
+      walletSecret: wallet.secret(),
+      deviceHashHex: 'c'.repeat(64),
+      agentPublicKey: Keypair.random().publicKey(),
+    })).rejects.toBeInstanceOf(DeviceOwnedByOtherWalletError)
+    expect(stellarService.invokeContract).not.toHaveBeenCalled()
   })
 })
