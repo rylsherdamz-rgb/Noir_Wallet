@@ -1,8 +1,26 @@
+<div align="center">
+
+<img src="frontend/assets/noir-mark.png" width="120" alt="Noir logo">
+
 # Noir Wallet
 
-**x402 — Contactless payments powered by Stellar. No app opens. No confirmation. Just tap and go.**
+**Contactless payments powered by Stellar**<br>
+Tap any NFC tag, RFID sticker, or wearable to pay — no app opens, no confirmation, just go.
 
-> 📊 **[View Pitch Deck](ppt/Noir-Wallet-Pitch.pptx)** — Slide deck covering the product, architecture, market, and demo walkthrough.
+[![Stellar](https://img.shields.io/badge/Stellar-testnet-blue?logo=stellar&logoColor=white)](https://stellar.expert/explorer/testnet)
+[![Soroban](https://img.shields.io/badge/Soroban-3%20contracts-blueviolet)](backend/contracts/)
+[![Tests](https://img.shields.io/badge/tests-44%20passing-brightgreen)](#run-tests)
+[![React Native](https://img.shields.io/badge/React%20Native-Expo%2057-61DAFB?logo=expo&logoColor=white)](frontend/)
+[![Rust](https://img.shields.io/badge/Rust-nightly-orange?logo=rust&logoColor=white)](backend/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](frontend/)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+[View Pitch Deck](ppt/Noir-Wallet-Pitch.pptx) · [Architecture](docs/architecture.md) · [Deployment Evidence](docs/Evidence/README.md) · [PR #10 — Week 1](https://github.com/rylsherdamz-rgb/Noir_Wallet/pull/10) · [Run Locally](#getting-started)
+
+</div>
+
+> [!IMPORTANT]
+> Noir Wallet is **alpha software on Stellar Testnet**. The x402 tap-to-pay flow, escrow settlement, and constrained agent authorization are implemented and deployed. Mainnet contracts are deployed but **production settlement and PDAX fiat bridge integration are not yet live**. Treat testnet deployments as ephemeral — each redeploy is a clean slate with new contract IDs.
 
 ## Screenshots
 
