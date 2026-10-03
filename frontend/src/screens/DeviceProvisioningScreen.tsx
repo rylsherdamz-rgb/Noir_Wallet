@@ -14,6 +14,7 @@ import {
 } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { TagOwnershipNotice } from '@/components/devices/TagOwnershipNotice'
+import { NfcScanPulse } from '@/components/brand/NfcScanPulse'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { sha256 } from '@noble/hashes/sha2.js'
@@ -391,13 +392,7 @@ export function DeviceProvisioningScreen() {
           )}
 
           {step === 'scanning' && (
-            <View style={styles.scanWrap}>
-              <Animated.View style={[styles.scanRing, { transform: [{ scale: pulse }] }]} />
-              <View style={styles.scanCenter}>
-                <Ionicons name="radio" size={40} color={Colors.gold} />
-              </View>
-              <Text style={styles.scanText}>Tap your NFC tag against the phone</Text>
-            </View>
+            <NfcScanPulse label="Hold your tag against the back of the phone" />
           )}
 
           {step === 'checking' && (

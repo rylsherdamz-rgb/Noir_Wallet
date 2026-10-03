@@ -1,6 +1,7 @@
 import { colorWithOpacity } from '@/constants/designTokens'
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { View, Text, StyleSheet, ScrollView, Share, TextInput, Animated, Easing, Platform } from 'react-native'
+import { NfcScanPulse } from '@/components/brand/NfcScanPulse'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -303,13 +304,7 @@ export function ReceiveScreen() {
               )}
 
               {nfcState === 'scanning' && (
-                <View style={styles.nfcScanWrap}>
-                  <Animated.View style={[styles.nfcScanRing, { transform: [{ scale: pulse }] }]} />
-                  <View style={styles.nfcScanCenter}>
-                    <Ionicons name="radio" size={36} color={Colors.gold} />
-                  </View>
-                  <Text style={styles.nfcScanText}>Hold card to phone...</Text>
-                </View>
+                <NfcScanPulse size={160} label="Hold card to phone…" />
               )}
 
               {nfcState === 'processing' && (
