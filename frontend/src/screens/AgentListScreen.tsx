@@ -51,9 +51,16 @@ export function AgentListScreen() {
     } catch { /* non-critical */ }
 
     const all = await x402.listAgents()
-    setAgentCount(all.length)
-    if (all.length === 0) { setAgent(null); setLoading(false); return }
-    const agg = all.reduce(
+    // Only count agents that belong to a linked device. Provisioning can leave
+    // an orphaned agent behind (e.g. registration failed after the agent key
+    // was created); counting those showed "1 agent · 0 devices" right next to
+    // the "No agents yet" empty state.
+    const hashes = new Set(devices.map((d) => d.deviceUidHash))
+    const agentKeys = new Set(devices.map((d) => d.agentPublicKey).filter(Boolean))
+    const linked = all.filter((a) => (a.deviceHash ? hashes.has(a.deviceHash) : agentKeys.has(a.publicKey)))
+    setAgentCount(linked.length)
+    if (linked.length === 0) { setAgent(null); setLoading(false); return }
+    const agg = linked.reduce(
       (acc, a) => ({
         balanceStroops: acc.balanceStroops + a.balanceStroops,
         spendingBudgetStroops: acc.spendingBudgetStroops + a.spendingBudgetStroops,
@@ -62,14 +69,14 @@ export function AgentListScreen() {
       { balanceStroops: 0, spendingBudgetStroops: 0, totalSpentStroops: 0 },
     )
     setAgent({
-      index: all[0].index,
-      publicKey: all[0].publicKey,
-      label: `${all.length} agent${all.length === 1 ? '' : 's'}`,
+      index: linked[0].index,
+      publicKey: linked[0].publicKey,
+      label: `${linked.length} agent${linked.length === 1 ? '' : 's'}`,
       balanceStroops: agg.balanceStroops,
       spendingBudgetStroops: agg.spendingBudgetStroops,
       totalSpentStroops: agg.totalSpentStroops,
       isActive: true,
-      createdAt: all[0].createdAt,
+      createdAt: linked[0].createdAt,
     })
     setLoading(false)
   }
@@ -90,7 +97,7 @@ export function AgentListScreen() {
   const pct = agent && agent.spendingBudgetStroops > 0
     ? Math.round((agent.totalSpentStroops / agent.spendingBudgetStroops) * 100) : 0
 
-  const agentExists = agent !== null
+  const agentExists = agent !== null && devices.length > 0
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
