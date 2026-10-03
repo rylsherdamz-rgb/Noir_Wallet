@@ -401,7 +401,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.infoRow}>
       <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
+      <Text style={styles.infoValue} numberOfLines={1}>{value}</Text>
     </View>
   )
 }
@@ -488,11 +488,11 @@ const styles = StyleSheet.create({
     padding: Spacing.md, marginTop: Spacing.md,
   },
   infoRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.md,
     paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: colorWithOpacity(Colors.borderGrey, 0.4),
   },
   infoLabel: { fontSize: FontSize.sm, color: Colors.mutedWhite },
-  infoValue: { fontSize: FontSize.sm, color: Colors.white, fontFamily: Fonts.mono },
+  infoValue: { flexShrink: 1, fontSize: FontSize.sm, color: Colors.white, fontFamily: Fonts.mono, textAlign: 'right' },
 
   // Danger
   dangerBtn: {

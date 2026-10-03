@@ -1,6 +1,6 @@
 import { colorWithOpacity } from '@/constants/designTokens'
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { View, Text, StyleSheet, Share, TextInput, Animated, Easing, Platform } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, Share, TextInput, Animated, Easing, Platform } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -213,7 +213,12 @@ export function ReceiveScreen() {
         </PressableScale>
       </View>
 
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentInner}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {/* Address QR mode */}
         {mode === 'address' && (
           <>
@@ -354,7 +359,7 @@ export function ReceiveScreen() {
             )}
           </>
         )}
-      </View>
+      </ScrollView>
 
       <Toast
         visible={toast.visible}
@@ -387,8 +392,11 @@ const styles = StyleSheet.create({
   spacer24: { width: 24 },
   content: {
     flex: 1,
+  },
+  contentInner: {
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.xl,
   },
 
   // Mode toggle

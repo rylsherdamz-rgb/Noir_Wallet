@@ -54,6 +54,7 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <PressableScale onPress={onBack} style={styles.backBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityLabel="Go back"
         >
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
@@ -124,9 +125,9 @@ const styles = StyleSheet.create({
   revealBtn: { alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.xl },
   revealText: { fontSize: FontSize.md, color: Colors.gold, fontWeight: FontWeight.semibold },
   phraseGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, width: '100%' },
-  wordRow: { flexDirection: 'row', alignItems: 'center', width: '33%', paddingVertical: Spacing.xs },
+  wordRow: { flexDirection: 'row', alignItems: 'center', width: '30%', paddingVertical: Spacing.xs },
   wordNum: { fontSize: FontSize.xs, color: Colors.mutedWhite, width: 24, textAlign: 'right', marginRight: 4 },
-  word: { fontSize: FontSize.md, color: Colors.white, fontWeight: FontWeight.medium },
+  word: { flex: 1, fontSize: FontSize.md, color: Colors.white, fontWeight: FontWeight.medium },
   copyNote: { fontSize: FontSize.xs, color: Colors.mutedWhite, textAlign: 'center', marginTop: Spacing.md, lineHeight: 18 },
   actions: { marginTop: Spacing.xl, gap: Spacing.md },
 })

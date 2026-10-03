@@ -132,7 +132,7 @@ const NotificationRow = memo(function NotificationRow({
       </View>
       <View style={styles.notifContent}>
         <View style={styles.notifHeader}>
-          <Text style={styles.notifTitle}>{item.title}</Text>
+          <Text style={styles.notifTitle} numberOfLines={1}>{item.title}</Text>
           {!item.read && <View style={styles.unreadDot} />}
         </View>
         <Text style={styles.notifBody} numberOfLines={2}>{item.body}</Text>
@@ -221,6 +221,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   notifTitle: {
+    flex: 1,
     fontSize: FontSize.sm,
     color: Colors.white,
     fontWeight: FontWeight.semibold,

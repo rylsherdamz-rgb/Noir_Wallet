@@ -99,7 +99,11 @@ export function CardsScreen() {
         <View style={styles.spacer24} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.intro}>
           Turn a blank NFC card into a tap-to-pay wallet. Tap the card to pay anywhere a Noir
           reader accepts it.

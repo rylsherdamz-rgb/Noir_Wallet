@@ -74,6 +74,7 @@ export function SeedVerifyScreen({ phrase, onComplete, onBack }: SeedVerifyScree
   return (
     <SafeAreaView style={styles.container}>
       <PressableScale onPress={onBack} style={styles.backBtn}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         accessibilityLabel="Go back"
       >
         <Ionicons name="arrow-back" size={24} color={Colors.white} />
