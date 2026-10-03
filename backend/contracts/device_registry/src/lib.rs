@@ -1,5 +1,5 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, contracterror, panic_with_error, symbol_short, Address, BytesN, Env};
+use soroban_sdk::{contract, contractevent, contractimpl, contracttype, contracterror, panic_with_error, Address, BytesN, Env};
 
 #[contracttype]
 pub enum DataKey {
@@ -15,6 +15,21 @@ pub struct DeviceInfo {
     pub agent: Address,
     pub status: u32,
     pub created_at: u64,
+}
+
+/// Emitted when a device is registered. Topics: ("register", device_hash).
+#[contractevent(topics = ["register"], data_format = "single-value")]
+pub struct RegisterEvent {
+    #[topic]
+    pub device_hash: BytesN<32>,
+    pub agent: Address,
+}
+
+/// Emitted when a device is revoked. Topics: ("revoke", device_hash).
+#[contractevent(topics = ["revoke"])]
+pub struct RevokeEvent {
+    #[topic]
+    pub device_hash: BytesN<32>,
 }
 
 #[contracterror]
@@ -63,7 +78,7 @@ impl DeviceRegistry {
         env.storage().persistent().set(&DataKey::WalletDeviceByIndex(wallet.clone(), count), &device_hash.clone());
         env.storage().persistent().set(&count_key, &(count + 1));
 
-        env.events().publish((symbol_short!("register"), device_hash), agent);
+        RegisterEvent { device_hash, agent }.publish(&env);
     }
 
     pub fn revoke(env: Env, wallet: Address, device_hash: BytesN<32>) {
@@ -114,7 +129,7 @@ impl DeviceRegistry {
 
         env.storage().persistent().remove(&device_key);
 
-        env.events().publish((symbol_short!("revoke"), device_hash), ());
+        RevokeEvent { device_hash }.publish(&env);
     }
 
     pub fn get_device(env: Env, device_hash: BytesN<32>) -> DeviceInfo {

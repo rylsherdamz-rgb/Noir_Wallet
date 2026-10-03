@@ -1,0 +1,7 @@
+# Overrides the parent ../.cargo/config.toml which forces target =
+# "wasm32v1-none" for reproducible contract WASM builds. That no_std target
+# can't run tests (the test harness needs std), so here we reset the default
+# build target to the host. Plain `cargo test`/`cargo build` now use the host;
+# the reproducible WASM build still works via an explicit `--target wasm32v1-none`.
+[build]
+target = "x86_64-unknown-linux-gnu"

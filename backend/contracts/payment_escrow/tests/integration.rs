@@ -90,6 +90,16 @@ mod tests {
     }
 
     #[test]
+    fn test_balance_of_unfunded_is_zero() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let f = setup(&env, 1000, 0);
+        // Never funded -> defaults to 0, no panic.
+        assert_eq!(f.escrow.balance_of(&f.device_hash), 0);
+        assert_eq!(f.escrow.balance_of(&random_bytes_32(&env)), 0);
+    }
+
+    #[test]
     fn test_fund_escrow_increases_balance() {
         let env = Env::default();
         env.mock_all_auths();

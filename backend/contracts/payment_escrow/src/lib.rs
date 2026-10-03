@@ -1,5 +1,5 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, contracterror, panic_with_error, symbol_short, Address, BytesN, Env, Vec};
+use soroban_sdk::{contract, contractevent, contractimpl, contracttype, contracterror, panic_with_error, Address, BytesN, Env, Vec};
 
 pub mod agent_registry {
     soroban_sdk::contractimport!(
@@ -47,6 +47,48 @@ pub enum Error {
 #[contract]
 pub struct PaymentEscrow;
 
+/// Emitted when escrow is funded. Topics: ("fund", device_hash).
+#[contractevent(topics = ["fund"], data_format = "single-value")]
+pub struct FundEvent {
+    #[topic]
+    pub device_hash: BytesN<32>,
+    pub amount: i128,
+}
+
+/// Emitted when a payment is authorized. Topics: ("authorize", device_hash, merchant).
+#[contractevent(topics = ["authorize"], data_format = "single-value")]
+pub struct AuthorizeEvent {
+    #[topic]
+    pub device_hash: BytesN<32>,
+    #[topic]
+    pub merchant: Address,
+    pub amount: i128,
+}
+
+/// Emitted when a merchant claims pending payments. Topics: ("claim", merchant).
+#[contractevent(topics = ["claim"], data_format = "single-value")]
+pub struct ClaimEvent {
+    #[topic]
+    pub merchant: Address,
+    pub total: i128,
+}
+
+/// Emitted when escrow is defunded. Topics: ("defund", device_hash).
+#[contractevent(topics = ["defund"], data_format = "single-value")]
+pub struct DefundEvent {
+    #[topic]
+    pub device_hash: BytesN<32>,
+    pub amount: i128,
+}
+
+/// Emitted when escrow is swept on agent revocation. Topics: ("sweep", device_hash).
+#[contractevent(topics = ["sweep"], data_format = "single-value")]
+pub struct SweepEvent {
+    #[topic]
+    pub device_hash: BytesN<32>,
+    pub balance: i128,
+}
+
 #[contractimpl]
 impl PaymentEscrow {
     pub fn initialize(env: Env, admin: Address, agent_registry_id: Address, device_registry_id: Address) {
@@ -80,8 +122,7 @@ impl PaymentEscrow {
             .unwrap_or(0);
         env.storage().persistent().set(&key, &(current + amount));
 
-        env.events()
-            .publish((symbol_short!("fund"), device_hash), amount);
+        FundEvent { device_hash, amount }.publish(&env);
     }
 
     pub fn authorize(
@@ -151,11 +192,12 @@ impl PaymentEscrow {
             .temporary()
             .set(&DataKey::PendingPayment((merchant.clone(), idx)), &payment);
 
-        env.events()
-            .publish(
-                (symbol_short!("authorize"), (device_hash, merchant)),
-                amount,
-            );
+        AuthorizeEvent {
+            device_hash,
+            merchant,
+            amount,
+        }
+        .publish(&env);
     }
 
     pub fn claim(env: Env, token: Address, merchant: Address) {
@@ -201,8 +243,7 @@ impl PaymentEscrow {
             &total,
         );
 
-        env.events()
-            .publish((symbol_short!("claim"), merchant), total);
+        ClaimEvent { merchant, total }.publish(&env);
     }
 
     pub fn defund_escrow(
@@ -242,8 +283,7 @@ impl PaymentEscrow {
             &amount,
         );
 
-        env.events()
-            .publish((symbol_short!("defund"), device_hash), amount);
+        DefundEvent { device_hash, amount }.publish(&env);
     }
 
     /// Return a device's ENTIRE remaining escrow balance to its owner once the
@@ -306,8 +346,7 @@ impl PaymentEscrow {
             &balance,
         );
 
-        env.events()
-            .publish((symbol_short!("sweep"), device_hash), balance);
+        SweepEvent { device_hash, balance }.publish(&env);
 
         balance
     }

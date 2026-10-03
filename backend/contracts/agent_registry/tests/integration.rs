@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use agent_registry::{AgentRegistry, AgentRegistryClient};
-    use soroban_sdk::testutils::{Address as _, Ledger as _};
+    use soroban_sdk::testutils::Ledger as _;
     use soroban_sdk::{Address, BytesN, Env};
 
     fn random_address(env: &Env) -> Address {

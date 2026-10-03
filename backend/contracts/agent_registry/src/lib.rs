@@ -1,5 +1,5 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, contracterror, panic_with_error, symbol_short, Address, BytesN, Env};
+use soroban_sdk::{contract, contractevent, contractimpl, contracttype, contracterror, panic_with_error, Address, BytesN, Env};
 
 #[contracttype]
 pub enum DataKey {
@@ -39,6 +39,21 @@ pub enum Error {
 
 #[contract]
 pub struct AgentRegistry;
+
+/// Emitted when an agent is registered. Topics: ("agent_reg", device_hash).
+#[contractevent(topics = ["agent_reg"], data_format = "single-value")]
+pub struct AgentRegEvent {
+    #[topic]
+    pub device_hash: BytesN<32>,
+    pub agent: Address,
+}
+
+/// Emitted when an agent is revoked. Topics: ("agent_rev", device_hash).
+#[contractevent(topics = ["agent_rev"])]
+pub struct AgentRevEvent {
+    #[topic]
+    pub device_hash: BytesN<32>,
+}
 
 #[contractimpl]
 impl AgentRegistry {
@@ -88,8 +103,7 @@ impl AgentRegistry {
         };
         env.storage().persistent().set(&map_key, &policy);
 
-        env.events()
-            .publish((symbol_short!("agent_reg"), device_hash), agent);
+        AgentRegEvent { device_hash, agent }.publish(&env);
     }
 
     pub fn revoke_agent(env: Env, wallet: Address, device_hash: BytesN<32>) {
@@ -103,8 +117,7 @@ impl AgentRegistry {
             .persistent()
             .remove(&DataKey::AgentMap(device_hash.clone()));
 
-        env.events()
-            .publish((symbol_short!("agent_rev"), device_hash), ());
+        AgentRevEvent { device_hash }.publish(&env);
     }
 
     pub fn get_agent(env: Env, device_hash: BytesN<32>) -> Address {

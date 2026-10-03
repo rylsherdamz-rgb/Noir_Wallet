@@ -132,12 +132,12 @@ Reject (all verified by contract tests):
 
 ### Testnet (redeployed 2026-10-01 with constrained-auth + sweep-on-revoke)
 Admin / deployer: `GCDAAT6G6BUANDLY432YEAFY2MHUDP4PVEQ6ODMKWMUL6THLDY4GY2KD` (identity `noir-deployer`)
-Full evidence (tx links, init args): `deploy-evidence/deploy-testnet-20261001T074804Z.md`
+Full evidence (tx links, init args): `deploy-evidence/deploy-testnet-20261002T235948Z.md`
 
 | Contract | ID | WASM SHA-256 |
 |----------|----|--------------|
-| device_registry | `CCJQCI34FAW5W3U55HZERPZVZF3IIEVFP2ATGIZASDGSY2K2FAF6C2AM` | `2b258a496495a2a15cdf76ceb20d14dcd89ca316e74eb08a496b61e3af986817` |
-| agent_registry | `CAOVUFDVSOVCYJKMBLJWRERNEZOGA62D56ZZOKGLJWPROAV7SUV37GAA` | `2c9ee8f6aea1a44c317ba306cb22b782c7cef58fbbffafdcf30a8abdb275617a` |
-| payment_escrow | `CCSWYQ7ORLF2ZG5RBBPDX4VUVPYF2LGV5N3OYJERZUBVX7KMT5MG3DIU` | `068ce429550d6e7fb34c6b88975e6fad063d7463572aca38b5fb7db61e55280c` |
+| device_registry | `CCSW6R7ATZJNBGNQVXOTQNVBGBAHOSFR2RXUG32DLRU6I2LUQHVJKION` | `a252a4070120af7222bed4dfcb220ca51c290071f2c286a2f58f7259f367bea2` |
+| agent_registry | `CBP6KC6IFBQQHOGKVYYDPHXPSHTYUKKHV5EGHSSNPRTJQ6G4M545NFUC` | `b0da4885fd635a6b3d76250c9423424c84c409a2e617b76946ffd2af90c7a22b` |
+| payment_escrow | `CAHYPZNULA67IALHHBWTHDYGXG6DIVQNQGENWLEBMCEH5QS3JVX7DIWH` | `3861809c9dfbcc4bf9d9941cc76ebeafb4a7d37453e15074826093d12a2941ed` |
 
 Redeploy script: `scripts/redeploy-contracts.sh` (build → hash → deploy → initialize → write evidence).

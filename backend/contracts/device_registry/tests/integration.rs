@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use device_registry::{DeviceRegistry, DeviceRegistryClient};
-    use soroban_sdk::{testutils::Address as _, Address, BytesN, Env};
+    use soroban_sdk::{Address, BytesN, Env};
 
     fn random_address(env: &Env) -> Address {
         <Address as soroban_sdk::testutils::Address>::generate(env)
@@ -57,6 +57,11 @@ mod tests {
         assert_eq!(client.wallet_device_count(&wallet), 1);
         assert_eq!(client.wallet_device_at(&wallet, &0), device_hash);
         assert_eq!(client.get_owner(&device_hash), wallet);
+        assert_eq!(client.get_agent(&device_hash), agent);
+        let info = client.get_device(&device_hash);
+        assert_eq!(info.owner, wallet);
+        assert_eq!(info.agent, agent);
+        assert_eq!(info.status, 0);
     }
 
     #[test]
@@ -136,6 +141,35 @@ mod tests {
         assert_eq!(client.wallet_device_count(&wallet), 1);
         assert_eq!(client.wallet_device_at(&wallet, &0), other_hash);
         assert!(client.is_authorized(&other_hash, &agent));
+    }
+
+    #[test]
+    fn test_is_authorized_false_for_wrong_agent() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let client = deploy(&env);
+
+        let wallet = random_address(&env);
+        let agent = random_address(&env);
+        let other_agent = random_address(&env);
+        let device_hash = random_bytes_32(&env);
+
+        client.register(&wallet, &device_hash, &agent);
+
+        // Device exists and is active, but the queried agent is not the mapped
+        // one -> is_authorized must return false (not panic).
+        assert!(client.is_authorized(&device_hash, &agent));
+        assert!(!client.is_authorized(&device_hash, &other_agent));
+    }
+
+    #[test]
+    fn test_is_authorized_false_for_unknown_device() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let client = deploy(&env);
+
+        // Never-registered device -> false, not panic.
+        assert!(!client.is_authorized(&random_bytes_32(&env), &random_address(&env)));
     }
 
     #[test]

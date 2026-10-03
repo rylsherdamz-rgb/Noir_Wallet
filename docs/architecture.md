@@ -4,7 +4,7 @@ Reference architecture for NFC-enabled **constrained delegated payments** on Ste
 
 Diagrams below are [Mermaid](https://mermaid.js.org/) and render directly on GitHub — no tooling needed to review them.
 
-Contract interfaces are documented in [`Noir/_AI Build Guide - Contracts.md`](../Noir/_AI%20Build%20Guide%20-%20Contracts.md). Deployed IDs and WASM hashes are in [`deploy-evidence/`](../deploy-evidence/).
+Contract interfaces are documented in [`Noir/_AI Build Guide - Contracts.md`](../Noir/_AI%20Build%20Guide%20-%20Contracts.md). Deployed IDs and WASM hashes are in [`deploy-evidence/`](../deploy-evidence/), with on-chain explorer screenshots in [`docs/Evidence/`](Evidence/README.md).
 
 ---
 
