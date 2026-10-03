@@ -10,8 +10,10 @@ import {
   Modal,
   Linking,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
+import { TagOwnershipNotice } from '@/components/devices/TagOwnershipNotice'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { sha256 } from '@noble/hashes/sha2.js'
@@ -20,7 +22,7 @@ import { useNfc } from '@/hooks/useNfc'
 import { useAppStore } from '@/store/useAppStore'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { NoirLogo } from '@/components/brand/NoirLogo'
-import { x402 } from '@/domain/x402'
+import { x402, DeviceOwnedByOtherWalletError, type DeviceOwnership } from '@/domain/x402'
 import { walletService } from '@/services/wallet'
 import { stellarService } from '@/services/stellar-service'
 import { AppConfig } from '@/constants/config'
@@ -28,10 +30,62 @@ import { Device } from '@/types'
 import { useRouter } from 'expo-router'
 import { logger } from '@/lib/logger'
 
-type Step = 'intro' | 'scanning' | 'confirm' | 'registering' | 'success' | 'error'
+type Step =
+  | 'intro'
+  | 'scanning'
+  | 'checking'
+  | 'confirm'
+  | 'registering'
+  | 'success'
+  | 'owned_other'
+  | 'already_linked'
+  | 'error'
 
 const LABELS = ['My Wallet Card', 'Daily Carry', 'Home Key']
 const OTHER = 'Other'
+
+// Ordered provisioning phases shown in the progress tracker.
+type Phase = 'keys' | 'agent' | 'chain' | 'nfc'
+const PHASES: { key: Phase; label: string }[] = [
+  { key: 'keys', label: 'Unlock wallet keys' },
+  { key: 'agent', label: 'Create payment agent' },
+  { key: 'chain', label: 'Register on Stellar' },
+  { key: 'nfc', label: 'Write tag (tap again, optional)' },
+]
+
+const hashTagUid = (uid: string) => {
+  const hash = sha256(new TextEncoder().encode(uid))
+  return Buffer.from(hash.buffer, hash.byteOffset, hash.byteLength).toString('hex')
+}
+
+/** Map raw scan / RPC / contract errors to something a person can act on. */
+function describeError(registerError: string, scanError: string | null) {
+  const msg = registerError || scanError || ''
+  if (!registerError) {
+    return {
+      icon: 'radio-outline' as const,
+      title: "Couldn't read the tag",
+      body: 'Hold the tag flat against the back of your phone, near the camera, until it vibrates.',
+      raw: scanError ?? '',
+    }
+  }
+  if (msg.includes('does not exist on-chain') || msg.includes('Account not found')) {
+    return { icon: 'water-outline' as const, title: 'Wallet not funded', body: 'Your wallet needs a small XLM balance before it can sign. Fund it, then try again.', raw: msg }
+  }
+  if (/insufficient|underfunded|INSUFFICIENT/i.test(msg)) {
+    return { icon: 'wallet-outline' as const, title: 'Not enough XLM', body: 'Top up your wallet to cover the network fee and reserve, then try again.', raw: msg }
+  }
+  if (/timed out|network|fetch|unreachable/i.test(msg)) {
+    return { icon: 'cloud-offline-outline' as const, title: "Stellar didn't respond", body: 'Check your connection and try again. Nothing was charged.', raw: msg }
+  }
+  if (msg.includes('not configured')) {
+    return { icon: 'construct-outline' as const, title: 'App not configured', body: 'Contract IDs are missing from this build. Restart Expo with a cleared cache.', raw: msg }
+  }
+  if (msg.includes('No wallet loaded') || msg.includes('No agent public key')) {
+    return { icon: 'key-outline' as const, title: 'Wallet locked', body: 'Unlock or set up your wallet, then try linking again.', raw: msg }
+  }
+  return { icon: 'alert-circle-outline' as const, title: 'Registration failed', body: 'Something went wrong while registering. You can safely try again.', raw: msg }
+}
 
 export function DeviceProvisioningScreen() {
   const router = useRouter()
@@ -50,6 +104,10 @@ export function DeviceProvisioningScreen() {
   const [registerError, setRegisterError] = useState('')
   const [balanceXlm, setBalanceXlm] = useState<string | null>(null)
   const [funding, setFunding] = useState(false)
+  const [tagHash, setTagHash] = useState('')
+  const [ownership, setOwnership] = useState<DeviceOwnership | null>(null)
+  const [phase, setPhase] = useState<Phase>('keys')
+  const [showErrorDetail, setShowErrorDetail] = useState(false)
   const inputRef = useRef<TextInput>(null)
   const pulse = useState(new Animated.Value(1))[0]
   const spin = useState(new Animated.Value(0))[0]
@@ -63,7 +121,7 @@ export function DeviceProvisioningScreen() {
     : null
 
   useEffect(() => {
-    if (step === 'scanning' || step === 'registering') {
+    if (step === 'scanning' || step === 'registering' || step === 'checking') {
       const anim = Animated.loop(
         Animated.sequence([
           Animated.timing(pulse, { toValue: 0.6, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
@@ -74,7 +132,7 @@ export function DeviceProvisioningScreen() {
         Animated.timing(spin, { toValue: 1, duration: 1500, easing: Easing.linear, useNativeDriver: true }),
       )
       anim.start()
-      if (step === 'registering') spinAnim.start()
+      if (step === 'registering' || step === 'checking') spinAnim.start()
       return () => { anim.stop(); spinAnim.stop() }
     }
   }, [step])
@@ -116,6 +174,24 @@ export function DeviceProvisioningScreen() {
 
       setDisplayLabel(_displayLabel)
       setTagUid(tag.uid)
+
+      // Check on-chain ownership BEFORE asking for a signature, so the user
+      // never signs a transaction that is guaranteed to fail.
+      const hashHex = hashTagUid(tag.uid)
+      setTagHash(hashHex)
+      const walletPub = user?.stellarPublicKey
+      if (walletPub) {
+        setStep('checking')
+        try {
+          const owned = await x402.getDeviceOwnership(hashHex, walletPub)
+          setOwnership(owned)
+          if (owned.status === 'other') { setStep('owned_other'); return }
+          if (owned.status === 'mine') { setStep('already_linked'); return }
+        } catch (e: any) {
+          // Lookup failure is non-fatal: registerDeviceAndAgentOnChain re-checks.
+          logger.warn('[provision] ownership check failed, continuing:', e?.message)
+        }
+      }
       setStep('confirm')
     } catch {
       setStep('error')
@@ -125,6 +201,8 @@ export function DeviceProvisioningScreen() {
   const handleRegister = async () => {
     setStep('registering')
     setRegisterError('')
+    setShowErrorDetail(false)
+    setPhase('keys')
 
     try {
       setStatusMessage('Loading wallet keys...')
@@ -136,12 +214,12 @@ export function DeviceProvisioningScreen() {
       }
 
       setStatusMessage('Hashing device UID...')
-      const hash = sha256(new TextEncoder().encode(tagUid))
-      const hashHex = Buffer.from(hash.buffer, hash.byteOffset, hash.byteLength).toString('hex')
+      const hashHex = tagHash || hashTagUid(tagUid)
 
       // Each NFC card gets its OWN agent (independent balance + budget).
       // If this device hash already has an agent (re-provisioning), reuse it;
       // otherwise allocate a fresh HD-derived agent index.
+      setPhase('agent')
       setStatusMessage('Creating agent for this card...')
       let _agentPubKey: string
       try {
@@ -167,6 +245,7 @@ export function DeviceProvisioningScreen() {
       }
 
       // ── Register device + agent sharing one Horizon account load ──
+      setPhase('chain')
       setStatusMessage('Registering device and agent on Stellar...')
       try {
         await x402.registerDeviceAndAgentOnChain({
@@ -175,20 +254,30 @@ export function DeviceProvisioningScreen() {
           agentPublicKey: _agentPubKey,
         })
       } catch (e: any) {
+        if (e instanceof DeviceOwnedByOtherWalletError) {
+          setOwnership({ status: 'other', owner: e.owner, agent: '', createdAt: e.createdAt, active: true })
+          setStep('owned_other')
+          return
+        }
         const msg = (e as any)?.message ?? ''
         if (!msg.includes('Error(Contract, #4)') && !msg.includes('Error(Contract, #3)') && !msg.includes('AlreadyRegistered')) {
           throw e
         }
       }
 
-      setStatusMessage('Writing to NFC tag...')
+      // Device + agent are already confirmed on-chain at this point. Writing
+      // the NDEF payload needs a second tap and is optional — it times out
+      // after 15s instead of blocking provisioning.
+      setPhase('nfc')
+      setStatusMessage('Registered on-chain. Tap your card again to write it (optional, 15s)...')
       try {
-        await writeToTag({
+        const written = await writeToTag({
           walletAddress: keys.stellarPublic,
           deviceLabel: displayLabel,
           activationUrl: `noirwallet://device/${hashHex}`,
         })
-        setNfcWritten(true)
+        setNfcWritten(written)
+        if (!written) logger.warn('NFC write skipped (no tag tapped or tag not writable)')
       } catch (e: any) {
         setNfcWritten(false)
         logger.warn('NFC write failure (non-blocking):', e?.message)
@@ -246,21 +335,35 @@ export function DeviceProvisioningScreen() {
     setTagUid('')
     setStatusMessage('')
     setRegisterError('')
+    setTagHash('')
+    setOwnership(null)
+    setPhase('keys')
+    setShowErrorDetail(false)
     clearTag()
   }
+
+  const errorInfo = describeError(registerError, error)
+  const showHeader = step === 'intro' || step === 'scanning'
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <View style={styles.top}>
-          <NoirLogo variant="mark" size={48} />
-          <Text style={styles.title}>Link Your Device</Text>
-          <Text style={styles.subtitle}>
-            Tap your {user?.displayName ? `${user.displayName}'s ` : ''}NFC tag against the back of your phone to link it
-          </Text>
-        </View>
+        {showHeader && (
+          <View style={styles.top}>
+            <NoirLogo variant="mark" size={48} />
+            <Text style={styles.title}>Link Your Device</Text>
+            <Text style={styles.subtitle}>
+              Tap your {user?.displayName ? `${user.displayName}'s ` : ''}NFC tag against the back of your phone to link it
+            </Text>
+          </View>
+        )}
 
-        <View style={styles.center}>
+        <ScrollView
+          style={styles.centerScroll}
+          contentContainerStyle={styles.center}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
           {step === 'intro' && !isEnabled && (
             <View style={styles.nfcOffWrap}>
               <Ionicons name="radio-outline" size={64} color={Colors.warning} />
@@ -297,6 +400,16 @@ export function DeviceProvisioningScreen() {
             </View>
           )}
 
+          {step === 'checking' && (
+            <View style={styles.registerWrap} accessibilityLiveRegion="polite">
+              <Animated.View style={{ transform: [{ rotate: spinner }] }}>
+                <Ionicons name="sync" size={40} color={Colors.gold} />
+              </Animated.View>
+              <Text style={styles.resultText}>Checking tag on Stellar…</Text>
+              <Text style={styles.successSub}>Making sure this tag isn't already linked</Text>
+            </View>
+          )}
+
           {step === 'confirm' && (
             <View style={styles.resultWrap}>
               <Ionicons name="checkmark-circle" size={72} color={Colors.success} />
@@ -306,14 +419,20 @@ export function DeviceProvisioningScreen() {
           )}
 
           {step === 'registering' && (
-            <View style={styles.registerWrap}>
+            <View style={styles.registerWrap} accessibilityLiveRegion="polite">
               <Animated.View style={{ transform: [{ rotate: spinner }] }}>
-                <Ionicons name="sync" size={48} color={Colors.gold} />
+                <Ionicons name="sync" size={44} color={Colors.gold} />
               </Animated.View>
-              <Text style={styles.resultText}>{statusMessage || 'Registering on-chain...'}</Text>
-              <View style={styles.stepsWrap}>
-                <StepRow done={true} active={false} label="NFC tag read" />
-                <StepRow done={false} active={true} label={statusMessage || 'Working...'} />
+              <Text style={styles.resultText}>Linking {displayLabel || 'your tag'}</Text>
+              <Text style={styles.successSub}>{statusMessage || 'Working…'}</Text>
+              <View style={styles.stepsCard}>
+                <StepRow done active={false} label="Read NFC tag" />
+                {PHASES.map((p, i) => {
+                  const current = PHASES.findIndex((x) => x.key === phase)
+                  return (
+                    <StepRow key={p.key} done={i < current} active={i === current} label={p.label} />
+                  )
+                })}
               </View>
             </View>
           )}
@@ -357,14 +476,51 @@ export function DeviceProvisioningScreen() {
             </View>
           )}
 
+          {step === 'owned_other' && ownership && ownership.status !== 'free' && (
+            <TagOwnershipNotice
+              kind="other"
+              owner={ownership.owner}
+              yourWallet={user?.stellarPublicKey}
+              createdAt={ownership.createdAt}
+              deviceHash={tagHash}
+            />
+          )}
+
+          {step === 'already_linked' && ownership && ownership.status !== 'free' && (
+            <TagOwnershipNotice
+              kind="mine"
+              agent={ownership.agent}
+              active={ownership.active}
+              createdAt={ownership.createdAt}
+              deviceHash={tagHash}
+              label={displayLabel}
+            />
+          )}
+
           {step === 'error' && (
-            <View style={styles.resultWrap}>
-              <Ionicons name="close-circle" size={72} color={Colors.danger} />
-              <Text style={[styles.successTitle, { color: Colors.danger }]}>{registerError || error || 'Failed'}</Text>
-              <Text style={styles.successSub}>{registerError ? 'Tap Try Again to retry registration' : 'Hold the tag steady against the back of your phone'}</Text>
+            <View style={styles.resultWrap} accessibilityLiveRegion="assertive">
+              <View style={styles.errorIconWrap}>
+                <Ionicons name={errorInfo.icon} size={32} color={Colors.danger} />
+              </View>
+              <Text style={styles.errorTitle} accessibilityRole="header">{errorInfo.title}</Text>
+              <Text style={styles.errorBody}>{errorInfo.body}</Text>
+              {!!errorInfo.raw && (
+                <PressableScale
+                  style={styles.detailToggle}
+                  onPress={() => setShowErrorDetail((v) => !v)}
+                  accessibilityRole="button"
+                  accessibilityLabel={showErrorDetail ? 'Hide technical details' : 'Show technical details'}
+                >
+                  <Text style={styles.detailToggleText}>{showErrorDetail ? 'Hide details' : 'Technical details'}</Text>
+                  <Ionicons name={showErrorDetail ? 'chevron-up' : 'chevron-down'} size={14} color={Colors.mutedWhite} />
+                </PressableScale>
+              )}
+              {showErrorDetail && !!errorInfo.raw && (
+                <Text style={styles.errorRaw} selectable numberOfLines={8}>{errorInfo.raw}</Text>
+              )}
             </View>
           )}
-        </View>
+        </ScrollView>
 
         {step === 'intro' && isEnabled && (
           <View style={styles.labelSection}>
@@ -427,6 +583,49 @@ export function DeviceProvisioningScreen() {
               <Text style={styles.primaryBtnText}>Scan My Tag</Text>
             </PressableScale>
           )}
+          {step === 'checking' && (
+            <PressableScale style={[styles.primaryBtn, styles.btnDisabled]} disabled accessibilityRole="button">
+              <ActivityIndicator size="small" color={Colors.gold} />
+              <Text style={[styles.primaryBtnText, { color: Colors.gold }]}>Checking...</Text>
+            </PressableScale>
+          )}
+          {step === 'owned_other' && (
+            <>
+              {ownership && ownership.status !== 'free' && (
+                <PressableScale
+                  style={styles.secondaryBtn}
+                  onPress={() => Linking.openURL(
+                    `https://stellar.expert/explorer/${stellarService.networkName === 'testnet' ? 'testnet' : 'public'}/account/${ownership.owner}`,
+                  )}
+                  accessibilityRole="link"
+                  accessibilityLabel="View owner wallet on Stellar Expert"
+                >
+                  <Ionicons name="open-outline" size={18} color={Colors.gold} />
+                  <Text style={styles.secondaryBtnText}>View Owner on Explorer</Text>
+                </PressableScale>
+              )}
+              <PressableScale style={styles.primaryBtn} onPress={reset} accessibilityRole="button">
+                <Ionicons name="radio" size={20} color={Colors.black} />
+                <Text style={styles.primaryBtnText}>Scan a Different Tag</Text>
+              </PressableScale>
+            </>
+          )}
+          {step === 'already_linked' && (
+            <>
+              <PressableScale style={styles.secondaryBtn} onPress={reset} accessibilityRole="button">
+                <Ionicons name="radio" size={18} color={Colors.gold} />
+                <Text style={styles.secondaryBtnText}>Scan Another Tag</Text>
+              </PressableScale>
+              <PressableScale
+                style={styles.primaryBtn}
+                onPress={() => { reset(); router.push('/cards') }}
+                accessibilityRole="button"
+              >
+                <Ionicons name="card-outline" size={20} color={Colors.black} />
+                <Text style={styles.primaryBtnText}>View My Cards</Text>
+              </PressableScale>
+            </>
+          )}
           {step === 'registering' && (
             <PressableScale
               style={[styles.primaryBtn, styles.btnDisabled]}
@@ -471,7 +670,7 @@ export function DeviceProvisioningScreen() {
         visible={step === 'confirm'}
         transparent
         animationType="fade"
-        onRequestClose={() => setStep('error')}
+        onRequestClose={reset}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -532,7 +731,7 @@ export function DeviceProvisioningScreen() {
             <View style={styles.modalActions}>
               <PressableScale
                 style={styles.modalCancelBtn}
-                onPress={() => setStep('error')}
+                onPress={reset}
                
               >
                 <Text style={styles.modalCancelText}>Reject</Text>
@@ -608,9 +807,73 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   center: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: Spacing.md,
+  },
+  centerScroll: {
+    flex: 1,
+    alignSelf: 'stretch',
+  },
+  stepsCard: {
+    marginTop: Spacing.lg,
+    alignSelf: 'stretch',
+    backgroundColor: Colors.lightGrey,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.borderGrey,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  errorIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1.5,
+    backgroundColor: colorWithOpacity(Colors.danger, 0.1),
+    borderColor: colorWithOpacity(Colors.danger, 0.25),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorTitle: {
+    fontSize: FontSize.xl,
+    color: Colors.white,
+    fontWeight: FontWeight.bold,
+    marginTop: Spacing.md,
+    textAlign: 'center',
+  },
+  errorBody: {
+    fontSize: FontSize.sm,
+    color: Colors.mutedWhite,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginTop: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+  },
+  detailToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    minHeight: 44,
+  },
+  detailToggleText: {
+    fontSize: FontSize.xs,
+    color: Colors.mutedWhite,
+    textDecorationLine: 'underline',
+  },
+  errorRaw: {
+    alignSelf: 'stretch',
+    fontFamily: 'monospace',
+    fontSize: FontSize.xs,
+    color: Colors.mutedWhite,
+    backgroundColor: Colors.lightGrey,
+    borderRadius: BorderRadius.sm,
+    padding: Spacing.sm,
+    marginTop: Spacing.xs,
   },
   illustration: {
     flexDirection: 'row',
