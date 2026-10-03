@@ -50,14 +50,14 @@ This maps every weekly deliverable to its status. Measure every commit against t
 - [ ] Record deploy-time transaction hashes (needs the Stellar CLI; contract explorer links already published)
 - [ ] Capture wallet create/import evidence (screenshot or recording)
 
-### Week 2 — NFC provisioning + register + association + agent auth + escrow fund (wire app ↔ contracts)  ⬜ NOT STARTED
+### Week 2 — NFC provisioning + register + association + agent auth + escrow fund (wire app ↔ contracts)  🟡 IN PROGRESS
 **Planned:** NTAG213 provisioning; device register via DeviceRegistry; wallet-to-device association; delegated payment agent authorization (with constraints); escrow funding; connect RN app to deployed contracts.
 
 **Expected output:** Functional RN wallet demonstrating register + association + delegated auth + escrow fund on Testnet.
 
 - [ ] NTAG213 provisioning flow in app
-- [ ] Device register via DeviceRegistry (on-chain association)
-- [ ] Agent authorization UI passes constraints (limit, asset, expiry) to AgentRegistry
+- [x] Device register via DeviceRegistry (on-chain association) — verified on Testnet 2026-10-03
+- [ ] Agent authorization UI passes constraints (limit, asset, expiry) to AgentRegistry — args wired with fixed defaults; UI pending
 - [ ] Escrow funding wired to PaymentEscrow
 - [ ] App ↔ deployed Soroban contracts integration verified on Testnet
 
@@ -76,7 +76,7 @@ Workflows live in `.github/workflows/`. Both now run on the Instaward branches (
 | Workflow | Scope | Status |
 |----------|-------|--------|
 | `contracts.yml` | Builds all three contracts to `wasm32v1-none`, runs the 41 contract tests on the host target, then prints a WASM SHA-256 reproducibility report (informational) | ✅ Passing |
-| `frontend.yml` | `tsc --noEmit` + Vitest (220 tests) on Node 22 | ✅ Passing |
+| `frontend.yml` | `tsc --noEmit` + Vitest (226 tests) on Node 22 | ✅ Passing |
 
 **Contract tests in CI: passing.** Run [`37019373910`](https://github.com/rylsherdamz-rgb/Noir_Wallet/actions/runs/37019373910) executed 17 + 8 + 16 = 41 tests, 0 failures. This satisfies the SOW metric "automated contract tests passing in CI".
 
@@ -130,14 +130,57 @@ Reject (all verified by contract tests):
 
 ## Deployed Contract IDs
 
-### Testnet (redeployed 2026-10-01 with constrained-auth + sweep-on-revoke)
-Admin / deployer: `GCDAAT6G6BUANDLY432YEAFY2MHUDP4PVEQ6ODMKWMUL6THLDY4GY2KD` (identity `noir-deployer`)
-Full evidence (tx links, init args): `deploy-evidence/deploy-testnet-20261002T235948Z.md`
+### Testnet (redeployed 2026-10-03 — clean state; same WASM as 2026-10-01)
+Admin / deployer: `GA33JXYPD5H3KVYEFDS6DPAHPASEN7QUHSTJ5XU6BG4TUONKXIUB4RDP` (identity `deployer`)
+Full evidence (tx links, init args): `deploy-evidence/deploy-testnet-20261003T053204Z.md`
 
 | Contract | ID | WASM SHA-256 |
 |----------|----|--------------|
-| device_registry | `CCSW6R7ATZJNBGNQVXOTQNVBGBAHOSFR2RXUG32DLRU6I2LUQHVJKION` | `a252a4070120af7222bed4dfcb220ca51c290071f2c286a2f58f7259f367bea2` |
-| agent_registry | `CBP6KC6IFBQQHOGKVYYDPHXPSHTYUKKHV5EGHSSNPRTJQ6G4M545NFUC` | `b0da4885fd635a6b3d76250c9423424c84c409a2e617b76946ffd2af90c7a22b` |
-| payment_escrow | `CAHYPZNULA67IALHHBWTHDYGXG6DIVQNQGENWLEBMCEH5QS3JVX7DIWH` | `3861809c9dfbcc4bf9d9941cc76ebeafb4a7d37453e15074826093d12a2941ed` |
+| device_registry | `CAVDDFFTS3FJZCVLDNOXTPLUYCYEEJGS7TGIOI5U6N4J4EIUFGMDETS5` | `a252a4070120af7222bed4dfcb220ca51c290071f2c286a2f58f7259f367bea2` |
+| agent_registry | `CCFR7FTYU5NAVNRHK5NCTFO22L3K4O4R43BVUK4XRE2WFUGDVTRTIXBG` | `b0da4885fd635a6b3d76250c9423424c84c409a2e617b76946ffd2af90c7a22b` |
+| payment_escrow | `CBMAP5SOZLGOHEFJX6NLBWJM73W5K6EDBVNDC33N62X2MFOT4RTP4MMO` | `3861809c9dfbcc4bf9d9941cc76ebeafb4a7d37453e15074826093d12a2941ed` |
+
+> Admin changed from `noir-deployer` (`GCDAAT6G…`) to `deployer` (`GA33JXYP…`) in this redeploy. README and `frontend/.env.example` still list the 2026-10-01 IDs.
+
+<details><summary>Previous: 2026-10-01 (superseded)</summary>
+
+Admin `GCDAAT6G6BUANDLY432YEAFY2MHUDP4PVEQ6ODMKWMUL6THLDY4GY2KD` · evidence `deploy-evidence/deploy-testnet-20261002T235948Z.md`
+
+| Contract | ID |
+|----------|----|
+| device_registry | `CCSW6R7ATZJNBGNQVXOTQNVBGBAHOSFR2RXUG32DLRU6I2LUQHVJKION` |
+| agent_registry | `CBP6KC6IFBQQHOGKVYYDPHXPSHTYUKKHV5EGHSSNPRTJQ6G4M545NFUC` |
+| payment_escrow | `CAHYPZNULA67IALHHBWTHDYGXG6DIVQNQGENWLEBMCEH5QS3JVX7DIWH` |
+
+</details>
 
 Redeploy script: `scripts/redeploy-contracts.sh` (build → hash → deploy → initialize → write evidence).
+
+---
+
+## Session Log — 2026-10-03 (app ↔ contracts wiring)
+
+Branch `instaward-development`, 8 local commits (not pushed). `tsc` clean, Vitest 226/226.
+
+**Fixes**
+- `register_agent` failed with `MismatchingParameterLen` — app sent 3 args, contract takes 6. App now sends the policy args (`max_amount=0`, native XLM SAC, `expires_at=0` → uncapped, no expiry). Verified on-chain via `get_policy`. (`abdd5f4`)
+- Provisioning hung on "Writing to NFC tag…" — `writeTag()` had no timeout. Now 15s, optional, reports real result. (`6017c86`)
+- Tag owned by another wallet was reported as success (`AlreadyRegistered` swallowed). Now raises `DeviceOwnedByOtherWalletError`; nothing is signed. (`abdd5f4`)
+- Payment Agents showed "1 agent" and "No agents yet" at once — orphaned agent keys were counted. Now counts only device-linked agents. (`96928bc`)
+
+**Features**
+- Provisioning checks on-chain ownership before the signature prompt, with dedicated "Already linked to you" / "Linked to another wallet" screens, a 4-step progress tracker, and categorized errors. (`4c04e80`)
+- Transaction history (Transactions, Dashboard, Blockchain) loads from Horizon via `stellarService.getPaymentHistory` instead of the parked backend; date-grouped, searchable by hash. (`3fe2334`)
+- Centered NFC scan pulse (`NfcScanPulse`) on Link Device and Receive. (`ad00137`)
+- Layout fixes across 8 screens: keyboard covering forms, overflowing addresses, non-scrolling Receive, small touch targets. (`cc826b1`)
+
+**Week 2 checklist impact**
+- Device register via DeviceRegistry — working end-to-end on Testnet.
+- Agent authorization passes constraints — wired, but with fixed defaults; no UI yet for limit / asset / expiry.
+- Escrow funding — not yet wired (app never calls `fund_escrow`).
+
+**Open**
+- Push the 8 commits; update README + `.env.example` to the 2026-10-03 IDs.
+- Constraint UI for agent policy; wire `fund_escrow` / `authorize`.
+- Unlink/revoke flow so a tag can move between wallets.
+- Not yet tested on device: NFC write timeout, ownership screens, scan animation.
