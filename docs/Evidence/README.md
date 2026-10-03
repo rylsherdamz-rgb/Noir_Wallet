@@ -4,20 +4,24 @@ Visual proof that the three Noir Wallet Soroban contracts are deployed,
 initialized, and verifiable on Stellar testnet. These screenshots back the
 contract IDs listed in the [root README](../../README.md#smart-contracts) and
 the machine-readable record in
-[`deploy-evidence/deploy-testnet-20261002T235948Z.md`](../../deploy-evidence/deploy-testnet-20261002T235948Z.md).
+[`deploy-evidence/deploy-testnet-20261003T053204Z.md`](../../deploy-evidence/deploy-testnet-20261003T053204Z.md).
 
 > **Why these IDs change:** each `./scripts/redeploy-contracts.sh` run deploys
 > **fresh contract instances**, so every redeploy mints **new contract IDs** —
 > it is a clean slate, not an in-place upgrade. The IDs below are from the
 > latest run (2026-10-03, deployer `GA33JXYP…4RDP`).
+>
+> Note: the explorer screenshot filenames below still show the 2026-10-01
+> contract IDs (`CCSW6R7A…`, `CBP6KC6I…`, `CAHYPZNU…`) — they predate this
+> redeploy and have not been retaken against the current IDs.
 
 ## Deployed contracts
 
 | Contract | ID | Explorer |
 |----------|----|----------|
-| device_registry | `CCSW6R7ATZJNBGNQVXOTQNVBGBAHOSFR2RXUG32DLRU6I2LUQHVJKION` | [view](https://stellar.expert/explorer/testnet/contract/CCSW6R7ATZJNBGNQVXOTQNVBGBAHOSFR2RXUG32DLRU6I2LUQHVJKION) |
-| agent_registry | `CBP6KC6IFBQQHOGKVYYDPHXPSHTYUKKHV5EGHSSNPRTJQ6G4M545NFUC` | [view](https://stellar.expert/explorer/testnet/contract/CBP6KC6IFBQQHOGKVYYDPHXPSHTYUKKHV5EGHSSNPRTJQ6G4M545NFUC) |
-| payment_escrow | `CAHYPZNULA67IALHHBWTHDYGXG6DIVQNQGENWLEBMCEH5QS3JVX7DIWH` | [view](https://stellar.expert/explorer/testnet/contract/CAHYPZNULA67IALHHBWTHDYGXG6DIVQNQGENWLEBMCEH5QS3JVX7DIWH) |
+| device_registry | `CAVDDFFTS3FJZCVLDNOXTPLUYCYEEJGS7TGIOI5U6N4J4EIUFGMDETS5` | [view](https://stellar.expert/explorer/testnet/contract/CAVDDFFTS3FJZCVLDNOXTPLUYCYEEJGS7TGIOI5U6N4J4EIUFGMDETS5) |
+| agent_registry | `CCFR7FTYU5NAVNRHK5NCTFO22L3K4O4R43BVUK4XRE2WFUGDVTRTIXBG` | [view](https://stellar.expert/explorer/testnet/contract/CCFR7FTYU5NAVNRHK5NCTFO22L3K4O4R43BVUK4XRE2WFUGDVTRTIXBG) |
+| payment_escrow | `CBMAP5SOZLGOHEFJX6NLBWJM73W5K6EDBVNDC33N62X2MFOT4RTP4MMO` | [view](https://stellar.expert/explorer/testnet/contract/CBMAP5SOZLGOHEFJX6NLBWJM73W5K6EDBVNDC33N62X2MFOT4RTP4MMO) |
 
 ### WASM SHA-256 hashes
 

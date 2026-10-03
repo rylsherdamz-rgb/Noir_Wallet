@@ -180,7 +180,17 @@ Branch `instaward-development`, 8 local commits (not pushed). `tsc` clean, Vites
 - Escrow funding — not yet wired (app never calls `fund_escrow`).
 
 **Open**
-- Push the 8 commits; update README + `.env.example` to the 2026-10-03 IDs.
+- Push the local commits.
 - Constraint UI for agent policy; wire `fund_escrow` / `authorize`.
 - Unlink/revoke flow so a tag can move between wallets.
 - Not yet tested on device: NFC write timeout, ownership screens, scan animation.
+
+Update 2026-10-03 (later): README, `frontend/.env.example`, `docs/stellar-development-guide.md`,
+and `docs/Evidence/README.md` were still pointing at the 2026-10-01 Contract IDs
+(`CCSW6R7A…` / `CBP6KC6I…` / `CAHYPZNU…`) even though `frontend/.env` and the
+Obsidian contract notes had already moved to the 2026-10-03 redeploy
+(`CAVDDFFT…` / `CCFR7FTY…` / `CBMAP5SO…`). Propagated the current IDs to all
+four files; the WASM hashes are unchanged between the two deploys (confirmed
+byte-identical in `deploy-evidence/`), so only the IDs needed updating.
+`docs/Evidence/` explorer screenshots still show the old IDs in their
+filenames (not retaken) — flagged with a note in that file.

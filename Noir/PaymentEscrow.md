@@ -6,7 +6,7 @@ tags: [contract, soroban]
 
 A [[Smart Contracts|Soroban contract]]. Escrow-based settlement — wallet pre-funds, agent authorizes payments instantly, merchants claim in batch.
 
-Source: `backend/asset/contracts/payment_escrow/src/lib.rs`
+Source: `backend/contracts/payment_escrow/src/lib.rs`
 
 ## Methods (real signatures — see [[_AI Build Guide - Contracts]])
 
@@ -32,5 +32,5 @@ Source: `backend/asset/contracts/payment_escrow/src/lib.rs`
 
 ## Deployed IDs
 
-- testnet: `CAHYPZNULA67IALHHBWTHDYGXG6DIVQNQGENWLEBMCEH5QS3JVX7DIWH`
+- testnet: `CBMAP5SOZLGOHEFJX6NLBWJM73W5K6EDBVNDC33N62X2MFOT4RTP4MMO`
 - mainnet: `CCEIB2BLMHK7N7OX23HJ3RCMJBP2NLBMMBGUA6SB5IWJJ6JEWH6ZZPK3`

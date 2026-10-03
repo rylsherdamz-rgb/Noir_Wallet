@@ -4,7 +4,7 @@ tags: [backend, godnode]
 
 # PdaxClient
 
-`backend/asset/backend/src/pdax.rs` — PDAX fiat bridge client. **God node (27 edges)**. Part of [[Backend]].
+`unused/pdax-backend/src/pdax.rs` — PDAX fiat bridge client. **God node (27 edges)**. Part of [[Backend]].
 
 Handles PDAX login/session, firm quotes, order placement, balances, and fiat/crypto deposit/withdraw. Powers [[Flow - Fiat Cash-out]].
 

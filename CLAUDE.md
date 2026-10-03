@@ -1,0 +1,100 @@
+@AGENTS.md
+
+# Noir Wallet — project memory
+
+Read this instead of re-reading the Obsidian vault (`Noir/*.md`) — it's the condensed version.
+If you need more depth than this file, read the specific Obsidian note by name, not the whole vault.
+
+## What this is
+
+Open-source reference implementation for the **Stellar Community Fund Instaward** grant
+(30 days, capped $5,000, paid in XLM). Shows how to wire NFC device registration +
+constrained delegated payment authorization + an x402 tap-to-pay flow on **Stellar
+Testnet** using Soroban contracts. Not a consumer wallet competitor. MIT license.
+
+Full binding contract: `Noir/_SCF Instaward - Deliverables & Constraints.md`.
+Full vision/scope: `Noir/_Context - What We Are Building.md`.
+
+In scope: Android, one NTAG213 tag, Testnet, 3 contracts, one x402 flow, docs+tests+MIT.
+Out of scope: Mainnet, iOS, other NFC hardware, fiat ramp, multisig, multi-chain, audits.
+
+## Workflow rules (binding — read before committing)
+
+- Work happens on `instaward-development` → PR into `instaward` → PR into `main`.
+  Never push straight to `main`.
+- **~One scoped deliverable commit per week**, mapped to that week's Expected Output
+  in `Noir/_SCF Instaward - Deliverables & Constraints.md`. Don't scatter unrelated
+  files into a deliverable commit.
+- Rule of thumb before committing: "does this belong to the current week's Expected
+  Output?" If not, hold it.
+
+## Architecture
+
+- **On-chain** (`backend/contracts/`, Soroban/Rust): `device_registry`, `agent_registry`,
+  `payment_escrow`. Full function-level reference: `Noir/_AI Build Guide - Contracts.md`
+  (source-accurate as of 2026-10-02 — trust the Rust first, this note second).
+- **App** (`frontend/`, React Native/Expo/TS): wallet, NFC provisioning, SHA-256 hashing,
+  Stellar SDK, x402 orchestration. See `frontend/AGENTS.md` for stellar-sdk v16 gotchas
+  (XDR serialization bug, missing sorobanAuth, axios transport).
+- **Backend** (`backend/`, Rust Axum): API + PDAX fiat bridge — supporting, out of
+  Instaward scope, currently parked.
+
+Call order: `device_registry.register` → `agent_registry.register_agent` (constrained
+policy: max_amount/asset/expiry) → `payment_escrow.fund_escrow` → tap →
+`payment_escrow.authorize` → `payment_escrow.claim`. Revoke → `sweep_on_revoke` returns
+device's full escrow balance to owner.
+
+Build order matters: `agent_registry` + `device_registry` WASM before `payment_escrow`
+(it `contractimport!`s them). See `Noir/_Redeploy Contracts.md` for the redeploy runbook.
+
+## Current state (as of 2026-10-03)
+
+- **Deployed Testnet Contract IDs** (current — matches `frontend/.env`):
+  - device_registry: `CAVDDFFTS3FJZCVLDNOXTPLUYCYEEJGS7TGIOI5U6N4J4EIUFGMDETS5`
+  - agent_registry: `CCFR7FTYU5NAVNRHK5NCTFO22L3K4O4R43BVUK4XRE2WFUGDVTRTIXBG`
+  - payment_escrow: `CBMAP5SOZLGOHEFJX6NLBWJM73W5K6EDBVNDC33N62X2MFOT4RTP4MMO`
+  - Evidence: `deploy-evidence/deploy-testnet-20261003T053204Z.md`. WASM hashes are
+    byte-identical to the 2026-10-01 build (confirmed) — only the IDs/admin changed.
+  - **Every redeploy mints brand-new IDs** (clean slate, not an upgrade). After any
+    redeploy, grep the repo for the old IDs and propagate the new ones everywhere
+    (README, `frontend/.env` + `.env.example`, `docs/stellar-development-guide.md`,
+    `docs/Evidence/README.md`, `Noir/DeviceRegistry.md`/`AgentRegistry.md`/`PaymentEscrow.md`,
+    PROGRESS.md). `scripts/redeploy-contracts.sh UPDATE_ENV=1` auto-patches `frontend/.env`
+    only — the docs above are manual.
+- Contract tests: 44 passing, 0 failed (`cargo test` from `backend/`).
+- Frontend: `tsc --noEmit` clean, Vitest 226/226 passing.
+- CI: `contracts.yml` and `frontend.yml` both green on Instaward branches. WASM hash
+  cross-machine check is informational only (soroban embeds the build host's absolute
+  path in the binary, so hashes legitimately differ CI vs local — not a bug).
+
+### Deliverables status — see `PROGRESS.md` for the full weekly checklist
+
+| # | Deliverable | Status |
+|---|-------------|--------|
+| 1 | Soroban contracts (device/agent/escrow registry) | 🟡 Week 1–2 core logic + tests done; redeployed 2026-10-03 |
+| 2 | React Native wallet (Android) | 🟡 register+associate+auth working on Testnet; escrow funding + agent-policy UI + NFC provisioning UI still open |
+| 3 | Docs & MIT release | 🟡 architecture.md, AI build guide, dev guide, evidence pack started; not finalized |
+
+### Open items (don't re-derive these — just pick up here)
+
+- Push local commits on `instaward-development` (as of last session there were
+  unpushed commits — check `git status`/`git log origin/instaward-development..HEAD`).
+- Constraint UI for agent policy (limit/asset/expiry) — currently wired with fixed
+  defaults (`max_amount=0` uncapped, native XLM, `expires_at=0` never), no UI yet.
+- Wire `fund_escrow` / `authorize` calls from the app (escrow funding not yet wired).
+- NTAG213 provisioning flow still needs on-device testing (NFC write timeout,
+  ownership screens, scan animation) — written but unverified on hardware.
+- Unlink/revoke flow so a tag can move between wallets.
+- Week 3 (full x402 flow + security test matrix) and Week 4 (final release + evidence
+  package + demo video) not started.
+
+## Where to look for more (don't blanket-read the vault)
+
+- `Noir/_AI Build Guide - Contracts.md` — exact function signatures/errors/events for
+  all 3 contracts, negative-path list, extension checklist.
+- `Noir/_Redeploy Contracts.md` — manual redeploy runbook.
+- `Noir/Flow - *.md` — step-by-step flow docs (provisioning, escrow payment, tap-to-pay,
+  fiat cash-out).
+- `Noir/Session - *.md` — dated session logs if you need the history behind a decision.
+- `docs/stellar-development-guide.md` — SDK/auth/events/build/deploy/testing walkthrough.
+- `docs/architecture.md` — Mermaid diagrams.

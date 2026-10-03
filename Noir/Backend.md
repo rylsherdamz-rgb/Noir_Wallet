@@ -6,7 +6,7 @@ tags: [layer, backend]
 
 Part of [[Noir Wallet]]. Rust Axum HTTP API providing custodial tap-to-pay, auth challenges, and the PDAX fiat bridge.
 
-Location: `backend/asset/backend/src/`
+Location: `unused/pdax-backend/src/` (parked — not wired into the app)
 
 ## Modules
 

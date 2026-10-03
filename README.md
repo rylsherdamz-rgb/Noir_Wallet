@@ -15,7 +15,7 @@ Tap any NFC tag, RFID sticker, or wearable to pay — no app opens, no confirmat
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](frontend/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-[View Pitch Deck](ppt/Noir-Wallet-Pitch.pptx) · [Architecture](docs/architecture.md) · [Deployment Evidence](docs/Evidence/README.md) · [PR #10 — Week 1](https://github.com/rylsherdamz-rgb/Noir_Wallet/pull/10) · [Run Locally](#getting-started)
+[View Pitch Deck](ppt/Noir-Wallet-Pitch.pptx) · [Architecture](docs/architecture.md) · [Stellar Dev Guide](docs/stellar-development-guide.md) · [Deployment Evidence](docs/Evidence/README.md) · [PR #10 — Week 1](https://github.com/rylsherdamz-rgb/Noir_Wallet/pull/10) · [Run Locally](#getting-started)
 
 </div>
 
@@ -135,11 +135,11 @@ Mobile App / POS Terminal
 
 | Contract | ID | WASM SHA-256 | Explorer |
 |----------|----|--------------|----------|
-| device_registry | `CCSW6R7ATZJNBGNQVXOTQNVBGBAHOSFR2RXUG32DLRU6I2LUQHVJKION` | `a252a407…67bea2` | [view](https://stellar.expert/explorer/testnet/contract/CCSW6R7ATZJNBGNQVXOTQNVBGBAHOSFR2RXUG32DLRU6I2LUQHVJKION) |
-| agent_registry | `CBP6KC6IFBQQHOGKVYYDPHXPSHTYUKKHV5EGHSSNPRTJQ6G4M545NFUC` | `b0da4885…c7a22b` | [view](https://stellar.expert/explorer/testnet/contract/CBP6KC6IFBQQHOGKVYYDPHXPSHTYUKKHV5EGHSSNPRTJQ6G4M545NFUC) |
-| payment_escrow | `CAHYPZNULA67IALHHBWTHDYGXG6DIVQNQGENWLEBMCEH5QS3JVX7DIWH` | `3861809c…2941ed` | [view](https://stellar.expert/explorer/testnet/contract/CAHYPZNULA67IALHHBWTHDYGXG6DIVQNQGENWLEBMCEH5QS3JVX7DIWH) |
+| device_registry | `CAVDDFFTS3FJZCVLDNOXTPLUYCYEEJGS7TGIOI5U6N4J4EIUFGMDETS5` | `a252a407…67bea2` | [view](https://stellar.expert/explorer/testnet/contract/CAVDDFFTS3FJZCVLDNOXTPLUYCYEEJGS7TGIOI5U6N4J4EIUFGMDETS5) |
+| agent_registry | `CCFR7FTYU5NAVNRHK5NCTFO22L3K4O4R43BVUK4XRE2WFUGDVTRTIXBG` | `b0da4885…c7a22b` | [view](https://stellar.expert/explorer/testnet/contract/CCFR7FTYU5NAVNRHK5NCTFO22L3K4O4R43BVUK4XRE2WFUGDVTRTIXBG) |
+| payment_escrow | `CBMAP5SOZLGOHEFJX6NLBWJM73W5K6EDBVNDC33N62X2MFOT4RTP4MMO` | `3861809c…2941ed` | [view](https://stellar.expert/explorer/testnet/contract/CBMAP5SOZLGOHEFJX6NLBWJM73W5K6EDBVNDC33N62X2MFOT4RTP4MMO) |
 
-> **About redeployment:** each `./scripts/redeploy-contracts.sh` run deploys **fresh contract instances**, so every deploy produces **new contract IDs** — a redeploy is a clean slate, not an in-place upgrade (prior on-chain state on the old instances is abandoned). The script writes the authoritative IDs, WASM hashes, and init args to a timestamped evidence file in [`deploy-evidence/`](deploy-evidence/), and when run with `UPDATE_ENV=1` it also patches `frontend/.env`. The IDs above are from the latest run ([`deploy-evidence/deploy-testnet-20261002T235948Z.md`](deploy-evidence/deploy-testnet-20261002T235948Z.md)); on-chain evidence screenshots are in [`docs/Evidence/`](docs/Evidence/README.md).
+> **About redeployment:** each `./scripts/redeploy-contracts.sh` run deploys **fresh contract instances**, so every deploy produces **new contract IDs** — a redeploy is a clean slate, not an in-place upgrade (prior on-chain state on the old instances is abandoned). The script writes the authoritative IDs, WASM hashes, and init args to a timestamped evidence file in [`deploy-evidence/`](deploy-evidence/), and when run with `UPDATE_ENV=1` it also patches `frontend/.env`. The IDs above are from the latest run ([`deploy-evidence/deploy-testnet-20261003T053204Z.md`](deploy-evidence/deploy-testnet-20261003T053204Z.md)); on-chain evidence screenshots are in [`docs/Evidence/`](docs/Evidence/README.md).
 
 > Full deployment evidence (admin, init args, WASM hashes): [`deploy-evidence/`](deploy-evidence/).
 
@@ -270,9 +270,9 @@ Copy `.env.example` to `.env` and configure:
 
 | Variable | Description | Current Value |
 |----------|-------------|---------------|
-| `EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT` | Soroban device registry contract ID | `CCSW6R7ATZJNBGNQVXOTQNVBGBAHOSFR2RXUG32DLRU6I2LUQHVJKION` |
-| `EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT` | Soroban agent registry contract ID | `CBP6KC6IFBQQHOGKVYYDPHXPSHTYUKKHV5EGHSSNPRTJQ6G4M545NFUC` |
-| `EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT` | Soroban payment escrow contract ID | `CAHYPZNULA67IALHHBWTHDYGXG6DIVQNQGENWLEBMCEH5QS3JVX7DIWH` |
+| `EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT` | Soroban device registry contract ID | `CAVDDFFTS3FJZCVLDNOXTPLUYCYEEJGS7TGIOI5U6N4J4EIUFGMDETS5` |
+| `EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT` | Soroban agent registry contract ID | `CCFR7FTYU5NAVNRHK5NCTFO22L3K4O4R43BVUK4XRE2WFUGDVTRTIXBG` |
+| `EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT` | Soroban payment escrow contract ID | `CBMAP5SOZLGOHEFJX6NLBWJM73W5K6EDBVNDC33N62X2MFOT4RTP4MMO` |
 | `EXPO_PUBLIC_STELLAR_MASTER_KEY_ID` | Stellar master key ID | (configure per deployment) |
 | `EXPO_PUBLIC_CHANNEL_SECRET_KEY` | Fee channel secret | (configure per deployment) |
 | `EXPO_PUBLIC_ISSUER_ADDRESS` | Asset issuer address | (configure per deployment) |

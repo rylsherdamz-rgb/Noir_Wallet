@@ -6,7 +6,7 @@ tags: [contract, soroban]
 
 A [[Smart Contracts|Soroban contract]]. On-chain agent authorization per device — the wallet owner authorizes a signing key for tap-to-pay.
 
-Source: `backend/asset/contracts/agent_registry/src/lib.rs`
+Source: `backend/contracts/agent_registry/src/lib.rs`
 
 ## Methods (real signatures — see [[_AI Build Guide - Contracts]])
 
@@ -32,5 +32,5 @@ Storage: `AgentMap(device_hash) -> AgentPolicy`. Errors: `AlreadyInitialized=1, 
 
 ## Deployed IDs
 
-- testnet: `CBP6KC6IFBQQHOGKVYYDPHXPSHTYUKKHV5EGHSSNPRTJQ6G4M545NFUC`
+- testnet: `CCFR7FTYU5NAVNRHK5NCTFO22L3K4O4R43BVUK4XRE2WFUGDVTRTIXBG`
 - mainnet: `CDE2Q22BNKHLRNHUXHNL4TYRN5YPCOCO2XD53MAVYG7K2C4KZ2T6NI5T`

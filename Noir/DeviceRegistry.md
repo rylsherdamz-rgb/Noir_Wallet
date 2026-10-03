@@ -6,7 +6,7 @@ tags: [contract, soroban]
 
 A [[Smart Contracts|Soroban contract]]. Maps hardware device hashes → Stellar wallet addresses.
 
-Source: `backend/asset/contracts/device_registry/src/lib.rs`
+Source: `backend/contracts/device_registry/src/lib.rs`
 
 ## Methods (real signatures — see [[_AI Build Guide - Contracts]])
 
@@ -29,5 +29,5 @@ Source: `backend/asset/contracts/device_registry/src/lib.rs`
 
 ## Deployed IDs
 
-- testnet: `CCSW6R7ATZJNBGNQVXOTQNVBGBAHOSFR2RXUG32DLRU6I2LUQHVJKION`
+- testnet: `CAVDDFFTS3FJZCVLDNOXTPLUYCYEEJGS7TGIOI5U6N4J4EIUFGMDETS5`
 - mainnet: `CDSURGM4LYYRZ6U4RKBRUQPA7SGLAJZ5XXS65ACYCIU6QOO2NEEA2S45`
