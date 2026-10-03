@@ -53,6 +53,8 @@ export interface Transaction {
   status: 'pending' | 'confirmed' | 'failed'
   errorMessage: string | null
   createdAt: string
+  /** Set for on-chain history; older local/backend records omit it. */
+  direction?: 'in' | 'out'
 }
 
 export interface Balance {

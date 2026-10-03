@@ -16,7 +16,6 @@ import { SignalRipple } from '@/components/brand/SignalRipple'
 import { TapGlyph } from '@/components/brand/BrandGlyph'
 import { DesignTokens, colorWithOpacity } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts, Gradient } from '@/constants/theme'
-import { apiService } from '@/services/api'
 import { stellarService } from '@/services/stellar-service'
 import { hasContractsConfigured } from '@/constants/config'
 import { Transaction } from '@/types'
@@ -100,31 +99,25 @@ export function DashboardScreen() {
 
       const failures: SourceFlags = { history: false, chainHistory: false, balance: false }
 
-      try {
-        const txRes = await apiService.getTransactions()
-        if (txRes?.transactions) {
-          const backendIds = new Set(txRes.transactions.map((t: Transaction) => t.id))
-          const current = useAppStore.getState().transactions
-          const localOnly = current.filter((t) => !backendIds.has(t.id))
-          setTransactions([...txRes.transactions, ...localOnly])
-        }
-      } catch {
-        failures.history = true
-      }
-
-      // Merge Horizon transaction history (filter out 0-amount records — old contracts,
-      // non-payment transactions with no amount data from Horizon)
+      // On-chain payment history straight from Horizon (newest first). Keep
+      // locally-recorded txs that Horizon hasn't indexed yet; drop them once
+      // their hash shows up on-chain — same merge as TransactionHistoryScreen.
       if (user?.stellarPublicKey) {
         try {
-          const horizonTxs = await stellarService.getAccountTransactions(user.stellarPublicKey, 10)
-          if (horizonTxs.length) {
-            const existing = useAppStore.getState().transactions
-            const existingIds = new Set(existing.map((t) => t.id))
-            const missing = horizonTxs.filter((t) => !existingIds.has(t.id) && t.amountCents > 0)
-            if (missing.length) setTransactions([...missing, ...existing])
-          }
+          const onChain = await stellarService.getPaymentHistory(user.stellarPublicKey)
+          const chainHashes = new Set(onChain.map((t) => t.stellarTxHash).filter(Boolean))
+          const chainIds = new Set(onChain.map((t) => t.id))
+          const localOnly = useAppStore
+            .getState()
+            .transactions.filter(
+              (t) => !chainIds.has(t.id) && !(t.stellarTxHash && chainHashes.has(t.stellarTxHash)),
+            )
+          const merged = [...onChain, ...localOnly].sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          )
+          setTransactions(merged)
         } catch {
-          failures.chainHistory = true
+          failures.history = true
         }
       }
 

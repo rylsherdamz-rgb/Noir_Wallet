@@ -218,6 +218,83 @@ export class StellarService {
     }
   }
 
+  /**
+   * Recent payment history for `publicKey` straight from Horizon. Covers
+   * classic payments, account creation, path payments, and Soroban transfers
+   * (invoke_host_function with asset balance changes). Returns [] for an
+   * unfunded account.
+   */
+  async getPaymentHistory(publicKey: string, limit = 50): Promise<Transaction[]> {
+    try {
+      const page = await withTimeout(
+        this.horizon.payments().forAccount(publicKey).order('desc').limit(limit).join('transactions').call(),
+        '[getPaymentHistory]',
+        15000,
+      )
+      const out: Transaction[] = []
+      for (const r of page.records as any[]) {
+        let amount = 0
+        let assetCode = 'XLM'
+        let direction: 'in' | 'out' = 'out'
+        let counterparty = ''
+        let label = ''
+
+        switch (r.type) {
+          case 'create_account':
+            amount = parseFloat(r.starting_balance)
+            direction = r.account === publicKey ? 'in' : 'out'
+            counterparty = direction === 'in' ? r.funder : r.account
+            label = direction === 'in' ? 'Account funded' : 'Account created'
+            break
+          case 'payment':
+          case 'path_payment_strict_send':
+          case 'path_payment_strict_receive':
+            amount = parseFloat(r.amount)
+            assetCode = r.asset_type === 'native' ? 'XLM' : r.asset_code
+            direction = r.to === publicKey ? 'in' : 'out'
+            counterparty = direction === 'in' ? r.from : r.to
+            label = direction === 'in' ? 'Received' : 'Sent'
+            break
+          case 'invoke_host_function': {
+            const change = (r.asset_balance_changes ?? []).find(
+              (c: any) => c.from === publicKey || c.to === publicKey,
+            )
+            if (!change) continue // contract call with no value moved for us
+            amount = parseFloat(change.amount)
+            assetCode = change.asset_type === 'native' ? 'XLM' : change.asset_code
+            direction = change.to === publicKey ? 'in' : 'out'
+            counterparty = direction === 'in' ? change.from : change.to
+            label = direction === 'in' ? 'Contract payout' : 'Contract payment'
+            break
+          }
+          default:
+            continue
+        }
+
+        const short = counterparty ? `${counterparty.slice(0, 4)}…${counterparty.slice(-4)}` : ''
+        out.push({
+          id: String(r.id),
+          stellarTxHash: r.transaction_hash ?? null,
+          merchantId: counterparty,
+          merchantName: short ? `${label} · ${short}` : label,
+          userId: publicKey,
+          deviceId: '',
+          amountCents: Math.round(amount * 100),
+          assetCode: assetCode as AssetCode,
+          status: r.transaction_successful === false ? 'failed' : 'confirmed',
+          errorMessage: null,
+          createdAt: r.created_at,
+          direction,
+        })
+      }
+      return out
+    } catch (e: any) {
+      const status = e?.response?.status ?? e?.response?.statusCode
+      if (status === 404 || e?.name === 'NotFoundError') return []
+      throw e
+    }
+  }
+
   async submitPayment(params: {
     sourceSecret: string
     destination: string

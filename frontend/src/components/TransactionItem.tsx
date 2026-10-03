@@ -27,7 +27,9 @@ export const TransactionItem = memo(function TransactionItem({ transaction, onPr
 
   const config = statusConfig[transaction.status] ?? FALLBACK_CONFIG
   const amountStr = `${(transaction.amountCents / 100).toFixed(2)} ${transaction.assetCode}`
-  const isIncoming = transaction.merchantName === 'NFC Receive' || transaction.merchantName === 'NFC Payment'
+  const isIncoming = transaction.direction
+    ? transaction.direction === 'in'
+    : transaction.merchantName === 'NFC Receive' || transaction.merchantName === 'NFC Payment'
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)

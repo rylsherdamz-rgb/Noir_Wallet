@@ -23,6 +23,12 @@ export function TransactionDetailScreen() {
 
   const tx = transactions.find((t) => t.id === id) ?? null
   const formattedAmount = tx ? (tx.amountCents / 100).toFixed(2) : '0.00'
+  // On-chain history carries a direction; sign the amount and label the
+  // counterparty row accordingly. Older records without it keep the old
+  // outgoing-only presentation.
+  const isIncoming = tx?.direction === 'in'
+  const counterpartyLabel = tx?.direction ? (isIncoming ? 'From' : 'To') : 'To'
+  const amountSign = tx?.status === 'failed' ? '' : isIncoming ? '+' : '-'
   const date = tx ? new Date(tx.createdAt) : new Date()
   const formattedDate = date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
   const formattedTime = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
@@ -90,12 +96,12 @@ export function TransactionDetailScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <View style={styles.heroSection}>
           <Avatar name={tx.merchantName} size={64} variant="user" />
-          <Text style={styles.merchantName}>{tx.merchantName}</Text>
+          <Text style={styles.merchantName} numberOfLines={2}>{tx.merchantName}</Text>
           <View style={{ alignSelf: 'center', marginBottom: Spacing.sm }}>
             <StatusPill status={tx.status} />
           </View>
           <Text style={[styles.amount, tx.status === 'failed' && styles.amountFailed]}>
-            {tx.status === 'failed' ? '' : '-'}{formattedAmount} {tx.assetCode}
+            {amountSign}{formattedAmount} {tx.assetCode}
           </Text>
           {tx.status === 'failed' && tx.errorMessage && (
             <Text style={styles.errorMsg}>{tx.errorMessage}</Text>
@@ -105,7 +111,7 @@ export function TransactionDetailScreen() {
         <View style={styles.detailsCard}>
           <DetailRow label="Transaction ID" value={tx.id} mono />
           <DetailRow label="Date" value={`${formattedDate} at ${formattedTime}`} />
-          <DetailRow label="To" value={tx.merchantName} />
+          <DetailRow label={counterpartyLabel} value={tx.merchantName} />
           <DetailRow label="Amount" value={`${formattedAmount} ${tx.assetCode}`} gold />
           <DetailRow label="Fee" value="~0.00001 XLM" />
           <DetailRow label="Status" value={tx.status.charAt(0).toUpperCase() + tx.status.slice(1)} />
@@ -233,6 +239,7 @@ const styles = StyleSheet.create({
     color: Colors.white,
     marginTop: Spacing.sm,
     marginBottom: Spacing.xs,
+    textAlign: 'center',
   },
   amount: {
     fontSize: FontSize.xxxl,
