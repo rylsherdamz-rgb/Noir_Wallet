@@ -20,7 +20,7 @@
 <!-- Commands run, devices/networks used, results. -->
 
 - [ ] `cd frontend && npm test`
-- [ ] `cd backend/asset && cargo test -p <contract>`
+- [ ] `cd backend && cargo test -p <contract>`
 - [ ] Manual testing (describe below)
 
 ## Checklist

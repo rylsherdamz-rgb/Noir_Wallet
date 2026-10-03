@@ -76,7 +76,6 @@ describe('Config Constants', () => {
     const { AppConfig } = await import('@/constants/config')
     expect(AppConfig.limits.defaultDailySpendCents).toBe(500000)
     expect(AppConfig.limits.maxTapAmountCents).toBe(5000000)
-    expect(AppConfig.limits.minKycForHighLimits).toBe(2)
   })
 
   it('AppConfig has stellar config keys', async () => {

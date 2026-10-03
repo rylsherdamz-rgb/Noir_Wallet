@@ -72,3 +72,6 @@ models/
 .opencode/
 .github/copilot-instructions.md
 skills-lock.json
+
+# graphify local knowledge-graph index (rebuild with: graphify update)
+.graphify/

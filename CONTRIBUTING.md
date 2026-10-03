@@ -50,7 +50,7 @@ Scripts (`frontend/package.json`):
 ### Smart Contracts (Soroban / Rust)
 
 ```bash
-cd backend/asset
+cd backend
 cargo check -p device-registry -p agent-registry -p payment-escrow
 cargo test  -p device-registry -p agent-registry -p payment-escrow
 cargo build --release --target wasm32v1-none \
@@ -86,7 +86,7 @@ Deployment steps are in the [README](README.md#smart-contract-development). **Ne
 ## Testing
 
 - Frontend: `cd frontend && npm test`.
-- Contracts: `cd backend/asset && cargo test -p <contract>`.
+- Contracts: `cd backend && cargo test -p <contract>`.
 - CI runs on PRs (`.github/workflows/`); PRs should be green before review.
 - If you fix a bug, add a test that fails without your change.
 

@@ -1,6 +1,7 @@
 import {
   Keypair,
   TransactionBuilder,
+  Account,
   Contract,
   Operation,
   Asset,
@@ -510,9 +511,20 @@ export class StellarService {
           func: invokeBody.hostFunction(),
           auth: signed,
         })
-        const freshAccount = params.sourceAccount ?? await withTimeout(this.horizon.loadAccount(sourcePub), '[invokeContract loadAccount]', 10000)
-        prepared = new TransactionBuilder(freshAccount, {
-          fee: BASE_FEE,
+        // CRITICAL: reuse the assembled transaction's fee and its EXACT
+        // sequence number. The assembled fee includes the Soroban resource fee
+        // (often >> BASE_FEE); rebuilding with BASE_FEE produces an underfunded
+        // tx that the network rejects at submission with no errorResultXdr.
+        // Reloading the account from Horizon would also desync the sequence.
+        // We read the fee + seqNum straight off the assembled envelope and
+        // seed a new Account at (seqNum - 1) so the builder increments it back
+        // to the assembled value.
+        const assembledFee = prepared.fee
+        const assembledSeq = env.v1().tx().seqNum().toString()
+        const rebuildSeq = (BigInt(assembledSeq) - 1n).toString()
+        const rebuildAccount = new Account(sourcePub, rebuildSeq)
+        prepared = new TransactionBuilder(rebuildAccount, {
+          fee: assembledFee,
           networkPassphrase: this.networkPassphrase,
           sorobanData,
         })

@@ -18,7 +18,11 @@ export interface User {
   email: string
   phoneNumber: string
   stellarPublicKey: string
-  kycLevel: number
+  /**
+   * Retained for backend API compatibility only — the KYC/verification feature
+   * is not surfaced in the app. Safe to ignore client-side.
+   */
+  kycLevel?: number
   role: UserRole
   displayName: string
   avatarUrl?: string

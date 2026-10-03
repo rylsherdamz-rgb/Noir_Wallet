@@ -2,7 +2,7 @@ name: Frontend CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, instaward, instaward-staging, instaward-development]
     paths:
       - 'frontend/**'
       - '.github/workflows/frontend.yml'

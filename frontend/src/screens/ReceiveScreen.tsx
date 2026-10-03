@@ -93,7 +93,8 @@ export function ReceiveScreen() {
       // Look up the device in our list — if it has an agent, we use it
       const linkedDevice = devices.find((d) => d.deviceUidHash === scannedHash)
       const hasAgent = await x402.hasAgent()
-      const agentSecret = await x402.getAgentSecret()
+      const agentIndex = await x402.getAgentIndexForDevice(scannedHash)
+      const agentSecret = await x402.getAgentSecret(agentIndex ?? undefined)
 
       if (!hasAgent || !agentSecret || !linkedDevice?.agentPublicKey) {
         setNfcState('error')
@@ -108,6 +109,7 @@ export function ReceiveScreen() {
       const amountXLM = amountUnits.toFixed(7)
       if (__DEV__) logger.debug('[Receive NFC] paying', amountXLM, 'XLM from agent to', merchantAddr.slice(0, 8))
       const payResult = await x402.payWithAgent({
+        agentIndex: agentIndex ?? undefined,
         destination: merchantAddr,
         amount: amountXLM,
       })

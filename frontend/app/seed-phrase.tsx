@@ -15,7 +15,6 @@ export default function SeedPhraseRoute() {
       email: '',
       phoneNumber: '',
       stellarPublicKey: keys.stellarPublic,
-      kycLevel: 0,
       role: 'consumer',
       displayName: 'My Wallet',
     })

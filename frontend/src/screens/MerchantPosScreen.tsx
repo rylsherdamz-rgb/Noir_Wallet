@@ -92,7 +92,9 @@ export function MerchantPosScreen() {
       if (hasAgent && linkedDevice?.agentPublicKey) {
         logger.debug('Paying from agent wallet')
         setAgentMode(true)
+        const agentIndex = await x402.getAgentIndexForDevice(scannedHash)
         const result = await x402.payWithAgent({
+          agentIndex: agentIndex ?? undefined,
           destination: user?.stellarPublicKey || '',
           amount: (parseFloat(amount)).toFixed(7),
         })
