@@ -3,6 +3,7 @@ import { secureGetItem, secureSetItem, secureDeleteItem } from '@/services/secur
 import { stellarService } from '@/services/stellar-service'
 import { AppConfig } from '@/constants/config'
 import { logger } from '@/lib/logger'
+import { spendableBalance, minimumBalance, toStellarAmount } from '@/lib/stellarAccount'
 
 const SecureStore = {
   getItemAsync: secureGetItem,
@@ -398,8 +399,15 @@ export const x402 = {
   },
 
   /**
-   * Sweep a specific agent's ENTIRE on-chain XLM balance (minus a fee cushion)
-   * back to the destination (the owner). Used during revocation.
+   * Sweep a specific agent's recoverable on-chain XLM balance back to the
+   * destination (the owner). Used during revocation.
+   *
+   * A Stellar account can never spend below its MINIMUM BALANCE, which is
+   * `(2 + subentry_count) * base_reserve` (base reserve = 0.5 XLM). Sending
+   * more than `balance - minimum - fee` is rejected with `op_underfunded`, so
+   * the sweep must leave the reserve (plus a small fee buffer) behind. The
+   * reserve stays locked in the agent account — which is fine: retire does not
+   * merge/delete the account, it just stops the app from using it.
    */
   async sweepAgentFunds(destination: string, index: number = LEGACY_AGENT_INDEX): Promise<{ hash: string } | { error: string }> {
     const secret = await SecureStore.getItemAsync(legacySecretKey(index))
@@ -410,13 +418,23 @@ export const x402 = {
     if (!exists) return { error: 'Agent wallet is empty — nothing to recover' }
 
     const bal = await stellarService.getBalance(agentPub)
-    const sweepable = bal.xlm - 0.001
-    if (sweepable <= 0.001) return { error: 'Agent wallet has no recoverable funds' }
+
+    // A Stellar account can never spend below its minimum balance. Use the
+    // shared account rules so the reserve math lives in one place, and hold
+    // back a comfortable fee cushion so the sweep never hits op_underfunded.
+    const FEE_BUFFER_XLM = 0.01
+    const sweepable = spendableBalance(bal.xlm, bal.subentryCount ?? 0, FEE_BUFFER_XLM)
+    if (sweepable <= 0) {
+      logger.debug(
+        `[x402] agent ${agentPub} below reserve: xlm=${bal.xlm} min=${minimumBalance(bal.subentryCount ?? 0)}`,
+      )
+      return { error: 'Agent wallet has no recoverable funds above the reserve' }
+    }
 
     return stellarService.submitPayment({
       sourceSecret: secret,
       destination,
-      amount: sweepable.toFixed(7),
+      amount: toStellarAmount(sweepable),
       assetCode: 'XLM',
     })
   },
@@ -534,7 +552,14 @@ export const x402 = {
       }
     }
 
-    if (registerSubmitted) account.incrementSequenceNumber()
+    // NOTE: do NOT manually increment here. invokeContract builds the tx with
+    // `TransactionBuilder(account, ...)`, and TransactionBuilder.build()
+    // already calls account.incrementSequenceNumber() internally (see
+    // @stellar/stellar-base transaction_builder.js). Incrementing again would
+    // leave a one-slot gap, so register_agent would submit with seq N+3 while
+    // the account is only at N+1 on-chain → txBAD_SEQ, which Soroban RPC
+    // surfaces as `sendTransaction status=ERROR, errorResultXdr=undefined`.
+    void registerSubmitted
 
     if (!agentRegistered) {
       try {

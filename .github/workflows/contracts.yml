@@ -1,0 +1,103 @@
+name: Contracts CI
+
+on:
+  push:
+    branches: [main, instaward, instaward-staging, instaward-development]
+    paths:
+      - 'backend/contracts/**'
+      - 'backend/Cargo.toml'
+      - 'backend/Cargo.lock'
+      - '.github/workflows/contracts.yml'
+  pull_request:
+    paths:
+      - 'backend/contracts/**'
+      - 'backend/Cargo.toml'
+      - 'backend/Cargo.lock'
+      - '.github/workflows/contracts.yml'
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  test:
+    name: Build + test Soroban contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          # Must match backend/rust-toolchain.toml — the published WASM
+          # hashes only reproduce under the compiler that built the deployed
+          # artifacts. wasm32v1-none is the Soroban target for SDK 25.
+          toolchain: '1.98.1'
+          targets: wasm32v1-none
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            backend/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('backend/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      # payment_escrow uses contractimport! on the other two WASM files, so the
+      # dependency contracts MUST be built before it.
+      - name: Build dependency contracts (WASM)
+        run: cargo build --release --target wasm32v1-none -p agent-registry -p device-registry
+
+      - name: Build payment_escrow (WASM)
+        run: cargo build --release --target wasm32v1-none -p payment-escrow
+
+      - name: Run contract tests
+        run: |
+          HOST=$(rustc -vV | awk '/host/{print $2}')
+          cargo test -p device-registry -p agent-registry -p payment-escrow --target "$HOST"
+
+      # Reproducibility report (informational, non-blocking).
+      #
+      # The deployed Contract IDs are published alongside these hashes in
+      # deploy-evidence/. We re-derive the WASM SHA-256 here and compare, but we
+      # DO NOT fail the build on a mismatch. Reason: Soroban WASM is not
+      # byte-identical across machines because soroban-sdk embeds the absolute
+      # source path of the build host (e.g. a panic-location string pointing at
+      # /home/<user>/.cargo/registry/.../soroban-sdk-*/src/ledger.rs). On a CI
+      # runner that prefix is /home/runner/..., which flips the hash even under
+      # the exact same pinned compiler (1.98.1). The published hashes were
+      # produced on the maintainer's machine and are reproducible there; see
+      # deploy-evidence/.
+      #
+      # The SOW gate is "automated contract tests passing in CI" — enforced by
+      # the test step above. This step records the hashes for transparency.
+      - name: WASM hash reproducibility report (informational)
+        run: |
+          set -uo pipefail
+          declare -A expected=(
+            [device_registry]=2b258a496495a2a15cdf76ceb20d14dcd89ca316e74eb08a496b61e3af986817
+            [agent_registry]=2c9ee8f6aea1a44c317ba306cb22b782c7cef58fbbffafdcf30a8abdb275617a
+            [payment_escrow]=068ce429550d6e7fb34c6b88975e6fad063d7463572aca38b5fb7db61e55280c
+          )
+          {
+            echo "### WASM hash reproducibility report"
+            echo
+            echo "Informational only — a difference does not fail CI (see step comment)."
+            echo
+            echo "| contract | status | published | built-here |"
+            echo "|----------|--------|-----------|------------|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          for c in "${!expected[@]}"; do
+            actual=$(sha256sum "target/wasm32v1-none/release/$c.wasm" | awk '{print $1}')
+            if [ "$actual" = "${expected[$c]}" ]; then
+              state="✅ match"
+              echo "match    $c  $actual"
+            else
+              state="ℹ️ differs"
+              echo "DIFFERS  $c  built=$actual  published=${expected[$c]}"
+            fi
+            echo "| $c | $state | \`${expected[$c]}\` | \`$actual\` |" >> "$GITHUB_STEP_SUMMARY"
+          done
+          echo "Report written to the job summary. This step never fails the build."

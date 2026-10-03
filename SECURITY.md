@@ -41,7 +41,7 @@ Please give us reasonable time to remediate before any public disclosure.
 
 **In scope:**
 
-- Smart contract logic in `backend/asset/contracts/*` — authorization bypass, fund theft/lock, integer overflow, replay, or escrow-accounting errors.
+- Smart contract logic in `backend/contracts/*` — authorization bypass, fund theft/lock, integer overflow, replay, or escrow-accounting errors.
 - Frontend key handling — seed/key storage, signing flows, x402 agent authorization.
 - Device provisioning — device-hash collision or spoofing that maps a device to the wrong wallet.
 
