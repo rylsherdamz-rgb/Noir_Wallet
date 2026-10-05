@@ -350,12 +350,6 @@ export function DashboardScreen() {
           <QuickAction label="Tap" tap onPress={() => router.push('/tap')} testID="quick-action-tap">
             <TapGlyph size={22} color={Colors.goldHi} />
           </QuickAction>
-          <QuickAction label="Cash In" onPress={() => router.push('/fiat?mode=cash-in')} testID="quick-action-cashin" tint={Colors.success}>
-            <Ionicons name="wallet-outline" size={21} color={Colors.success} />
-          </QuickAction>
-          <QuickAction label="Cash Out" onPress={() => router.push('/fiat?mode=cash-out')} testID="quick-action-cashout" tint={Colors.warning}>
-            <Ionicons name="cash-outline" size={21} color={Colors.warning} />
-          </QuickAction>
         </View>
 
         {/* My Wallets Section */}

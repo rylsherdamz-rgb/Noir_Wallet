@@ -31,7 +31,11 @@ export default function ImportWalletRoute() {
     const funded = await stellarService.fundAccount(keys.stellarPublic)
     if (!funded) logger.warn('Account funding failed — will retry on dashboard')
 
-    router.replace('/(tabs)')
+    // A freshly imported wallet has no PIN yet on this device. Route through
+    // the lock screen's setup mode so a PIN is mandatory before the wallet
+    // is reachable — biometrics is an optional layer on top, never a
+    // replacement for it.
+    router.replace('/lock')
   }
 
   return <ImportWalletScreen onComplete={handleComplete} onBack={() => router.back()} />

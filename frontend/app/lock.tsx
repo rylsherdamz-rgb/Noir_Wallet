@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -95,25 +95,37 @@ export default function LockScreen() {
   const handleVerify = useCallback(
     async (candidate: string) => {
       setBusy(true)
-      const result = await verifyPin(candidate)
-      setBusy(false)
-      setPin('')
-      if (result.ok) {
-        setLockedUntil(0)
-        unlock()
-        return
-      }
-      const lockout = await getLockout()
-      setLockedUntil(lockout.lockedUntil)
-      setNow(Date.now())
-      if (result.reason === 'locked' || result.retryAfterMs > 0) {
-        setError(`Too many attempts. Try again in ${formatCountdown(lockoutRemainingMs(lockout))}.`)
-      } else if (result.reason === 'no-pin') {
-        setError('No PIN is set on this device.')
-        setHasPin(false)
-        setMode('setup')
-      } else {
-        setError('Incorrect PIN')
+      // The PIN hash (Argon2id) is deliberately CPU-heavy. On the slower,
+      // non-JIT'd Hermes runtime it can take long enough that, with no
+      // feedback, the keypad looks dead — and if verifyPin ever throws,
+      // skipping setBusy(false) below would wedge it for good. Always
+      // resolve busy state via finally so a bad run never permanently
+      // freezes PIN entry.
+      try {
+        const result = await verifyPin(candidate)
+        setPin('')
+        if (result.ok) {
+          setLockedUntil(0)
+          unlock()
+          return
+        }
+        const lockout = await getLockout()
+        setLockedUntil(lockout.lockedUntil)
+        setNow(Date.now())
+        if (result.reason === 'locked' || result.retryAfterMs > 0) {
+          setError(`Too many attempts. Try again in ${formatCountdown(lockoutRemainingMs(lockout))}.`)
+        } else if (result.reason === 'no-pin') {
+          setError('No PIN is set on this device.')
+          setHasPin(false)
+          setMode('setup')
+        } else {
+          setError('Incorrect PIN')
+        }
+      } catch {
+        setPin('')
+        setError('Something went wrong checking your PIN. Try again.')
+      } finally {
+        setBusy(false)
       }
     },
     [unlock]
@@ -129,9 +141,17 @@ export default function LockScreen() {
         return
       }
       setBusy(true)
-      await storePin(candidate)
-      setBusy(false)
-      unlock()
+      try {
+        await storePin(candidate)
+        unlock()
+      } catch {
+        setError('Could not save your PIN. Try again.')
+        setPin('')
+        setConfirmPin('')
+        setMode('setup')
+      } finally {
+        setBusy(false)
+      }
     },
     [pin, unlock]
   )
@@ -165,6 +185,13 @@ export default function LockScreen() {
           <Text style={styles.error} accessibilityLiveRegion="polite">
             Too many attempts. Try again in {formatCountdown(remainingMs)}.
           </Text>
+        ) : busy ? (
+          <View style={styles.busyRow} accessibilityLiveRegion="polite">
+            <ActivityIndicator size="small" color={Colors.gold} />
+            <Text style={styles.busyText}>
+              {mode === 'confirm' ? 'Saving your PIN…' : 'Checking…'}
+            </Text>
+          </View>
         ) : error ? (
           <Text style={styles.error} accessibilityLiveRegion="polite">
             {error}
@@ -195,18 +222,6 @@ export default function LockScreen() {
             <Text style={styles.biometricLabel}>Use biometrics</Text>
           </TouchableOpacity>
         )}
-
-        {mode === 'setup' && (
-          <TouchableOpacity
-            onPress={unlock}
-            style={styles.skipBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Skip PIN setup"
-            accessibilityHint="Continues without a PIN. Your wallet will not be locked."
-          >
-            <Text style={styles.skipLabel}>Skip</Text>
-          </TouchableOpacity>
-        )}
       </View>
     </SafeAreaView>
   )
@@ -223,6 +238,8 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, color: Colors.white },
   error: { fontSize: FontSize.sm, color: Colors.danger, textAlign: 'center' },
+  busyRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  busyText: { fontSize: FontSize.sm, color: Colors.gold },
   dots: { flexDirection: 'row', gap: Spacing.md, marginVertical: Spacing.lg },
   dot: {
     width: 14,
@@ -235,6 +252,4 @@ const styles = StyleSheet.create({
   dotFilled: { backgroundColor: Colors.gold, borderColor: Colors.gold },
   biometricBtn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.md },
   biometricLabel: { fontSize: FontSize.md, color: Colors.gold, fontWeight: FontWeight.medium },
-  skipBtn: { paddingVertical: Spacing.md },
-  skipLabel: { fontSize: FontSize.md, color: Colors.mutedWhite },
 })

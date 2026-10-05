@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { useAppStore } from '@/store/useAppStore'
 import { Colors, Spacing, FontSize } from '@/constants/theme'
 import { colorWithOpacity } from '@/constants/designTokens'
+import { hasPin } from '@/services/pinLock'
 
 const NOIR_MARK = require('../assets/noir-mark.png')
 const MIN_SPLASH_MS = 600
@@ -33,12 +34,19 @@ export default function Index() {
   const brandOpacity = useRef(new Animated.Value(0)).current
   const brandSlide = useRef(new Animated.Value(20)).current
 
-  const navigate = useCallback(() => {
+  const navigate = useCallback(async () => {
     // Read the store imperatively at navigation time. Using the subscribed
     // `isOnboarded` value risked capturing the pre-hydration default (false)
     // in this closure and bouncing an existing wallet to /onboarding.
     const onboarded = useAppStore.getState().isOnboarded
-    router.replace(onboarded ? '/(tabs)' : '/onboarding')
+    if (!onboarded) {
+      router.replace('/onboarding')
+      return
+    }
+    // An onboarded wallet with no PIN yet (e.g. an install from before PIN
+    // setup became mandatory) must not land straight on the tabs with no
+    // lock at all — send it through setup first.
+    router.replace((await hasPin()) ? '/(tabs)' : '/lock')
   }, [router])
 
   useEffect(() => {

@@ -46,12 +46,11 @@ const LABELS = ['My Wallet Card', 'Daily Carry', 'Home Key']
 const OTHER = 'Other'
 
 // Ordered provisioning phases shown in the progress tracker.
-type Phase = 'keys' | 'agent' | 'chain' | 'nfc'
+type Phase = 'keys' | 'agent' | 'chain'
 const PHASES: { key: Phase; label: string }[] = [
   { key: 'keys', label: 'Unlock wallet keys' },
   { key: 'agent', label: 'Create payment agent' },
   { key: 'chain', label: 'Register on Stellar' },
-  { key: 'nfc', label: 'Write tag (tap again, optional)' },
 ]
 
 const hashTagUid = (uid: string) => {
@@ -90,14 +89,13 @@ function describeError(registerError: string, scanError: string | null) {
 
 export function DeviceProvisioningScreen() {
   const router = useRouter()
-  const { isSupported, isEnabled, lastTag, error, scanTag, writeToTag, goToNfcSettings, clearTag } = useNfc()
+  const { isSupported, isEnabled, lastTag, error, scanTag, goToNfcSettings, clearTag } = useNfc()
   const { user, addDevice } = useAppStore()
   const [step, setStep] = useState<Step>('intro')
   const [label, setLabel] = useState('')
   const [customName, setCustomName] = useState('')
   const [agentCreated, setAgentCreated] = useState(false)
 
-  const [nfcWritten, setNfcWritten] = useState<boolean | null>(null)
   const [displayLabel, setDisplayLabel] = useState('')
   const [agentPubKey, setAgentPubKey] = useState('')
   const [tagUid, setTagUid] = useState('')
@@ -266,24 +264,6 @@ export function DeviceProvisioningScreen() {
         }
       }
 
-      // Device + agent are already confirmed on-chain at this point. Writing
-      // the NDEF payload needs a second tap and is optional — it times out
-      // after 15s instead of blocking provisioning.
-      setPhase('nfc')
-      setStatusMessage('Registered on-chain. Tap your card again to write it (optional, 15s)...')
-      try {
-        const written = await writeToTag({
-          walletAddress: keys.stellarPublic,
-          deviceLabel: displayLabel,
-          activationUrl: `noirwallet://device/${hashHex}`,
-        })
-        setNfcWritten(written)
-        if (!written) logger.warn('NFC write skipped (no tag tapped or tag not writable)')
-      } catch (e: any) {
-        setNfcWritten(false)
-        logger.warn('NFC write failure (non-blocking):', e?.message)
-      }
-
       setStatusMessage('Confirmed on-chain!')
 
       const newDevice: Device = {
@@ -347,7 +327,7 @@ export function DeviceProvisioningScreen() {
   const showHeader = step === 'intro' || step === 'scanning'
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.content}>
         {showHeader && (
           <View style={styles.top}>
@@ -437,20 +417,6 @@ export function DeviceProvisioningScreen() {
               <Ionicons name="checkmark-circle" size={72} color={Colors.success} />
               <Text style={styles.successTitle}>Linked!</Text>
               <Text style={styles.successSub}>{displayLabel} is now paired and registered on-chain</Text>
-              <View style={styles.successDetail}>
-                {nfcWritten === true
-                  ? <Ionicons name="checkmark" size={14} color={Colors.success} />
-                  : nfcWritten === false
-                    ? <Ionicons name="close-circle" size={14} color={Colors.danger} />
-                    : <Ionicons name="remove-circle-outline" size={14} color={Colors.mutedWhite} />}
-                <Text style={[styles.successDetailText, nfcWritten === false && { color: Colors.danger }]}>
-                  {nfcWritten === true
-                    ? 'NFC tag written'
-                    : nfcWritten === false
-                      ? 'NFC tag write FAILED — retry from settings'
-                      : 'NFC tag write skipped'}
-                </Text>
-              </View>
               <View style={styles.successDetail}>
                 <Ionicons name="checkmark" size={14} color={Colors.success} />
                 <Text style={styles.successDetailText}>Device registered on Stellar</Text>
@@ -632,15 +598,9 @@ export function DeviceProvisioningScreen() {
             </PressableScale>
           )}
           {step === 'success' && (
-            <>
-              <PressableScale style={styles.secondaryBtn} onPress={() => router.push('/fiat')}>
-                <Ionicons name="cash-outline" size={20} color={Colors.white} />
-                <Text style={styles.secondaryBtnText}>Cash In via PDAX</Text>
-              </PressableScale>
-              <PressableScale style={styles.primaryBtn} onPress={reset}>
-                <Text style={styles.primaryBtnText}>Done</Text>
-              </PressableScale>
-            </>
+            <PressableScale style={styles.primaryBtn} onPress={reset}>
+              <Text style={styles.primaryBtnText}>Done</Text>
+            </PressableScale>
           )}
           {step === 'error' && registerError?.includes('does not exist on-chain') && (
             <>

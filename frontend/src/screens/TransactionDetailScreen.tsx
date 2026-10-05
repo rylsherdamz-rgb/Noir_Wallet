@@ -188,6 +188,8 @@ function DetailRow({
           gold && styles.detailGold,
           error && styles.detailError,
         ]}
+        numberOfLines={mono ? 1 : undefined}
+        ellipsizeMode={mono ? 'middle' : undefined}
       >
         {value}
       </Text>

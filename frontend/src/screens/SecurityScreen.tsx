@@ -16,6 +16,7 @@ import { x402 } from '@/domain/x402'
 import { apiService } from '@/services/api'
 import { usePreventScreenCapture } from 'expo-screen-capture'
 import { authenticate, checkAvailability, unavailableMessage } from '@/services/biometrics'
+import { hasPin } from '@/services/pinLock'
 import { useToast } from '@/components/ToastProvider'
 
 const TIMEOUT_OPTIONS = [30, 60, 120, 300]
@@ -54,6 +55,14 @@ export function SecurityScreen() {
   const handleBiometricToggle = async (next: boolean) => {
     if (!next) {
       setBiometricLockEnabled(false)
+      return
+    }
+    // Biometrics is strictly a convenience layered on top of a PIN — never
+    // a replacement for one. A PIN should always exist by this point (it's
+    // mandatory during onboarding), but this is the backstop against ever
+    // enabling biometric-only unlock.
+    if (!(await hasPin())) {
+      showToast('Set a PIN first', 'Biometric unlock requires an app PIN as a fallback. Set one up to continue.', 'error')
       return
     }
     const availability = await checkAvailability()

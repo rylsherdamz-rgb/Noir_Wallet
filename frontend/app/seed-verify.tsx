@@ -32,7 +32,11 @@ export default function SeedVerifyRoute() {
       phrase={phrase}
       onComplete={() => {
         setIsOnboarded(true)
-        router.replace('/(tabs)')
+        // A new wallet has no PIN yet. Route through the lock screen's setup
+        // mode so a PIN is mandatory before the wallet is ever reachable —
+        // biometrics (set up later in Security settings) always layers on
+        // top of a PIN, never replaces it.
+        router.replace('/lock')
       }}
       onBack={() => router.back()}
     />

@@ -60,7 +60,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -186,16 +186,6 @@ export default function SettingsScreen() {
               <View>
                 <Text style={styles.rowLabel}>Cards</Text>
                 <Text style={styles.navHint}>Add a tap-to-pay card, set a PIN, or revoke</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/fiat')}>
-            <View style={styles.rowLeft}>
-              <Ionicons name="wallet-outline" size={20} color={Colors.silver} />
-              <View>
-                <Text style={styles.rowLabel}>Cash In / Cash Out</Text>
-                <Text style={styles.navHint}>Deposit or withdraw PHP via PDAX</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />

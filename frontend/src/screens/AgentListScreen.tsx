@@ -111,13 +111,21 @@ export function AgentListScreen() {
           Each linked card has its own x402 agent wallet that signs and pays for NFC taps — no manual confirmation needed.
         </Text>
 
-        {loading && devices.length > 0 && !agentExists && (
+        {loading && devices.length > 0 && !agentExists ? (
+          // While agent balances are still loading, show ONLY the loading
+          // state. Previously the "Linked Devices" list below rendered
+          // unconditionally (device labels come straight from the store, no
+          // async wait needed) — so a "Loading agent wallets…" box and the
+          // full device list both appeared at once, which read as broken:
+          // a spinner saying "loading" sitting directly above content that
+          // had clearly already loaded. Gating the whole section on
+          // `loading` keeps it to one state at a time.
           <View style={styles.loadingBox}>
             <ActivityIndicator size="small" color={Colors.gold} />
             <Text style={styles.loadingText}>Loading agent wallets…</Text>
           </View>
-        )}
-
+        ) : (
+          <>
         {/* Aggregate Agent Wallet Card — only when at least one agent exists */}
         {agentExists && (
         <LinearGradient
@@ -221,6 +229,8 @@ export function AgentListScreen() {
             <Ionicons name="add" size={20} color={Colors.gold} />
             <Text style={styles.addBtnLabel}>Link Another Device</Text>
           </PressableScale>
+        )}
+          </>
         )}
       </ScrollView>
     </SafeAreaView>
