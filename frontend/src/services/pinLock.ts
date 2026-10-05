@@ -77,6 +77,25 @@ function constantTimeEqual(a: string, b: string): boolean {
   return diff === 0
 }
 
+/**
+ * Yield to a real macrotask, not just a microtask, before the heavy hash
+ * below runs.
+ *
+ * `@noble/hashes`' internal `nextTick()` (used inside argon2idAsync's block
+ * loop) is `async () => {}` — an already-resolved microtask. Microtasks all
+ * drain before the JS engine returns control to the event loop, and in
+ * React Native the UI thread only commits a pending render on that same
+ * event-loop turn. So a caller that does `setBusy(true)` and immediately
+ * `await`s `verifyPin`/`setPin` never actually gets a paint in before the
+ * CPU-bound hash loop starts — a "busy" spinner can be fully queued by React
+ * and still never appear on screen, which looks exactly like a freeze. A
+ * `setTimeout` forces one real event-loop turn (and therefore a paint)
+ * before the hash begins.
+ */
+function yieldToRenderer(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0))
+}
+
 async function derive(pin: string, salt: Uint8Array): Promise<string> {
   return bytesToHex(await argon2idAsync(pin, salt, ARGON2_PARAMS))
 }
@@ -116,6 +135,7 @@ export async function hasPin(): Promise<boolean> {
 }
 
 export async function setPin(pin: string): Promise<void> {
+  await yieldToRenderer()
   const salt = randomBytes(SALT_BYTES)
   const hash = await derive(pin, salt)
   const record: PinRecord = { v: 2, salt: bytesToHex(salt), hash }
@@ -150,6 +170,7 @@ export async function verifyPin(pin: string, now: number = Date.now()): Promise<
   let needsMigration = false
 
   if (isPinRecord(stored)) {
+    await yieldToRenderer()
     matched = constantTimeEqual(await derive(pin, hexToBytes(stored.salt)), stored.hash)
   } else if (typeof stored === 'string') {
     matched = constantTimeEqual(legacyHash(pin), stored)

@@ -208,7 +208,12 @@ export default function LockScreen() {
           ))}
         </View>
 
-        <NumericKeypad value={displayPin} onChangeValue={handleChange} maxDigits={MAX_LENGTH} />
+        <NumericKeypad
+          value={displayPin}
+          onChangeValue={handleChange}
+          maxDigits={MAX_LENGTH}
+          disabled={busy || isLocked}
+        />
 
         {mode === 'unlock' && biometricEnabled && biometricAvailable && !isLocked && (
           <TouchableOpacity

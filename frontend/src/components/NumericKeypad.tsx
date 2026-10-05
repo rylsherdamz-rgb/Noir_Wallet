@@ -14,6 +14,14 @@ interface NumericKeypadProps {
   onChangeValue: (val: string) => void
   maxDigits?: number
   hapticFeedback?: boolean
+  /**
+   * Dims the keypad and ignores presses. The caller (e.g. lock.tsx while a
+   * PIN hash is running) already ignores input during this window, but with
+   * no visual change the keys look fully live — tapping them does nothing,
+   * which reads as the screen having frozen. Dimming makes the "busy, please
+   * wait" state visible instead of silent.
+   */
+  disabled?: boolean
 }
 
 const keys = [
@@ -28,8 +36,11 @@ export function NumericKeypad({
   onChangeValue,
   maxDigits = 8,
   hapticFeedback = true,
+  disabled = false,
 }: NumericKeypadProps) {
   const handlePress = (key: string) => {
+    if (disabled) return
+
     // Haptic feedback
     if (hapticFeedback && Platform.OS !== 'web') {
       if (key === 'clear' || key === 'backspace') {
@@ -52,7 +63,7 @@ export function NumericKeypad({
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, disabled && styles.containerDisabled]}>
       {keys.map((row, rowIdx) => (
         <View key={rowIdx} style={styles.row}>
           {row.map((key) => {
@@ -62,9 +73,10 @@ export function NumericKeypad({
                   key={key}
                   style={[styles.key, styles.specialKey]}
                   onPress={() => handlePress(key)}
-
+                  disabled={disabled}
                   accessibilityRole="button"
                   accessibilityLabel="Clear all"
+                  accessibilityState={{ disabled }}
                 >
                   <Text style={styles.specialKeyText} maxFontSizeMultiplier={FontScaleCap.keypad}>
                     Clear
@@ -78,9 +90,10 @@ export function NumericKeypad({
                   key={key}
                   style={styles.key}
                   onPress={() => handlePress(key)}
-
+                  disabled={disabled}
                   accessibilityRole="button"
                   accessibilityLabel="Delete last digit"
+                  accessibilityState={{ disabled }}
                 >
                   <Ionicons name="backspace-outline" size={28} color={Colors.white} />
                 </PressableScale>
@@ -91,9 +104,10 @@ export function NumericKeypad({
                 key={key}
                 style={styles.key}
                 onPress={() => handlePress(key)}
-
+                disabled={disabled}
                 accessibilityRole="button"
                 accessibilityLabel={`Digit ${key}`}
+                accessibilityState={{ disabled }}
               >
                 <Text style={styles.keyText} maxFontSizeMultiplier={FontScaleCap.keypad}>
                   {key}
@@ -111,6 +125,9 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.sm,
+  },
+  containerDisabled: {
+    opacity: 0.45,
   },
   row: {
     flexDirection: 'row',

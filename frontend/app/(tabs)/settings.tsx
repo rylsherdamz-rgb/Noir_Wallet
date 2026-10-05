@@ -10,9 +10,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
+import * as Clipboard from 'expo-clipboard'
 import { useAppStore } from '@/store/useAppStore'
 import { Card } from '@/components/Card'
 import { SectionHeader } from '@/components/SectionHeader'
+import { useToast } from '@/components/ToastProvider'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { StellarNetwork } from '@/types'
 import { walletService } from '@/services/wallet'
@@ -27,6 +29,7 @@ const TIMEOUT_OPTIONS: { label: string; sec: number }[] = [
 
 export default function SettingsScreen() {
   const router = useRouter()
+  const toast = useToast()
   const {
     user,
     network,
@@ -37,6 +40,12 @@ export default function SettingsScreen() {
   } = useAppStore()
 
   const [busy, setBusy] = useState(false)
+
+  const handleCopyAddress = async () => {
+    if (!user?.stellarPublicKey) return
+    await Clipboard.setStringAsync(user.stellarPublicKey)
+    toast.success('Address copied', 'Your Stellar address is on the clipboard.')
+  }
 
   const handleReset = () => {
     Alert.alert(
@@ -87,20 +96,44 @@ export default function SettingsScreen() {
           <Row
             icon="mail-outline"
             label="Email"
-            value={user?.email ?? 'Not signed in'}
+            value={user?.email || 'Not set'}
           />
           <Divider />
-          <Row
-            icon="key-outline"
-            label="Stellar address"
-            value={
-              user?.stellarPublicKey
-                ? `${user.stellarPublicKey.slice(0, 8)}…${user.stellarPublicKey.slice(-6)}`
-                : '—'
-            }
-            mono
-          />
+          {/*
+            Noir is non-custodial — there's no server account this address is
+            tied to. It's the public key the device actually transacts with,
+            so copying it (to receive funds, verify on an explorer, etc.) has
+            to work from here, not just from Receive/Profile.
+          */}
+          <TouchableOpacity
+            style={styles.row}
+            onPress={handleCopyAddress}
+            disabled={!user?.stellarPublicKey}
+            accessibilityRole="button"
+            accessibilityLabel="Copy Stellar address"
+            accessibilityHint="Copies your full Stellar public address to the clipboard"
+          >
+            <View style={styles.rowLeft}>
+              <Ionicons name="key-outline" size={20} color={Colors.silver} />
+              <Text style={styles.rowLabel}>Stellar address</Text>
+            </View>
+            <View style={styles.addressValue}>
+              <Text style={[styles.rowValue, styles.mono]} numberOfLines={1}>
+                {user?.stellarPublicKey
+                  ? `${user.stellarPublicKey.slice(0, 8)}…${user.stellarPublicKey.slice(-6)}`
+                  : '—'}
+              </Text>
+              {!!user?.stellarPublicKey && (
+                <Ionicons name="copy-outline" size={15} color={Colors.gold} style={styles.copyIcon} />
+              )}
+            </View>
+          </TouchableOpacity>
         </Card>
+        <Text style={styles.sectionNote}>
+          Email and display name are just local labels on this device — Noir doesn't use
+          an account or server login. Your Stellar address above is what actually sends,
+          receives, and taps to pay.
+        </Text>
 
         {/* Security */}
         <SectionHeader title="Security" />
@@ -283,6 +316,15 @@ const styles = StyleSheet.create({
     marginLeft: Spacing.md,
     flexShrink: 1,
     textAlign: 'right',
+  },
+  addressValue: { flexDirection: 'row', alignItems: 'center', marginLeft: Spacing.md, flexShrink: 1 },
+  copyIcon: { marginLeft: 6 },
+  sectionNote: {
+    fontSize: FontSize.xs,
+    color: Colors.mutedWhite,
+    lineHeight: 17,
+    marginTop: -Spacing.sm,
+    marginBottom: Spacing.lg,
   },
   mono: { fontFamily: 'monospace' },
   navRow: {
