@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @font-face {
+    font-family: 'Jost';
+    src: url('file:///home/richie/.fonts/Jost-Regular.ttf') format('truetype');
+    font-weight: 400; font-style: normal;
+  }
+  @font-face {
+    font-family: 'Jost';
+    src: url('file:///home/richie/.fonts/Jost-Medium.ttf') format('truetype');
+    font-weight: 500; font-style: normal;
+  }
+  @font-face {
+    font-family: 'Jost';
+    src: url('file:///home/richie/.fonts/Jost-SemiBold.ttf') format('truetype');
+    font-weight: 600; font-style: normal;
+  }
+
+  :root {
+    --black: #050505;
+    --bg: #0A0A0A;
+    --card: #141414;
+    --border: #3A3A3A;
+    --gold: #C6A15B;
+    --gold-hi: #E9C482;
+    --gold-deep: #8F6C33;
+    --cream: #EDE4D0;
+    --white: #FFFFFF;
+    --muted: #A9A9A9;
+    --dim: #666666;
+    --green: #3ED598;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body { width: 1600px; height: 900px; }
+
+  .stage {
+    width: 1600px;
+    height: 900px;
+    position: relative;
+    overflow: hidden;
+    font-family: 'Jost', sans-serif;
+    background:
+      radial-gradient(120% 130% at 78% 42%, rgba(198,161,91,0.16) 0%, rgba(198,161,91,0.04) 34%, rgba(198,161,91,0) 60%),
+      radial-gradient(100% 120% at 30% 26%, #17140F 0%, #0C0B09 46%, #050505 100%);
+  }
+
+  /* Fine engineered grid, barely-there */
+  .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(198,161,91,0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(198,161,91,0.05) 1px, transparent 1px);
+    background-size: 80px 80px;
+    mask-image: radial-gradient(120% 100% at 50% 40%, #000 30%, transparent 78%);
+    -webkit-mask-image: radial-gradient(120% 100% at 50% 40%, #000 30%, transparent 78%);
+  }
+
+  /* Frame */
+  .frame {
+    position: absolute; inset: 28px;
+    border: 1px solid rgba(58,58,58,0.55);
+    border-radius: 22px;
+    pointer-events: none;
+  }
+
+  /* ---- Left content column ---- */
+  .content {
+    position: absolute;
+    left: 96px; top: 150px;
+    width: 880px;
+  }
+
+  .eyebrow {
+    font-weight: 500;
+    font-size: 21px;
+    letter-spacing: 7px;
+    color: var(--muted);
+    text-transform: uppercase;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 10px var(--gold); }
+
+  .wordmark {
+    margin-top: 20px;
+    font-weight: 600;
+    font-size: 146px;
+    line-height: 0.92;
+    letter-spacing: -4px;
+    white-space: nowrap;
+  }
+  .wordmark .noir { color: var(--cream); }
+  .wordmark .wallet { color: var(--gold); margin-left: 30px; }
+
+  .rule {
+    margin-top: 12px;
+    height: 4px; width: 500px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, rgba(198,161,91,0) 0%, var(--gold) 16%, var(--gold-hi) 100%);
+  }
+
+  .headline {
+    margin-top: 46px;
+    font-weight: 600;
+    font-size: 62px;
+    line-height: 1.08;
+    letter-spacing: -2px;
+    color: var(--white);
+  }
+  .headline .accent { color: var(--gold); }
+
+  .subhead {
+    margin-top: 26px;
+    font-weight: 400;
+    font-size: 26px;
+    line-height: 1.5;
+    letter-spacing: 0.2px;
+    color: var(--muted);
+    max-width: 700px;
+  }
+
+  .chips {
+    margin-top: 40px;
+    display: flex; gap: 16px;
+  }
+  .chip {
+    display: flex; align-items: center; gap: 12px;
+    padding: 15px 26px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: linear-gradient(180deg, #16150F 0%, #0F0E0B 100%);
+    font-weight: 500; font-size: 20px;
+    color: var(--cream);
+    letter-spacing: 0.3px;
+  }
+  .chip .cd { width: 9px; height: 9px; border-radius: 50%; }
+  .chip .gold { background: var(--gold); box-shadow: 0 0 8px rgba(198,161,91,0.7); }
+  .chip .green { background: var(--green); box-shadow: 0 0 8px rgba(62,213,152,0.6); }
+  .chip .hi { background: var(--gold-hi); box-shadow: 0 0 8px rgba(233,196,130,0.7); }
+
+  .footer {
+    position: absolute;
+    left: 96px; bottom: 56px;
+    display: flex; align-items: center; gap: 18px;
+    color: var(--dim);
+  }
+  .footer .handle { font-weight: 500; font-size: 21px; letter-spacing: 1.2px; }
+  .footer .sep { width: 1px; height: 20px; background: var(--border); }
+  .footer .tag { font-weight: 400; font-size: 19px; letter-spacing: 0.5px; }
+
+  /* ---- Right: logo motif ---- */
+  .motif {
+    position: absolute;
+    right: 96px; top: 50%;
+    transform: translateY(-50%);
+    width: 480px; height: 480px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .motif .halo {
+    position: absolute; inset: -40px;
+    background: radial-gradient(circle at 50% 46%, rgba(198,161,91,0.30) 0%, rgba(198,161,91,0.07) 46%, rgba(198,161,91,0) 68%);
+  }
+  .motif .ring {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    border: 1px solid rgba(198,161,91,0.22);
+  }
+  .motif .ring2 {
+    position: absolute; inset: 34px;
+    border-radius: 50%;
+    border: 1px solid rgba(198,161,91,0.10);
+  }
+  .motif img {
+    width: 400px; height: auto;
+    /* screen blend knocks out the pure-black background of logo.jpg,
+       radial mask fades the JPG's near-black edges into the noir bg */
+    mix-blend-mode: screen;
+    -webkit-mask-image: radial-gradient(circle at 50% 48%, #000 52%, transparent 68%);
+    mask-image: radial-gradient(circle at 50% 48%, #000 52%, transparent 68%);
+    filter: drop-shadow(0 18px 40px rgba(0,0,0,0.6)) contrast(1.08) saturate(1.06) brightness(1.05);
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="grid"></div>
+    <div class="frame"></div>
+
+    <div class="content">
+      <div class="eyebrow"><span class="dot"></span>Stellar &nbsp;&middot;&nbsp; Soroban &nbsp;&middot;&nbsp; x402 Protocol</div>
+      <div class="wordmark"><span class="noir">NOIR</span><span class="wallet">WALLET</span></div>
+      <div class="rule"></div>
+      <div class="headline">Tap and go.<br><span class="accent">No app. No confirm.</span></div>
+      <div class="subhead">Contactless payments powered by Stellar. Your wallet is debited the moment hardware taps &mdash; settled on-chain in under 2 seconds.</div>
+      <div class="chips">
+        <div class="chip"><span class="cd gold"></span>Zero-interaction</div>
+        <div class="chip"><span class="cd green"></span>Instant settle</div>
+        <div class="chip"><span class="cd hi"></span>On-chain agents</div>
+      </div>
+    </div>
+
+    <div class="motif">
+      <div class="halo"></div>
+      <div class="ring"></div>
+      <div class="ring2"></div>
+      <img src="file:///home/richie/Projects/Noir_Wallet/promo/pubmat/logo.jpg" alt="Noir Wallet">
+    </div>
+
+    <div class="footer">
+      <span class="handle">@ChichiCode0</span>
+      <span class="sep"></span>
+      <span class="tag">noirwallet.app</span>
+    </div>
+  </div>
+</body>
+</html>

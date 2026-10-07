@@ -4,12 +4,17 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import * as Clipboard from 'expo-clipboard'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
 import { StatusPill } from '@/components/StatusPill'
 import { Toast } from '@/components/Toast'
-import { Avatar } from '@/components/Avatar'
 import { useAppStore } from '@/store/useAppStore'
 import { useState } from 'react'
+import { colorWithOpacity } from '@/constants/designTokens'
+import { isIncomingTx, formatAmount, formatSignedAmount, txTitle, shortAddress } from '@/lib/txFormat'
+import { openReceipt, receiptFromTransaction } from '@/lib/receipt'
+import { ScreenHeader } from '@/components/ScreenHeader'
+import { KeyValueRow, TextAction } from '@/components/ui/List'
+import { ErrorState } from '@/components/ui/ErrorState'
 
 export function TransactionDetailScreen() {
   const router = useRouter()
@@ -22,17 +27,26 @@ export function TransactionDetailScreen() {
   })
 
   const tx = transactions.find((t) => t.id === id) ?? null
-  const formattedAmount = tx ? (tx.amountCents / 100).toFixed(2) : '0.00'
+  // Sign, title and counterparty all come from the shared rules so this
+  // screen matches the list it was opened from.
+  const isIncoming = tx ? isIncomingTx(tx) : false
+  const failed = tx?.status === 'failed'
+  const title = tx ? txTitle(tx) : ''
+  const signedAmount = tx ? formatSignedAmount(tx) : ''
+  const plainAmount = tx ? `${formatAmount(tx.amountCents)} ${tx.assetCode}` : ''
+  const counterpartyLabel = isIncoming ? 'From' : 'To'
+  // On-chain records keep the full counterparty address in merchantId.
+  const counterparty = tx?.merchantId && tx.merchantId !== tx.userId ? tx.merchantId : ''
+  const accent = failed ? Colors.danger : isIncoming ? Colors.success : Colors.white
   const date = tx ? new Date(tx.createdAt) : new Date()
-  const formattedDate = date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+  const formattedDate = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
   const formattedTime = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
 
-  const copyHash = async () => {
-    if (tx?.stellarTxHash) {
-      await Clipboard.setStringAsync(tx.stellarTxHash)
-      setToast({ visible: true, type: 'success', title: 'Hash Copied', message: 'Transaction hash copied to clipboard' })
-    }
+  const copyValue = async (value: string, what: string) => {
+    await Clipboard.setStringAsync(value)
+    setToast({ visible: true, type: 'success', title: `${what} Copied`, message: `${what} copied to clipboard` })
   }
+  const copyHash = () => tx?.stellarTxHash && copyValue(tx.stellarTxHash, 'Hash')
 
   const explorerUrl = tx?.stellarTxHash
     ? network === 'testnet'
@@ -46,105 +60,82 @@ export function TransactionDetailScreen() {
 
   const shareTx = async () => {
     if (!tx) return
-    await Share.share({
-      message: `Noir Wallet Transaction\nAmount: ${formattedAmount} ${tx.assetCode}\nTo: ${tx.merchantName}\nStatus: ${tx.status}\nHash: ${tx.stellarTxHash || 'N/A'}`,
-    })
+    const lines = [
+      `Noir Wallet — ${title}`,
+      `Amount: ${signedAmount}`,
+      counterparty ? `${counterpartyLabel}: ${counterparty}` : null,
+      `Date: ${formattedDate}, ${formattedTime}`,
+      `Status: ${tx.status}`,
+      `Hash: ${tx.stellarTxHash || 'N/A'}`,
+    ]
+    await Share.share({ message: lines.filter(Boolean).join('\n') })
   }
 
   if (!tx) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            accessibilityLabel="Go back"
-          >
-            <Ionicons name="arrow-back" size={24} color={Colors.white} />
-          </PressableScale>
-          <Text style={styles.headerTitle}>Transaction Details</Text>
-          <View style={styles.spacer22} />
-        </View>
-        <View style={styles.notFound}>
-          <Ionicons name="alert-circle-outline" size={48} color={Colors.mutedWhite} />
-          <Text style={styles.notFoundText}>Transaction not found</Text>
-        </View>
+        <ScreenHeader title="Transaction" onBackPress={() => router.back()} />
+        <ErrorState icon="search-outline" tone="neutral" title="Transaction not found" message="It may still be syncing from Stellar. Pull to refresh your activity, then try again." primary={{ label: 'Back', onPress: () => router.back() }} />
       </SafeAreaView>
     )
   }
 
+  const statusColor = failed ? Colors.danger : tx.status === 'pending' ? Colors.warning : Colors.success
+  const statusText = tx.status.charAt(0).toUpperCase() + tx.status.slice(1)
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.white} />
-        </PressableScale>
-        <Text style={styles.headerTitle}>Transaction Details</Text>
-        <PressableScale onPress={shareTx} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityLabel="Share"
-        >
-          <Ionicons name="share-outline" size={22} color={Colors.gold} />
-        </PressableScale>
-      </View>
-
+      <ScreenHeader
+        title="Transaction"
+        onBackPress={() => router.back()}
+        rightAction={
+          <PressableScale onPress={shareTx} hitSlop={10} accessibilityRole="button" accessibilityLabel="Share">
+            <Ionicons name="share-outline" size={22} color={Colors.white} />
+          </PressableScale>
+        }
+      />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.heroSection}>
-          <Avatar name={tx.merchantName} size={64} variant="user" />
-          <Text style={styles.merchantName}>{tx.merchantName}</Text>
-          <View style={{ alignSelf: 'center', marginBottom: Spacing.sm }}>
-            <StatusPill status={tx.status} />
-          </View>
-          <Text style={[styles.amount, tx.status === 'failed' && styles.amountFailed]}>
-            {tx.status === 'failed' ? '' : '-'}{formattedAmount} {tx.assetCode}
-          </Text>
-          {tx.status === 'failed' && tx.errorMessage && (
-            <Text style={styles.errorMsg}>{tx.errorMessage}</Text>
-          )}
+        <View style={styles.hero}>
+          <Text style={styles.name} numberOfLines={2}>{title}</Text>
+          <Text style={[styles.amount, { color: accent }, failed && styles.amountFailed]} numberOfLines={1} adjustsFontSizeToFit>{signedAmount}</Text>
+          <Text style={[styles.status, { color: statusColor }]}>{statusText}</Text>
+          {failed && tx.errorMessage ? <Text style={styles.errorMsg}>{tx.errorMessage}</Text> : null}
         </View>
 
-        <View style={styles.detailsCard}>
-          <DetailRow label="Transaction ID" value={tx.id} mono />
-          <DetailRow label="Date" value={`${formattedDate} at ${formattedTime}`} />
-          <DetailRow label="To" value={tx.merchantName} />
-          <DetailRow label="Amount" value={`${formattedAmount} ${tx.assetCode}`} gold />
-          <DetailRow label="Fee" value="~0.00001 XLM" />
-          <DetailRow label="Status" value={tx.status.charAt(0).toUpperCase() + tx.status.slice(1)} />
-          <DetailRow label="Device" value={tx.deviceId} mono />
-          {tx.stellarTxHash && (
-            <View style={styles.hashRow}>
-              <Text style={styles.detailLabel}>Stellar Tx Hash</Text>
-              <PressableScale style={styles.hashValueRow} onPress={copyHash}>
-                <Text style={styles.hashValue} numberOfLines={1}>
-                  {tx.stellarTxHash.slice(0, 16)}...{tx.stellarTxHash.slice(-8)}
-                </Text>
-                <Ionicons name="copy-outline" size={16} color={Colors.gold} />
+        <KeyValueRow label="Type" value={isIncoming ? 'Received' : 'Sent'} />
+        <KeyValueRow label="Amount" value={plainAmount} />
+        {counterparty ? (
+          <KeyValueRow
+            label={counterpartyLabel}
+            right={
+              <PressableScale style={styles.copyVal} onPress={() => copyValue(counterparty, 'Address')} accessibilityRole="button" accessibilityLabel={`Copy ${counterpartyLabel.toLowerCase()} address`}>
+                <Text style={styles.mono}>{shortAddress(counterparty)}</Text>
+                <Ionicons name="copy-outline" size={14} color={Colors.mutedWhite} />
               </PressableScale>
-            </View>
-          )}
-          {tx.errorMessage && (
-            <DetailRow label="Error" value={tx.errorMessage} error />
-          )}
-        </View>
+            }
+          />
+        ) : null}
+        <KeyValueRow label="Date" value={`${formattedDate}, ${formattedTime}`} />
+        {!isIncoming && !failed && <KeyValueRow label="Network fee" value="~0.00001 XLM" />}
+        {!!tx.deviceId && <KeyValueRow label="Card" value={tx.deviceId} mono />}
+        {tx.stellarTxHash ? (
+          <KeyValueRow
+            label="Transaction"
+            last
+            right={
+              <PressableScale style={styles.copyVal} onPress={copyHash} accessibilityRole="button" accessibilityLabel="Copy transaction hash">
+                <Text style={styles.mono}>{tx.stellarTxHash.slice(0, 8)}…{tx.stellarTxHash.slice(-8)}</Text>
+                <Ionicons name="copy-outline" size={14} color={Colors.mutedWhite} />
+              </PressableScale>
+            }
+          />
+        ) : (
+          <KeyValueRow label="Operation" value={tx.id} mono last />
+        )}
 
-        <View style={styles.actionsCard}>
-          <PressableScale style={styles.actionRow} onPress={shareTx}
-            accessibilityLabel="Share"
-          >
-            <Ionicons name="share-outline" size={18} color={Colors.gold} />
-            <Text style={styles.actionLabel}>Share Receipt</Text>
-          </PressableScale>
-          {tx.stellarTxHash && explorerUrl && (
-            <PressableScale style={styles.actionRow} onPress={openExplorer}
-              accessibilityLabel="Open in browser"
-            >
-              <Ionicons name="open-outline" size={18} color={Colors.gold} />
-              <Text style={styles.actionLabel}>View on Stellar Explorer</Text>
-            </PressableScale>
-          )}
-          <PressableScale style={styles.actionRow}>
-            <Ionicons name="chatbubble-ellipses-outline" size={18} color={Colors.gold} />
-            <Text style={styles.actionLabel}>Report an Issue</Text>
-          </PressableScale>
+        <View style={styles.actions}>
+          <TextAction label="Receipt" icon="receipt-outline" onPress={() => openReceipt(router, receiptFromTransaction(tx), 'push')} center={false} />
+          {tx.stellarTxHash && explorerUrl && <TextAction label="Explorer" icon="open-outline" onPress={openExplorer} center={false} />}
         </View>
       </ScrollView>
 
@@ -159,174 +150,21 @@ export function TransactionDetailScreen() {
   )
 }
 
-function DetailRow({
-  label,
-  value,
-  mono,
-  gold,
-  error,
-}: {
-  label: string
-  value: string
-  mono?: boolean
-  gold?: boolean
-  error?: boolean
-}) {
-  return (
-    <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text
-        style={[
-          styles.detailValue,
-          mono && styles.detailMono,
-          gold && styles.detailGold,
-          error && styles.detailError,
-        ]}
-      >
-        {value}
-      </Text>
-    </View>
-  )
-}
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.surfaceBg,
-  },
-  notFound: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.md,
-  },
-  notFoundText: {
-    fontSize: FontSize.md,
-    color: Colors.mutedWhite,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-  },
-  headerTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.xxl,
-  },
-  heroSection: {
-    alignItems: 'center',
-    paddingVertical: Spacing.lg,
-  },
-  merchantName: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.xs,
-  },
-  amount: {
-    fontSize: FontSize.xxxl,
-    fontWeight: FontWeight.heavy,
-    color: Colors.white,
-    marginTop: Spacing.sm,
-  },
-  amountFailed: {
-    color: Colors.danger,
-    textDecorationLine: 'line-through',
-  },
-  errorMsg: {
-    fontSize: FontSize.sm,
-    color: Colors.danger,
-    marginTop: Spacing.sm,
-  },
-  detailsCard: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    padding: Spacing.md,
-    marginTop: Spacing.md,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderGrey,
-  },
-  detailLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-  },
-  detailValue: {
-    fontSize: FontSize.sm,
-    color: Colors.white,
-    fontWeight: FontWeight.medium,
-    maxWidth: '55%',
-    textAlign: 'right',
-  },
-  detailMono: {
-    fontFamily: 'monospace',
-    fontSize: FontSize.xs,
-  },
-  detailGold: {
-    color: Colors.gold,
-    fontWeight: FontWeight.bold,
-    fontSize: FontSize.md,
-  },
-  detailError: {
-    color: Colors.danger,
-  },
-  hashRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderGrey,
-  },
-  hashValueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    maxWidth: '55%',
-  },
-  hashValue: {
-    fontSize: FontSize.xs,
-    color: Colors.white,
-    fontFamily: 'monospace',
-  },
-  actionsCard: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    marginTop: Spacing.md,
-    overflow: 'hidden',
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    padding: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderGrey,
-  },
-  actionLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.gold,
-    fontWeight: FontWeight.medium,
-  },
-  spacer22: { width: 22 },
+  container: { flex: 1, backgroundColor: Colors.surfaceBg },
+  notFound: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
+  notFoundText: { fontSize: FontSize.md, color: Colors.mutedWhite },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, paddingVertical: Spacing.md },
+  headerTitle: { fontFamily: Fonts.display, fontSize: 17, color: Colors.cream },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: Spacing.xxl },
+  hero: { alignItems: 'center', gap: 6, paddingTop: Spacing.md, paddingBottom: Spacing.lg },
+  name: { fontSize: FontSize.md - 1, color: Colors.mutedWhite, textAlign: 'center' },
+  amount: { fontFamily: Fonts.display, fontSize: 40, fontVariant: ['tabular-nums'] },
+  amountFailed: { textDecorationLine: 'line-through' },
+  status: { fontSize: FontSize.sm - 1, fontWeight: FontWeight.medium },
+  errorMsg: { fontSize: FontSize.sm, color: Colors.danger, textAlign: 'center', marginTop: Spacing.xs },
+  copyVal: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
+  mono: { fontFamily: Fonts.mono, fontSize: FontSize.sm - 1, color: Colors.white },
+  actions: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.lg, paddingTop: Spacing.lg },
 })

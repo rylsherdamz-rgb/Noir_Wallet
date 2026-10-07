@@ -1,3 +1,4 @@
+import { colorWithOpacity } from '@/constants/designTokens'
 import { View, Text, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
@@ -58,7 +59,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.gold + '20',
+    backgroundColor: colorWithOpacity(Colors.gold, 0.12),
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'flex-end',
@@ -94,7 +95,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   userTime: {
-    color: Colors.black + '80',
+    color: colorWithOpacity(Colors.black, 0.5),
   },
   assistantTime: {
     color: Colors.mutedWhite,

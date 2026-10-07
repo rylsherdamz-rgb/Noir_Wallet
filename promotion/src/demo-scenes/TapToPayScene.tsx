@@ -14,6 +14,7 @@ import { withAlpha } from "../theme";
 type SceneProps = { durationInFrames: number };
 
 const ease = Easing.bezier(0.16, 1, 0.3, 1);
+const clamp = { extrapolateLeft: "clamp" as const, extrapolateRight: "clamp" as const };
 
 /** The x402 hero: a tag taps a terminal and the wallet is debited instantly. */
 export const TapToPayScene: React.FC<SceneProps> = ({ durationInFrames }) => {
@@ -28,20 +29,32 @@ export const TapToPayScene: React.FC<SceneProps> = ({ durationInFrames }) => {
 
   const enter = spring({ frame, fps, config: { damping: 200 } });
 
-  // Tag slides from left toward the terminal, then rests on contact
-  const tagX = interpolate(frame, [12, CONTACT], [-260, -30], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
+  // Tag slides from the left until its edge meets the terminal (gap = 120px)
+  const tagX = interpolate(frame, [12, CONTACT], [-260, 116], clamp);
+  const tagProgress = (tagX + 260) / 376;
+  const ringFade = interpolate(tagProgress, [0.55, 0.9], [1, 0], clamp);
+
+  // Ripple at the contact point (terminal's left edge)
+  const ripple = interpolate(frame, [CONTACT, CONTACT + 26], [0, 1], clamp);
+  const rippleScale = interpolate(ripple, [0, 1], [0.3, 3.4]);
+  const rippleOpacity = interpolate(ripple, [0, 0.15, 1], [0, 0.75, 0]);
+
+  // Premium contact flash burst
+  const flash = interpolate(frame, [CONTACT, CONTACT + 14], [0, 1], clamp);
+  const flashScale = interpolate(flash, [0, 1], [0.4, 2.8]);
+  const flashOpacity = interpolate(flash, [0, 0.22, 1], [0, 0.9, 0]);
+
+  // Terminal recoils subtly at contact
+  const bounce = interpolate(frame, [CONTACT, CONTACT + 6, CONTACT + 16], [1, 0.97, 1], {
+    ...clamp,
     easing: ease,
   });
 
-  // Ripple on contact
-  const ripple = interpolate(frame, [CONTACT, CONTACT + 26], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const rippleScale = interpolate(ripple, [0, 1], [0.3, 3.4]);
-  const rippleOpacity = interpolate(ripple, [0, 0.15, 1], [0, 0.75, 0]);
+  // Screen glow flash on contact
+  const glowFlash = interpolate(frame, [CONTACT, CONTACT + 18], [0.55, 0], clamp);
+
+  // Shine sweep across the tag material
+  const shine = ((frame * 2.4) % 240) - 90;
 
   const phase = frame >= DONE ? "done" : frame >= DEBIT ? "debit" : "idle";
 
@@ -65,8 +78,10 @@ export const TapToPayScene: React.FC<SceneProps> = ({ durationInFrames }) => {
         <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 120, opacity: enter }}>
           {/* NFC tag / wearable */}
           <div style={{ transform: `translateX(${tagX}px)`, position: "relative", zIndex: 3 }}>
-            {/* perpetual NFC broadcast rings */}
-            <PulseRings size={230} count={3} thickness={2} />
+            {/* rings collapse as the tag reaches the terminal */}
+            <div style={{ position: "absolute", inset: -30, opacity: ringFade }}>
+              <PulseRings size={230} count={3} thickness={2} />
+            </div>
             <div
               style={{
                 width: 190,
@@ -74,41 +89,79 @@ export const TapToPayScene: React.FC<SceneProps> = ({ durationInFrames }) => {
                 borderRadius: 44,
                 background: "linear-gradient(150deg, #1c1c1c, #000)",
                 border: `1px solid ${withAlpha(G.gold, "55")}`,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 14,
                 boxShadow: `0 30px 60px rgba(0,0,0,0.6), 0 0 ${24 + tagGlow * 34}px ${withAlpha(G.gold, "55")}`,
+                position: "relative",
+                overflow: "hidden",
               }}
             >
-              <Icon name="radio" size={72} color={G.gold} />
-              <span style={{ fontFamily: DEMO_FONT, fontSize: 22, fontWeight: 600, color: G.grey200 }}>
-                NFC Tag
-              </span>
+              {/* moving shine */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: -40,
+                  bottom: -40,
+                  left: -60,
+                  width: 90,
+                  background: "linear-gradient(105deg, transparent, rgba(255,255,255,0.16), transparent)",
+                  transform: `translateX(${shine}px) skewX(-18deg)`,
+                }}
+              />
+              <div
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 14,
+                }}
+              >
+                <Icon name="radio" size={72} color={G.gold} />
+                <span style={{ fontFamily: DEMO_FONT, fontSize: 22, fontWeight: 600, color: G.grey200 }}>
+                  NFC Tag
+                </span>
+              </div>
             </div>
           </div>
 
           {/* POS terminal */}
-          <div style={{ position: "relative", zIndex: 2 }}>
-            {/* contact ripples */}
+          <div style={{ position: "relative", zIndex: 2, transform: `scale(${bounce})` }}>
+            {/* contact ripples + flash at the tag's contact point */}
             {[0, 0.12, 0.24].map((o, i) => (
               <div
                 key={i}
                 style={{
                   position: "absolute",
-                  left: -40,
+                  left: -46,
                   top: "50%",
                   width: 120,
                   height: 120,
                   marginTop: -60,
                   borderRadius: "50%",
                   border: `3px solid ${G.gold}`,
+                  zIndex: 5,
                   transform: `scale(${Math.max(0, rippleScale - o * 2)})`,
                   opacity: rippleOpacity,
                 }}
               />
             ))}
+            <div
+              style={{
+                position: "absolute",
+                left: -71,
+                top: "50%",
+                width: 170,
+                height: 170,
+                marginTop: -85,
+                borderRadius: "50%",
+                background: `radial-gradient(circle, ${withAlpha(G.gold, "66")}, transparent 65%)`,
+                zIndex: 5,
+                transform: `scale(${flashScale})`,
+                opacity: flashOpacity,
+              }}
+            />
             {phase === "done" && <PulseRings size={420} count={3} thickness={2} color={G.green} />}
             <div
               style={{
@@ -135,8 +188,20 @@ export const TapToPayScene: React.FC<SceneProps> = ({ durationInFrames }) => {
                   alignItems: "center",
                   justifyContent: "center",
                   gap: 12,
+                  position: "relative",
+                  overflow: "hidden",
                 }}
               >
+                {/* contact glow */}
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: `radial-gradient(circle at 50% 45%, ${withAlpha(G.gold, "4D")}, transparent 72%)`,
+                    opacity: glowFlash,
+                    pointerEvents: "none",
+                  }}
+                />
                 {phase === "idle" && (
                   <>
                     <Icon name="wallet" size={54} color={G.slate} />

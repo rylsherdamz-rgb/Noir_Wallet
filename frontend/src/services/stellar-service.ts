@@ -1,6 +1,7 @@
 import {
   Keypair,
   TransactionBuilder,
+  Account,
   Contract,
   Operation,
   Asset,
@@ -21,14 +22,6 @@ import { logger } from '@/lib/logger'
 declare const __DEV__: boolean | undefined
 
 const IS_DEV = typeof __DEV__ !== 'undefined' ? __DEV__ : false
-
-/** Thrown when the network rejects a tx because the sequence number is stale. */
-class StaleSequenceError extends Error {
-  constructor() {
-    super('txBadSeq')
-    this.name = 'StaleSequenceError'
-  }
-}
 
 TransactionBase.prototype.toXDR = function () {
   const raw = this.toEnvelope().toXDR()
@@ -56,15 +49,24 @@ if (xdr.FeeBumpTransactionEnvelope.prototype.toXDR !== xdr.TransactionEnvelope.p
 }
 
 const CACHE_TTL_MS = 30000
+// Short TTL for balances: long enough to collapse the back-to-back
+// syncAgentsFromDevices() -> listAgents() double-fetch and rapid re-renders,
+// short enough that pull-to-refresh still reflects a real top-up quickly.
+const BALANCE_CACHE_TTL_MS = 10000
 
 interface CacheEntry<T> {
   value: T
   expiresAt: number
 }
 
-function makeCache<T>(): (key: string, ttl: number, fetcher: () => Promise<T>) => Promise<T> {
+type Cache<T> = ((key: string, ttl: number, fetcher: () => Promise<T>) => Promise<T>) & {
+  invalidate(key: string): void
+}
+
+/** TTL cache. A rejected fetcher is NOT cached, so a transient failure can't stick. */
+function makeCache<T>(): Cache<T> {
   const store = new Map<string, CacheEntry<T>>()
-  return async (key: string, ttl: number, fetcher: () => Promise<T>): Promise<T> => {
+  const get = async (key: string, ttl: number, fetcher: () => Promise<T>): Promise<T> => {
     const existing = store.get(key)
     if (existing && Date.now() < existing.expiresAt) {
       return existing.value
@@ -73,6 +75,7 @@ function makeCache<T>(): (key: string, ttl: number, fetcher: () => Promise<T>) =
     store.set(key, { value, expiresAt: Date.now() + ttl })
     return value
   }
+  return Object.assign(get, { invalidate: (key: string) => { store.delete(key) } })
 }
 
 const DEFAULT_TIMEOUT_MS = 20000
@@ -138,7 +141,8 @@ export class StellarService {
   private soroban: rpc.Server
   private networkPassphrase: string
   private network: 'testnet' | 'mainnet'
-  private existsCache: (key: string, ttl: number, fetcher: () => Promise<boolean>) => Promise<boolean>
+  private existsCache: Cache<boolean>
+  private balanceCache: Cache<BalanceResult>
 
   constructor(opts?: StellarServiceOptions) {
     const isTestnet = opts?.network !== 'mainnet'
@@ -151,6 +155,7 @@ export class StellarService {
     ) as rpc.Server
     this.networkPassphrase = opts?.networkPassphrase ?? (isTestnet ? Networks.TESTNET : Networks.PUBLIC)
     this.existsCache = makeCache<boolean>()
+    this.balanceCache = makeCache<BalanceResult>()
   }
 
   get networkName() { return this.network }
@@ -166,6 +171,10 @@ export class StellarService {
       isTestnet ? 'https://soroban-testnet.stellar.org' : 'https://soroban.stellar.org',
     ) as rpc.Server
     this.networkPassphrase = isTestnet ? Networks.TESTNET : Networks.PUBLIC
+    // Caches are keyed by address only; the same address has a different
+    // balance on each network, so drop them or the old network's numbers stick.
+    this.existsCache = makeCache<boolean>()
+    this.balanceCache = makeCache<BalanceResult>()
     logger.debug(`[StellarService] network switched to ${this.network}`)
   }
 
@@ -204,14 +213,16 @@ export class StellarService {
 
   async getBalance(publicKey: string): Promise<BalanceResult> {
     try {
-      const account = await withTimeout(this.horizon.loadAccount(publicKey), '[getBalance]', 12000)
-      const balances = account.balances as any[]
-      const xlmBalance = balances.find((b: any) => b.asset_type === 'native')
-
-      return {
-        xlm: parseFloat(xlmBalance?.balance ?? '0'),
-        subentryCount: (account as any).subentry_count ?? 0,
-      }
+      // Only successful loads are cached; the 0-balance fallback below is not.
+      return await this.balanceCache(publicKey, BALANCE_CACHE_TTL_MS, async () => {
+        const account = await withTimeout(this.horizon.loadAccount(publicKey), '[getBalance]', 12000)
+        const balances = account.balances as any[]
+        const xlmBalance = balances.find((b: any) => b.asset_type === 'native')
+        return {
+          xlm: parseFloat(xlmBalance?.balance ?? '0'),
+          subentryCount: (account as any).subentry_count ?? 0,
+        }
+      })
     } catch (e: any) {
       const status = e?.response?.status ?? e?.response?.statusCode
       const isNotFound = status === 404 || e?.name === 'NotFoundError'
@@ -222,6 +233,88 @@ export class StellarService {
         )
       }
       return { xlm: 0, subentryCount: 0 }
+    }
+  }
+
+  /** Drop the cached balance for an account after it sends or receives funds. */
+  invalidateBalance(publicKey: string): void {
+    this.balanceCache.invalidate(publicKey)
+  }
+
+  /**
+   * Recent payment history for `publicKey` straight from Horizon. Covers
+   * classic payments, account creation, path payments, and Soroban transfers
+   * (invoke_host_function with asset balance changes). Returns [] for an
+   * unfunded account.
+   */
+  async getPaymentHistory(publicKey: string, limit = 50): Promise<Transaction[]> {
+    try {
+      const page = await withTimeout(
+        this.horizon.payments().forAccount(publicKey).order('desc').limit(limit).join('transactions').call(),
+        '[getPaymentHistory]',
+        15000,
+      )
+      const out: Transaction[] = []
+      for (const r of page.records as any[]) {
+        let amount = 0
+        let assetCode = 'XLM'
+        let direction: 'in' | 'out' = 'out'
+        let counterparty = ''
+        let label = ''
+
+        switch (r.type) {
+          case 'create_account':
+            amount = parseFloat(r.starting_balance)
+            direction = r.account === publicKey ? 'in' : 'out'
+            counterparty = direction === 'in' ? r.funder : r.account
+            label = direction === 'in' ? 'Account funded' : 'Account created'
+            break
+          case 'payment':
+          case 'path_payment_strict_send':
+          case 'path_payment_strict_receive':
+            amount = parseFloat(r.amount)
+            assetCode = r.asset_type === 'native' ? 'XLM' : r.asset_code
+            direction = r.to === publicKey ? 'in' : 'out'
+            counterparty = direction === 'in' ? r.from : r.to
+            label = direction === 'in' ? 'Received' : 'Sent'
+            break
+          case 'invoke_host_function': {
+            const change = (r.asset_balance_changes ?? []).find(
+              (c: any) => c.from === publicKey || c.to === publicKey,
+            )
+            if (!change) continue // contract call with no value moved for us
+            amount = parseFloat(change.amount)
+            assetCode = change.asset_type === 'native' ? 'XLM' : change.asset_code
+            direction = change.to === publicKey ? 'in' : 'out'
+            counterparty = direction === 'in' ? change.from : change.to
+            label = direction === 'in' ? 'Contract payout' : 'Contract payment'
+            break
+          }
+          default:
+            continue
+        }
+
+        const short = counterparty ? `${counterparty.slice(0, 4)}…${counterparty.slice(-4)}` : ''
+        out.push({
+          id: String(r.id),
+          stellarTxHash: r.transaction_hash ?? null,
+          merchantId: counterparty,
+          merchantName: short ? `${label} · ${short}` : label,
+          userId: publicKey,
+          deviceId: '',
+          amountCents: Math.round(amount * 100),
+          assetCode: assetCode as AssetCode,
+          status: r.transaction_successful === false ? 'failed' : 'confirmed',
+          errorMessage: null,
+          createdAt: r.created_at,
+          direction,
+        })
+      }
+      return out
+    } catch (e: any) {
+      const status = e?.response?.status ?? e?.response?.statusCode
+      if (status === 404 || e?.name === 'NotFoundError') return []
+      throw e
     }
   }
 
@@ -411,27 +504,6 @@ export class StellarService {
   }
 
   async invokeContract(params: InvokeParams): Promise<string> {
-    try {
-      return await this.invokeContractAttempt(params)
-    } catch (e: any) {
-      // A pre-loaded account (or a lagging Horizon response) can carry a stale
-      // sequence number, which the network rejects with txBadSeq. Reload the
-      // account from Horizon and retry once before surfacing the error.
-      if (e instanceof StaleSequenceError) {
-        const sourceKp = Keypair.fromSecret(params.signerSecret)
-        const freshAccount = await withTimeout(
-          this.horizon.loadAccount(sourceKp.publicKey()),
-          '[invokeContract retry loadAccount]',
-          10000,
-        )
-        logger.warn(`[invokeContract] stale sequence — reloaded account and retried once for ${params.method}`)
-        return await this.invokeContractAttempt({ ...params, sourceAccount: freshAccount })
-      }
-      throw e
-    }
-  }
-
-  async invokeContractAttempt(params: InvokeParams): Promise<string> {
     const sourceKp = Keypair.fromSecret(params.signerSecret)
     const sourcePub = sourceKp.publicKey()
     logger.debug(`[invokeContract] source=${sourcePub.slice(0, 8)}... method=${params.method} network=${this.network}`)
@@ -445,10 +517,6 @@ export class StellarService {
     }
 
     // Obtain the sequence from Horizon, or use a pre-loaded account.
-    // TransactionBuilder emits `source.sequenceNumber() + 1` (verified on the
-    // axios/esm build Metro resolves). AccountResponse.sequenceNumber() is the
-    // raw Horizon `sequence` (last-used), so the built tx gets the next valid
-    // sequence. Do NOT pre-seed +1 here — the builder already adds it.
     let account
     if (params.sourceAccount) {
       account = params.sourceAccount
@@ -490,7 +558,7 @@ export class StellarService {
       logger.error(`[invokeContract] simulateTransaction failed for ${params.method}`, {
         error: errMsg,
         xdrPrefix: txXdr.substring(0, 80),
-        source: params.signerSecret.slice(0, 8) + '...',
+        source: sourcePub.slice(0, 8) + '...',
       })
       throw new Error(`Transaction simulation failed: ${errMsg}`)
     }
@@ -536,17 +604,33 @@ export class StellarService {
           )
         )
 
-        // Rebuild with signed auth — mutate the assembled envelope in place
-        // (it already carries the correct sequence, fees, and sorobanData)
-        // and wrap it with fromXDR. Do NOT rebuild via
-        // `new TransactionBuilder(sourceAccount, ...)`: build() emits
-        // source.sequenceNumber() + 1 AND increments the source, so reusing
-        // the (already-incremented) account emits seq +2 → txBadSeq.
-        const env = xdr.TransactionEnvelope.fromXDR(prepared.toXDR(), 'base64')
-        const ops = env.v1().tx().operations()
-        const invokeBody = ops[0].body().value() as xdr.InvokeHostFunctionOp
-        invokeBody.auth(signed)
-        prepared = TransactionBuilder.fromXDR(env, this.networkPassphrase)
+        // Rebuild with signed auth — use the *original* TransactionBuilder
+        // (not cloneFrom) and attach the sorobanData from the assembled tx.
+        const sorobanData = env.v1().tx().ext().sorobanData()
+        const newOp = Operation.invokeHostFunction({
+          func: invokeBody.hostFunction(),
+          auth: signed,
+        })
+        // CRITICAL: reuse the assembled transaction's fee and its EXACT
+        // sequence number. The assembled fee includes the Soroban resource fee
+        // (often >> BASE_FEE); rebuilding with BASE_FEE produces an underfunded
+        // tx that the network rejects at submission with no errorResultXdr.
+        // Reloading the account from Horizon would also desync the sequence.
+        // We read the fee + seqNum straight off the assembled envelope and
+        // seed a new Account at (seqNum - 1) so the builder increments it back
+        // to the assembled value.
+        const assembledFee = prepared.fee
+        const assembledSeq = env.v1().tx().seqNum().toString()
+        const rebuildSeq = (BigInt(assembledSeq) - 1n).toString()
+        const rebuildAccount = new Account(sourcePub, rebuildSeq)
+        prepared = new TransactionBuilder(rebuildAccount, {
+          fee: assembledFee,
+          networkPassphrase: this.networkPassphrase,
+          sorobanData,
+        })
+          .addOperation(newOp)
+          .setTimeout(30)
+          .build()
         if (IS_DEV) {
           logger.debug(`[invokeContract] signed ${signed.length} auth entr${signed.length === 1 ? 'y' : 'ies'} for ${params.method}`)
         }
@@ -556,7 +640,7 @@ export class StellarService {
       logger.error(`[invokeContract] auth signing failed for ${params.method}`, {
         error: errMsg,
         xdrPrefix: txXdr.substring(0, 80),
-        source: params.signerSecret.slice(0, 8) + '...',
+        source: sourcePub.slice(0, 8) + '...',
       })
       throw new Error(`Transaction auth signing failed: ${errMsg}`)
     }
@@ -570,7 +654,7 @@ export class StellarService {
       const errMsg = typeof e === 'object' ? (e?.message ?? e?.data ?? JSON.stringify(e)) : String(e)
       logger.error(`[invokeContract] sendTransaction failed for ${params.method}`, {
         error: errMsg,
-        source: params.signerSecret.slice(0, 8) + '...',
+        source: sourcePub.slice(0, 8) + '...',
       })
       throw new Error(`Failed to submit transaction: ${errMsg}`)
     }
@@ -578,11 +662,6 @@ export class StellarService {
     const hash = sendResult.hash
 
     if (sendResult.status === 'ERROR') {
-      // SDK v16: `parseRawSendTransaction` deletes `errorResultXdr` from the
-      // response and exposes a decoded `errorResult` (TransactionResult)
-      // instead — `errorResultXdr` is always undefined here. Decode
-      // `errorResult` first, fall back to the raw XDR for older SDKs.
-      const decodedResult: any = sendResult.errorResult
       const errXdr = sendResult.errorResultXdr
       logger.warn(`[invokeContract] sendTransaction ERROR for ${params.method}`, {
         hash,
@@ -592,55 +671,36 @@ export class StellarService {
       // caller can distinguish already-registered (#3/#4) from real failures
       // instead of silently proceeding.
       let rejection = 'Transaction rejected by network'
-      let txResult: any = decodedResult
-      if (!txResult && errXdr) {
+      if (errXdr) {
         try {
-          txResult = xdr.TransactionResult.fromXDR(errXdr, 'base64')
-        } catch (e: any) {
-          logger.warn(`[invokeContract] could not decode rejection for ${params.method}:`, e?.message)
-        }
-      }
-      if (txResult) {
-        try {
-          const code = txResult.result().switch().name
-          if (code === 'txBadSeq') {
-            // Sequence number is stale (pre-loaded account or Horizon lag).
-            throw new StaleSequenceError()
-          }
-          if (code === 'txFailed') {
-            const opResults = txResult.result().value()
-            const opRes = opResults?.[0]
-            const opCode = opRes?.switch?.()?.name ?? opRes?.switch?.name
-            if (opCode === 'opINNER') {
-              const inner = opRes.value()
-              const innerVal = inner?.value?.() ?? inner?.value
-              const errSwitch = innerVal?.switch?.()?.name ?? innerVal?.switch?.name ?? 'unknown'
-              if (errSwitch === 'scHostError') {
-                const hostErr = innerVal.value()
-                const code = hostErr?.value?.()?.value ?? hostErr?.code
-                rejection = `Error(Contract, #${String(code)})`
-              } else if (errSwitch === 'scContractError') {
-                const contractCode = innerVal.value()
-                rejection = `Error(Contract, #${String(contractCode)})`
-              } else {
-                rejection = `Operation error: ${errSwitch}`
-              }
+          const txRes: any = xdr.TransactionResult.fromXDR(errXdr, 'base64')
+          const opResults = txRes.result().value()
+          const opRes = opResults?.[0]
+          const opCode = opRes?.switch?.()?.name ?? opRes?.switch?.name
+          if (opCode === 'opINNER') {
+            const inner = opRes.value()
+            const innerVal = inner?.value?.() ?? inner?.value
+            const errSwitch = innerVal?.switch?.()?.name ?? innerVal?.switch?.name ?? 'unknown'
+            if (errSwitch === 'scHostError') {
+              const hostErr = innerVal.value()
+              const code = hostErr?.value?.()?.value ?? hostErr?.code
+              rejection = `Error(Contract, #${String(code)})`
+            } else if (errSwitch === 'scContractError') {
+              const contractCode = innerVal.value()
+              rejection = `Error(Contract, #${String(contractCode)})`
             } else {
-              rejection = `Transaction error: ${opCode}`
+              rejection = `Operation error: ${errSwitch}`
             }
           } else {
-            rejection = `Transaction rejected: ${code}`
+            rejection = `Transaction error: ${opCode}`
           }
         } catch (e: any) {
-          if (e instanceof StaleSequenceError) throw e
           logger.warn(`[invokeContract] could not decode rejection for ${params.method}:`, e?.message)
         }
       } else {
         // No error XDR — poll briefly; the tx may still be pending.
-        // Bounded: a long silent poll (was 15×15s ≈ 4 min) made the NFC flow
-        // appear frozen. 3×2s is enough to catch a tx that did get in.
-        for (let i = 0; i < 3; i++) {
-          const r: any = await withTimeout(this.soroban.getTransaction(hash), '[invokeContract getTransaction]', 2000)
+        for (let i = 0; i < 15; i++) {
+          const r: any = await withTimeout(this.soroban.getTransaction(hash), '[invokeContract getTransaction]', 15000)
           if (r.status === 'SUCCESS') return hash
           if (r.status === 'FAILED') {
             rejection = `Transaction failed: ${r.resultString || 'no details'}`
@@ -649,7 +709,6 @@ export class StellarService {
           await new Promise(res => setTimeout(res, 1000))
         }
       }
-      logger.warn(`[invokeContract] rejected ${params.method}: ${rejection}`, { hash })
       throw new Error(rejection)
     }
 
@@ -661,10 +720,8 @@ export class StellarService {
   async invokeContractAndWait(params: InvokeParams): Promise<string> {
     const hash = await this.invokeContract(params)
 
-    // Bounded polling: 15×4s ≈ 60s max. A 15-minute silent loop made the
-    // NFC linking flow appear frozen when the tx was actually lost.
-    for (let i = 0; i < 15; i++) {
-      const result: any = await withTimeout(this.soroban.getTransaction(hash), '[invokeContractAndWait getTransaction]', 4000)
+    for (let i = 0; i < 60; i++) {
+      const result: any = await withTimeout(this.soroban.getTransaction(hash), '[invokeContractAndWait getTransaction]', 15000)
       if (result.status === 'SUCCESS') {
         return hash
       }
@@ -689,7 +746,7 @@ export class StellarService {
       await new Promise(r => setTimeout(r, 1000))
     }
 
-    throw new Error('Transaction timed out after ~60s')
+    throw new Error('Transaction timed out after 60s')
   }
 
   async getTransactionStatus(hash: string): Promise<{
@@ -706,12 +763,6 @@ export class StellarService {
   }
 
   async loadSourceAccount(publicKey: string): Promise<any> {
-    // Return the raw AccountResponse. TransactionBuilder emits
-    // `source.sequenceNumber() + 1` (verified on the axios/esm build Metro
-    // resolves), and AccountResponse.sequenceNumber() is the raw Horizon
-    // `sequence` (last-used) — so the built tx carries the next valid
-    // sequence. in-memory incrementSequenceNumber() works for two-step flows
-    // (register → register_agent). Do NOT pre-seed +1: the builder adds it.
     return withTimeout(this.horizon.loadAccount(publicKey), '[loadSourceAccount]', 10000)
   }
 

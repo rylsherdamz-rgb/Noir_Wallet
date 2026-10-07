@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { View, Text, StyleSheet, Animated, Platform } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
@@ -49,6 +50,7 @@ export function Toast({
   hapticFeedback = true,
   testID,
 }: ToastProps) {
+  const insets = useSafeAreaInsets()
   const translateY = useRef(new Animated.Value(-100)).current
   const opacity = useRef(new Animated.Value(0)).current
   const scale = useRef(new Animated.Value(0.95)).current
@@ -120,6 +122,8 @@ export function Toast({
       style={[
         styles.container,
         {
+          // Absolute children ignore the parent's safe-area padding, so clear the status bar here.
+          top: insets.top + Spacing.sm,
           transform: [{ translateY }, { scale }],
           opacity,
         },
@@ -157,7 +161,6 @@ export function Toast({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 60 : 20,
     left: Spacing.md,
     right: Spacing.md,
     zIndex: DesignTokens.zIndex.toast,

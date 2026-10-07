@@ -21,6 +21,23 @@
     });
   }
 
+  // GitHub star count
+  var starBadge = document.getElementById('gh-stars');
+
+  if (starBadge) {
+    fetch('https://api.github.com/repos/rylsherdamz-rgb/Noir_Wallet')
+      .then(function (res) { return res.ok ? res.json() : Promise.reject(res); })
+      .then(function (data) {
+        if (typeof data.stargazers_count === 'number') {
+          starBadge.textContent = data.stargazers_count.toLocaleString();
+        }
+      })
+      .catch(function () {
+        var share = starBadge.closest('.gh-share');
+        if (share) share.style.display = 'none';
+      });
+  }
+
   // Scroll reveal
   var revealEls = document.querySelectorAll('.reveal');
 

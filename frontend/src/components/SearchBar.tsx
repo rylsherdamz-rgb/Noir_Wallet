@@ -27,10 +27,14 @@ export function SearchBar({
         placeholderTextColor={Colors.mutedWhite}
         autoCapitalize="none"
         autoCorrect={false}
+        accessibilityLabel={placeholder}
+        accessibilityRole="search"
       />
       {value.length > 0 && (
         <PressableScale onPress={() => { onChangeText(''); onClear?.() }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityLabel="Clear"
+          accessibilityLabel="Clear search"
+          accessibilityHint="Clears the current search text"
+          accessibilityRole="button"
         >
           <Ionicons name="close-circle" size={18} color={Colors.mutedWhite} />
         </PressableScale>
@@ -43,13 +47,11 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.lightGrey,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
+    backgroundColor: Colors.midGrey,
+    borderRadius: 12,
+    paddingHorizontal: 14,
     height: 44,
     gap: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
   },
   input: {
     flex: 1,

@@ -4,21 +4,25 @@ export type StellarNetwork = 'testnet' | 'mainnet'
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning'
 
-export type TxFilter = 'all' | 'pending' | 'confirmed' | 'failed'
+export type TxFilter = 'all' | 'sent' | 'received' | 'pending' | 'confirmed' | 'failed'
 
 export type AssetCode = 'XLM'
 
 export interface SecuritySettings {
-  biometricLockEnabled: boolean
   backgroundLockTimeoutSec: number
 }
 
 export interface User {
   id: string
-  email: string
-  phoneNumber: string
+  /** Not collected by the app; kept optional for backend API compatibility. */
+  email?: string
+  phoneNumber?: string
   stellarPublicKey: string
-  kycLevel: number
+  /**
+   * Retained for backend API compatibility only — the KYC/verification feature
+   * is not surfaced in the app. Safe to ignore client-side.
+   */
+  kycLevel?: number
   role: UserRole
   displayName: string
   avatarUrl?: string
@@ -49,6 +53,8 @@ export interface Transaction {
   status: 'pending' | 'confirmed' | 'failed'
   errorMessage: string | null
   createdAt: string
+  /** Set for on-chain history; older local/backend records omit it. */
+  direction?: 'in' | 'out'
 }
 
 export interface Balance {

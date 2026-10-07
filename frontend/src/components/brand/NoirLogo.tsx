@@ -1,5 +1,5 @@
 import { View, Text, Image, StyleSheet, StyleProp, ViewStyle } from 'react-native'
-import { Colors, FontSize, FontWeight, Spacing } from '@/constants/theme'
+import { Colors, FontSize, Fonts, Spacing } from '@/constants/theme'
 
 type NoirLogoVariant = 'mark' | 'wordmark' | 'lockup'
 
@@ -78,9 +78,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tagline: {
+    fontFamily: Fonts.displayMd,
     fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
-    letterSpacing: 4,
+    letterSpacing: 6,
     textTransform: 'uppercase',
   },
 })

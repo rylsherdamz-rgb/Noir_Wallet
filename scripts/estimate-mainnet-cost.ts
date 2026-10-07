@@ -22,15 +22,15 @@ import { resolve } from 'path'
 const CONTRACTS = [
   {
     name: 'device_registry',
-    path: resolve(__dirname, '../backend/asset/target/wasm32v1-none/release/device_registry.wasm'),
+    path: resolve(__dirname, '../backend/target/wasm32v1-none/release/device_registry.wasm'),
   },
   {
     name: 'agent_registry',
-    path: resolve(__dirname, '../backend/asset/target/wasm32v1-none/release/agent_registry.wasm'),
+    path: resolve(__dirname, '../backend/target/wasm32v1-none/release/agent_registry.wasm'),
   },
   {
     name: 'payment_escrow',
-    path: resolve(__dirname, '../backend/asset/target/wasm32v1-none/release/payment_escrow.wasm'),
+    path: resolve(__dirname, '../backend/target/wasm32v1-none/release/payment_escrow.wasm'),
   },
 ]
 

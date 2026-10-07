@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
+import { colorWithOpacity } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius, FontScaleCap } from '@/constants/theme'
 import { TxFilter } from '@/types'
 
@@ -57,21 +58,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: 6,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.lightGrey,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
+    backgroundColor: Colors.midGrey,
   },
   chipActive: {
-    backgroundColor: Colors.gold + '20',
-    borderColor: Colors.gold,
+    backgroundColor: Colors.cream,
   },
   label: {
     fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
+    color: Colors.white,
     fontWeight: FontWeight.medium,
   },
   labelActive: {
-    color: Colors.gold,
-    fontWeight: FontWeight.semibold,
+    color: Colors.surfaceBg,
   },
 })

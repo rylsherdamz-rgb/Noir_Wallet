@@ -105,6 +105,26 @@ code { font-family: 'SFMono-Regular', Consolas, monospace; background: var(--mid
 .btn-ghost { background: transparent; color: var(--text-secondary); padding: 10px 16px; }
 .btn-ghost:hover { color: var(--gold-hi); }
 
+/* GitHub button with star count */
+.github-btn {
+  display: inline-flex; align-items: center; height: 40px;
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: var(--card); color: var(--text-primary);
+  font-family: var(--font-display); font-weight: 500; font-size: 14px;
+  overflow: hidden; white-space: nowrap;
+  transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+.github-btn:hover { border-color: var(--gold); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,0,0,0.35); }
+.github-btn .gh-label { display: inline-flex; align-items: center; gap: 8px; padding: 0 14px; height: 100%; }
+.github-btn .gh-label svg { width: 18px; height: 18px; fill: currentColor; }
+.github-btn .gh-share {
+  display: inline-flex; align-items: center; gap: 6px; height: 100%;
+  padding: 0 12px; border-left: 1px solid var(--border);
+  background: rgba(198, 161, 91, 0.09); color: var(--gold-hi);
+}
+.github-btn .gh-star-icon { width: 14px; height: 14px; fill: currentColor; }
+.github-btn #gh-stars { font-variant-numeric: tabular-nums; }
+
 /* ---------- Eyebrow / pills ---------- */
 .eyebrow {
   display: inline-flex; align-items: center; gap: 10px;
@@ -452,6 +472,8 @@ th.compare-noir { color: var(--gold-hi) !important; }
   .site-nav a { font-size: 20px; }
   .nav-toggle { display: flex; }
   .header-actions .btn-ghost { display: none; }
+  .github-btn .gh-label-text { display: none; }
+  .github-btn .gh-label { padding: 0 10px; }
   .header-actions .btn-gold { padding: 10px 16px; font-size: 14px; }
   .feature-grid { grid-template-columns: 1fr; }
   .arch-split { flex-direction: column; }

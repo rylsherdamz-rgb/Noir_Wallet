@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1600" height="900" viewBox="0 0 1600 900" xmlns="http://www.w3.org/2000/svg" font-family="Jost, 'Jost*', sans-serif">
+  <defs>
+    <!-- Noir background: subtle radial lift toward upper-left so it isn't a flat dead black -->
+    <radialGradient id="bgGlow" cx="34%" cy="30%" r="85%">
+      <stop offset="0%" stop-color="#161310"/>
+      <stop offset="42%" stop-color="#0D0C0A"/>
+      <stop offset="100%" stop-color="#050505"/>
+    </radialGradient>
+
+    <!-- Gold gradients reserved for the fox facets + accent rule (NOT for headline text) -->
+    <linearGradient id="goldSheen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#E9C482"/>
+      <stop offset="48%" stop-color="#C6A15B"/>
+      <stop offset="100%" stop-color="#8F6C33"/>
+    </linearGradient>
+    <linearGradient id="creamFacet" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F6EEDD"/>
+      <stop offset="100%" stop-color="#E4D8BE"/>
+    </linearGradient>
+    <linearGradient id="goldFacet" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#D4A964"/>
+      <stop offset="100%" stop-color="#A57E3D"/>
+    </linearGradient>
+    <linearGradient id="goldDeepFacet" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#A57E3D"/>
+      <stop offset="100%" stop-color="#6E5327"/>
+    </linearGradient>
+    <linearGradient id="rule" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#C6A15B" stop-opacity="0"/>
+      <stop offset="14%" stop-color="#C6A15B"/>
+      <stop offset="100%" stop-color="#E9C482"/>
+    </linearGradient>
+
+    <!-- Soft gold glow behind the fox motif -->
+    <radialGradient id="foxGlow" cx="50%" cy="46%" r="60%">
+      <stop offset="0%" stop-color="#C6A15B" stop-opacity="0.34"/>
+      <stop offset="55%" stop-color="#C6A15B" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#C6A15B" stop-opacity="0"/>
+    </radialGradient>
+
+    <filter id="softShadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="14" stdDeviation="26" flood-color="#000000" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1600" height="900" fill="url(#bgGlow)"/>
+
+  <!-- Fine grid of hairlines for a technical, engineered feel (very low opacity) -->
+  <g stroke="#C6A15B" stroke-opacity="0.045" stroke-width="1">
+    <line x1="0" y1="150" x2="1600" y2="150"/>
+    <line x1="0" y1="450" x2="1600" y2="450"/>
+    <line x1="0" y1="750" x2="1600" y2="750"/>
+    <line x1="1080" y1="0" x2="1080" y2="900"/>
+  </g>
+
+  <!-- Framing border -->
+  <rect x="28" y="28" width="1544" height="844" rx="20" fill="none" stroke="#3A3A3A" stroke-opacity="0.55" stroke-width="1.5"/>
+
+  <!-- ================= RIGHT: Low-poly fox motif (asymmetric anchor) ================= -->
+  <g transform="translate(1210 372)">
+    <ellipse cx="0" cy="8" rx="308" ry="300" fill="url(#foxGlow)"/>
+    <g transform="translate(-176 -150) scale(2.55)" filter="url(#softShadow)">
+      <!-- Broad, short ears set wide (matches logo) -->
+      <polygon points="18,20 60,2 54,52" fill="url(#goldFacet)"/>
+      <polygon points="60,2 54,52 82,44" fill="url(#creamFacet)"/>
+      <polygon points="120,20 78,2 84,52" fill="url(#goldFacet)"/>
+      <polygon points="78,2 84,52 56,44" fill="url(#creamFacet)"/>
+      <!-- Upper head: wide forehead, cream center flanked by gold -->
+      <polygon points="18,20 54,52 30,74" fill="url(#goldFacet)"/>
+      <polygon points="120,20 84,52 108,74" fill="url(#goldFacet)"/>
+      <polygon points="54,52 84,52 69,46" fill="url(#creamFacet)"/>
+      <polygon points="54,52 69,46 69,84" fill="#F2EAD6"/>
+      <polygon points="84,52 69,46 69,84" fill="url(#creamFacet)"/>
+      <polygon points="54,52 30,74 69,84" fill="#EFE6D2"/>
+      <polygon points="84,52 108,74 69,84" fill="url(#creamFacet)"/>
+      <!-- Cheeks: wide, rounded -->
+      <polygon points="30,74 69,84 44,116" fill="url(#goldFacet)"/>
+      <polygon points="108,74 69,84 94,116" fill="url(#goldFacet)"/>
+      <polygon points="30,74 44,116 20,92" fill="url(#goldDeepFacet)"/>
+      <polygon points="108,74 94,116 118,92" fill="url(#goldDeepFacet)"/>
+      <!-- Eyes: almond, noir black, set higher and closer to the bridge -->
+      <polygon points="52,68 64,65 60,78 50,76" fill="#0A0A0A"/>
+      <polygon points="86,68 74,65 78,78 88,76" fill="#0A0A0A"/>
+      <!-- Muzzle: short, wide -->
+      <polygon points="69,84 44,116 69,108" fill="#F2EAD6"/>
+      <polygon points="69,84 94,116 69,108" fill="url(#creamFacet)"/>
+      <polygon points="44,116 94,116 69,108" fill="#EFE6D2"/>
+      <polygon points="44,116 69,108 69,132" fill="url(#creamFacet)"/>
+      <polygon points="94,116 69,108 69,132" fill="#E8DCC4"/>
+      <!-- Nose + chin -->
+      <polygon points="61,120 77,120 69,132" fill="#0A0A0A"/>
+      <polygon points="44,116 69,132 56,140" fill="url(#goldFacet)"/>
+      <polygon points="94,116 69,132 82,140" fill="url(#goldFacet)"/>
+      <polygon points="56,140 82,140 69,150" fill="url(#goldDeepFacet)"/>
+    </g>
+  </g>
+
+  <!-- ================= LEFT: Editorial typographic hierarchy ================= -->
+
+  <!-- Eyebrow / kicker: uppercase, wide tracking -->
+  <text x="96" y="196" fill="#A9A9A9" font-size="22" font-weight="500"
+        letter-spacing="7.5">STELLAR &#183; SOROBAN &#183; x402 PROTOCOL</text>
+
+  <!-- Wordmark: solid cream fill (no gradient-on-heading slop tell), tight tracking -->
+  <text x="92" y="322" fill="#F6EEDD" font-size="148" font-weight="600"
+        letter-spacing="-3">NOIR</text>
+  <text x="470" y="322" fill="#C6A15B" font-size="148" font-weight="600"
+        letter-spacing="-3">WALLET</text>
+
+  <!-- Accent rule under the wordmark -->
+  <rect x="98" y="358" width="490" height="4" rx="2" fill="url(#rule)"/>
+
+  <!-- Headline: the promise, dramatic scale -->
+  <text x="94" y="470" fill="#FFFFFF" font-size="62" font-weight="600" letter-spacing="-1.8">Tap and go.</text>
+  <text x="94" y="546" fill="#FFFFFF" font-size="62" font-weight="600" letter-spacing="-1.8">No app. No confirm.</text>
+
+  <!-- Subhead / body: muted, reading-optimized -->
+  <text x="96" y="612" fill="#A9A9A9" font-size="27" font-weight="400" letter-spacing="0.2">Contactless payments powered by Stellar. Your wallet is</text>
+  <text x="96" y="650" fill="#A9A9A9" font-size="27" font-weight="400" letter-spacing="0.2">debited the moment hardware taps &#8212; settled in under 2s.</text>
+
+  <!-- Feature chips: asymmetric row, engineered detail -->
+  <g font-size="20" font-weight="500" letter-spacing="0.5">
+    <g>
+      <rect x="96" y="708" width="214" height="52" rx="26" fill="#141414" stroke="#3A3A3A" stroke-width="1.2"/>
+      <circle cx="128" cy="734" r="5" fill="#C6A15B"/>
+      <text x="146" y="741" fill="#EDE4D0">Zero-interaction</text>
+    </g>
+    <g>
+      <rect x="326" y="708" width="196" height="52" rx="26" fill="#141414" stroke="#3A3A3A" stroke-width="1.2"/>
+      <circle cx="358" cy="734" r="5" fill="#3ED598"/>
+      <text x="376" y="741" fill="#EDE4D0">Instant settle</text>
+    </g>
+    <g>
+      <rect x="538" y="708" width="222" height="52" rx="26" fill="#141414" stroke="#3A3A3A" stroke-width="1.2"/>
+      <circle cx="570" cy="734" r="5" fill="#D4A964"/>
+      <text x="588" y="741" fill="#EDE4D0">On-chain agents</text>
+    </g>
+  </g>
+
+  <!-- Handle / footer -->
+  <text x="96" y="832" fill="#666666" font-size="21" font-weight="500" letter-spacing="1.5">@ChichiCode0</text>
+</svg>

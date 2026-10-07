@@ -80,12 +80,6 @@ describe('useAppStore', () => {
     expect(useAppStore.getState().network).toBe('mainnet')
   })
 
-  it('setBiometricLockEnabled updates security', async () => {
-    const { useAppStore } = await import('@/store/useAppStore')
-    useAppStore.getState().setBiometricLockEnabled(true)
-    expect(useAppStore.getState().security.biometricLockEnabled).toBe(true)
-  })
-
   it('setBackgroundLockTimeoutSec updates timeout', async () => {
     const { useAppStore } = await import('@/store/useAppStore')
     useAppStore.getState().setBackgroundLockTimeoutSec(120)

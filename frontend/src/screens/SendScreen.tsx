@@ -1,3 +1,4 @@
+import { colorWithOpacity } from '@/constants/designTokens'
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import {
   View,
@@ -10,16 +11,14 @@ import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter, useGlobalSearchParams } from 'expo-router'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius, FontScaleCap } from '@/constants/theme'
+import { Colors, Spacing, FontSize, FontWeight, FontScaleCap, Fonts } from '@/constants/theme'
 import { Button } from '@/components/Button'
 import { NumericKeypad } from '@/components/NumericKeypad'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Avatar } from '@/components/Avatar'
-import { SmartTip } from '@/components/SmartTip'
 import { EmptyState } from '@/components/EmptyState'
 import { KeyboardAwareScreen } from '@/components/KeyboardAwareScreen'
-import { useToast } from '@/components/ToastProvider'
 import { useAppStore } from '@/store/useAppStore'
 import { walletService } from '@/services/wallet'
 import { stellarService } from '@/services/stellar-service'
@@ -34,11 +33,17 @@ import {
   MEMO_TEXT_MAX_BYTES,
 } from '@/lib/stellarAccount'
 import { humanizeStellarError } from '@/lib/stellarErrors'
+import { ProcessingOverlay } from '@/components/flow/ProcessingOverlay'
+import { openReceipt } from '@/lib/receipt'
+import { formatAmount } from '@/lib/txFormat'
+import { ScreenHeader } from '@/components/ScreenHeader'
+import { SectionLabel, ListRow, KeyValueRow } from '@/components/ui/List'
+import { TapGlyph, SparkGlyph } from '@/components/brand/BrandGlyph'
+import { ErrorState } from '@/components/ui/ErrorState'
 
 export function SendScreen() {
   const router = useRouter()
   const params = useGlobalSearchParams()
-  const toast = useToast()
   const { balance, devices } = useAppStore()
   const [amount, setAmount] = useState('')
   const [recipient, setRecipient] = useState((params?.scannedAddress as string) || '')
@@ -48,6 +53,8 @@ export function SendScreen() {
   const [showConfirm, setShowConfirm] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** Raw failure from the last submit — drives the full "Payment failed" state. */
+  const [sendFailed, setSendFailed] = useState<string | null>(null)
 
   const handleChangeValue = useCallback((val: string) => {
     setError(null)
@@ -115,6 +122,7 @@ export function SendScreen() {
   }
 
   const handleSend = async () => {
+    setShowConfirm(false)
     setSending(true)
     setError(null)
     try {
@@ -133,64 +141,71 @@ export function SendScreen() {
       }
       setShowConfirm(false)
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-      toast.success(
-        `Sent ${toStellarAmount(amountNum)} XLM`,
-        `To ${trimmedRecipient.slice(0, 6)}…${trimmedRecipient.slice(-4)} · ${result.hash.slice(0, 8)}…`
-      )
-      router.back()
+      openReceipt(router, {
+        title: 'Sent XLM',
+        amountCents: Math.round(amountNum * 100),
+        assetCode: 'XLM',
+        direction: 'out',
+        status: 'confirmed',
+        createdAt: new Date().toISOString(),
+        counterpartyLabel: 'To',
+        counterparty: trimmedRecipient,
+        hash: result.hash,
+        note: note.trim() ? `Memo: ${note.trim()}` : undefined,
+      })
     } catch (e: any) {
       setError(humanizeStellarError(e))
+      setSendFailed(e?.message ? String(e.message) : String(e))
     } finally {
       setSending(false)
     }
   }
 
+  const fmt = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 7 })
+  const linked = devices.filter((d) => !!d.agentPublicKey)
+
+  if (sendFailed) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ScreenHeader title="" onBackPress={() => router.back()} />
+        <ErrorState
+          icon="close-circle-outline"
+          tone="danger"
+          title="Payment failed"
+          message={error ?? 'Stellar rejected the payment.'}
+          details={sendFailed}
+          primary={{ label: 'Edit payment', onPress: () => { setSendFailed(null); setError(null); setStep('review') } }}
+          secondary={{ label: 'Done', onPress: () => router.back() }}
+        >
+          <View style={styles.failRows}>
+            <KeyValueRow label="Amount" value={`${toStellarAmount(amountNum)} XLM`} />
+            <KeyValueRow label="To" value={`${trimmedRecipient.slice(0, 6)}…${trimmedRecipient.slice(-6)}`} mono />
+            <KeyValueRow label="Sent" value="Nothing — XLM still in your wallet" valueStyle={{ color: Colors.success }} last />
+          </View>
+        </ErrorState>
+      </SafeAreaView>
+    )
+  }
+
   if (step === 'amount') {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            accessibilityLabel="Close"
-          >
-            <Ionicons name="close" size={24} color={Colors.white} />
-          </PressableScale>
-          <Text style={styles.headerTitle}>Send</Text>
-          <View style={styles.spacer24} />
-        </View>
-
-        <View style={styles.amountSection}>
-          <Text style={styles.balanceLabel}>XLM · Stellar Lumens</Text>
-          <Text style={styles.amountDisplay} maxFontSizeMultiplier={FontScaleCap.display}>
-            {amount || '0'}
-          </Text>
-          <Text style={styles.balanceLabel}>
-            Balance: {balance.xlm.toLocaleString()} XLM
-          </Text>
-          <Text style={styles.spendableLabel}>
-            Available to send: {toStellarAmount(spendable)} XLM
-            {'  ·  '}
-            {toStellarAmount(reserve)} XLM reserved
-          </Text>
-          {error ? <ErrorMessage message={error} variant="inline" /> : null}
-        </View>
-
-        <View style={styles.keypadSection}>
-          <NumericKeypad value={amount} onChangeValue={handleChangeValue} />
-          <View style={styles.amountActions}>
-            <Button variant="ghost" label="Cancel" onPress={() => router.back()} />
-            <Button
-              label="Max"
-              variant="ghost"
-              onPress={() => handleChangeValue(toStellarAmount(spendable))}
-              disabled={spendable <= 0}
-            />
-            <Button
-              label="Continue"
-              onPress={handleContinue}
-              disabled={amountNum <= 0 || insufficientFunds}
-              style={styles.halfBtn}
-            />
+        <ScreenHeader title="Send" onBackPress={() => router.back()} />
+        <View style={styles.amountArea}>
+          <AssetChip />
+          <AmountText value={amount} />
+          <View style={styles.availRow}>
+            <Text style={styles.avail}>Available {fmt(spendable)} XLM</Text>
+            <PressableScale style={styles.maxPill} onPress={() => handleChangeValue(toStellarAmount(spendable))} disabled={spendable <= 0} accessibilityRole="button" accessibilityLabel="Send the maximum">
+              <Text style={styles.maxText}>Max</Text>
+            </PressableScale>
           </View>
+          <Text style={styles.reserve}>{toStellarAmount(reserve)} XLM stays reserved by Stellar</Text>
+          {error ? <ErrorMessage message={error} variant="inline" /> : insufficientFunds ? <Text style={styles.warn}>More than you can send</Text> : null}
+        </View>
+        <NumericKeypad value={amount} onChangeValue={handleChangeValue} allowDecimal />
+        <View style={styles.footer}>
+          <Button label="Continue" onPress={handleContinue} disabled={amountNum <= 0 || insufficientFunds} fullWidth />
         </View>
       </SafeAreaView>
     )
@@ -199,86 +214,51 @@ export function SendScreen() {
   if (step === 'recipient') {
     return (
       <KeyboardAwareScreen scroll contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <PressableScale
-            onPress={() => setStep('amount')}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            accessibilityRole="button"
-            accessibilityLabel="Back to amount"
-          >
-            <Ionicons name="arrow-back" size={24} color={Colors.white} />
-          </PressableScale>
-          <Text style={styles.headerTitle}>Send to</Text>
-          <View style={styles.spacer24} />
+        <ScreenHeader title="Send to" onBackPress={() => setStep('amount')} />
+        <View style={styles.pad}>
+          <Text style={styles.sending}>Sending <Text style={styles.sendingAmt}>{formatAmount(Math.round(amountNum * 100))} XLM</Text></Text>
+          <View style={[styles.field, recipientError && styles.fieldError]}>
+            <Text style={styles.fieldLabel}>To</Text>
+            <TextInput
+              style={styles.addressInput}
+              value={recipient}
+              onChangeText={(text) => { setError(null); setRecipient(text) }}
+              onBlur={() => setRecipientTouched(true)}
+              placeholder="Stellar address"
+              placeholderTextColor={Colors.mutedWhite}
+              autoCapitalize="none"
+              autoCorrect={false}
+              accessibilityLabel="Recipient Stellar address"
+            />
+            <PressableScale onPress={() => router.push('/scan-qr')} hitSlop={10} accessibilityRole="button" accessibilityLabel="Scan a QR code">
+              <Ionicons name="scan-outline" size={22} color={Colors.gold} />
+            </PressableScale>
+          </View>
+          {recipientError ? <ErrorMessage message={recipientError} variant="inline" /> : null}
+          {error ? <ErrorMessage message={error} variant="inline" /> : null}
+
+          {linked.length > 0 && (
+            <>
+              <SectionLabel title="Your cards" />
+              {linked.map((d, i) => (
+                <ListRow
+                  key={d.id}
+                  iconNode={<TapGlyph size={22} color={Colors.gold} />}
+                  title={d.label}
+                  subtitle={`${d.agentPublicKey?.slice(0, 8)}…${d.agentPublicKey?.slice(-6)}`}
+                  subtitleMono
+                  chevron
+                  last={i === linked.length - 1}
+                  onPress={() => d.agentPublicKey && handleSelectRecipient(d.agentPublicKey)}
+                  accessibilityLabel={`Send to ${d.label}`}
+                />
+              ))}
+            </>
+          )}
         </View>
-
-        <View style={[styles.inputWrap, recipientError && styles.inputWrapError]}>
-          <TextInput
-            style={styles.addressInput}
-            value={recipient}
-            onChangeText={(text) => {
-              setError(null)
-              setRecipient(text)
-            }}
-            onBlur={() => setRecipientTouched(true)}
-            placeholder="Enter Stellar address or scan NFC"
-            placeholderTextColor={Colors.mutedWhite}
-            autoCapitalize="none"
-            autoCorrect={false}
-            accessibilityLabel="Recipient Stellar address"
-          />
-          <PressableScale
-            style={styles.scanBtn}
-            onPress={() => router.push('/scan-qr')}
-            accessibilityRole="button"
-            accessibilityLabel="Scan a QR code"
-            accessibilityHint="Opens the camera to read a recipient address"
-          >
-            <Ionicons name="qr-code-outline" size={20} color={Colors.gold} />
-          </PressableScale>
-        </View>
-
-        {recipientError ? <ErrorMessage message={recipientError} variant="inline" /> : null}
-        {error ? <ErrorMessage message={error} variant="inline" /> : null}
-
-        <SmartTip
-          title="Tip: NFC Scan"
-          description="Tap the QR icon to scan a recipient's address from their NFC tag or QR code."
-          variant="tip"
-        />
-
-        <Text style={styles.sectionLabel}>Saved Devices</Text>
-        {devices.filter((device) => !!device.agentPublicKey).length === 0 ? (
-          <EmptyState
-            icon="hardware-chip-outline"
-            title="No linked devices"
-            description="Link a card in the Devices tab to send to it by name."
-          />
-        ) : (
-          devices
-            .filter((device) => !!device.agentPublicKey)
-            .map((device) => (
-              <PressableScale
-                key={device.id}
-                style={styles.recipientRow}
-                onPress={() => device.agentPublicKey && handleSelectRecipient(device.agentPublicKey)}
-                accessibilityRole="button"
-                accessibilityLabel={`Send to ${device.label}`}
-              >
-                <Avatar name={device.label} size={44} variant="device" />
-                <View style={styles.recipientInfo}>
-                  <Text style={styles.recipientName}>{device.label}</Text>
-                  <Text style={styles.recipientAddress}>
-                    {device.agentPublicKey?.slice(0, 8)}…{device.agentPublicKey?.slice(-6)}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
-              </PressableScale>
-            ))
-        )}
-
-        <View style={styles.bottomActions}>
-          <Button label="Review Send" onPress={handleReview} disabled={!recipientValid} />
+        <View style={styles.flexSpacer} />
+        <View style={styles.footer}>
+          <Button label="Review" onPress={handleReview} disabled={!recipientValid} fullWidth />
         </View>
       </KeyboardAwareScreen>
     )
@@ -286,302 +266,118 @@ export function SendScreen() {
 
   return (
     <KeyboardAwareScreen scroll contentContainerStyle={styles.scrollContent}>
-      <View style={styles.header}>
-        <PressableScale
-          onPress={() => setStep('recipient')}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityRole="button"
-          accessibilityLabel="Back to recipient"
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.white} />
-        </PressableScale>
-        <Text style={styles.headerTitle}>Review Send</Text>
-        <View style={styles.spacer24} />
+      <ScreenHeader title="Review" onBackPress={() => setStep('recipient')} />
+      <View style={styles.pad}>
+        <View style={styles.reviewHero}>
+          <Text style={styles.reviewLabel}>You’re sending</Text>
+          <AmountText value={toStellarAmount(amountNum)} size={44} />
+        </View>
+        <KeyValueRow label="To" value={`${trimmedRecipient.slice(0, 6)}…${trimmedRecipient.slice(-6)}`} mono />
+        <KeyValueRow label="Network fee" value={`${toStellarAmount(BASE_FEE_XLM)} XLM`} />
+        <KeyValueRow label="Total" value={`${toStellarAmount(total)} XLM`} valueStyle={styles.total} last />
+        <View style={[styles.noteField, !memoValid && styles.fieldError]}>
+          <TextInput
+            style={styles.noteInput}
+            value={note}
+            onChangeText={setNote}
+            placeholder="Add a note (public on-chain)"
+            placeholderTextColor={Colors.mutedWhite}
+            accessibilityLabel="Transaction note, sent as a public Stellar memo"
+          />
+          <Text style={[styles.noteCount, !memoValid && styles.noteCountError]}>{memoByteLength(note)}/{MEMO_TEXT_MAX_BYTES}</Text>
+        </View>
+        {error ? <ErrorMessage message={error} variant="card" onRetry={() => setError(null)} /> : null}
       </View>
-
-      <View style={styles.reviewCard}>
-        <View style={styles.reviewRow}>
-          <Text style={styles.reviewLabel} maxFontSizeMultiplier={FontScaleCap.row}>Amount</Text>
-          <Text style={styles.reviewValue} maxFontSizeMultiplier={FontScaleCap.row}>{toStellarAmount(amountNum)} XLM</Text>
-        </View>
-        <View style={styles.divider} />
-        <View style={styles.reviewRow}>
-          <Text style={styles.reviewLabel} maxFontSizeMultiplier={FontScaleCap.row}>To</Text>
-          <Text style={styles.reviewValueMono} maxFontSizeMultiplier={FontScaleCap.row}>{trimmedRecipient}</Text>
-        </View>
-        <View style={styles.divider} />
-        <View style={styles.reviewRow}>
-          <Text style={styles.reviewLabel} maxFontSizeMultiplier={FontScaleCap.row}>Network fee</Text>
-          <Text style={styles.reviewValue} maxFontSizeMultiplier={FontScaleCap.row}>{toStellarAmount(BASE_FEE_XLM)} XLM</Text>
-        </View>
-        {note.trim() ? (
-          <>
-            <View style={styles.divider} />
-            <View style={styles.reviewRow}>
-              <Text style={styles.reviewLabel} maxFontSizeMultiplier={FontScaleCap.row}>Note</Text>
-              <Text style={styles.reviewValueMono} maxFontSizeMultiplier={FontScaleCap.row}>{note.trim()}</Text>
-            </View>
-          </>
-        ) : null}
-        <View style={styles.divider} />
-        <View style={styles.reviewRow}>
-          <Text style={styles.reviewLabel} maxFontSizeMultiplier={FontScaleCap.row}>Total</Text>
-          <Text style={styles.reviewValueGold} maxFontSizeMultiplier={FontScaleCap.row}>{toStellarAmount(total)} XLM</Text>
-        </View>
-      </View>
-
-      <View style={styles.noteSection}>
-        <TextInput
-          style={[styles.noteInput, !memoValid && styles.noteInputError]}
-          value={note}
-          onChangeText={setNote}
-          placeholder="Add a note (optional) — sent on-chain"
-          placeholderTextColor={Colors.mutedWhite}
-          accessibilityLabel="Transaction note, sent as a public Stellar memo"
-        />
-        <Text style={[styles.noteHint, !memoValid && styles.noteHintError]}>
-          {memoValid
-            ? `Public on-chain memo · ${memoByteLength(note)}/${MEMO_TEXT_MAX_BYTES} bytes`
-            : `Too long — ${memoByteLength(note)}/${MEMO_TEXT_MAX_BYTES} bytes`}
-        </Text>
-      </View>
-
-      {error ? <ErrorMessage message={error} variant="card" onRetry={() => setError(null)} /> : null}
-
-      <View style={styles.bottomActions}>
-        <Button
-          label="Confirm Send"
-          onPress={() => setShowConfirm(true)}
-          disabled={!memoValid || !recipientValid || amountNum <= 0}
-        />
+      <View style={styles.flexSpacer} />
+      <View style={styles.footer}>
+        <Button label="Confirm & send" icon="finger-print-outline" onPress={() => setShowConfirm(true)} disabled={!memoValid || !recipientValid || amountNum <= 0} fullWidth />
       </View>
 
       <ConfirmDialog
         visible={showConfirm}
-        title="Confirm Send"
-        message={`Send ${toStellarAmount(amountNum)} XLM to ${trimmedRecipient}? Total with fee: ${toStellarAmount(total)} XLM. This cannot be undone.`}
-        confirmLabel={sending ? 'Sending...' : 'Send'}
-        icon="send-outline"
+        title={`Send ${toStellarAmount(amountNum)} XLM?`}
+        message="Stellar payments are final."
+        details={[
+          { label: 'To', value: `${trimmedRecipient.slice(0, 6)}…${trimmedRecipient.slice(-6)}`, mono: true },
+          { label: 'Total', value: `${toStellarAmount(total)} XLM`, emphasis: true },
+        ]}
+        confirmLabel="Send"
         onConfirm={handleSend}
         onCancel={() => setShowConfirm(false)}
         loading={sending}
+      />
+
+      <ProcessingOverlay
+        visible={sending}
+        title={`Sending ${formatAmount(Math.round(amountNum * 100))} XLM`}
+        subtitle={`to ${trimmedRecipient.slice(0, 5)}…${trimmedRecipient.slice(-5)}`}
+        steps={[
+          { label: 'Signed with your wallet', state: 'done' },
+          { label: 'Submitting to Stellar', state: 'active' },
+          { label: 'Receipt', state: 'pending' },
+        ]}
       />
     </KeyboardAwareScreen>
   )
 }
 
+/** XLM asset chip shown above amounts (single-asset wallet for now). */
+export function AssetChip() {
+  return (
+    <View style={styles.assetChip}>
+      <View style={styles.assetIcon}><SparkGlyph size={13} color={Colors.gold} /></View>
+      <Text style={styles.assetText}>XLM</Text>
+    </View>
+  )
+}
+
+/** Big centred amount + muted asset code (DESIGN.md → Money screens). */
+export function AmountText({ value, size = 52, asset = 'XLM' }: { value: string; size?: number; asset?: string }) {
+  return (
+    <View style={styles.amountRow}>
+      <Text style={[styles.amountBig, { fontSize: size }, !value && styles.amountEmpty]} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={FontScaleCap.display}>
+        {value || '0'}
+      </Text>
+      <Text style={styles.amountAsset}>{asset}</Text>
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.surfaceBg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-  },
-  headerTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-  },
-  amountSection: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.md,
-  },
-  assetRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.lg,
-  },
-  assetChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.lightGrey,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  assetChipActive: {
-    backgroundColor: Colors.gold + '20',
-    borderColor: Colors.gold,
-  },
-  assetChipLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    fontWeight: FontWeight.semibold,
-  },
-  assetChipLabelActive: {
-    color: Colors.gold,
-  },
-  amountDisplay: {
-    fontSize: FontSize.hero,
-    fontWeight: FontWeight.heavy,
-    color: Colors.white,
-    letterSpacing: -1,
-  },
-  balanceLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    marginTop: Spacing.sm,
-  },
-  spendableLabel: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    marginTop: Spacing.xs,
-    textAlign: 'center',
-  },
-  keypadSection: {
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.md,
-  },
-  amountActions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
-  },
-  halfBtn: {
-    flex: 1,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.xl,
-  },
-  inputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    paddingLeft: Spacing.md,
-    marginBottom: Spacing.md,
-  },
-  inputWrapError: {
-    borderColor: Colors.danger,
-  },
-  addressInput: {
-    flex: 1,
-    height: 52,
-    fontSize: FontSize.md,
-    color: Colors.white,
-    fontFamily: 'monospace',
-  },
-  scanBtn: {
-    width: 52,
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderLeftWidth: 1,
-    borderLeftColor: Colors.borderGrey,
-  },
-  sectionLabel: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
-    color: Colors.mutedWhite,
-    marginBottom: Spacing.sm,
-    marginTop: Spacing.md,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  recipientRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.cardBg,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    gap: Spacing.md,
-  },
-  recipientInfo: {
-    flex: 1,
-  },
-  recipientName: {
-    fontSize: FontSize.md,
-    color: Colors.white,
-    fontWeight: FontWeight.semibold,
-  },
-  recipientAddress: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    fontFamily: 'monospace',
-    marginTop: 2,
-  },
-  reviewCard: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    marginTop: Spacing.md,
-  },
-  reviewRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-  },
-  reviewLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-  },
-  reviewValue: {
-    fontSize: FontSize.md,
-    color: Colors.white,
-    fontWeight: FontWeight.semibold,
-  },
-  reviewValueMono: {
-    fontSize: FontSize.sm,
-    color: Colors.white,
-    fontFamily: 'monospace',
-    maxWidth: '60%',
-    textAlign: 'right',
-  },
-  reviewValueGold: {
-    fontSize: FontSize.md,
-    color: Colors.gold,
-    fontWeight: FontWeight.bold,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.borderGrey,
-  },
-  noteSection: {
-    marginTop: Spacing.md,
-  },
-  noteInput: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    fontSize: FontSize.md,
-    color: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    height: 52,
-  },
-  noteInputError: {
-    borderColor: Colors.danger,
-  },
-  noteHint: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    marginTop: Spacing.xs,
-  },
-  noteHintError: {
-    color: Colors.danger,
-  },
-  bottomActions: {
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.lg,
-  },
-  spacer24: { width: 24 },
+  container: { flex: 1, backgroundColor: Colors.surfaceBg },
+  scrollContent: { flexGrow: 1, paddingBottom: Spacing.sm },
+  pad: { paddingHorizontal: 20 },
+  flexSpacer: { flex: 1 },
+  footer: { paddingHorizontal: 20, paddingTop: Spacing.sm, paddingBottom: Spacing.lg },
+
+  amountArea: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 20 },
+  amountRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 8, maxWidth: '100%' },
+  amountBig: { fontFamily: Fonts.display, color: Colors.white, letterSpacing: -0.5, fontVariant: ['tabular-nums'], flexShrink: 1 },
+  amountEmpty: { color: Colors.mutedWhite },
+  amountAsset: { fontFamily: Fonts.displayMd, fontSize: FontSize.lg - 2, color: Colors.mutedWhite },
+  availRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  avail: { fontSize: FontSize.sm, color: Colors.mutedWhite },
+  maxPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: Colors.midGrey },
+  maxText: { fontSize: FontSize.sm - 1, color: Colors.gold, fontWeight: FontWeight.medium },
+  reserve: { fontSize: FontSize.xs, color: Colors.mutedWhite },
+  warn: { fontSize: FontSize.sm, color: Colors.warning },
+  assetChip: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, paddingLeft: 6, paddingRight: 12, borderRadius: 999, backgroundColor: Colors.midGrey },
+  assetIcon: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#1d1a12', alignItems: 'center', justifyContent: 'center' },
+  assetText: { fontSize: FontSize.sm, color: Colors.white, fontWeight: FontWeight.medium },
+
+  sending: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', paddingVertical: Spacing.sm },
+  sendingAmt: { color: Colors.white },
+  field: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingHorizontal: 14, borderRadius: 14, backgroundColor: Colors.midGrey, marginTop: Spacing.sm },
+  fieldError: { borderWidth: 1, borderColor: Colors.danger },
+  fieldLabel: { fontSize: FontSize.md - 1, color: Colors.mutedWhite },
+  addressInput: { flex: 1, fontSize: FontSize.md - 1, color: Colors.white, fontFamily: Fonts.mono, paddingVertical: Spacing.sm },
+
+  reviewHero: { alignItems: 'center', gap: 6, paddingTop: Spacing.lg, paddingBottom: Spacing.xl },
+  reviewLabel: { fontSize: FontSize.sm, color: Colors.mutedWhite },
+  total: { fontFamily: Fonts.display, fontSize: FontSize.md, color: Colors.cream },
+  noteField: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48, paddingHorizontal: 14, borderRadius: 12, backgroundColor: Colors.midGrey, marginTop: Spacing.md },
+  noteInput: { flex: 1, fontSize: FontSize.md - 1, color: Colors.white, paddingVertical: Spacing.sm },
+  noteCount: { fontSize: FontSize.xs, color: Colors.mutedWhite },
+  noteCountError: { color: Colors.danger },
+  failRows: { alignSelf: 'stretch', marginTop: Spacing.sm },
 })

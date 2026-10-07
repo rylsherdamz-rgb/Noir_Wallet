@@ -1,65 +1,30 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet, Image } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Button } from '@/components/Button'
+import { Colors, Spacing, FontSize, Fonts } from '@/constants/theme'
+
+const NOIR_MARK = require('../assets/noir-mark.png')
 
 export default function NotFoundScreen() {
   const router = useRouter()
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Ionicons name="compass-outline" size={64} color={Colors.mutedWhite} />
-        <Text style={styles.title}>Page Not Found</Text>
-        <Text style={styles.description}>
-          The page you are looking for does not exist or has been moved.
-        </Text>
-        <TouchableOpacity style={styles.button} onPress={() => router.replace('/(tabs)')}>
-          <Ionicons name="home-outline" size={18} color={Colors.black} />
-          <Text style={styles.buttonLabel}>Go Home</Text>
-        </TouchableOpacity>
+        <Image source={NOIR_MARK} style={styles.mark} resizeMode="contain" accessibilityLabel="Noir" />
+        <Text style={styles.title}>Nothing here</Text>
+        <Text style={styles.description}>This page doesn’t exist or has moved.</Text>
+        <Button label="Back to wallet" onPress={() => router.replace('/(tabs)')} style={styles.button} />
       </View>
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.black,
-  },
-  content: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.xl,
-    gap: Spacing.md,
-  },
-  title: {
-    fontSize: FontSize.xxl,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-  },
-  description: {
-    fontSize: FontSize.md,
-    color: Colors.mutedWhite,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.gold,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginTop: Spacing.md,
-  },
-  buttonLabel: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-    color: Colors.black,
-  },
+  container: { flex: 1, backgroundColor: Colors.surfaceBg },
+  content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.xl, gap: 12 },
+  mark: { width: 72, height: 76, opacity: 0.9, marginBottom: Spacing.sm },
+  title: { fontFamily: Fonts.display, fontSize: 26, color: Colors.cream },
+  description: { fontSize: FontSize.md - 1, color: Colors.mutedWhite, textAlign: 'center', lineHeight: 22 },
+  button: { marginTop: Spacing.md, paddingHorizontal: Spacing.xl },
 })

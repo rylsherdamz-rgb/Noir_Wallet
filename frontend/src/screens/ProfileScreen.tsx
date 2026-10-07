@@ -1,24 +1,26 @@
+import { colorWithOpacity } from '@/constants/designTokens'
 import { useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, TextInput, Alert } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
 import { Button } from '@/components/Button'
 import { Avatar } from '@/components/Avatar'
 import { Card } from '@/components/Card'
 import { Toast } from '@/components/Toast'
 import { WalletSwitcher } from '@/components/WalletSwitcher'
 import { useAppStore } from '@/store/useAppStore'
+import { ScreenHeader } from '@/components/ScreenHeader'
+import { SectionLabel, ListRow, TextAction } from '@/components/ui/List'
 
 export function ProfileScreen() {
   const router = useRouter()
   const { user, setUser } = useAppStore()
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(user?.displayName || '')
-  const [email, setEmail] = useState(user?.email || '')
   const [toast, setToast] = useState<{ visible: boolean; type: 'success' | 'info' | 'error'; title: string; message?: string }>({
     visible: false,
     type: 'info',
@@ -29,348 +31,72 @@ export function ProfileScreen() {
   }
 
   const handleSave = () => {
+    const trimmed = name.trim()
+    if (!trimmed) {
+      showToast('Name required', 'Enter a display name', 'error')
+      return
+    }
     if (user) {
-      setUser({ ...user, displayName: name, email })
+      setUser({ ...user, displayName: trimmed })
     }
     setEditing(false)
     setToast({ visible: true, type: 'success', title: 'Profile Updated', message: 'Your changes have been saved' })
   }
 
-  const kycLevel = user?.kycLevel || 0
-  const kycLabels = ['Unverified', 'Basic', 'Advanced', 'Full']
-  const kycColors = [Colors.danger, Colors.warning, Colors.gold, Colors.success]
+  const display = user?.displayName?.trim() || 'My wallet'
+  const key = user?.stellarPublicKey
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.white} />
-        </PressableScale>
-        <Text style={styles.headerTitle}>Profile</Text>
-        <PressableScale onPress={() => setEditing(!editing)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Ionicons name={editing ? 'close' : 'create-outline'} size={22} color={Colors.gold} />
-        </PressableScale>
-      </View>
-
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.avatarSection}>
-          <Avatar name={user?.displayName} size={80} />
-          <Text style={styles.displayName}>{user?.displayName || 'Your Name'}</Text>
-          <PressableScale
-            style={styles.addressCopyBtn}
-            onPress={async () => {
-              if (user?.stellarPublicKey) {
-                await Clipboard.setStringAsync(user.stellarPublicKey)
-                Alert.alert('Copied', 'Wallet address copied to clipboard')
-              }
-            }}
-          >
-            <Text style={styles.walletAddress} numberOfLines={1}>
-              {user?.stellarPublicKey ? `${user.stellarPublicKey.slice(0, 12)}…${user.stellarPublicKey.slice(-8)}` : '—'}
-            </Text>
-            <Ionicons name="copy-outline" size={13} color={Colors.mutedWhite} style={{ marginLeft: 4 }} />
-          </PressableScale>
-        </View>
-
-        <Card>
-          {editing ? (
-            <View style={styles.editContent}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Display Name</Text>
-                <TextInput
-                  style={styles.input}
-                  value={name}
-                  onChangeText={setName}
-                  placeholder="Your name"
-                  placeholderTextColor={Colors.mutedWhite}
-                />
-              </View>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Email</Text>
-                <TextInput
-                  style={styles.input}
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="email@example.com"
-                  placeholderTextColor={Colors.mutedWhite}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                />
-              </View>
-              <Button label="Save Changes" onPress={handleSave} />
-            </View>
-          ) : (
-            <>
-              <ProfileRow icon="person-outline" label="Display Name" value={user?.displayName || 'Not set'} />
-              <View style={styles.divider} />
-              <ProfileRow icon="mail-outline" label="Email" value={user?.email || 'Not set'} />
-              <View style={styles.divider} />
-              <ProfileRow icon="phone-portrait-outline" label="Phone" value={user?.phoneNumber || 'Not set'} />
-              <View style={styles.divider} />
-              <ProfileRow icon="key-outline" label="Stellar Key" value={`${user?.stellarPublicKey?.slice(0, 8) || 'No'}...`} mono />
-            </>
-          )}
-        </Card>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Verification</Text>
-          <View style={styles.kycCard}>
-            <View style={styles.kycRow}>
-              <Text style={styles.kycLabel}>KYC Level</Text>
-              <View style={[styles.kycBadge, { backgroundColor: kycColors[kycLevel] + '20' }]}>
-                <Text style={[styles.kycBadgeLabel, { color: kycColors[kycLevel] }]}>
-                  {kycLabels[kycLevel]}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.kycProgress}>
-              {[1, 2, 3].map((level) => (
-                <View
-                  key={level}
-                  style={[
-                    styles.kycStep,
-                    level <= kycLevel && { backgroundColor: kycColors[kycLevel] },
-                  ]}
-                />
-              ))}
-            </View>
-            <PressableScale style={styles.kycAction} onPress={() => showToast('KYC Upgrade', 'KYC verification flow coming soon. Please check back later.')}>
-              <Text style={styles.kycActionLabel}>
-                {kycLevel < 3 ? 'Upgrade KYC for higher limits' : 'Verification complete'}
-              </Text>
-              {kycLevel < 3 && <Ionicons name="chevron-forward" size={16} color={Colors.gold} />}
+      <ScreenHeader title="Profile" onBackPress={() => router.back()} />
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <View style={styles.hero}>
+            <View style={styles.avatar}><Text style={styles.avatarText}>{display.charAt(0).toUpperCase()}</Text></View>
+            <Text style={styles.name}>{display}</Text>
+            <PressableScale
+              style={styles.addr}
+              onPress={async () => { if (key) { await Clipboard.setStringAsync(key); showToast('Address copied', 'Your Stellar address is on the clipboard.', 'success') } }}
+              disabled={!key}
+              accessibilityRole="button"
+              accessibilityLabel="Copy Stellar address"
+            >
+              <Text style={styles.addrText}>{key ? `${key.slice(0, 8)}…${key.slice(-6)}` : '—'}</Text>
+              {!!key && <Ionicons name="copy-outline" size={12} color={Colors.mutedWhite} />}
             </PressableScale>
           </View>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Wallet Management</Text>
-          <WalletSwitcher
-            onImportRequest={() => router.push('/import-wallet')}
-          />
-        </View>
+          <SectionLabel title="Profile" />
+          {editing ? (
+            <View style={styles.edit}>
+              <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Display name" placeholderTextColor={Colors.mutedWhite} maxLength={32} autoFocus accessibilityLabel="Display name" />
+              <Button label="Save" onPress={handleSave} fullWidth />
+              <TextAction label="Cancel" color={Colors.mutedWhite} onPress={() => { setEditing(false); setName(user?.displayName || '') }} />
+            </View>
+          ) : (
+            <ListRow title="Display name" value={user?.displayName || 'Not set'} chevron last onPress={() => setEditing(true)} />
+          )}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Preferences</Text>
-          <PressableScale style={styles.settingRow} onPress={() => router.push('/settings/notifications')}
-            accessibilityLabel="Notifications"
-          >
-            <Ionicons name="notifications-outline" size={20} color={Colors.white} />
-            <Text style={styles.settingLabel}>Notification Preferences</Text>
-            <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
-          </PressableScale>
-          <PressableScale style={styles.settingRow} onPress={() => router.push('/settings/security')}>
-            <Ionicons name="shield-checkmark-outline" size={20} color={Colors.white} />
-            <Text style={styles.settingLabel}>Security Settings</Text>
-            <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
-          </PressableScale>
-        </View>
-      </ScrollView>
+          <SectionLabel title="Wallets" />
+          <WalletSwitcher onImportRequest={() => router.push('/import-wallet')} />
+        </ScrollView>
+      </KeyboardAvoidingView>
 
-      <Toast
-        visible={toast.visible}
-        type={toast.type}
-        title={toast.title}
-        message={toast.message}
-        onDismiss={() => setToast((prev) => ({ ...prev, visible: false }))}
-      />
+      <Toast visible={toast.visible} type={toast.type} title={toast.title} message={toast.message} onDismiss={() => setToast((prev) => ({ ...prev, visible: false }))} />
     </SafeAreaView>
   )
 }
 
-function ProfileRow({
-  icon,
-  label,
-  value,
-  mono,
-}: {
-  icon: keyof typeof Ionicons.glyphMap
-  label: string
-  value: string
-  mono?: boolean
-}) {
-  return (
-    <View style={styles.profileRow}>
-      <Ionicons name={icon} size={18} color={Colors.mutedWhite} />
-      <View style={styles.profileText}>
-        <Text style={styles.profileLabel}>{label}</Text>
-        <Text style={[styles.profileValue, mono && styles.profileMono]}>{value}</Text>
-      </View>
-    </View>
-  )
-}
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.surfaceBg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-  },
-  headerTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.xxl,
-  },
-  avatarSection: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xl,
-  },
-  displayName: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-    marginTop: Spacing.md,
-  },
-  walletAddress: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    fontFamily: 'monospace',
-    marginTop: Spacing.xs,
-  },
-  addressCopyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  editContent: {
-    gap: Spacing.md,
-  },
-  profileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  profileText: {
-    flex: 1,
-  },
-  profileLabel: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-  },
-  profileValue: {
-    fontSize: FontSize.md,
-    color: Colors.white,
-    fontWeight: FontWeight.medium,
-    marginTop: 1,
-  },
-  profileMono: {
-    fontFamily: 'monospace',
-    fontSize: FontSize.sm,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.borderGrey,
-    marginVertical: Spacing.xs,
-  },
-  inputGroup: {
-    gap: Spacing.xs,
-  },
-  inputLabel: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  input: {
-    backgroundColor: Colors.lightGrey,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    fontSize: FontSize.md,
-    color: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    height: 48,
-  },
-  section: {
-    marginTop: Spacing.lg,
-  },
-  sectionTitle: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
-    color: Colors.mutedWhite,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: Spacing.sm,
-  },
-  kycCard: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    padding: Spacing.md,
-  },
-  kycRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  kycLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.white,
-    fontWeight: FontWeight.medium,
-  },
-  kycBadge: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
-  },
-  kycBadgeLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.semibold,
-  },
-  kycProgress: {
-    flexDirection: 'row',
-    gap: Spacing.xs,
-    marginBottom: Spacing.md,
-  },
-  kycStep: {
-    flex: 1,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.lightGrey,
-  },
-  kycAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderGrey,
-  },
-  kycActionLabel: {
-    fontSize: FontSize.xs,
-    color: Colors.gold,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.cardBg,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.sm,
-    gap: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  settingLabel: {
-    flex: 1,
-    fontSize: FontSize.sm,
-    color: Colors.white,
-  },
+  container: { flex: 1, backgroundColor: Colors.surfaceBg },
+  flex: { flex: 1 },
+  content: { paddingHorizontal: 20, paddingBottom: Spacing.xxl },
+  hero: { alignItems: 'center', gap: 8, paddingVertical: Spacing.md },
+  avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#5a4a2c', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontFamily: Fonts.display, fontSize: 28, color: Colors.cream },
+  name: { fontFamily: Fonts.display, fontSize: 20, color: Colors.cream, marginTop: 6 },
+  addr: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  addrText: { fontFamily: Fonts.mono, fontSize: FontSize.xs, color: Colors.mutedWhite },
+  edit: { gap: Spacing.sm, paddingTop: Spacing.sm },
+  input: { height: 52, paddingHorizontal: Spacing.md, borderRadius: 14, backgroundColor: Colors.midGrey, color: Colors.white, fontSize: FontSize.md },
 })

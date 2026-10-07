@@ -117,8 +117,16 @@ class NFCService {
     }
   }
 
-  async writeTag(data: Record<string, string>): Promise<boolean> {
+  async writeTag(data: Record<string, string>, timeoutMs = 15000): Promise<boolean> {
     if (!NfcManager || !NfcTech || !Ndef) return false
+
+    // requestTechnology() waits indefinitely for a tag. If the user already
+    // pulled the card away after the initial scan, provisioning would hang on
+    // "Writing to NFC tag..." forever — cancel the request after timeoutMs.
+    const timer = setTimeout(() => {
+      NfcManager.cancelTechnologyRequest().catch(() => {})
+    }, timeoutMs)
+
     try {
       await NfcManager.requestTechnology(NfcTech.Ndef, {
         alertMessage: 'Hold your tag against the phone to link it',
@@ -134,9 +142,11 @@ class NFCService {
         await NfcManager.writeNdefMessage(bytes)
       }
       return true
-    } catch {
+    } catch (error) {
+      logger.warn('NFC writeTag failed or timed out:', (error as any)?.message ?? error)
       return false
     } finally {
+      clearTimeout(timer)
       try {
         await NfcManager.cancelTechnologyRequest()
       } catch {}

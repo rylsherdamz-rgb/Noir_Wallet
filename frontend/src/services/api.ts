@@ -99,7 +99,7 @@ class ApiService {
   }
 
   /** Provision a passive NFC card: backend mints+funds a custodied wallet for the UID. */
-  async provisionCard(deviceSerial: string, opts?: { dailyLimitStroops?: number; pin?: string }) {
+  async provisionCard(deviceSerial: string, opts?: { dailyLimitStroops?: number }) {
     return this.request<{ device_hash: string; wallet_address: string; status: string }>(
       '/cards/provision',
       {
@@ -107,7 +107,6 @@ class ApiService {
         body: JSON.stringify({
           device_serial: deviceSerial,
           daily_limit_stroops: opts?.dailyLimitStroops,
-          pin: opts?.pin,
         }),
       },
     )
@@ -124,7 +123,6 @@ class ApiService {
     amountStroops: number
     idempotencyKey: string
     memo?: string
-    pin?: string
   }) {
     return this.request<{
       status: string
@@ -141,7 +139,6 @@ class ApiService {
         amount_stroops: params.amountStroops,
         idempotency_key: params.idempotencyKey,
         memo: params.memo,
-        pin: params.pin,
       }),
     })
   }

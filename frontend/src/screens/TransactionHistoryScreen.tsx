@@ -1,9 +1,9 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  SectionList,
   RefreshControl,
   Platform,
 } from 'react-native'
@@ -11,9 +11,8 @@ import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
-import { useRouter, useFocusEffect } from 'expo-router'
-import { DesignTokens } from '@/constants/designTokens'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { useFocusEffect } from 'expo-router'
+import { Colors, Spacing, FontSize, FontWeight } from '@/constants/theme'
 import { TransactionItem } from '@/components/TransactionItem'
 import { FilterChips } from '@/components/FilterChips'
 import { SearchBar } from '@/components/SearchBar'
@@ -22,139 +21,196 @@ import { SkeletonLoader } from '@/components/SkeletonLoader'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { ScreenHeader } from '@/components/ScreenHeader'
 import { useAppStore } from '@/store/useAppStore'
-import { apiService } from '@/services/api'
+import { stellarService } from '@/services/stellar-service'
+import { logger } from '@/lib/logger'
 import { TxFilter, Transaction } from '@/types'
+import { isIncomingTx } from '@/lib/txFormat'
 
 const keyExtractor = (item: Transaction) => item.id
 
-const renderItem = ({ item }: { item: Transaction }) => (
-  <TransactionItem transaction={item} />
-)
+const renderItem = ({ item }: { item: Transaction }) => <TransactionItem transaction={item} />
 
 const FILTERS = [
   { key: 'all' as TxFilter, label: 'All' },
-  { key: 'confirmed' as TxFilter, label: 'Confirmed' },
-  { key: 'pending' as TxFilter, label: 'Pending' },
+  { key: 'sent' as TxFilter, label: 'Sent' },
+  { key: 'received' as TxFilter, label: 'Received' },
   { key: 'failed' as TxFilter, label: 'Failed' },
 ]
 
-export function TransactionHistoryScreen() {
-  const router = useRouter()
-  const { transactions, setTransactions } = useAppStore()
+const haptic = (fn: () => Promise<void>) => {
+  if (Platform.OS !== 'web') fn().catch(() => {})
+}
+
+/** "Today", "Yesterday", or a short date — used as section titles. */
+function dayLabel(iso: string) {
+  const d = new Date(iso)
+  const today = new Date()
+  const yesterday = new Date()
+  yesterday.setDate(today.getDate() - 1)
+  const same = (a: Date, b: Date) => a.toDateString() === b.toDateString()
+  if (same(d, today)) return 'Today'
+  if (same(d, yesterday)) return 'Yesterday'
+  return d.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: d.getFullYear() === today.getFullYear() ? undefined : 'numeric',
+  })
+}
+
+/** `asTab`: shown as the History tab (no back arrow); otherwise a pushed screen. */
+export function TransactionHistoryScreen({ asTab = false }: { asTab?: boolean } = {}) {
+  const { transactions, setTransactions, user } = useAppStore()
   const [filter, setFilter] = useState<TxFilter>('all')
   const [search, setSearch] = useState('')
   const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [loadedOnce, setLoadedOnce] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const displayTxs = transactions.filter((tx) => {
-    if (filter !== 'all' && tx.status !== filter) return false
-    if (search) {
-      const q = search.toLowerCase()
-      return (
-        tx.merchantName.toLowerCase().includes(q) ||
-        tx.amountCents.toString().includes(q)
-      )
-    }
-    return true
-  })
+  const walletPub = user?.stellarPublicKey
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true)
-    setError(null)
-    
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    }
-    
-    try {
-      const res = await apiService.getTransactions()
-      if (res?.transactions) {
-        const backendIds = new Set(res.transactions.map((t: Transaction) => t.id))
-        // Keep locally-created txs that aren't yet in the backend
-        const current = useAppStore.getState().transactions
-        const localOnly = current.filter((t) => !backendIds.has(t.id))
-        setTransactions([...res.transactions, ...localOnly])
-        if (Platform.OS !== 'web') {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-        }
-      }
-    } catch {
-      setError('Failed to load transactions')
-      if (Platform.OS !== 'web') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-      }
-    } finally {
-      setRefreshing(false)
-    }
-  }, [setTransactions])
+  const load = useCallback(
+    async (mode: 'initial' | 'pull') => {
+      if (!walletPub) return
+      mode === 'pull' ? setRefreshing(true) : setLoading(true)
+      setError(null)
+      if (mode === 'pull') haptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light))
 
-  useFocusEffect(
-    useCallback(() => {
-      if (transactions.length === 0) {
-        onRefresh()
+      try {
+        const onChain = await stellarService.getPaymentHistory(walletPub)
+        // Keep locally-recorded txs (e.g. pending taps) that Horizon hasn't
+        // indexed yet; drop them once their hash shows up on-chain.
+        const chainHashes = new Set(onChain.map((t) => t.stellarTxHash).filter(Boolean))
+        const chainIds = new Set(onChain.map((t) => t.id))
+        const localOnly = useAppStore
+          .getState()
+          .transactions.filter(
+            (t) => !chainIds.has(t.id) && !(t.stellarTxHash && chainHashes.has(t.stellarTxHash)),
+          )
+        const merged = [...onChain, ...localOnly].sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        )
+        setTransactions(merged)
+        if (mode === 'pull') haptic(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success))
+      } catch (e: any) {
+        logger.warn('[transactions] history load failed:', e?.message ?? e)
+        setError("Couldn't reach Stellar. Pull down or tap retry.")
+        haptic(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error))
+      } finally {
+        setRefreshing(false)
+        setLoading(false)
+        setLoadedOnce(true)
       }
-    }, [transactions.length, onRefresh])
+    },
+    [walletPub, setTransactions],
   )
 
-  const handleExport = () => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+  // Refresh every time the screen gains focus so new taps/sends appear.
+  useFocusEffect(
+    useCallback(() => {
+      load(loadedOnce ? 'pull' : 'initial')
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [load]),
+  )
+
+  const sections = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    const filtered = transactions.filter((tx) => {
+      if (filter === 'sent' && isIncomingTx(tx)) return false
+      if (filter === 'received' && !isIncomingTx(tx)) return false
+      if ((filter === 'failed' || filter === 'pending' || filter === 'confirmed') && tx.status !== filter) return false
+      if (!q) return true
+      return (
+        tx.merchantName.toLowerCase().includes(q) ||
+        (tx.amountCents / 100).toFixed(2).includes(q) ||
+        (tx.stellarTxHash ?? '').toLowerCase().includes(q) ||
+        (tx.merchantId ?? '').toLowerCase().includes(q)
+      )
+    })
+    const groups = new Map<string, Transaction[]>()
+    for (const tx of filtered) {
+      const k = dayLabel(tx.createdAt)
+      if (!groups.has(k)) groups.set(k, [])
+      groups.get(k)!.push(tx)
     }
-    // TODO: Implement export functionality
-  }
+    return [...groups.entries()].map(([title, data]) => ({ title, data }))
+  }, [transactions, filter, search])
+
+  const isEmpty = sections.length === 0
+  const showSkeleton = loading && transactions.length === 0
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader
-        title="Transactions"
+        title="Activity"
+        showBack={!asTab}
         rightAction={
           <PressableScale
-            onPress={handleExport}
+            onPress={() => load('pull')}
+            disabled={refreshing || loading}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             accessibilityRole="button"
-            accessibilityLabel="Export transactions"
+            accessibilityLabel="Refresh transactions"
           >
-            <Ionicons name="download-outline" size={22} color={Colors.gold} />
+            <Ionicons name="refresh" size={22} color={refreshing || loading ? Colors.mutedWhite : Colors.gold} />
           </PressableScale>
         }
       />
 
       <View style={styles.searchSection}>
-        <SearchBar value={search} onChangeText={setSearch} placeholder="Search name or amount..." />
+        <SearchBar value={search} onChangeText={setSearch} placeholder="Search name, amount, or hash" />
       </View>
 
-      <FilterChips options={FILTERS} selected={filter} onSelect={setFilter} />
+      <View style={styles.filters}>
+        <FilterChips options={FILTERS} selected={filter} onSelect={setFilter} />
+      </View>
 
       {error ? (
         <View style={styles.errorContainer}>
-          <ErrorMessage message={error} variant="card" onRetry={() => setError(null)} />
+          <ErrorMessage message={error} variant="card" onRetry={() => load('pull')} />
         </View>
       ) : null}
 
-      {loading ? (
+      {!walletPub ? (
+        <EmptyState icon="wallet-outline" title="No wallet" description="Create or import a wallet to see its history" />
+      ) : showSkeleton ? (
         <View style={styles.loadingContainer}>
-          {[1, 2, 3, 4].map((i) => (
+          {[1, 2, 3, 4, 5].map((i) => (
             <SkeletonLoader key={i} variant="list" />
           ))}
         </View>
-      ) : displayTxs.length === 0 ? (
-        <EmptyState
-          icon="receipt-outline"
-          title={search ? 'No Results' : 'No Transactions'}
-          description={search ? 'Try a different search term' : 'Your transactions will appear here'}
-        />
       ) : (
-        <FlatList
-          data={displayTxs}
+        <SectionList
+          sections={sections}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
+          renderSectionHeader={({ section }) => (
+            <Text style={styles.sectionHeader} accessibilityRole="header">
+              {section.title}
+            </Text>
+          )}
+          stickySectionHeadersEnabled={false}
+          contentContainerStyle={[styles.listContent, isEmpty && styles.listEmpty]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            loadedOnce && !error ? (
+              <EmptyState
+                icon="receipt-outline"
+                title={search || filter !== 'all' ? 'No matches' : 'No transactions yet'}
+                description={
+                  search || filter !== 'all'
+                    ? 'Try a different search or filter'
+                    : 'Payments you send, receive, or tap will show up here'
+                }
+              />
+            ) : null
+          }
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={onRefresh}
+              onRefresh={() => load('pull')}
               tintColor={Colors.gold}
               colors={[Colors.gold]}
             />
@@ -171,15 +227,30 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceBg,
   },
   searchSection: {
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.md,
+    paddingHorizontal: 20,
+    marginBottom: Spacing.sm,
+  },
+  filters: {
+    marginBottom: Spacing.sm,
+  },
+  sectionHeader: {
+    fontSize: FontSize.sm - 1,
+    color: Colors.mutedWhite,
+    fontWeight: FontWeight.medium,
+    paddingTop: Spacing.lg,
+    paddingBottom: 6,
   },
   listContent: {
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.xxl,
+    paddingHorizontal: 20,
+    paddingBottom: Spacing.xxl * 2,
+  },
+  listEmpty: {
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   errorContainer: {
     paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   loadingContainer: {
     paddingHorizontal: Spacing.md,

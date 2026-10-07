@@ -1,10 +1,10 @@
+import { colorWithOpacity } from '@/constants/designTokens'
 import { useState, useCallback } from 'react'
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TextInput,
   ActivityIndicator,
   Platform,
 } from 'react-native'
@@ -17,16 +17,19 @@ import { apiService } from '@/services/api'
 import { nfcService } from '@/services/nfc'
 import { Device } from '@/types'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { ScreenHeader } from '@/components/ScreenHeader'
+import { SectionLabel, ListRow } from '@/components/ui/List'
+import { Button } from '@/components/Button'
+import { popup } from '@/components/popup/Popup'
 
 /**
  * Cards: provision a blank NFC card into a spendable (custodied) wallet, view
- * linked cards, set an optional PIN, and revoke a lost card. Neutral wallet
+ * linked cards, and revoke a lost card. Neutral wallet
  * framing — any user can register a card, not just a business.
  */
 export function CardsScreen() {
   const router = useRouter()
   const { devices, user, addDevice, updateDevice } = useAppStore()
-  const [pin, setPin] = useState('')
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState<{ kind: 'info' | 'error' | 'success'; text: string } | null>(null)
 
@@ -42,9 +45,7 @@ export function CardsScreen() {
         setStatus({ kind: 'error', text: 'No card detected. Try again.' })
         return
       }
-      const res = await apiService.provisionCard(tag.uid, {
-        pin: pin.trim() ? pin.trim() : undefined,
-      })
+      const res = await apiService.provisionCard(tag.uid)
       const card: Device = {
         id: tag.uid, // raw UID needed to revoke later
         userId: user?.id || 'local',
@@ -58,14 +59,13 @@ export function CardsScreen() {
         createdAt: new Date().toISOString(),
       }
       addDevice(card)
-      setPin('')
       setStatus({ kind: 'success', text: `Card ready • wallet ${res.wallet_address.slice(0, 6)}…${res.wallet_address.slice(-4)}` })
     } catch (e: any) {
       setStatus({ kind: 'error', text: e?.message || 'Could not add card' })
     } finally {
       setBusy(false)
     }
-  }, [pin, user, addDevice])
+  }, [user, addDevice])
 
   const revokeCard = useCallback(
     async (card: Device) => {
@@ -84,192 +84,62 @@ export function CardsScreen() {
     [updateDevice],
   )
 
+  const askRevoke = (card: Device) =>
+    popup.confirm({
+      title: `Revoke ${card.label}?`,
+      message: 'It can no longer pay. You can link a new card anytime.',
+      icon: 'trash-outline',
+      tone: 'danger',
+      confirmLabel: 'Revoke card',
+    }).then((ok) => { if (ok) revokeCard(card) })
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.white} />
-        </PressableScale>
-        <Text style={styles.headerTitle} accessibilityRole="header">
-          Cards
-        </Text>
-        <View style={styles.spacer24} />
-      </View>
-
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.intro}>
-          Turn a blank NFC card into a tap-to-pay wallet. Tap the card to pay anywhere a Noir
-          reader accepts it.
-        </Text>
-
-        <View style={styles.addCard}>
-          <Text style={styles.label}>Optional PIN (for larger taps)</Text>
-          <TextInput
-            style={styles.pinInput}
-            value={pin}
-            onChangeText={(t) => setPin(t.replace(/[^0-9]/g, '').slice(0, 6))}
-            placeholder="4–6 digits"
-            placeholderTextColor={Colors.mutedWhite}
-            keyboardType="number-pad"
-            secureTextEntry
-            maxLength={6}
-          />
-          <PressableScale
-            style={[styles.primaryBtn, busy && styles.btnDisabled]}
-            onPress={addCard}
-            disabled={busy}
-            accessibilityRole="button"
-            accessibilityLabel="Add a card"
-          >
-            {busy ? (
-              <ActivityIndicator color={Colors.black} />
-            ) : (
-              <>
-                <Ionicons name="add-circle-outline" size={20} color={Colors.black} />
-                <Text style={styles.primaryBtnText}>Add a Card</Text>
-              </>
-            )}
-          </PressableScale>
-        </View>
-
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <ScreenHeader title="Cards" onBackPress={() => router.back()} />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Text style={styles.intro}>Any NFC card or sticker can be a tap-to-pay wallet.</Text>
         {status && (
-          <Text
-            style={[
-              styles.status,
-              status.kind === 'error' && { color: Colors.danger },
-              status.kind === 'success' && { color: Colors.success },
-            ]}
-          >
+          <Text style={[styles.status, status.kind === 'error' && { color: Colors.danger }, status.kind === 'success' && { color: Colors.success }]} accessibilityLiveRegion="polite">
             {status.text}
           </Text>
         )}
-
-        <Text style={styles.sectionTitle}>Your Cards</Text>
+        <SectionLabel title="Your cards" />
         {cards.length === 0 ? (
-          <Text style={styles.empty}>No cards yet. Add one above.</Text>
+          <Text style={styles.empty}>No cards yet.</Text>
         ) : (
-          cards.map((card) => {
+          cards.map((card, i) => {
             const revoked = card.status === 'deactivated' || card.status === 'lost'
             return (
-              <View key={card.id} style={styles.cardRow}>
-                <View style={styles.cardIcon}>
-                  <Ionicons name="card-outline" size={22} color={revoked ? Colors.mutedWhite : Colors.gold} />
-                </View>
-                <View style={styles.flexOne}>
-                  <Text style={[styles.cardLabel, revoked && styles.cardLabelRevoked]}>{card.label}</Text>
-                  <Text style={styles.cardWallet} numberOfLines={1}>
-                    {card.agentPublicKey?.slice(0, 8)}…{card.agentPublicKey?.slice(-4)}
-                  </Text>
-                </View>
-                {revoked ? (
-                  <Text style={styles.revokedTag}>Revoked</Text>
-                ) : (
-                  <PressableScale
-                    style={styles.revokeBtn}
-                    onPress={() => revokeCard(card)}
-                    disabled={busy}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Revoke ${card.label}`}
-                  >
-                    <Text style={styles.revokeBtnText}>Revoke</Text>
-                  </PressableScale>
-                )}
-              </View>
+              <ListRow
+                key={card.id}
+                icon="card-outline"
+                iconColor={revoked ? Colors.mutedWhite : Colors.gold}
+                title={card.label}
+                titleColor={revoked ? Colors.mutedWhite : Colors.white}
+                subtitle={`${card.agentPublicKey?.slice(0, 8)}…${card.agentPublicKey?.slice(-4)}`}
+                subtitleMono
+                value={revoked ? 'Revoked' : card.status === 'active' ? 'Active' : card.status.charAt(0).toUpperCase() + card.status.slice(1)}
+                valueColor={revoked ? Colors.mutedWhite : card.status === 'active' ? Colors.success : Colors.warning}
+                last={i === cards.length - 1}
+                onPress={revoked || busy ? undefined : () => askRevoke(card)}
+                accessibilityLabel={revoked ? `${card.label}, revoked` : `${card.label}. Revoke`}
+              />
             )
           })
         )}
       </ScrollView>
+      <View style={styles.footer}>
+        <Button label="Add a card" icon="add" onPress={addCard} loading={busy} disabled={busy} fullWidth />
+      </View>
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surfaceBg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-  },
-  headerTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.white },
-  content: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.xl },
-  intro: { fontSize: FontSize.sm, color: Colors.mutedWhite, lineHeight: 20, marginBottom: Spacing.lg },
-  addCard: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  label: { fontSize: FontSize.xs, color: Colors.mutedWhite, marginBottom: Spacing.sm, textTransform: 'uppercase', letterSpacing: 0.5 },
-  pinInput: {
-    backgroundColor: Colors.lightGrey,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    color: Colors.white,
-    fontSize: FontSize.md,
-    paddingHorizontal: Spacing.md,
-    height: 48,
-    marginBottom: Spacing.md,
-  },
-  primaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.gold,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    gap: Spacing.sm,
-    minHeight: 52,
-  },
-  primaryBtnText: { color: Colors.black, fontSize: FontSize.lg, fontWeight: FontWeight.bold },
-  btnDisabled: { opacity: 0.6 },
-  status: { fontSize: FontSize.sm, color: Colors.mutedWhite, marginTop: Spacing.md, textAlign: 'center' },
-  sectionTitle: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    fontWeight: FontWeight.semibold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: Spacing.xl,
-    marginBottom: Spacing.md,
-  },
-  empty: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', paddingVertical: Spacing.lg },
-  cardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
-    gap: Spacing.md,
-  },
-  cardIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.gold + '15',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardLabel: { fontSize: FontSize.md, color: Colors.white, fontWeight: FontWeight.semibold },
-  cardLabelRevoked: { color: Colors.mutedWhite, textDecorationLine: 'line-through' },
-  cardWallet: { fontSize: FontSize.xs, color: Colors.mutedWhite, fontFamily: 'monospace', marginTop: 2 },
-  revokeBtn: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    borderColor: Colors.danger,
-  },
-  revokeBtnText: { fontSize: FontSize.sm, color: Colors.danger, fontWeight: FontWeight.semibold },
-  revokedTag: { fontSize: FontSize.xs, color: Colors.mutedWhite, fontStyle: 'italic' },
-  spacer24: { width: 24 },
-  flexOne: { flex: 1 },
+  content: { paddingHorizontal: 20, paddingBottom: Spacing.xl },
+  intro: { fontSize: FontSize.md - 1, color: Colors.mutedWhite, lineHeight: 22, paddingTop: Spacing.xs },
+  status: { fontSize: FontSize.sm, color: Colors.mutedWhite, marginTop: Spacing.md },
+  empty: { fontSize: FontSize.sm, color: Colors.mutedWhite, paddingVertical: Spacing.md },
+  footer: { paddingHorizontal: 20, paddingTop: Spacing.sm, paddingBottom: Spacing.md },
 })

@@ -1,3 +1,4 @@
+import { colorWithOpacity } from '@/constants/designTokens'
 import { useState, useCallback } from 'react'
 import {
   View,
@@ -18,7 +19,6 @@ import { Card } from '@/components/Card'
 import { Toast } from '@/components/Toast'
 import { useAppStore } from '@/store/useAppStore'
 import { AppConfig } from '@/constants/config'
-import { apiService } from '@/services/api'
 import { stellarService } from '@/services/stellar-service'
 
 export function BlockchainScreen() {
@@ -43,14 +43,16 @@ export function BlockchainScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
     try {
-      const txRes = await apiService.getTransactions()
-      if (txRes?.transactions) setTransactions(txRes.transactions)
+      if (user?.stellarPublicKey) {
+        const txs = await stellarService.getPaymentHistory(user.stellarPublicKey)
+        setTransactions(txs)
+      }
     } catch {
-      // backend unavailable
+      // on-chain history unavailable — non-fatal
     }
     await refreshBalances()
     setRefreshing(false)
-  }, [refreshBalances, setTransactions])
+  }, [user?.stellarPublicKey, refreshBalances, setTransactions])
 
   const copyAddr = async (addr: string) => {
     await Clipboard.setStringAsync(addr)
@@ -125,8 +127,12 @@ export function BlockchainScreen() {
             </View>
             <View style={styles.walletInfo}>
               <Text style={styles.walletLabel}>Stellar Address</Text>
-              <PressableScale onPress={() => copyAddr(pubKey)} style={styles.addrRow}>
-                <Text style={styles.addrText} numberOfLines={1}>{pubKey}</Text>
+              <PressableScale onPress={() => copyAddr(pubKey)} style={styles.addrRow}
+                accessibilityLabel="Copy Stellar address"
+                accessibilityHint="Copies your address to the clipboard"
+                accessibilityRole="button"
+              >
+                <Text style={styles.addrText} numberOfLines={1} ellipsizeMode="middle">{pubKey}</Text>
                 <Ionicons name="copy-outline" size={14} color={Colors.gold} />
               </PressableScale>
             </View>
@@ -182,10 +188,10 @@ export function BlockchainScreen() {
                   <Ionicons name="swap-horizontal" size={18} color={Colors.gold} />
                 </View>
                 <View style={styles.txInfo}>
-                  <Text style={styles.txType}>{tx.merchantName}</Text>
+                  <Text style={styles.txType} numberOfLines={1}>{tx.merchantName}</Text>
                   <Text style={styles.txTime}>{new Date(tx.createdAt).toLocaleDateString()}</Text>
                 </View>
-                <Text style={styles.txAmount}>-{(tx.amountCents / 100).toFixed(2)} {tx.assetCode}</Text>
+                <Text style={styles.txAmount} numberOfLines={1}>-{(tx.amountCents / 100).toFixed(2)} {tx.assetCode}</Text>
               </View>
             ))
           )}
@@ -221,11 +227,11 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: FontSize.sm, color: Colors.mutedWhite, fontWeight: FontWeight.semibold, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: Spacing.sm, marginTop: Spacing.md },
   card: { marginBottom: Spacing.md },
   walletHeader: { flexDirection: 'row', gap: Spacing.md, alignItems: 'center', marginBottom: Spacing.md },
-  walletIcon: { width: 44, height: 44, borderRadius: BorderRadius.full, backgroundColor: Colors.gold + '15', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.gold + '25' },
+  walletIcon: { width: 44, height: 44, borderRadius: BorderRadius.full, backgroundColor: colorWithOpacity(Colors.gold, 0.1), alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colorWithOpacity(Colors.gold, 0.15) },
   walletInfo: { flex: 1 },
   walletLabel: { fontSize: FontSize.xs, color: Colors.mutedWhite },
   addrRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: 2 },
-  addrText: { fontSize: FontSize.sm, color: Colors.white, fontFamily: 'monospace' },
+  addrText: { fontSize: FontSize.sm, color: Colors.white, fontFamily: 'monospace', flexShrink: 1 },
   balances: { gap: Spacing.sm },
   balanceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.sm, borderTopWidth: 1, borderTopColor: Colors.borderGrey },
   balanceLabel: { fontSize: FontSize.sm, color: Colors.mutedWhite, fontWeight: FontWeight.medium },
@@ -238,11 +244,11 @@ const styles = StyleSheet.create({
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   statusText: { fontSize: FontSize.xs, color: Colors.success },
   txRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.borderGrey, gap: Spacing.md },
-  txIcon: { width: 36, height: 36, borderRadius: BorderRadius.full, backgroundColor: Colors.gold + '10', alignItems: 'center', justifyContent: 'center' },
+  txIcon: { width: 36, height: 36, borderRadius: BorderRadius.full, backgroundColor: colorWithOpacity(Colors.gold, 0.08), alignItems: 'center', justifyContent: 'center' },
   txInfo: { flex: 1 },
   txType: { fontSize: FontSize.sm, color: Colors.white, fontWeight: FontWeight.medium },
   txTime: { fontSize: FontSize.xs, color: Colors.mutedWhite, marginTop: 1 },
-  txAmount: { fontSize: FontSize.md, color: Colors.white, fontWeight: FontWeight.bold },
+  txAmount: { fontSize: FontSize.md, color: Colors.white, fontWeight: FontWeight.bold, flexShrink: 0 },
   viewAll: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, paddingVertical: Spacing.md },
   viewAllText: { fontSize: FontSize.sm, color: Colors.gold, fontWeight: FontWeight.medium },
   emptyTx: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', paddingVertical: Spacing.lg },
