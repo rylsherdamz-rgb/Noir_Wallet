@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator, Linking } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Linking } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -21,6 +21,7 @@ import type { AgentWallet } from '@/domain/x402'
 import { DesignTokens, colorWithOpacity } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts, Gradient } from '@/constants/theme'
 import { SignalRipple } from '@/components/brand/SignalRipple'
+import { VerifyingPulse } from '@/components/brand/VerifyingPulse'
 import { TapGlyph } from '@/components/brand/BrandGlyph'
 import { StatusPill } from '@/components/StatusPill'
 
@@ -121,7 +122,7 @@ export function AgentListScreen() {
           // had clearly already loaded. Gating the whole section on
           // `loading` keeps it to one state at a time.
           <View style={styles.loadingBox}>
-            <ActivityIndicator size="small" color={Colors.gold} />
+            <VerifyingPulse size={18} color={Colors.gold} />
             <Text style={styles.loadingText}>Loading agent wallets…</Text>
           </View>
         ) : (

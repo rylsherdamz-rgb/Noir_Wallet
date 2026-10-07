@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { Colors, Spacing, FontSize, FontWeight } from '@/constants/theme'
 import { NumericKeypad } from '@/components/NumericKeypad'
+import { VerifyingPulse } from '@/components/brand/VerifyingPulse'
 import { useAppStore } from '@/store/useAppStore'
 import {
   hasPin as hasStoredPin,
@@ -187,7 +188,7 @@ export default function LockScreen() {
           </Text>
         ) : busy ? (
           <View style={styles.busyRow} accessibilityLiveRegion="polite">
-            <ActivityIndicator size="small" color={Colors.gold} />
+            <VerifyingPulse size={18} color={Colors.gold} />
             <Text style={styles.busyText}>
               {mode === 'confirm' ? 'Saving your PIN…' : 'Checking…'}
             </Text>
