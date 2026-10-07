@@ -22,6 +22,7 @@ import { useHorizonPayments } from '@/hooks/useHorizonPayments'
 import { ProcessingOverlay } from '@/components/flow/ProcessingOverlay'
 import { openReceipt } from '@/lib/receipt'
 import { formatAmount, shortAddress } from '@/lib/txFormat'
+import { cardTotalCents } from '@/lib/cardBalances'
 import { ScreenHeader } from '@/components/ScreenHeader'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { SectionLabel, KeyValueRow, TextAction } from '@/components/ui/List'
@@ -296,8 +297,15 @@ export function AgentDetailScreen() {
   })
   useEffect(() => () => { if (liveRefresh.current) clearTimeout(liveRefresh.current) }, [])
 
-  const agentXlm = agent ? formatAmount(Math.round(agent.balanceStroops / 100_000)) : '—'
-  const escrowXlm = escrowBalance === null ? '—' : formatAmount(Number(escrowBalance / 100_000n))
+  // One balance per card: agent wallet + tap balance, same as the Agents list and Dashboard.
+  const totalCents = cardTotalCents({
+    agentCents: agent ? Math.round(agent.balanceStroops / 100_000) : null,
+    tapCents: escrowBalance === null ? null : Number(escrowBalance / 100_000n),
+  })
+  const balanceXlm = totalCents == null ? '—' : formatAmount(totalCents)
+  const limitText = policy === null ? '—'
+    : policy.maxAmountStroops === 0n ? 'No limit'
+    : `${formatAmount(Number(policy.maxAmountStroops / 100_000n))} XLM per payment`
   const statusText = chainStatus === null ? 'Checking Stellar…'
     : authorized ? 'Authorized on-chain'
     : chainStatus === 'expired' ? 'Authorization expired'
@@ -343,10 +351,10 @@ export function AgentDetailScreen() {
             <Text style={[styles.statusText, { color: statusColor }]}>{statusText}</Text>
           </View>
           <View style={styles.amountRow}>
-            <Text style={styles.amount} numberOfLines={1} adjustsFontSizeToFit>{escrowXlm}</Text>
+            <Text style={styles.amount} numberOfLines={1} adjustsFontSizeToFit>{balanceXlm}</Text>
             <Text style={styles.asset}>XLM</Text>
           </View>
-          <Text style={styles.heroSub}>Tap balance · {agentXlm} XLM in agent wallet</Text>
+          <Text style={styles.heroSub}>Card balance</Text>
           {chainStatus === 'missing' && !registering && (
             <Button label="Authorize on Stellar" size="small" onPress={handleRegister} style={styles.authorize} />
           )}
@@ -372,6 +380,7 @@ export function AgentDetailScreen() {
         <KeyValueRow label="Agent" value={shortAddress(agent?.publicKey ?? device.agentPublicKey) || 'None'} mono />
         <KeyValueRow label="Linked" value={new Date(device.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} />
         {device.lastTapAt && <KeyValueRow label="Last tap" value={new Date(device.lastTapAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} />}
+        <KeyValueRow label="Limit" value={limitText} />
         <KeyValueRow label="Works until" value={policy && policy.expiresAt !== 0n ? describeExpiry(policy.expiresAt) : 'You revoke it'} last />
 
         <View style={styles.revoke}>

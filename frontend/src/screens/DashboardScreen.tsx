@@ -19,7 +19,7 @@ import { Transaction } from '@/types'
 import { isIncomingTx, formatSignedAmount } from '@/lib/txFormat'
 import { NetworkPicker } from '@/components/NetworkPicker'
 import { spendableBalance } from '@/lib/stellarAccount'
-import { loadCardBalances, type CardBalance } from '@/lib/cardBalances'
+import { cardTotalCents, loadCardBalances, type CardBalance } from '@/lib/cardBalances'
 
 
 const DEVICE_STATUS: Record<string, { color: string; label: string }> = {
@@ -193,10 +193,7 @@ export function DashboardScreen() {
   const short = (k?: string | null) => (k ? `${k.slice(0, 4)}…${k.slice(-4)}` : 'No wallet')
   const accountName = user?.displayName?.trim() || 'My wallet'
   const spendable = spendableBalance(balance.xlm, balance.subentryCount ?? 0)
-  const cardCents = (id: string) => {
-    const b = cardBalances[id]
-    return b ? (b.agentCents ?? 0) + (b.tapCents ?? 0) : null
-  }
+  const cardCents = (id: string) => cardTotalCents(cardBalances[id])
   const cardsTotal = devices.reduce((sum, d) => sum + (cardCents(d.id) ?? 0), 0) / 100
   const recent = Array.isArray(transactions) ? transactions.filter(Boolean).slice(0, 5) : []
 

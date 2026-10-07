@@ -10,6 +10,16 @@ export interface CardBalance {
   tapCents: number | null
 }
 
+/**
+ * The one balance shown for a card everywhere: agent wallet + tap balance.
+ * Both are money behind the same card, so the UI never shows them apart.
+ * null only when neither has loaded.
+ */
+export function cardTotalCents(b: CardBalance | null | undefined): number | null {
+  if (!b || (b.agentCents == null && b.tapCents == null)) return null
+  return (b.agentCents ?? 0) + (b.tapCents ?? 0)
+}
+
 /** Reads every card's agent-wallet and tap balances in parallel, keyed by device id. */
 export async function loadCardBalances(devices: Device[], owner?: string): Promise<Record<string, CardBalance>> {
   const agents = await x402.listAgents().catch(() => [])

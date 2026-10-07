@@ -22,6 +22,7 @@ import { useAppStore } from '@/store/useAppStore'
 import { x402 } from '@/domain/x402'
 import type { Device } from '@/types'
 import { formatAmount, shortAddress } from '@/lib/txFormat'
+import { cardTotalCents } from '@/lib/cardBalances'
 import { logger } from '@/lib/logger'
 import { DesignTokens, colorWithOpacity } from '@/constants/designTokens'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
@@ -89,8 +90,7 @@ export function AgentListScreen() {
     setRefreshing(false)
   }
 
-  const totalAgent = rows.reduce((s, r) => s + (r.agentCents ?? 0), 0)
-  const totalTap = rows.reduce((s, r) => s + (r.tapCents ?? 0), 0)
+  const totalCards = rows.reduce((s, r) => s + (cardTotalCents(r) ?? 0), 0)
   const linkDevice = () => router.push('/link-device')
 
   const statusLabel = (st: string) => st.charAt(0).toUpperCase() + st.slice(1)
@@ -109,8 +109,7 @@ export function AgentListScreen() {
         ) : (
           <>
             <View style={styles.stats}>
-              <Stat value={formatAmount(totalAgent)} label="In agents · XLM" />
-              <Stat value={formatAmount(totalTap)} label="Tap balances · XLM" />
+              <Stat value={formatAmount(totalCards)} label="On cards · XLM" />
               <Stat value={String(rows.length)} label={rows.length === 1 ? 'Card' : 'Cards'} />
             </View>
             <SectionLabel title="Your cards" />
@@ -124,16 +123,15 @@ export function AgentListScreen() {
                 subtitleColor={r.device.status !== 'active' ? statusColor(r.device.status) : undefined}
                 right={
                   <View style={styles.amounts}>
-                    {r.tapCents == null && loading
+                    {cardTotalCents(r) == null && loading
                       ? <View style={styles.placeholder} />
-                      : <Text style={styles.amount}>{r.tapCents == null ? '—' : formatAmount(r.tapCents)} XLM</Text>}
-                    <Text style={styles.amountSub}>agent {r.agentCents == null ? '—' : formatAmount(r.agentCents)}</Text>
+                      : <Text style={styles.amount}>{cardTotalCents(r) == null ? '—' : formatAmount(cardTotalCents(r)!)} XLM</Text>}
                   </View>
                 }
                 chevron
                 last={i === rows.length - 1}
                 onPress={() => router.push(`/agent/${r.device.id}`)}
-                accessibilityLabel={`${r.device.label}, tap balance ${r.tapCents == null ? 'unknown' : formatAmount(r.tapCents)} XLM`}
+                accessibilityLabel={`${r.device.label}, balance ${cardTotalCents(r) == null ? 'unknown' : formatAmount(cardTotalCents(r)!)} XLM`}
               />
             ))}
             <TextAction label="Link another card" icon="add" onPress={linkDevice} center={false} />
@@ -186,7 +184,6 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: FontSize.sm - 1, color: Colors.mutedWhite, marginTop: 2 },
   amounts: { alignItems: 'flex-end' },
   amount: { fontSize: FontSize.md - 1, color: Colors.white, fontWeight: FontWeight.medium, fontVariant: ['tabular-nums'] },
-  amountSub: { fontSize: FontSize.xs, color: Colors.mutedWhite, marginTop: 2 },
   placeholder: { width: 64, height: 14, borderRadius: 4, backgroundColor: Colors.lightGrey },
   footer: { paddingHorizontal: 20, paddingTop: Spacing.sm },
   empty: { alignItems: 'center', gap: 14, paddingVertical: Spacing.lg },
