@@ -1,7 +1,7 @@
 {
   "name": "frontend",
   "version": "1.0.0",
-  "main": "expo-router/entry",
+  "main": "index.ts",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
@@ -24,6 +24,7 @@
     "ed25519-hd-key": "^2.0.0",
     "expo": "~57.0.2",
     "expo-asset": "~57.0.3",
+    "expo-background-task": "~57.0.21",
     "expo-build-properties": "~57.0.3",
     "expo-camera": "^57.0.0",
     "expo-clipboard": "~57.0.0",
@@ -44,6 +45,7 @@
     "expo-speech": "~57.0.0",
     "expo-splash-screen": "~57.0.2",
     "expo-status-bar": "~57.0.0",
+    "expo-task-manager": "~57.0.21",
     "nativewind": "^4.2.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",

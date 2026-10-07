@@ -79,6 +79,7 @@ A world where:
 - **PDAX Fiat Bridge**: Optional PHP cash-out via PDAX integration
 - **Custom Agents**: Per-device agent wallets with independent balances
 - **NFC Provisioning**: Link new devices directly from the app
+- **Payment Notifications**: Get notified when your wallet or a card receives money, even with the app closed
 - **Dark Theme**: Premium noir aesthetic with gold accents
 - **Cross-Platform**: React Native Expo app for iOS and Android
 
@@ -210,6 +211,7 @@ Noir_Wallet/
 │       ├── hooks/           # useNfc, useProfile, custom hooks
 │       ├── lib/             # soroban.ts helpers, x402 auth
 │       ├── domain/          # x402 agent logic
+│       ├── tasks/           # Background tasks (received-payment alerts)
 │       ├── constants/       # Theme (black/gold), network config
 │       └── types/           # TypeScript type definitions
 ├── backend/                 # Soroban smart contracts (Rust)
@@ -245,6 +247,34 @@ Noir_Wallet/
 3. **Instant:** Funds are deducted from escrow balance and locked for the merchant — no Horizon submission, no per-tap fee
 4. **Settle:** Merchant calls `payment_escrow.claim()` in batch — one transaction claims all pending payments
 5. **Reclaim:** Wallet owner can `defund_escrow()` unused balance at any time
+
+## Payment Notifications
+
+Noir Wallet notifies you when money **arrives** at your main wallet or at any card's agent wallet, including when you are not in the app. The app needs no server for this: it reads your accounts' payments from Horizon directly.
+
+| App state | How it checks | Delay |
+|-----------|---------------|-------|
+| Open | Balances update live on screen; on opening, anything that arrived while you were away is notified | — |
+| In the background (still running) | Polls Horizon every 30 seconds | ≤ 30 s |
+| Closed or swiped away | `expo-background-task` job (Android WorkManager) | ~15 min or more; Android decides when it runs |
+
+**What notifies:** incoming XLM or asset payments, and `create_account` funding (e.g. Friendbot), from someone else. Each notification reads like *"Received 50.00 XLM — From GSTR…XXX3 to Black card"*.
+
+**What doesn't:** payments you send, failed transactions, and moves between your own accounts (topping up a card from your main wallet, or a card's balance returning to it). Old payments never flood in: the first check for an account only records where it is, and each payment notifies once.
+
+**How it works**
+
+1. `index.ts` (the app entry) imports `src/tasks/paymentTask.ts` before the router, which defines the background task so Android can run it while the app is closed.
+2. On launch, `app/_layout.tsx` creates the Android **Payments** notification channel, asks for notification permission, takes a first snapshot of each account, and registers the background task.
+3. Every check (`checkIncomingPayments` in `src/services/paymentNotifier.ts`) fetches the latest Horizon payments for the main wallet and each card agent, keeps the ones newer than the last seen `paging_token` (stored per network and account in AsyncStorage), and shows one notification per payment. The filtering and wording live in `src/lib/incomingPayments.ts` and are unit-tested in `tests/17-incoming-payments.test.ts`.
+
+**Limits to know**
+
+- **Closed-app alerts are not real-time.** Android batches background work to save battery; on a phone in Doze it can be longer than 15 minutes. Instant alerts with the app closed need a server that watches Horizon and sends push notifications. The app already registers an Expo push token with the API for that, but no such server is part of this release.
+- **Force stop disables it.** If the app is force-stopped in Android settings, background work stops until you open the app again. Some manufacturers (Xiaomi, Huawei, Oppo…) also restrict background apps; allow Noir Wallet to run in the background in battery settings.
+- **Native change.** The background task is a native module: rebuild the app (`npx expo prebuild --platform android`, then `npx expo run:android`) after pulling this; a JS reload is not enough.
+
+**Test it:** open the app once so it snapshots your accounts and asks for permission. Leave it in the background and send XLM to your wallet address from another account (e.g. Stellar Laboratory on Testnet); a notification appears within about 30 seconds. To test the closed-app path without waiting, call `BackgroundTask.triggerTaskWorkerForTestingAsync()` from a dev build.
 
 ## Getting Started
 

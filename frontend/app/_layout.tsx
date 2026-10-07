@@ -56,6 +56,7 @@ import { Device } from '@/types'
 import NetInfo from '@react-native-community/netinfo'
 import { logger } from '@/lib/logger'
 import { Colors } from '@/constants/theme'
+import { checkIncomingPayments, initNotifications, registerPaymentBackgroundTask, startBackgroundPolling } from '@/services/paymentNotifier'
 
 SplashScreen.preventAutoHideAsync()
 
@@ -178,8 +179,13 @@ export default function RootLayout() {
 
       // Push notification registration
       try {
+        await initNotifications()
         const { status } = await Notifications.requestPermissionsAsync()
         if (status === 'granted') {
+          // Received-payment alerts: record where each account is now, then
+          // keep watching while backgrounded (poll) and closed (background task).
+          void checkIncomingPayments()
+          void registerPaymentBackgroundTask()
           const token = await Notifications.getExpoPushTokenAsync()
           await apiService.registerPushToken(token.data)
         }
@@ -198,6 +204,9 @@ export default function RootLayout() {
   useEffect(() => {
     if (ready) SplashScreen.hideAsync()
   }, [ready])
+
+  // Received-payment alerts while the app is in the background but still running.
+  useEffect(() => startBackgroundPolling(), [])
 
   // Connectivity listener: flush pending payments on reconnect
   useEffect(() => {

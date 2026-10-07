@@ -89,7 +89,8 @@
           ]
         }
       ],
-      "./plugins/withDisableReleaseLint"
+      "./plugins/withDisableReleaseLint",
+      "expo-background-task"
     ]
   }
 }
