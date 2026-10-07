@@ -53,6 +53,24 @@
       .phone .btn.vol2 { left: -3px; top: 238px; height: 58px; }
       .shadow { position: absolute; width: 300px; height: 40px; border-radius: 50%; background: rgba(0, 0, 0, 0.8); filter: blur(22px); }
       .phone .screen img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+      @font-face { font-family: "Noto Sans"; font-weight: 400; src: url("assets/fonts/noto-sans-latin-400-normal.woff2"); }
+      @font-face { font-family: "Noto Sans"; font-weight: 500; src: url("assets/fonts/noto-sans-latin-500-normal.woff2"); }
+      @font-face { font-family: "Noto Sans Mono"; font-weight: 400; src: url("assets/fonts/noto-sans-mono-latin-400-normal.woff2"); }
+      /* Receipt screen (349 x 758 phone screen; app layout scaled from 390pt) */
+      .rcpt { position: absolute; inset: 0; background: #0a0a0a; font-family: "Noto Sans", sans-serif; }
+      .rcpt-check { position: absolute; left: 154px; top: 38px; width: 41px; height: 41px; border-radius: 50%; background: #3ad597; display: flex; align-items: center; justify-content: center; }
+      .rcpt-title { position: absolute; left: 0; right: 0; top: 98px; text-align: center; font-family: "Jost"; font-weight: 600; font-size: 19px; color: var(--cream); }
+      .rcpt-amount { position: absolute; left: 0; right: 0; top: 132px; text-align: center; font-family: "Jost"; font-weight: 600; font-size: 38px; color: #fff; letter-spacing: -0.5px; }
+      .rcpt-amount span { font-size: 15px; color: var(--hint); margin-left: 7px; font-weight: 500; }
+      .rcpt-rows { position: absolute; left: 18px; right: 18px; top: 212px; }
+      .rcpt-row { display: flex; justify-content: space-between; align-items: center; height: 46px; border-bottom: 1px solid #1f1f1f; font-size: 12.5px; }
+      .rcpt-row.last { border-bottom: 0; }
+      .rcpt-row span { color: var(--hint); }
+      .rcpt-row b { color: #fff; font-weight: 500; }
+      .rcpt-row b.mono { font-family: "Noto Sans Mono", monospace; font-weight: 400; font-size: 11.5px; letter-spacing: 0.3px; }
+      .rcpt-links { position: absolute; left: 0; right: 0; top: 515px; display: flex; justify-content: center; gap: 26px; color: var(--gold); font-size: 12.5px; font-weight: 500; }
+      .rcpt-links span { display: inline-flex; align-items: center; gap: 6px; }
+      .rcpt-done { position: absolute; left: 18px; right: 18px; bottom: 26px; height: 48px; border-radius: 999px; background: var(--gold); color: #1a1408; font-family: "Jost"; font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: center; }
       .phone .mask { position: absolute; left: 0; right: 0; bottom: 0; background: var(--ink); }
 
       /* Matte black NFC card, ISO 85.6:54 */
@@ -97,9 +115,25 @@
         <div id="f2-phone" class="phone" style="left:1080px; top:153px;">
           <img id="f2-s1" src="assets/Tap.png" alt="" />
           <img id="f2-s2" src="assets/ModalProcessing.png" alt="" style="opacity:0" />
-          <div id="f2-s3" style="position:absolute; inset:0; opacity:0;">
-            <img src="assets/Receipt.png" alt="" />
-            <div class="mask" style="top:33%;"></div>
+          <!-- Complete receipt for this 12 XLM tap, laid out like the app's Receipt screen. -->
+          <div id="f2-s3" class="rcpt" style="opacity:0;">
+            <div class="rcpt-check" id="f2-check"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+            <div class="rcpt-title">Received</div>
+            <div class="rcpt-amount">12.00<span>XLM</span></div>
+            <div class="rcpt-rows">
+              <div class="rcpt-row"><span>From</span><b>Black card</b></div>
+              <div class="rcpt-row"><span>Payer</span><b class="mono">GCQX…4LMA</b></div>
+              <div class="rcpt-row"><span>Date</span><b>Oct 7, 2026, 9:41 PM</b></div>
+              <div class="rcpt-row"><span>Status</span><b style="color:#3ad597;">Confirmed</b></div>
+              <div class="rcpt-row"><span>Network</span><b>Stellar Testnet</b></div>
+              <div class="rcpt-row last"><span>Transaction</span><b class="mono">a1b2c3d4…9f8e7d6c</b></div>
+            </div>
+            <div class="rcpt-links">
+              <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c6a15b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Save</span>
+              <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c6a15b" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.9l7.6-4.4M8.2 13.1l7.6 4.4"/></svg>Share</span>
+              <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c6a15b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Explorer</span>
+            </div>
+            <div class="rcpt-done">Done</div>
           </div>
         </div>
         <div id="f2-ring1" class="ring" style="left:1395px; top:470px; width:160px; height:160px;"></div>
@@ -270,6 +304,8 @@
       slam(F2 + 2.2, "#f2-paid");
       tl.to("#f2-card", { opacity: 0, x: 520, duration: 0.6, ease: "power2.in" }, F2 + 2.5);
       fade(F2 + 2.9, "#f2-s3", 0.3);
+      tl.fromTo("#f2-check", { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "back.out(2)" }, F2 + 3.0);
+      tl.fromTo("#f2-s3 .rcpt-row", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.35, ease: P3, stagger: 0.07 }, F2 + 3.2);
       slam(F2 + 3.0, "#f2-settled");
       fade(F2 + 3.5, "#f2-label", 0.6);
 
