@@ -62,7 +62,11 @@ Build order matters: `agent_registry` + `device_registry` WASM before `payment_e
     PROGRESS.md). `scripts/redeploy-contracts.sh UPDATE_ENV=1` auto-patches `frontend/.env`
     only — the docs above are manual.
 - Contract tests: 44 passing, 0 failed (`cargo test` from `backend/`).
-- Frontend: `tsc --noEmit` clean, Vitest 226/226 passing.
+- Frontend: `tsc --noEmit` clean, Vitest 243/243 passing (as of 2026-10-07).
+- **Play Store target:** contract IDs for EAS builds live in `frontend/eas.json`
+  (`base` profile) because `frontend/.env` is gitignored — update them there too on
+  redeploy. Secrets go in `eas env`, never in eas.json. `app.json` blocks unused
+  permissions and sets `allowBackup: false`; keep it that way.
 - CI: `contracts.yml` and `frontend.yml` both green on Instaward branches. WASM hash
   cross-machine check is informational only (soroban embeds the build host's absolute
   path in the binary, so hashes legitimately differ CI vs local — not a bug).
@@ -72,19 +76,21 @@ Build order matters: `agent_registry` + `device_registry` WASM before `payment_e
 | # | Deliverable | Status |
 |---|-------------|--------|
 | 1 | Soroban contracts (device/agent/escrow registry) | 🟡 Week 1–2 core logic + tests done; redeployed 2026-10-03 |
-| 2 | React Native wallet (Android) | 🟡 register+associate+auth working on Testnet; escrow funding + agent-policy UI + NFC provisioning UI still open |
+| 2 | React Native wallet (Android) | 🟡 register+associate+auth working on Testnet; agent-policy UI, escrow fund/withdraw, safe unlink wired + unit-tested (2026-10-07), Testnet + on-device run pending |
 | 3 | Docs & MIT release | 🟡 architecture.md, AI build guide, dev guide, evidence pack started; not finalized |
 
 ### Open items (don't re-derive these — just pick up here)
 
 - Push local commits on `instaward-development` (as of last session there were
   unpushed commits — check `git status`/`git log origin/instaward-development..HEAD`).
-- Constraint UI for agent policy (limit/asset/expiry) — currently wired with fixed
-  defaults (`max_amount=0` uncapped, native XLM, `expires_at=0` never), no UI yet.
-- Wire `fund_escrow` / `authorize` calls from the app (escrow funding not yet wired).
+- Testnet run of the Week 2 path: provision with policy → `fund_escrow` →
+  `defund_escrow` → unlink (revoke_agent → sweep_on_revoke → device revoke).
+  Code + unit tests done 2026-10-07; never executed against Testnet yet.
 - NTAG213 provisioning flow still needs on-device testing (NFC write timeout,
-  ownership screens, scan animation) — written but unverified on hardware.
-- Unlink/revoke flow so a tag can move between wallets.
+  ownership screens, scan animation, taller policy signature sheet).
+- Escrow invariant: never call `device_registry.revoke` while escrow > 0 — it
+  strands funds. Use `x402.unlinkDevice` (see `Noir/Flow - Escrow Payment.md`).
+- `authorize` (tap-to-pay) is Week 3.
 - Week 3 (full x402 flow + security test matrix) and Week 4 (final release + evidence
   package + demo video) not started.
 

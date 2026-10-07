@@ -26,6 +26,14 @@ export class DeviceOwnedByOtherWalletError extends Error {
   }
 }
 
+/** Thrown before signing when the wallet can't cover an amount plus its reserve. */
+export class InsufficientFundsError extends Error {
+  constructor(public readonly requestedXlm: number, public readonly spendableXlm: number) {
+    super(`Not enough XLM: ${spendableXlm.toFixed(2)} XLM available after the network reserve`)
+    this.name = 'InsufficientFundsError'
+  }
+}
+
 /** Parse a `device_registry.get_device` DeviceInfo result. */
 function parseDeviceInfo(val: xdr.ScVal, walletPub: string): DeviceOwnership {
   const info = scValToNative(val) as { owner: string; agent: string; status: number; created_at: bigint | number }
@@ -43,16 +51,56 @@ function parseDeviceInfo(val: xdr.ScVal, walletPub: string): DeviceOwnership {
 // register_agent(wallet, device_hash, agent, max_amount: i128, asset: Address,
 // expires_at: u64). Agents spend native XLM via its Stellar Asset Contract.
 // max_amount = 0 → uncapped per payment; expires_at = 0 → never expires.
-function agentPolicyArgs(maxAmountStroops: bigint = 0n, expiresAt: bigint = 0n): xdr.ScVal[] {
+function nativeXlmSac(): string {
   const passphrase = stellarService.networkName === 'mainnet'
     ? 'Public Global Stellar Network ; September 2015'
     : 'Test SDF Network ; September 2015'
-  const xlmSac = Asset.native().contractId(passphrase)
+  return Asset.native().contractId(passphrase)
+}
+
+function agentPolicyArgs(maxAmountStroops: bigint = 0n, expiresAt: bigint = 0n): xdr.ScVal[] {
   return [
     nativeToScVal(maxAmountStroops, { type: 'i128' }),
-    new Address(xlmSac).toScVal(),
+    new Address(nativeXlmSac()).toScVal(),
     nativeToScVal(expiresAt, { type: 'u64' }),
   ]
+}
+
+/** Constrained delegation policy, in contract units. */
+export interface AgentPolicyInput {
+  /** Per-payment cap in stroops. 0n = uncapped. */
+  maxAmountStroops: bigint
+  /** Unix seconds after which the agent can no longer pay. 0n = never. */
+  expiresAt: bigint
+}
+
+/**
+ * Turn UI choices (XLM cap, expiry in days) into contract-ready policy values.
+ * Mirrors register_agent's own validation so the user never signs a tx that
+ * is guaranteed to fail with InvalidPolicy.
+ */
+export function buildAgentPolicy(opts: {
+  maxAmountXlm?: number
+  expiryDays?: number
+  nowSec?: number
+}): AgentPolicyInput {
+  const max = opts.maxAmountXlm ?? 0
+  const days = opts.expiryDays ?? 0
+  if (!Number.isFinite(max) || max < 0) throw new Error('Spending limit must be zero or positive')
+  if (!Number.isFinite(days) || days < 0) throw new Error('Expiry must be zero or positive days')
+  const now = opts.nowSec ?? Math.floor(Date.now() / 1000)
+  return {
+    maxAmountStroops: BigInt(Math.round(max * 10_000_000)),
+    expiresAt: days === 0 ? 0n : BigInt(now + Math.round(days * 86_400)),
+  }
+}
+
+/** On-chain AgentPolicy as read back from agent_registry.get_policy. */
+export interface OnChainAgentPolicy {
+  agent: string
+  maxAmountStroops: bigint
+  asset: string
+  expiresAt: bigint
 }
 
 // ── Per-agent SecureStore keys ──────────────────────────────────────────────
@@ -92,6 +140,9 @@ export interface AgentWallet {
 function addressScVal(addr: string): xdr.ScVal {
   return Address.fromString(addr).toScVal()
 }
+
+// Shared in-flight listAgents() promise — see listAgents() for why.
+let listAgentsInFlight: Promise<AgentWallet[]> | null = null
 
 async function readIndexes(): Promise<number[]> {
   const raw = await SecureStore.getItemAsync(AGENTS_INDEX_KEY)
@@ -224,16 +275,30 @@ export const x402 = {
     }
   },
 
-  /** List all live agents (excludes permanently retired ones). */
+  /**
+   * List all live agents (excludes permanently retired ones). Per-agent
+   * balance fetches run in parallel instead of sequentially — with several
+   * agents this used to serialize one Horizon round-trip per agent.
+   *
+   * If a call comes in while a previous one is still in flight (the common
+   * case: syncAgentsFromDevices() calls this internally and the caller then
+   * immediately calls it again), it's handed the same in-flight promise
+   * instead of starting a second full fetch pass.
+   */
   async listAgents(): Promise<AgentWallet[]> {
-    await ensureLegacyAgentMigrated()
-    const indexes = await readIndexes()
-    const agents: AgentWallet[] = []
-    for (const i of indexes) {
-      const a = await loadAgentMeta(i)
-      if (a) agents.push(a)
-    }
-    return agents.sort((a, b) => a.index - b.index)
+    if (listAgentsInFlight) return listAgentsInFlight
+    listAgentsInFlight = (async () => {
+      try {
+        await ensureLegacyAgentMigrated()
+        const indexes = await readIndexes()
+        const loaded = await Promise.all(indexes.map((i) => loadAgentMeta(i)))
+        const agents = loaded.filter((a): a is AgentWallet => a != null)
+        return agents.sort((a, b) => a.index - b.index)
+      } finally {
+        listAgentsInFlight = null
+      }
+    })()
+    return listAgentsInFlight
   },
 
   /**
@@ -264,6 +329,13 @@ export const x402 = {
     // Which pubkeys do we already have materialized locally?
     const existing = await this.listAgents()
     const knownPubkeys = new Set(existing.map((a) => a.publicKey))
+
+    // Nothing to heal: every device with an on-chain agent pubkey already has
+    // a local agent for it. Skip the (expensive, up-to-64-iteration) HD
+    // derivation scan below entirely — this is the common case on every
+    // normal screen load, not just the fresh-login healing case.
+    const needsHealing = devices.some((d) => d.agentPublicKey && !knownPubkeys.has(d.agentPublicKey))
+    if (!needsHealing) return 0
 
     // Precompute derived pubkey -> index for the scan range (skip retired).
     const retired = new Set(keys.retiredAgentIndexes ?? [])
@@ -532,15 +604,24 @@ export const x402 = {
     walletSecret: string
     deviceHashHex: string
     agentPublicKey: string
+    /** Constrained delegation policy. Omitted → uncapped, never expires. */
+    policy?: AgentPolicyInput
   }): Promise<void> {
     const contractIdDevice = AppConfig.stellar.deviceRegistryContract
     const contractIdAgent = AppConfig.stellar.agentRegistryContract
     if (!contractIdDevice) throw new Error('deviceRegistryContract not configured')
     if (!contractIdAgent) throw new Error('agentRegistryContract not configured')
 
-    const isAlreadyRegistered = (e: any) => {
+    // Error codes differ per contract: device_registry AlreadyRegistered = #4
+    // (#3 NotOwner), agent_registry AlreadyRegistered = #3 but #4 is
+    // InvalidPolicy — which must surface, not be swallowed as "already done".
+    const deviceAlreadyRegistered = (e: any) => {
       const msg = e?.message ?? ''
       return msg.includes('Error(Contract, #4)') || msg.includes('Error(Contract, #3)') || msg.includes('AlreadyRegistered')
+    }
+    const agentAlreadyRegistered = (e: any) => {
+      const msg = e?.message ?? ''
+      return msg.includes('Error(Contract, #3)') || msg.includes('AlreadyRegistered')
     }
 
     const kp = Keypair.fromSecret(params.walletSecret)
@@ -551,26 +632,43 @@ export const x402 = {
     const deviceHashScVal = stellarService.deviceHashScVal(params.deviceHashHex)
     const agentScVal = stellarService.walletAddressScVal(params.agentPublicKey)
 
-    let deviceRegistered = false
-    try {
-      const info = await stellarService.readContract({
+    // These two reads are independent of each other — run them concurrently
+    // instead of waiting on get_device before even starting is_auth.
+    const [deviceCheck, agentCheck] = await Promise.all([
+      stellarService.readContract({
         contractId: contractIdDevice,
         method: 'get_device',
         args: [deviceHashScVal],
         source: pub,
-      })
+      }).then(
+        (info) => ({ ok: true as const, info }),
+        (e: any) => ({ ok: false as const, error: e }),
+      ),
+      stellarService.readContract({
+        contractId: contractIdAgent,
+        method: 'is_auth',
+        args: [deviceHashScVal, agentScVal],
+        source: pub,
+      }).then(
+        (auth) => ({ ok: true as const, auth }),
+        (e: any) => ({ ok: false as const, error: e }),
+      ),
+    ])
+
+    let deviceRegistered = false
+    if (deviceCheck.ok) {
       deviceRegistered = true
       // A tag owned by another wallet must not be treated as "already done":
       // register / register_agent would fail with AlreadyRegistered and the
       // caller would wrongly report success while this wallet's agent is
       // never authorized.
       let ownership: DeviceOwnership | null = null
-      try { ownership = parseDeviceInfo(info, pub) } catch { /* unparseable → fall through */ }
+      try { ownership = parseDeviceInfo(deviceCheck.info, pub) } catch { /* unparseable → fall through */ }
       if (ownership && ownership.status === 'other') {
         throw new DeviceOwnedByOtherWalletError(ownership.owner, ownership.createdAt)
       }
-    } catch (e: any) {
-      if (e instanceof DeviceOwnedByOtherWalletError) throw e
+    } else {
+      const e = deviceCheck.error
       const msg = e?.message ?? ''
       if (!msg.includes('Error(Contract, #2)') && !msg.includes('DeviceNotFound')) {
         logger.debug(`[x402] device pre-check failed (falling back to write): ${msg}`)
@@ -578,16 +676,10 @@ export const x402 = {
     }
 
     let agentRegistered = false
-    try {
-      const auth = await stellarService.readContract({
-        contractId: contractIdAgent,
-        method: 'is_auth',
-        args: [deviceHashScVal, agentScVal],
-        source: pub,
-      })
-      agentRegistered = auth.b() === true
-    } catch (e: any) {
-      logger.debug(`[x402] agent pre-check failed (falling back to write): ${e?.message ?? e}`)
+    if (agentCheck.ok) {
+      agentRegistered = agentCheck.auth.b() === true
+    } else {
+      logger.debug(`[x402] agent pre-check failed (falling back to write): ${agentCheck.error?.message ?? agentCheck.error}`)
     }
 
     let registerSubmitted = false
@@ -602,7 +694,7 @@ export const x402 = {
         })
         registerSubmitted = true
       } catch (e: any) {
-        if (!isAlreadyRegistered(e)) throw e
+        if (!deviceAlreadyRegistered(e)) throw e
       }
     }
 
@@ -616,16 +708,17 @@ export const x402 = {
     void registerSubmitted
 
     if (!agentRegistered) {
+      const { maxAmountStroops, expiresAt } = params.policy ?? { maxAmountStroops: 0n, expiresAt: 0n }
       try {
         await stellarService.invokeContract({
           contractId: contractIdAgent,
           method: 'register_agent',
-          args: [walletScVal, deviceHashScVal, agentScVal, ...agentPolicyArgs()],
+          args: [walletScVal, deviceHashScVal, agentScVal, ...agentPolicyArgs(maxAmountStroops, expiresAt)],
           signerSecret: params.walletSecret,
           sourceAccount: account,
         })
       } catch (e: any) {
-        if (!isAlreadyRegistered(e)) throw e
+        if (!agentAlreadyRegistered(e)) throw e
       }
     }
   },
@@ -731,14 +824,179 @@ export const x402 = {
     })
   },
 
-  // ── payment_escrow (views) ──
+  // ── payment_escrow ──
 
-  async getEscrowBalance(deviceHashHex: string, index: number = LEGACY_AGENT_INDEX): Promise<number> {
+  /**
+   * Fund escrow for a device using native XLM. The owner tops up the device's
+   * escrow balance from their own wallet. The agent can then authorize payments
+   * up to this balance (subject to its policy constraints).
+   */
+  async fundEscrow(params: {
+    walletSecret: string
+    deviceHashHex: string
+    amountXlm: number
+  }): Promise<string> {
     const contractId = AppConfig.stellar.paymentEscrowContract
-    if (!contractId) return 0
+    if (!contractId) throw new Error('paymentEscrowContract not configured')
+    if (!Number.isFinite(params.amountXlm) || params.amountXlm <= 0) {
+      throw new Error('Escrow amount must be greater than zero')
+    }
 
-    const source = await SecureStore.getItemAsync(legacyPublicKey(index))
-    if (!source) return 0
+    const walletPub = Keypair.fromSecret(params.walletSecret).publicKey()
+    const amountStroops = BigInt(Math.round(params.amountXlm * 10_000_000))
+
+    // Refuse up front rather than letting the token transfer fail on-chain:
+    // the account must keep its base reserve after the deposit.
+    const bal = await stellarService.getBalance(walletPub)
+    const spendable = spendableBalance(bal.xlm, bal.subentryCount ?? 0)
+    if (params.amountXlm > spendable) {
+      throw new InsufficientFundsError(params.amountXlm, spendable)
+    }
+
+    // Wait for finality: the caller refreshes balance_of right after, and a
+    // fire-and-forget submit could still fail after we reported success.
+    const hash = await stellarService.invokeContractAndWait({
+      contractId,
+      method: 'fund_escrow',
+      args: [
+        new Address(nativeXlmSac()).toScVal(),
+        stellarService.walletAddressScVal(walletPub),
+        stellarService.deviceHashScVal(params.deviceHashHex),
+        nativeToScVal(amountStroops, { type: 'i128' }),
+      ],
+      signerSecret: params.walletSecret,
+    })
+    stellarService.invalidateBalance?.(walletPub)
+    return hash
+  },
+
+  /**
+   * Owner withdraws part of a device's escrow back to their wallet
+   * (payment_escrow.defund_escrow). The contract resolves the owner from
+   * device_registry and requires their auth.
+   */
+  async withdrawEscrow(params: {
+    walletSecret: string
+    deviceHashHex: string
+    amountStroops: bigint
+  }): Promise<string> {
+    const contractId = AppConfig.stellar.paymentEscrowContract
+    if (!contractId) throw new Error('paymentEscrowContract not configured')
+    if (params.amountStroops <= 0n) throw new Error('Withdrawal amount must be greater than zero')
+
+    const walletPub = Keypair.fromSecret(params.walletSecret).publicKey()
+    const hash = await stellarService.invokeContractAndWait({
+      contractId,
+      method: 'defund_escrow',
+      args: [
+        new Address(nativeXlmSac()).toScVal(),
+        stellarService.deviceHashScVal(params.deviceHashHex),
+        nativeToScVal(params.amountStroops, { type: 'i128' }),
+      ],
+      signerSecret: params.walletSecret,
+    })
+    stellarService.invalidateBalance?.(walletPub)
+    return hash
+  },
+
+  /**
+   * Unlink a tag from this wallet without stranding funds.
+   *
+   * Order is load-bearing:
+   *   1. revoke_agent       — sweep_on_revoke refuses while an agent is live
+   *   2. sweep_on_revoke    — returns the full escrow balance to the owner
+   *   3. device revoke      — deletes the device entry; after this get_owner
+   *                           fails, so any escrow left behind is unrecoverable
+   *
+   * Each step is decided by a read first, so every write is expected to
+   * succeed and the steps share one source account without sequence gaps.
+   * Any failure aborts BEFORE the device is revoked; the whole call is
+   * idempotent, so the user can simply retry.
+   */
+  async unlinkDevice(params: {
+    walletSecret: string
+    deviceHashHex: string
+    /**
+     * Fallback agent address for the sweep when the agent is already revoked.
+     * sweep_on_revoke only requires that this address is NOT authorized, so
+     * the owner wallet itself is a safe last resort.
+     */
+    agentPublicKey?: string
+  }): Promise<{ agentRevoked: boolean; sweptStroops: bigint; deviceRevoked: boolean }> {
+    const deviceId = AppConfig.stellar.deviceRegistryContract
+    const agentId = AppConfig.stellar.agentRegistryContract
+    const escrowId = AppConfig.stellar.paymentEscrowContract
+    if (!deviceId || !agentId || !escrowId) throw new Error('Contracts not configured')
+
+    const pub = Keypair.fromSecret(params.walletSecret).publicKey()
+    const walletScVal = stellarService.walletAddressScVal(pub)
+    const deviceHashScVal = stellarService.deviceHashScVal(params.deviceHashHex)
+
+    const [ownership, policy, escrow] = await Promise.all([
+      this.getDeviceOwnership(params.deviceHashHex, pub),
+      this.getAgentPolicy(params.deviceHashHex, pub),
+      this.getEscrowBalance(params.deviceHashHex, pub),
+    ])
+    if (ownership.status === 'other') {
+      throw new DeviceOwnedByOtherWalletError(ownership.owner, ownership.createdAt)
+    }
+
+    const account = await stellarService.loadSourceAccount(pub)
+    const result = { agentRevoked: false, sweptStroops: 0n, deviceRevoked: false }
+
+    if (policy) {
+      await stellarService.invokeContractAndWait({
+        contractId: agentId,
+        method: 'revoke_agent',
+        args: [walletScVal, deviceHashScVal],
+        signerSecret: params.walletSecret,
+        sourceAccount: account,
+      })
+      result.agentRevoked = true
+    }
+
+    if (escrow > 0n) {
+      if (ownership.status !== 'mine') {
+        // Device already gone → owner can't be resolved → nothing we can do.
+        throw new Error('Escrow balance remains but the device is no longer registered')
+      }
+      await stellarService.invokeContractAndWait({
+        contractId: escrowId,
+        method: 'sweep_on_revoke',
+        args: [
+          new Address(nativeXlmSac()).toScVal(),
+          deviceHashScVal,
+          stellarService.walletAddressScVal(policy?.agent ?? params.agentPublicKey ?? pub),
+        ],
+        signerSecret: params.walletSecret,
+        sourceAccount: account,
+      })
+      result.sweptStroops = escrow
+    }
+
+    if (ownership.status === 'mine') {
+      await stellarService.invokeContractAndWait({
+        contractId: deviceId,
+        method: 'revoke',
+        args: [walletScVal, deviceHashScVal],
+        signerSecret: params.walletSecret,
+        sourceAccount: account,
+      })
+      result.deviceRevoked = true
+    }
+
+    stellarService.invalidateBalance?.(pub)
+    return result
+  },
+
+  /**
+   * Escrow balance for a device, in stroops. `source` is any funded account
+   * used to simulate the read — pass the owner wallet, since a freshly
+   * derived agent may not exist on-chain yet.
+   */
+  async getEscrowBalance(deviceHashHex: string, source: string): Promise<bigint> {
+    const contractId = AppConfig.stellar.paymentEscrowContract
+    if (!contractId) return 0n
 
     const result = await stellarService.readContract({
       contractId,
@@ -746,7 +1004,35 @@ export const x402 = {
       args: [stellarService.deviceHashScVal(deviceHashHex)],
       source,
     })
-    return Number(result)
+    return BigInt(scValToNative(result))
+  },
+
+  /**
+   * The constrained delegation policy stored for a device, or null when no
+   * agent is registered for it (AgentNotFound).
+   */
+  async getAgentPolicy(deviceHashHex: string, source: string): Promise<OnChainAgentPolicy | null> {
+    const contractId = AppConfig.stellar.agentRegistryContract
+    if (!contractId) return null
+    try {
+      const val = await stellarService.readContract({
+        contractId,
+        method: 'get_policy',
+        args: [stellarService.deviceHashScVal(deviceHashHex)],
+        source,
+      })
+      const p = scValToNative(val) as { agent: string; max_amount: bigint; asset: string; expires_at: bigint }
+      return {
+        agent: String(p.agent),
+        maxAmountStroops: BigInt(p.max_amount),
+        asset: String(p.asset),
+        expiresAt: BigInt(p.expires_at),
+      }
+    } catch (e: any) {
+      const msg = e?.message ?? ''
+      if (msg.includes('AgentNotFound') || msg.includes('Error(Contract, #2)')) return null
+      throw e
+    }
   },
 
   async getPendingBalance(merchantAddress: string, index: number = LEGACY_AGENT_INDEX): Promise<number> {

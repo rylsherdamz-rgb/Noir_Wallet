@@ -611,3 +611,311 @@ describe('x402 device ownership', () => {
     expect(stellarService.invokeContract).not.toHaveBeenCalled()
   })
 })
+
+// Week 2: constrained delegation policy + escrow funding wired to the contracts.
+describe('x402 agent policy (constrained delegation)', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('buildAgentPolicy converts XLM cap + expiry days into contract units', async () => {
+    const { buildAgentPolicy } = await import('@/domain/x402')
+    expect(buildAgentPolicy({})).toEqual({ maxAmountStroops: 0n, expiresAt: 0n })
+    expect(buildAgentPolicy({ maxAmountXlm: 25, expiryDays: 30, nowSec: 1_000 })).toEqual({
+      maxAmountStroops: 250_000_000n,
+      expiresAt: BigInt(1_000 + 30 * 86_400),
+    })
+    expect(buildAgentPolicy({ maxAmountXlm: 0.1234567 }).maxAmountStroops).toBe(1_234_567n)
+  })
+
+  it('buildAgentPolicy rejects values register_agent would reject (InvalidPolicy)', async () => {
+    const { buildAgentPolicy } = await import('@/domain/x402')
+    expect(() => buildAgentPolicy({ maxAmountXlm: -1 })).toThrow()
+    expect(() => buildAgentPolicy({ expiryDays: -1 })).toThrow()
+    expect(() => buildAgentPolicy({ maxAmountXlm: Number.NaN })).toThrow()
+  })
+
+  it('passes the chosen policy into register_agent args', async () => {
+    const { Account, Keypair, scValToNative } = await import('@stellar/stellar-sdk')
+    const { stellarService } = await import('@/services/stellar-service')
+    const { x402, buildAgentPolicy } = await import('@/domain/x402')
+    const { AppConfig } = await import('@/constants/config')
+    vi.spyOn(AppConfig.stellar, 'deviceRegistryContract', 'get').mockReturnValue('CDEVICE')
+    vi.spyOn(AppConfig.stellar, 'agentRegistryContract', 'get').mockReturnValue('CAGENT')
+
+    const wallet = Keypair.random()
+    ;(stellarService.loadSourceAccount as any) = vi.fn().mockResolvedValue(new Account(wallet.publicKey(), '1'))
+    ;(stellarService.readContract as any) = vi.fn().mockImplementation(async ({ method }: any) => {
+      if (method === 'get_device') throw new Error('Error(Contract, #2)')
+      return { b: () => false }
+    })
+    ;(stellarService.walletAddressScVal as any) = vi.fn().mockReturnValue({})
+    ;(stellarService.deviceHashScVal as any) = vi.fn().mockReturnValue({})
+    ;(stellarService.invokeContract as any) = vi.fn().mockResolvedValue('hash')
+
+    const policy = buildAgentPolicy({ maxAmountXlm: 10, expiryDays: 7, nowSec: 5_000 })
+    await x402.registerDeviceAndAgentOnChain({
+      walletSecret: wallet.secret(),
+      deviceHashHex: 'd'.repeat(64),
+      agentPublicKey: Keypair.random().publicKey(),
+      policy,
+    })
+
+    const agentCall = (stellarService.invokeContract as any).mock.calls
+      .find(([p]: any) => p.method === 'register_agent')[0]
+    expect(scValToNative(agentCall.args[3])).toBe(100_000_000n)
+    expect(scValToNative(agentCall.args[5])).toBe(BigInt(5_000 + 7 * 86_400))
+  })
+
+  it('surfaces agent_registry InvalidPolicy (#4) instead of treating it as already-registered', async () => {
+    const { Account, Keypair } = await import('@stellar/stellar-sdk')
+    const { stellarService } = await import('@/services/stellar-service')
+    const { x402 } = await import('@/domain/x402')
+    const { AppConfig } = await import('@/constants/config')
+    vi.spyOn(AppConfig.stellar, 'deviceRegistryContract', 'get').mockReturnValue('CDEVICE')
+    vi.spyOn(AppConfig.stellar, 'agentRegistryContract', 'get').mockReturnValue('CAGENT')
+
+    const wallet = Keypair.random()
+    ;(stellarService.loadSourceAccount as any) = vi.fn().mockResolvedValue(new Account(wallet.publicKey(), '1'))
+    ;(stellarService.readContract as any) = vi.fn().mockImplementation(async ({ method }: any) => {
+      if (method === 'get_device') throw new Error('Error(Contract, #2)')
+      return { b: () => false }
+    })
+    ;(stellarService.walletAddressScVal as any) = vi.fn().mockReturnValue({})
+    ;(stellarService.deviceHashScVal as any) = vi.fn().mockReturnValue({})
+    ;(stellarService.invokeContract as any) = vi.fn().mockImplementation(async ({ method }: any) => {
+      if (method === 'register_agent') throw new Error('HostError: Error(Contract, #4)')
+      return 'hash'
+    })
+
+    await expect(x402.registerDeviceAndAgentOnChain({
+      walletSecret: wallet.secret(),
+      deviceHashHex: 'e'.repeat(64),
+      agentPublicKey: Keypair.random().publicKey(),
+    })).rejects.toThrow('#4')
+  })
+
+  it('getAgentPolicy decodes get_policy and returns null on AgentNotFound', async () => {
+    const { Keypair, nativeToScVal, Address, Asset, Networks } = await import('@stellar/stellar-sdk')
+    const { stellarService } = await import('@/services/stellar-service')
+    const { x402 } = await import('@/domain/x402')
+    const { AppConfig } = await import('@/constants/config')
+    vi.spyOn(AppConfig.stellar, 'agentRegistryContract', 'get').mockReturnValue('CAGENT')
+    ;(stellarService.deviceHashScVal as any) = vi.fn().mockReturnValue({})
+
+    const agent = Keypair.random().publicKey()
+    const sac = Asset.native().contractId(Networks.TESTNET)
+    const val = nativeToScVal({
+      agent: new Address(agent).toScVal(),
+      asset: new Address(sac).toScVal(),
+      expires_at: nativeToScVal(1_800_000_000n, { type: 'u64' }),
+      max_amount: nativeToScVal(250_000_000n, { type: 'i128' }),
+    })
+    ;(stellarService.readContract as any) = vi.fn().mockResolvedValue(val)
+    expect(await x402.getAgentPolicy('a'.repeat(64), agent)).toEqual({
+      agent, asset: sac, maxAmountStroops: 250_000_000n, expiresAt: 1_800_000_000n,
+    })
+
+    ;(stellarService.readContract as any) = vi.fn().mockRejectedValue(new Error('HostError: Error(Contract, #2)'))
+    expect(await x402.getAgentPolicy('a'.repeat(64), agent)).toBeNull()
+  })
+})
+
+describe('x402 escrow funding (payment_escrow)', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('fundEscrow calls fund_escrow(token, wallet, device_hash, amount: i128)', async () => {
+    const { Keypair, scValToNative, Asset, Networks } = await import('@stellar/stellar-sdk')
+    const { stellarService } = await import('@/services/stellar-service')
+    const { x402 } = await import('@/domain/x402')
+    const { AppConfig } = await import('@/constants/config')
+    vi.spyOn(AppConfig.stellar, 'paymentEscrowContract', 'get').mockReturnValue('CESCROW')
+    ;(stellarService.walletAddressScVal as any) = vi.fn().mockReturnValue({})
+    ;(stellarService.deviceHashScVal as any) = vi.fn().mockReturnValue({})
+    ;(stellarService.getBalance as any) = vi.fn().mockResolvedValue({ xlm: 500, subentryCount: 0 })
+    ;(stellarService.invokeContractAndWait as any) = vi.fn().mockResolvedValue('fund-hash')
+
+    const wallet = Keypair.random()
+    const hash = await x402.fundEscrow({ walletSecret: wallet.secret(), deviceHashHex: 'f'.repeat(64), amountXlm: 25 })
+
+    expect(hash).toBe('fund-hash')
+    // Must wait for finality, not fire-and-forget.
+    const call = (stellarService.invokeContractAndWait as any).mock.calls[0][0]
+    expect(call.contractId).toBe('CESCROW')
+    expect(call.method).toBe('fund_escrow')
+    expect(call.signerSecret).toBe(wallet.secret())
+    expect(call.args).toHaveLength(4)
+    expect(scValToNative(call.args[0])).toBe(Asset.native().contractId(Networks.TESTNET))
+    expect(stellarService.walletAddressScVal).toHaveBeenCalledWith(wallet.publicKey())
+    expect(call.args[3].switch().name).toBe('scvI128')
+    expect(scValToNative(call.args[3])).toBe(250_000_000n)
+  })
+
+  it('fundEscrow rejects zero / negative amounts before signing', async () => {
+    const { Keypair } = await import('@stellar/stellar-sdk')
+    const { stellarService } = await import('@/services/stellar-service')
+    const { x402 } = await import('@/domain/x402')
+    const { AppConfig } = await import('@/constants/config')
+    vi.spyOn(AppConfig.stellar, 'paymentEscrowContract', 'get').mockReturnValue('CESCROW')
+    ;(stellarService.invokeContract as any) = vi.fn()
+
+    const secret = Keypair.random().secret()
+    await expect(x402.fundEscrow({ walletSecret: secret, deviceHashHex: 'f'.repeat(64), amountXlm: 0 })).rejects.toThrow()
+    await expect(x402.fundEscrow({ walletSecret: secret, deviceHashHex: 'f'.repeat(64), amountXlm: -5 })).rejects.toThrow()
+    expect(stellarService.invokeContract).not.toHaveBeenCalled()
+  })
+
+  it('getEscrowBalance decodes the i128 balance_of result', async () => {
+    const { Keypair, nativeToScVal } = await import('@stellar/stellar-sdk')
+    const { stellarService } = await import('@/services/stellar-service')
+    const { x402 } = await import('@/domain/x402')
+    const { AppConfig } = await import('@/constants/config')
+    vi.spyOn(AppConfig.stellar, 'paymentEscrowContract', 'get').mockReturnValue('CESCROW')
+    ;(stellarService.deviceHashScVal as any) = vi.fn().mockReturnValue({})
+    ;(stellarService.readContract as any) = vi.fn().mockResolvedValue(nativeToScVal(1_000_000_000n, { type: 'i128' }))
+
+    const source = Keypair.random().publicKey()
+    expect(await x402.getEscrowBalance('f'.repeat(64), source)).toBe(1_000_000_000n)
+    expect((stellarService.readContract as any).mock.calls[0][0]).toMatchObject({ method: 'balance_of', source })
+  })
+})
+
+describe('x402 escrow safety (production paths)', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  const setup = async () => {
+    const sdk = await import('@stellar/stellar-sdk')
+    const { stellarService } = await import('@/services/stellar-service')
+    const mod = await import('@/domain/x402')
+    const { AppConfig } = await import('@/constants/config')
+    vi.spyOn(AppConfig.stellar, 'deviceRegistryContract', 'get').mockReturnValue('CDEVICE')
+    vi.spyOn(AppConfig.stellar, 'agentRegistryContract', 'get').mockReturnValue('CAGENT')
+    vi.spyOn(AppConfig.stellar, 'paymentEscrowContract', 'get').mockReturnValue('CESCROW')
+    ;(stellarService.walletAddressScVal as any) = vi.fn().mockReturnValue({})
+    ;(stellarService.deviceHashScVal as any) = vi.fn().mockReturnValue({})
+    return { sdk, stellarService: stellarService as any, ...mod }
+  }
+
+  it('fundEscrow refuses before signing when the wallet cannot keep its reserve', async () => {
+    const { sdk, stellarService, x402, InsufficientFundsError } = await setup()
+    stellarService.getBalance = vi.fn().mockResolvedValue({ xlm: 20, subentryCount: 0 })
+    stellarService.invokeContractAndWait = vi.fn()
+    await expect(x402.fundEscrow({
+      walletSecret: sdk.Keypair.random().secret(), deviceHashHex: 'f'.repeat(64), amountXlm: 25,
+    })).rejects.toBeInstanceOf(InsufficientFundsError)
+    expect(stellarService.invokeContractAndWait).not.toHaveBeenCalled()
+  })
+
+  it('withdrawEscrow calls defund_escrow(token, device_hash, amount) and waits', async () => {
+    const { sdk, stellarService, x402 } = await setup()
+    stellarService.invokeContractAndWait = vi.fn().mockResolvedValue('defund-hash')
+    await x402.withdrawEscrow({
+      walletSecret: sdk.Keypair.random().secret(), deviceHashHex: 'f'.repeat(64), amountStroops: 50_000_000n,
+    })
+    const call = stellarService.invokeContractAndWait.mock.calls[0][0]
+    expect(call.method).toBe('defund_escrow')
+    expect(call.args).toHaveLength(3)
+    expect(sdk.scValToNative(call.args[2])).toBe(50_000_000n)
+    await expect(x402.withdrawEscrow({
+      walletSecret: sdk.Keypair.random().secret(), deviceHashHex: 'f'.repeat(64), amountStroops: 0n,
+    })).rejects.toThrow()
+  })
+
+  // Mocks get_device / get_policy / balance_of reads for unlinkDevice.
+  const mockReads = async (stellarService: any, opts: { owner: string | null; agent: string | null; escrow: bigint }) => {
+    const { nativeToScVal, Address, Asset, Networks } = await import('@stellar/stellar-sdk')
+    stellarService.readContract = vi.fn().mockImplementation(async ({ method }: any) => {
+      if (method === 'get_device') {
+        if (!opts.owner) throw new Error('Error(Contract, #2)')
+        return nativeToScVal({
+          agent: new Address(opts.agent ?? opts.owner).toScVal(),
+          created_at: nativeToScVal(1n, { type: 'u64' }),
+          owner: new Address(opts.owner).toScVal(),
+          status: nativeToScVal(0, { type: 'u32' }),
+        })
+      }
+      if (method === 'get_policy') {
+        if (!opts.agent) throw new Error('Error(Contract, #2)')
+        return nativeToScVal({
+          agent: new Address(opts.agent).toScVal(),
+          asset: new Address(Asset.native().contractId(Networks.TESTNET)).toScVal(),
+          expires_at: nativeToScVal(0n, { type: 'u64' }),
+          max_amount: nativeToScVal(0n, { type: 'i128' }),
+        })
+      }
+      if (method === 'balance_of') return nativeToScVal(opts.escrow, { type: 'i128' })
+      throw new Error(`unexpected read ${method}`)
+    })
+  }
+
+  it('unlinkDevice revokes agent, sweeps escrow, THEN revokes device', async () => {
+    const { sdk, stellarService, x402 } = await setup()
+    const wallet = sdk.Keypair.random()
+    const agent = sdk.Keypair.random().publicKey()
+    await mockReads(stellarService, { owner: wallet.publicKey(), agent, escrow: 70_000_000n })
+    stellarService.loadSourceAccount = vi.fn().mockResolvedValue(new sdk.Account(wallet.publicKey(), '10'))
+    const order: string[] = []
+    stellarService.invokeContractAndWait = vi.fn().mockImplementation(async ({ method }: any) => { order.push(method); return 'h' })
+
+    const res = await x402.unlinkDevice({ walletSecret: wallet.secret(), deviceHashHex: 'a'.repeat(64) })
+
+    expect(order).toEqual(['revoke_agent', 'sweep_on_revoke', 'revoke'])
+    expect(res).toEqual({ agentRevoked: true, sweptStroops: 70_000_000n, deviceRevoked: true })
+    // sweep must name the agent that was just revoked
+    expect(stellarService.walletAddressScVal).toHaveBeenCalledWith(agent)
+  })
+
+  it('unlinkDevice skips steps already done and never sweeps an empty escrow', async () => {
+    const { sdk, stellarService, x402 } = await setup()
+    const wallet = sdk.Keypair.random()
+    await mockReads(stellarService, { owner: wallet.publicKey(), agent: null, escrow: 0n })
+    stellarService.loadSourceAccount = vi.fn().mockResolvedValue(new sdk.Account(wallet.publicKey(), '10'))
+    const order: string[] = []
+    stellarService.invokeContractAndWait = vi.fn().mockImplementation(async ({ method }: any) => { order.push(method); return 'h' })
+
+    const res = await x402.unlinkDevice({ walletSecret: wallet.secret(), deviceHashHex: 'a'.repeat(64) })
+    expect(order).toEqual(['revoke'])
+    expect(res.sweptStroops).toBe(0n)
+  })
+
+  it('unlinkDevice does NOT revoke the device if the escrow sweep fails (funds would be stranded)', async () => {
+    const { sdk, stellarService, x402 } = await setup()
+    const wallet = sdk.Keypair.random()
+    await mockReads(stellarService, { owner: wallet.publicKey(), agent: sdk.Keypair.random().publicKey(), escrow: 10n })
+    stellarService.loadSourceAccount = vi.fn().mockResolvedValue(new sdk.Account(wallet.publicKey(), '10'))
+    const order: string[] = []
+    stellarService.invokeContractAndWait = vi.fn().mockImplementation(async ({ method }: any) => {
+      order.push(method)
+      if (method === 'sweep_on_revoke') throw new Error('Transaction timed out after 60s')
+      return 'h'
+    })
+
+    await expect(x402.unlinkDevice({ walletSecret: wallet.secret(), deviceHashHex: 'a'.repeat(64) })).rejects.toThrow()
+    expect(order).not.toContain('revoke')
+  })
+
+  it('unlinkDevice refuses a tag owned by another wallet without writing', async () => {
+    const { sdk, stellarService, x402, DeviceOwnedByOtherWalletError } = await setup()
+    await mockReads(stellarService, { owner: sdk.Keypair.random().publicKey(), agent: null, escrow: 0n })
+    stellarService.invokeContractAndWait = vi.fn()
+    await expect(x402.unlinkDevice({
+      walletSecret: sdk.Keypair.random().secret(), deviceHashHex: 'a'.repeat(64),
+    })).rejects.toBeInstanceOf(DeviceOwnedByOtherWalletError)
+    expect(stellarService.invokeContractAndWait).not.toHaveBeenCalled()
+  })
+})
+
+describe('contract error messages', () => {
+  it('maps codes per contract — #4 means different things', async () => {
+    const { describeContractError, contractErrorCode } = await import('@/domain/contractErrors')
+    const e4 = new Error('HostError: Error(Contract, #4)')
+    expect(contractErrorCode(e4)).toBe(4)
+    expect(describeContractError('agent_registry', e4)).toMatch(/policy/i)
+    expect(describeContractError('device_registry', e4)).toMatch(/already registered/i)
+    expect(describeContractError('payment_escrow', new Error('Error(Contract, #7)'))).toMatch(/revoke/i)
+  })
+
+  it('never leaks raw RPC text for unknown failures', async () => {
+    const { describeContractError } = await import('@/domain/contractErrors')
+    expect(describeContractError('payment_escrow', new Error('Transaction timed out after 60s'))).toMatch(/network/i)
+    expect(describeContractError('payment_escrow', new Error('weird xdr blob AAAA'))).not.toMatch(/xdr/i)
+  })
+})

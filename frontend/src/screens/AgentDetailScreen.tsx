@@ -7,8 +7,9 @@ import { useRouter, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { useAppStore } from '@/store/useAppStore'
 import { Keypair } from '@stellar/stellar-sdk/axios'
-import { x402 } from '@/domain/x402'
-import type { AgentWallet } from '@/domain/x402'
+import { x402, InsufficientFundsError } from '@/domain/x402'
+import type { AgentWallet, OnChainAgentPolicy } from '@/domain/x402'
+import { describeContractError } from '@/domain/contractErrors'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts, Gradient } from '@/constants/theme'
 import { colorWithOpacity } from '@/constants/designTokens'
 import { StatusPill } from '@/components/StatusPill'
@@ -18,17 +19,34 @@ import { EmptyState } from '@/components/EmptyState'
 import { LinearGradient } from 'expo-linear-gradient'
 import { logger } from '@/lib/logger'
 
+const ESCROW_AMOUNTS = [10, 25, 50, 100]
+
+function formatStroops(v: bigint): string {
+  return (Number(v) / 10_000_000).toFixed(2)
+}
+
+function describeExpiry(expiresAt: bigint): string {
+  if (expiresAt === 0n) return 'Never'
+  const ms = Number(expiresAt) * 1000
+  const label = new Date(ms).toLocaleDateString()
+  return ms <= Date.now() ? `Expired ${label}` : label
+}
+
 export function AgentDetailScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { id } = useLocalSearchParams<{ id: string }>()
-  const { devices, transactions, addTransaction, removeDevice, network: storeNetwork } = useAppStore()
+  const { user, devices, transactions, addTransaction, removeDevice, network: storeNetwork } = useAppStore()
   const [agent, setAgent] = useState<AgentWallet | null>(null)
   const [agentIndex, setAgentIndex] = useState<number | null>(null)
   const [toast, setToast] = useState<{ visible: boolean; type: 'success' | 'info'; title: string; message?: string }>({
     visible: false, type: 'success', title: '',
   })
   const [toppingUp, setToppingUp] = useState(false)
+  const [fundingEscrow, setFundingEscrow] = useState(false)
+  const [escrowBalance, setEscrowBalance] = useState<bigint | null>(null)
+  const [escrowAmount, setEscrowAmount] = useState(25)
+  const [policy, setPolicy] = useState<OnChainAgentPolicy | null>(null)
 
   const device = devices.find((d) => d.id === id) ?? null
   const agentTxs = transactions.filter((tx) => tx.deviceId === device?.deviceUidHash)
@@ -56,6 +74,20 @@ export function AgentDetailScreen() {
     setAgentIndex(idx)
     const a = await x402.getAgent(idx)
     setAgent(a)
+
+    // On-chain escrow balance + delegation policy. Simulated from the owner
+    // wallet: a fresh agent account may not exist on-chain yet.
+    const walletPub = user?.stellarPublicKey
+    if (walletPub) {
+      const [bal, pol] = await Promise.allSettled([
+        x402.getEscrowBalance(device.deviceUidHash, walletPub),
+        x402.getAgentPolicy(device.deviceUidHash, walletPub),
+      ])
+      if (bal.status === 'fulfilled') setEscrowBalance(bal.value)
+      else logger.warn('escrow balance read failed:', bal.reason?.message)
+      if (pol.status === 'fulfilled') setPolicy(pol.value)
+      else logger.warn('agent policy read failed:', pol.reason?.message)
+    }
   }
 
   useEffect(() => { loadAgent() }, [id])
@@ -91,7 +123,9 @@ export function AgentDetailScreen() {
       setToast({ visible: true, type: 'success', title: 'Registered', message: 'Device and agent registered on-chain' })
     } catch (e: any) {
       const msg = e?.message ?? ''
-      if (msg.includes('AlreadyRegistered') || msg.includes('Error(Contract, #4)') || msg.includes('Error(Contract, #3)')) {
+      // x402 already treats AlreadyRegistered as success; #4 from agent_registry
+      // is InvalidPolicy, so only #3 / the named error mean "already on-chain".
+      if (msg.includes('AlreadyRegistered') || msg.includes('Error(Contract, #3)')) {
         setToast({ visible: true, type: 'info', title: 'Already Registered', message: 'This device was already on-chain' })
       } else {
         setToast({ visible: true, type: 'info', title: 'Registration Failed', message: msg })
@@ -101,58 +135,56 @@ export function AgentDetailScreen() {
     }
   }, [device, registering])
 
+  const [removing, setRemoving] = useState(false)
   const handleRemoveDevice = useCallback(async () => {
-    if (!device) return
+    if (!device || removing) return
+    setRemoving(true)
     try {
       const { walletService } = await import('@/services/wallet')
       const keys = await walletService.loadKeys()
-      if (keys?.stellarSecret) {
-        const mainWallet = Keypair.fromSecret(keys.stellarSecret).publicKey()
+      if (!keys?.stellarSecret) throw new Error('No wallet configured')
+      const mainWallet = Keypair.fromSecret(keys.stellarSecret).publicKey()
 
-        // Resolve which agent index this card uses.
-        let idx = agentIndex ?? (await x402.getAgentIndexForDevice(device.deviceUidHash))
-        if (idx == null) idx = 1
+      let idx = agentIndex ?? (await x402.getAgentIndexForDevice(device.deviceUidHash))
+      if (idx == null) idx = 1
 
-        // 1. Revoke agent authorization on-chain (agent_registry).
-        try {
-          await x402.revokeAgentOnChain({
-            walletSecret: keys.stellarSecret,
-            deviceHashHex: device.deviceUidHash,
-          })
-        } catch (e: any) {
-          logger.warn('revokeAgentOnChain failed:', e?.message)
-        }
+      // 1. On-chain: revoke agent → return escrow → revoke device. Throws
+      //    (and we stop here, keeping the device + agent keys) if any step
+      //    fails, so escrow can never be stranded behind a deleted device.
+      const unlinked = await x402.unlinkDevice({
+        walletSecret: keys.stellarSecret,
+        deviceHashHex: device.deviceUidHash,
+        agentPublicKey: agent?.publicKey ?? device.agentPublicKey,
+      })
 
-        // 2. Revoke device on-chain (device_registry).
-        try {
-          await x402.revokeDeviceOnChain({
-            walletSecret: keys.stellarSecret,
-            deviceHashHex: device.deviceUidHash,
-          })
-        } catch (e: any) {
-          logger.warn('revokeDeviceOnChain failed:', e?.message)
-        }
-
-        // 3. PERMANENT retire: sweep ALL of the agent's XLM back to the owner,
-        //    wipe its keys, and retire its HD index so it can NEVER be
-        //    re-derived or recovered.
-        try {
-          const result = await x402.retireAgent(idx, mainWallet)
-          if ('error' in result) {
-            logger.warn('Agent retire/sweep reported:', result.error)
-          }
-        } catch (e: any) {
-          logger.warn('Agent retire error:', e?.message)
-        }
+      // 2. PERMANENT retire: sweep the agent wallet's own XLM back to the
+      //    owner, wipe its keys, and retire its HD index.
+      try {
+        const result = await x402.retireAgent(idx, mainWallet)
+        if ('error' in result) logger.warn('Agent retire/sweep reported:', result.error)
+      } catch (e: any) {
+        logger.warn('Agent retire error:', e?.message)
       }
 
-      // 4. Local cleanup.
+      // 3. Local cleanup.
       removeDevice(device.id)
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+      if (unlinked.sweptStroops > 0n) {
+        Alert.alert('Device removed', `${formatStroops(unlinked.sweptStroops)} XLM of escrow was returned to your wallet.`)
+      }
       router.replace('/(tabs)/devices')
     } catch (e: any) {
-      setToast({ visible: true, type: 'info', title: 'Remove Failed', message: e?.message ?? 'Unknown error' })
+      logger.warn('unlinkDevice failed:', e?.message)
+      setToast({
+        visible: true,
+        type: 'info',
+        title: 'Remove failed',
+        message: `${describeContractError('payment_escrow', e)} Your device and funds are unchanged where the step did not complete — you can retry safely.`,
+      })
+    } finally {
+      setRemoving(false)
     }
-  }, [device, agentIndex, removeDevice, router])
+  }, [device, agent, agentIndex, removing, removeDevice, router])
 
   const handleTopUp = useCallback(async () => {
     setToppingUp(true)
@@ -169,6 +201,81 @@ export function AgentDetailScreen() {
       setToppingUp(false)
     }
   }, [agentIndex])
+
+  const runFundEscrow = useCallback(async (amountXlm: number) => {
+    if (!device) return
+    setFundingEscrow(true)
+    try {
+      const { walletService } = await import('@/services/wallet')
+      const keys = await walletService.loadKeys()
+      if (!keys?.stellarSecret) throw new Error('No wallet configured')
+      await x402.fundEscrow({
+        walletSecret: keys.stellarSecret,
+        deviceHashHex: device.deviceUidHash,
+        amountXlm,
+      })
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+      setToast({ visible: true, type: 'success', title: 'Escrow funded', message: `${amountXlm} XLM locked for tap-to-pay` })
+      await loadAgent()
+    } catch (e: any) {
+      logger.warn('fundEscrow failed:', e?.message)
+      const message = e instanceof InsufficientFundsError ? e.message : describeContractError('payment_escrow', e)
+      setToast({ visible: true, type: 'info', title: 'Escrow funding failed', message })
+    } finally {
+      setFundingEscrow(false)
+    }
+  }, [device])
+
+  // Moving funds is irreversible from the user's point of view — confirm first.
+  const handleFundEscrow = useCallback(() => {
+    if (!device || fundingEscrow) return
+    const amount = escrowAmount
+    Alert.alert(
+      'Fund escrow?',
+      `Lock ${amount} XLM from your wallet for tap-to-pay on "${device.label}". You can withdraw unused escrow at any time.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: `Fund ${amount} XLM`, onPress: () => { runFundEscrow(amount) } },
+      ],
+    )
+  }, [device, fundingEscrow, escrowAmount, runFundEscrow])
+
+  const [withdrawing, setWithdrawing] = useState(false)
+  const runWithdraw = useCallback(async (amountStroops: bigint) => {
+    if (!device) return
+    setWithdrawing(true)
+    try {
+      const { walletService } = await import('@/services/wallet')
+      const keys = await walletService.loadKeys()
+      if (!keys?.stellarSecret) throw new Error('No wallet configured')
+      await x402.withdrawEscrow({
+        walletSecret: keys.stellarSecret,
+        deviceHashHex: device.deviceUidHash,
+        amountStroops,
+      })
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+      setToast({ visible: true, type: 'success', title: 'Escrow withdrawn', message: `${formatStroops(amountStroops)} XLM returned to your wallet` })
+      await loadAgent()
+    } catch (e: any) {
+      logger.warn('withdrawEscrow failed:', e?.message)
+      setToast({ visible: true, type: 'info', title: 'Withdrawal failed', message: describeContractError('payment_escrow', e) })
+    } finally {
+      setWithdrawing(false)
+    }
+  }, [device])
+
+  const handleWithdraw = useCallback(() => {
+    if (!device || withdrawing || !escrowBalance || escrowBalance <= 0n) return
+    const amount = escrowBalance
+    Alert.alert(
+      'Withdraw escrow?',
+      `Return all ${formatStroops(amount)} XLM of escrow to your wallet. Tap-to-pay on this device will stop until you fund it again.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Withdraw', onPress: () => { runWithdraw(amount) } },
+      ],
+    )
+  }, [device, withdrawing, escrowBalance, runWithdraw])
 
   const xlmBalance = agent ? (agent.balanceStroops / 10_000_000).toFixed(2) : '—'
   const budget = agent ? (agent.spendingBudgetStroops / 10_000_000).toFixed(2) : '—'
@@ -301,6 +408,77 @@ export function AgentDetailScreen() {
           )}
         </View>
 
+        {/* Delegation policy (agent_registry.get_policy) */}
+        {policy && (
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="key-outline" size={16} color={Colors.gold} />
+              <Text style={styles.sectionTitle}>Agent Policy</Text>
+            </View>
+            <View style={styles.metricsRow}>
+              <MetricBox
+                label="Max / payment"
+                value={policy.maxAmountStroops === 0n ? 'No cap' : `${formatStroops(policy.maxAmountStroops)} XLM`}
+              />
+              <MetricBox label="Asset" value="XLM" />
+              <MetricBox label="Expires" value={describeExpiry(policy.expiresAt)} gold={policy.expiresAt !== 0n} />
+            </View>
+          </View>
+        )}
+
+        {/* Escrow (payment_escrow) */}
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="shield-outline" size={16} color={Colors.gold} />
+            <Text style={styles.sectionTitle}>Escrow Balance</Text>
+          </View>
+          <Text style={styles.escrowBalance}>
+            {escrowBalance === null ? '—' : formatStroops(escrowBalance)}
+            <Text style={styles.balanceUnit}> XLM</Text>
+          </Text>
+          <Text style={styles.escrowCaption}>Locked on-chain for NFC tap payments</Text>
+
+          <View style={styles.escrowChips}>
+            {ESCROW_AMOUNTS.map((amt) => (
+              <PressableScale
+                key={amt}
+                style={[styles.escrowChip, escrowAmount === amt && styles.escrowChipActive]}
+                onPress={() => setEscrowAmount(amt)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: escrowAmount === amt }}
+              >
+                <Text style={[styles.escrowChipText, escrowAmount === amt && styles.escrowChipTextActive]}>{amt} XLM</Text>
+              </PressableScale>
+            ))}
+          </View>
+          <PressableScale
+            style={[styles.escrowFundBtn, (fundingEscrow || !authorized) && styles.escrowFundBtnDisabled]}
+            onPress={handleFundEscrow}
+            disabled={fundingEscrow || !authorized}
+            accessibilityRole="button"
+            accessibilityLabel={`Fund escrow with ${escrowAmount} XLM`}
+          >
+            <Ionicons name="shield-checkmark-outline" size={18} color={Colors.black} />
+            <Text style={styles.escrowFundText}>
+              {fundingEscrow ? 'Funding…' : `Fund ${escrowAmount} XLM`}
+            </Text>
+          </PressableScale>
+          {!authorized && (
+            <Text style={styles.escrowCaption}>Register this device on-chain before funding escrow</Text>
+          )}
+          {escrowBalance !== null && escrowBalance > 0n && (
+            <PressableScale
+              style={styles.escrowWithdrawBtn}
+              onPress={handleWithdraw}
+              disabled={withdrawing}
+              accessibilityRole="button"
+              accessibilityLabel="Withdraw all escrow to wallet"
+            >
+              <Text style={styles.escrowWithdrawText}>{withdrawing ? 'Withdrawing…' : 'Withdraw all to wallet'}</Text>
+            </PressableScale>
+          )}
+        </View>
+
         {/* Actions */}
         <View style={styles.actionsCard}>
           <View style={styles.sectionHeader}>
@@ -358,13 +536,14 @@ export function AgentDetailScreen() {
 
         {/* Remove device (danger) */}
         <PressableScale
-          style={styles.dangerBtn}
+          style={[styles.dangerBtn, removing && styles.escrowFundBtnDisabled]}
+          disabled={removing}
           accessibilityLabel="Remove device"
           accessibilityHint="Unlinks this device and deletes its agent keys"
           onPress={() =>
             Alert.alert(
               'Revoke Device',
-              `Revoke "${device.label}"? All XLM in its agent wallet will be returned to your main wallet, the agent will be revoked on-chain, and it can NEVER be recovered. This cannot be undone.`,
+              `Revoke "${device.label}"? The agent is revoked on-chain, any escrow and all XLM in its agent wallet are returned to your main wallet, and the agent can NEVER be recovered. This cannot be undone.`,
               [
                 { text: 'Cancel', style: 'cancel' },
                 { text: 'Revoke', style: 'destructive', onPress: handleRemoveDevice },
@@ -373,7 +552,7 @@ export function AgentDetailScreen() {
           }
         >
           <Ionicons name="trash-outline" size={16} color={Colors.danger} />
-          <Text style={styles.dangerText}>Revoke Device & Agent</Text>
+          <Text style={styles.dangerText}>{removing ? 'Revoking…' : 'Revoke Device & Agent'}</Text>
         </PressableScale>
       </ScrollView>
 
@@ -460,6 +639,33 @@ const styles = StyleSheet.create({
   progressBg: { height: 6, borderRadius: 3, backgroundColor: Gradient.track, marginBottom: Spacing.xs },
   progressFill: { height: 6, borderRadius: 3, backgroundColor: Colors.gold },
   progressLabel: { fontSize: FontSize.xs, color: Colors.mutedWhite },
+  escrowBalance: { fontSize: FontSize.xxxl, fontFamily: Fonts.display, color: Colors.white },
+  escrowCaption: { fontSize: FontSize.xs, color: Colors.mutedWhite, marginTop: Spacing.xs },
+  escrowChips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginTop: Spacing.md },
+  escrowChip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: colorWithOpacity(Colors.gold, 0.3),
+  },
+  escrowChipActive: { backgroundColor: colorWithOpacity(Colors.gold, 0.15), borderColor: Colors.gold },
+  escrowChipText: { fontSize: FontSize.sm, color: Colors.mutedWhite },
+  escrowChipTextActive: { color: Colors.gold, fontWeight: FontWeight.semibold },
+  escrowFundBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.gold,
+  },
+  escrowFundBtnDisabled: { opacity: 0.4 },
+  escrowWithdrawBtn: { alignItems: 'center', paddingVertical: Spacing.sm, marginTop: Spacing.sm },
+  escrowWithdrawText: { fontSize: FontSize.sm, color: Colors.gold, fontWeight: FontWeight.semibold },
+  escrowFundText: { fontSize: FontSize.md, fontWeight: FontWeight.semibold, color: Colors.black },
 
   // Actions
   actionsCard: {

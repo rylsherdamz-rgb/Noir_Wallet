@@ -9,12 +9,12 @@ import {
   Easing,
   Modal,
   Linking,
-  ActivityIndicator,
   ScrollView,
 } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { TagOwnershipNotice } from '@/components/devices/TagOwnershipNotice'
 import { NfcScanPulse } from '@/components/brand/NfcScanPulse'
+import { VerifyingPulse } from '@/components/brand/VerifyingPulse'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { sha256 } from '@noble/hashes/sha2.js'
@@ -23,7 +23,7 @@ import { useNfc } from '@/hooks/useNfc'
 import { useAppStore } from '@/store/useAppStore'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { NoirLogo } from '@/components/brand/NoirLogo'
-import { x402, DeviceOwnedByOtherWalletError, type DeviceOwnership } from '@/domain/x402'
+import { x402, buildAgentPolicy, DeviceOwnedByOtherWalletError, type DeviceOwnership } from '@/domain/x402'
 import { walletService } from '@/services/wallet'
 import { stellarService } from '@/services/stellar-service'
 import { AppConfig } from '@/constants/config'
@@ -43,6 +43,22 @@ type Step =
   | 'error'
 
 const LABELS = ['My Wallet Card', 'Daily Carry', 'Home Key']
+
+// Agent policy presets passed to agent_registry.register_agent.
+// Per-payment cap in XLM (0 = no cap) and authorization lifetime in days (0 = never expires).
+const SPEND_LIMITS = [
+  { label: 'No cap', value: 0 },
+  { label: '10 XLM', value: 10 },
+  { label: '25 XLM', value: 25 },
+  { label: '50 XLM', value: 50 },
+  { label: '100 XLM', value: 100 },
+]
+const EXPIRY_OPTIONS = [
+  { label: 'Never', value: 0 },
+  { label: '7 days', value: 7 },
+  { label: '30 days', value: 30 },
+  { label: '90 days', value: 90 },
+]
 const OTHER = 'Other'
 
 // Ordered provisioning phases shown in the progress tracker.
@@ -78,8 +94,13 @@ function describeError(registerError: string, scanError: string | null) {
   if (/timed out|network|fetch|unreachable/i.test(msg)) {
     return { icon: 'cloud-offline-outline' as const, title: "Stellar didn't respond", body: 'Check your connection and try again. Nothing was charged.', raw: msg }
   }
+  // registerDeviceAndAgentOnChain already absorbs AlreadyRegistered, so a #4
+  // reaching here is agent_registry InvalidPolicy (e.g. expiry in the past).
+  if (msg.includes('Error(Contract, #4)') || msg.includes('InvalidPolicy')) {
+    return { icon: 'options-outline' as const, title: 'Spending policy rejected', body: 'The limit or expiry was not accepted on-chain. Pick a different limit or expiry and try again.', raw: msg }
+  }
   if (msg.includes('not configured')) {
-    return { icon: 'construct-outline' as const, title: 'App not configured', body: 'Contract IDs are missing from this build. Restart Expo with a cleared cache.', raw: msg }
+    return { icon: 'construct-outline' as const, title: 'App not configured', body: 'This build is missing its network configuration. Please update the app.', raw: msg }
   }
   if (msg.includes('No wallet loaded') || msg.includes('No agent public key')) {
     return { icon: 'key-outline' as const, title: 'Wallet locked', body: 'Unlock or set up your wallet, then try linking again.', raw: msg }
@@ -107,6 +128,8 @@ export function DeviceProvisioningScreen() {
   const [ownership, setOwnership] = useState<DeviceOwnership | null>(null)
   const [phase, setPhase] = useState<Phase>('keys')
   const [showErrorDetail, setShowErrorDetail] = useState(false)
+  const [spendLimit, setSpendLimit] = useState(25)
+  const [expiryDays, setExpiryDays] = useState(30)
   const inputRef = useRef<TextInput>(null)
   const pulse = useState(new Animated.Value(1))[0]
   const spin = useState(new Animated.Value(0))[0]
@@ -120,7 +143,9 @@ export function DeviceProvisioningScreen() {
     : null
 
   useEffect(() => {
-    if (step === 'scanning' || step === 'registering' || step === 'checking') {
+    // 'checking' used to drive this too, but it no longer renders anything
+    // tied to pulse/spin — both spots now use the reanimated VerifyingPulse.
+    if (step === 'scanning' || step === 'registering') {
       const anim = Animated.loop(
         Animated.sequence([
           Animated.timing(pulse, { toValue: 0.6, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
@@ -131,7 +156,7 @@ export function DeviceProvisioningScreen() {
         Animated.timing(spin, { toValue: 1, duration: 1500, easing: Easing.linear, useNativeDriver: true }),
       )
       anim.start()
-      if (step === 'registering' || step === 'checking') spinAnim.start()
+      if (step === 'registering') spinAnim.start()
       return () => { anim.stop(); spinAnim.stop() }
     }
   }, [step])
@@ -247,10 +272,13 @@ export function DeviceProvisioningScreen() {
       setPhase('chain')
       setStatusMessage('Registering device and agent on Stellar...')
       try {
+        // Already-registered is handled inside; anything else (incl.
+        // agent_registry InvalidPolicy) must surface as an error.
         await x402.registerDeviceAndAgentOnChain({
           walletSecret: keys.stellarSecret,
           deviceHashHex: hashHex,
           agentPublicKey: _agentPubKey,
+          policy: buildAgentPolicy({ maxAmountXlm: spendLimit, expiryDays }),
         })
       } catch (e: any) {
         if (e instanceof DeviceOwnedByOtherWalletError) {
@@ -258,10 +286,7 @@ export function DeviceProvisioningScreen() {
           setStep('owned_other')
           return
         }
-        const msg = (e as any)?.message ?? ''
-        if (!msg.includes('Error(Contract, #4)') && !msg.includes('Error(Contract, #3)') && !msg.includes('AlreadyRegistered')) {
-          throw e
-        }
+        throw e
       }
 
       setStatusMessage('Confirmed on-chain!')
@@ -377,10 +402,7 @@ export function DeviceProvisioningScreen() {
 
           {step === 'checking' && (
             <View style={styles.registerWrap} accessibilityLiveRegion="polite">
-              <Animated.View style={{ transform: [{ rotate: spinner }] }}>
-                <Ionicons name="sync" size={40} color={Colors.gold} />
-              </Animated.View>
-              <Text style={styles.resultText}>Checking tag on Stellar…</Text>
+              <VerifyingPulse size={140} label="Checking tag on Stellar…" />
               <Text style={styles.successSub}>Making sure this tag isn't already linked</Text>
             </View>
           )}
@@ -546,7 +568,7 @@ export function DeviceProvisioningScreen() {
           )}
           {step === 'checking' && (
             <PressableScale style={[styles.primaryBtn, styles.btnDisabled]} disabled accessibilityRole="button">
-              <ActivityIndicator size="small" color={Colors.gold} />
+              <VerifyingPulse size={18} color={Colors.gold} />
               <Text style={[styles.primaryBtnText, { color: Colors.gold }]}>Checking...</Text>
             </PressableScale>
           )}
@@ -630,6 +652,7 @@ export function DeviceProvisioningScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHandle} />
+            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalScrollContent} bounces={false}>
             <View style={styles.modalIconWrap}>
               <Ionicons name="shield-checkmark-outline" size={48} color={Colors.gold} />
             </View>
@@ -647,7 +670,7 @@ export function DeviceProvisioningScreen() {
               </View>
               <View style={styles.modalRow}>
                 <Text style={styles.modalLabel}>Action</Text>
-                <Text style={styles.modalValue}>register_device</Text>
+                <Text style={styles.modalValue}>register + register_agent</Text>
               </View>
               <View style={styles.modalRow}>
                 <Text style={styles.modalLabel}>Device</Text>
@@ -665,23 +688,65 @@ export function DeviceProvisioningScreen() {
               </View>
               <View style={styles.modalRow}>
                 <Text style={styles.modalLabel}>Balance</Text>
-                <Text style={[styles.modalValue, balanceXlm === '0' && { color: Colors.danger }]}>
-                  {balanceXlm ? `${balanceXlm} XLM` : 'Checking...'}
-                </Text>
+                {balanceXlm ? (
+                  <Text style={[styles.modalValue, balanceXlm === '0' && { color: Colors.danger }]}>
+                    {balanceXlm} XLM
+                  </Text>
+                ) : (
+                  <VerifyingPulse size={14} label="Checking..." color={Colors.white} />
+                )}
               </View>
             </View>
 
-            <View style={styles.modalFeeRow}>
-              <Ionicons name="information-circle-outline" size={14} color={Colors.mutedWhite} />
-              <Text style={styles.modalFeeText}>
-                {balanceXlm === '0' || balanceXlm === 'Funding...'
-                  ? 'Funding wallet via Friendbot...'
-                  : balanceXlm
-                    ? 'Network fee: ~0.001 XLM'
-                    : 'Checking balance...'
-                }
-              </Text>
+            {/* Constrained delegation policy — signed into agent_registry.register_agent */}
+            <View style={styles.policyBlock}>
+              <Text style={styles.policyLabel}>Max per payment</Text>
+              <View style={styles.policyChips}>
+                {SPEND_LIMITS.map((o) => (
+                  <PressableScale
+                    key={o.label}
+                    style={[styles.chip, spendLimit === o.value && styles.chipActive]}
+                    onPress={() => setSpendLimit(o.value)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: spendLimit === o.value }}
+                  >
+                    <Text style={[styles.chipText, spendLimit === o.value && styles.chipTextActive]}>{o.label}</Text>
+                  </PressableScale>
+                ))}
+              </View>
+              <Text style={styles.policyLabel}>Agent access expires</Text>
+              <View style={styles.policyChips}>
+                {EXPIRY_OPTIONS.map((o) => (
+                  <PressableScale
+                    key={o.label}
+                    style={[styles.chip, expiryDays === o.value && styles.chipActive]}
+                    onPress={() => setExpiryDays(o.value)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: expiryDays === o.value }}
+                  >
+                    <Text style={[styles.chipText, expiryDays === o.value && styles.chipTextActive]}>{o.label}</Text>
+                  </PressableScale>
+                ))}
+              </View>
+              <Text style={styles.modalFeeText}>Asset: native XLM · enforced on-chain by AgentRegistry</Text>
             </View>
+
+            <View style={styles.modalFeeRow}>
+              {balanceXlm ? (
+                <>
+                  <Ionicons name="information-circle-outline" size={14} color={Colors.mutedWhite} />
+                  <Text style={styles.modalFeeText}>
+                    {balanceXlm === '0' || balanceXlm === 'Funding...'
+                      ? 'Funding wallet via Friendbot...'
+                      : 'Network fee: ~0.001 XLM'
+                    }
+                  </Text>
+                </>
+              ) : (
+                <VerifyingPulse size={14} label="Checking balance..." color={Colors.mutedWhite} />
+              )}
+            </View>
+            </ScrollView>
 
             <View style={styles.modalActions}>
               <PressableScale
@@ -1087,6 +1152,13 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.md,
     paddingBottom: Spacing.xl + Spacing.lg,
     alignItems: 'center',
+    maxHeight: '92%',
+  },
+  modalScroll: {
+    width: '100%',
+  },
+  modalScrollContent: {
+    alignItems: 'center',
   },
   modalHandle: {
     width: 36,
@@ -1144,6 +1216,21 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontWeight: FontWeight.medium,
     maxWidth: '60%',
+  },
+  policyBlock: {
+    width: '100%',
+    gap: Spacing.xs,
+    marginBottom: Spacing.md,
+  },
+  policyLabel: {
+    fontSize: FontSize.xs,
+    color: Colors.mutedWhite,
+    marginTop: Spacing.xs,
+  },
+  policyChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
   },
   modalFeeRow: {
     flexDirection: 'row',
