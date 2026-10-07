@@ -117,3 +117,25 @@ describe('stellarService.getPaymentHistory', () => {
     expect(await stellarService.getPaymentHistory('GABC')).toEqual([])
   })
 })
+
+// A transient Horizon failure must not be cached as a 0 XLM balance —
+// escrow funding pre-checks the balance and would wrongly refuse.
+describe('StellarService balance cache', () => {
+  it('does not cache failures and can be invalidated after a send', async () => {
+    const { StellarService } = await import('@/services/stellar-service')
+    const svc = new StellarService({ network: 'testnet' })
+    const pub = Keypair.random().publicKey()
+    const load = vi.fn()
+      .mockRejectedValueOnce(Object.assign(new Error('socket hang up'), { response: { status: 503 } }))
+      .mockResolvedValueOnce({ balances: [{ asset_type: 'native', balance: '100.0' }], subentry_count: 0 })
+      .mockResolvedValueOnce({ balances: [{ asset_type: 'native', balance: '75.0' }], subentry_count: 0 })
+    ;(svc as any).horizon.loadAccount = load
+
+    expect((await svc.getBalance(pub)).xlm).toBe(0)     // failure → fallback, not cached
+    expect((await svc.getBalance(pub)).xlm).toBe(100)   // refetched
+    expect((await svc.getBalance(pub)).xlm).toBe(100)   // served from cache
+    svc.invalidateBalance(pub)
+    expect((await svc.getBalance(pub)).xlm).toBe(75)    // fresh after invalidation
+    expect(load).toHaveBeenCalledTimes(3)
+  })
+})

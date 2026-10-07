@@ -24,7 +24,6 @@
     "ed25519-hd-key": "^2.0.0",
     "expo": "~57.0.2",
     "expo-asset": "~57.0.3",
-    "expo-audio": "~57.0.0",
     "expo-build-properties": "~57.0.3",
     "expo-camera": "^57.0.0",
     "expo-clipboard": "~57.0.0",

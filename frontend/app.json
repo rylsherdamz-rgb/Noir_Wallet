@@ -24,6 +24,16 @@
       },
       "package": "com.noirwallet.app",
       "permissions": ["NFC"],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "allowBackup": false,
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -37,7 +47,6 @@
     "owner": "3x656",
     "plugins": [
       "expo-router",
-      "expo-audio",
       "expo-asset",
       "expo-font",
       "expo-secure-store",

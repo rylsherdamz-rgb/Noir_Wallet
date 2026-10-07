@@ -49,15 +49,24 @@ if (xdr.FeeBumpTransactionEnvelope.prototype.toXDR !== xdr.TransactionEnvelope.p
 }
 
 const CACHE_TTL_MS = 30000
+// Short TTL for balances: long enough to collapse the back-to-back
+// syncAgentsFromDevices() -> listAgents() double-fetch and rapid re-renders,
+// short enough that pull-to-refresh still reflects a real top-up quickly.
+const BALANCE_CACHE_TTL_MS = 10000
 
 interface CacheEntry<T> {
   value: T
   expiresAt: number
 }
 
-function makeCache<T>(): (key: string, ttl: number, fetcher: () => Promise<T>) => Promise<T> {
+type Cache<T> = ((key: string, ttl: number, fetcher: () => Promise<T>) => Promise<T>) & {
+  invalidate(key: string): void
+}
+
+/** TTL cache. A rejected fetcher is NOT cached, so a transient failure can't stick. */
+function makeCache<T>(): Cache<T> {
   const store = new Map<string, CacheEntry<T>>()
-  return async (key: string, ttl: number, fetcher: () => Promise<T>): Promise<T> => {
+  const get = async (key: string, ttl: number, fetcher: () => Promise<T>): Promise<T> => {
     const existing = store.get(key)
     if (existing && Date.now() < existing.expiresAt) {
       return existing.value
@@ -66,6 +75,7 @@ function makeCache<T>(): (key: string, ttl: number, fetcher: () => Promise<T>) =
     store.set(key, { value, expiresAt: Date.now() + ttl })
     return value
   }
+  return Object.assign(get, { invalidate: (key: string) => { store.delete(key) } })
 }
 
 const DEFAULT_TIMEOUT_MS = 20000
@@ -131,7 +141,8 @@ export class StellarService {
   private soroban: rpc.Server
   private networkPassphrase: string
   private network: 'testnet' | 'mainnet'
-  private existsCache: (key: string, ttl: number, fetcher: () => Promise<boolean>) => Promise<boolean>
+  private existsCache: Cache<boolean>
+  private balanceCache: Cache<BalanceResult>
 
   constructor(opts?: StellarServiceOptions) {
     const isTestnet = opts?.network !== 'mainnet'
@@ -144,6 +155,7 @@ export class StellarService {
     ) as rpc.Server
     this.networkPassphrase = opts?.networkPassphrase ?? (isTestnet ? Networks.TESTNET : Networks.PUBLIC)
     this.existsCache = makeCache<boolean>()
+    this.balanceCache = makeCache<BalanceResult>()
   }
 
   get networkName() { return this.network }
@@ -197,14 +209,16 @@ export class StellarService {
 
   async getBalance(publicKey: string): Promise<BalanceResult> {
     try {
-      const account = await withTimeout(this.horizon.loadAccount(publicKey), '[getBalance]', 12000)
-      const balances = account.balances as any[]
-      const xlmBalance = balances.find((b: any) => b.asset_type === 'native')
-
-      return {
-        xlm: parseFloat(xlmBalance?.balance ?? '0'),
-        subentryCount: (account as any).subentry_count ?? 0,
-      }
+      // Only successful loads are cached; the 0-balance fallback below is not.
+      return await this.balanceCache(publicKey, BALANCE_CACHE_TTL_MS, async () => {
+        const account = await withTimeout(this.horizon.loadAccount(publicKey), '[getBalance]', 12000)
+        const balances = account.balances as any[]
+        const xlmBalance = balances.find((b: any) => b.asset_type === 'native')
+        return {
+          xlm: parseFloat(xlmBalance?.balance ?? '0'),
+          subentryCount: (account as any).subentry_count ?? 0,
+        }
+      })
     } catch (e: any) {
       const status = e?.response?.status ?? e?.response?.statusCode
       const isNotFound = status === 404 || e?.name === 'NotFoundError'
@@ -216,6 +230,11 @@ export class StellarService {
       }
       return { xlm: 0, subentryCount: 0 }
     }
+  }
+
+  /** Drop the cached balance for an account after it sends or receives funds. */
+  invalidateBalance(publicKey: string): void {
+    this.balanceCache.invalidate(publicKey)
   }
 
   /**
@@ -535,7 +554,7 @@ export class StellarService {
       logger.error(`[invokeContract] simulateTransaction failed for ${params.method}`, {
         error: errMsg,
         xdrPrefix: txXdr.substring(0, 80),
-        source: params.signerSecret.slice(0, 8) + '...',
+        source: sourcePub.slice(0, 8) + '...',
       })
       throw new Error(`Transaction simulation failed: ${errMsg}`)
     }
@@ -617,7 +636,7 @@ export class StellarService {
       logger.error(`[invokeContract] auth signing failed for ${params.method}`, {
         error: errMsg,
         xdrPrefix: txXdr.substring(0, 80),
-        source: params.signerSecret.slice(0, 8) + '...',
+        source: sourcePub.slice(0, 8) + '...',
       })
       throw new Error(`Transaction auth signing failed: ${errMsg}`)
     }
@@ -631,7 +650,7 @@ export class StellarService {
       const errMsg = typeof e === 'object' ? (e?.message ?? e?.data ?? JSON.stringify(e)) : String(e)
       logger.error(`[invokeContract] sendTransaction failed for ${params.method}`, {
         error: errMsg,
-        source: params.signerSecret.slice(0, 8) + '...',
+        source: sourcePub.slice(0, 8) + '...',
       })
       throw new Error(`Failed to submit transaction: ${errMsg}`)
     }
