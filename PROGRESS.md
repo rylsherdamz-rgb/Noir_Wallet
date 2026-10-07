@@ -57,8 +57,8 @@ This maps every weekly deliverable to its status. Measure every commit against t
 
 - [ ] NTAG213 provisioning flow in app
 - [x] Device register via DeviceRegistry (on-chain association) — verified on Testnet 2026-10-03
-- [ ] Agent authorization UI passes constraints (limit, asset, expiry) to AgentRegistry — args wired with fixed defaults; UI pending
-- [ ] Escrow funding wired to PaymentEscrow
+- [x] Agent authorization UI passes constraints (limit, asset, expiry) to AgentRegistry — per-payment cap + expiry chosen in the provisioning signature sheet (`buildAgentPolicy`), asset = native XLM SAC; policy read back via `get_policy` on Agent Detail (2026-10-06, unit-tested; Testnet run pending)
+- [x] Escrow funding wired to PaymentEscrow — `x402.fundEscrow` → `fund_escrow(token, wallet, device_hash, i128)`, amount picker + live `balance_of` on Agent Detail (2026-10-06, unit-tested; Testnet run pending)
 - [ ] App ↔ deployed Soroban contracts integration verified on Testnet
 
 ### Week 3 — Full x402 flow + tests + security paths + docs  ⬜ NOT STARTED
@@ -194,3 +194,46 @@ four files; the WASM hashes are unchanged between the two deploys (confirmed
 byte-identical in `deploy-evidence/`), so only the IDs needed updating.
 `docs/Evidence/` explorer screenshots still show the old IDs in their
 filenames (not retaken) — flagged with a note in that file.
+
+## Session Log — 2026-10-06/07 (Week 2: policy UI, escrow, safe unlink, Play Store hardening)
+
+**Done (unit-tested; not yet exercised on Testnet or on hardware)**
+- Constrained agent policy in the provisioning Signature Request sheet: max per
+  payment (No cap / 10 / 25 / 50 / 100 XLM) + expiry (Never / 7 / 30 / 90 days),
+  asset = native XLM SAC. `x402.buildAgentPolicy` mirrors register_agent's
+  `InvalidPolicy` checks. Agent Detail reads the policy back via `get_policy`.
+- Escrow: `fundEscrow` (reserve-aware pre-check, waits for finality, user
+  confirmation), `withdrawEscrow` (`defund_escrow`), `getEscrowBalance` decoded
+  correctly (was `Number(ScVal)`) and simulated from the owner wallet.
+- **Fund-safety fix — unlink/revoke:** "Revoke Device & Agent" used to revoke the
+  agent and the device but never swept escrow. Device revoke deletes the entry,
+  so `get_owner` fails afterwards and the escrow was stranded permanently.
+  New `x402.unlinkDevice`: revoke_agent → sweep_on_revoke → device revoke,
+  read-gated, aborts before the device revoke on any failure, retry-safe.
+- **Error-code fix:** registration treated `Error(Contract, #4)` as
+  "already registered" for both registries; on agent_registry #4 is
+  `InvalidPolicy`, which would have been reported as success. Codes now handled
+  per contract; user-facing text centralised in `domain/contractErrors.ts`.
+- **Secret leak fix:** `invokeContract` logged the first 8 chars of the signer's
+  secret seed via `logger.error` (kept in release builds). Now logs the public key.
+- Balance cache no longer caches a failed Horizon load as 0 XLM; invalidated
+  after the wallet sends.
+
+**Play Store release hardening**
+- `eas.json`: shared `base` profile carries the public Testnet contract IDs —
+  `frontend/.env` is gitignored, so EAS cloud builds previously shipped with
+  empty contract IDs. Production → `app-bundle`; submit → internal track, draft.
+  Secrets (`EXPO_PUBLIC_API_KEY`) must be set with `eas env:create`, not committed.
+- `app.json`: `allowBackup: false`; blocked unused permissions (RECORD_AUDIO,
+  SYSTEM_ALERT_WINDOW, storage, FOREGROUND_SERVICE[_MEDIA_PLAYBACK],
+  MODIFY_AUDIO_SETTINGS). Removed unused `expo-audio` (its media-playback
+  foreground service would require a Play Console FGS declaration).
+
+**Tests:** `tsc --noEmit` clean · Vitest 243/243.
+
+**Open**
+- Testnet run of provision-with-policy → fund → withdraw → unlink (Week 2 gate).
+- On-device NTAG213 check, incl. the taller signature sheet on small screens.
+- Store listing prerequisites outside the code: privacy policy URL, Data safety
+  form, content rating, release signing via EAS credentials.
+- App ships pointed at **Testnet** (Instaward scope); Mainnet is out of scope.
