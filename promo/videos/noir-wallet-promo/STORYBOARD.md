@@ -1,6 +1,6 @@
 ---
 format: 1920x1080
-duration: 60s
+duration: 65s
 message: "Tap a card to pay on Stellar — it spends only what you load, and works until you revoke it."
 arc: Future Pacing — imagine → tap proof → name product → mechanism (link, load) → control (revoke) → trust → CTA
 audience: Stellar community, SCF reviewers, crypto-curious mobile users
@@ -72,6 +72,14 @@ Scene 2 (1.2–2.4s): on "Tap.", the card swings in from right and touches the p
 Scene 3 (2.4–3.8s): on "Paid.", screen crossfades to ModalProcessing.png then instantly toward the receipt; "Paid." lands under "Tap.".
 Scene 4 (3.8–6.0s): on "Settled on Stellar", screen resolves to Receipt.png (cropped: only the top — check, "Sent", 25.00 XLM, To/Status rows above the Date row; mask the rest with the phone's own dark ground). "Settled." lands in gold, mono label "ON STELLAR" fades beneath. Hold.
 
+## Frame 2b — The agent pays (no phone, no unlock, no confirm)
+
+- scene: Kinetic "No phone." "No unlock." "No confirm." beside a lone Noir card; the card taps once, gold rings pulse, and its agent balance pays out 25.00 → 13.00 XLM ("−12.00 paid"). Subline: "The card's agent pays from its own balance — settled on Stellar in seconds."
+- voiceover: (none — music bed; both cuts)
+- duration: 5s (11.0–16.0; every later frame shifts +5s)
+- status: built (index.html #f2b)
+- narrativeRole: the core promise — the card pays by itself through its funded agent; the payer never takes out, unlocks or confirms on a phone.
+
 ## Frame 3 — Introducing Noir
 
 - scene: Everything clears; the Noir cat mark lands flat center, NOIR wordmark tracks open beneath, gold "TAP INTO TRUST" types on.
@@ -98,7 +106,7 @@ Scene 3 (2.6–4.5s): on "Tap into trust", the tagline types on in gold mono cap
 
 ## Frame 4 — Link any card
 
-- scene: Phone walks the link flow — "Link a card" → "Hold your card to the phone" (gold rings) → green "Card linked". Kinetic labels step in sync: "Any NFC card." "Hold." "Linked."
+- scene: Phone walks the link flow — "Link a card" → "Hold your card to the phone" (gold rings) → green "Card linked". Kinetic labels step in sync: "Card. Sticker. Phone." "Hold." "Linked."
 - voiceover: "Any NFC card or sticker. Hold it to your phone — and it's registered on Stellar."
 - duration: 7s
 - transition_in: push-slide LEFT

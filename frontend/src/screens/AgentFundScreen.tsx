@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import * as Haptics from 'expo-haptics'
+import { Keypair } from '@stellar/stellar-sdk/axios'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { AmountEntry } from '@/components/flow/AmountEntry'
 import { ProcessingOverlay, type ProcessingStep } from '@/components/flow/ProcessingOverlay'
@@ -64,6 +65,11 @@ export function AgentFundScreen() {
   const [agentPub, setAgentPub] = useState<string | null>(null)
   const [agentIndex, setAgentIndex] = useState<number | null>(null)
   const [agentExists, setAgentExists] = useState(true)
+  // Which agent wallet this card tops up. Confirm waits on it: topUpAgent()
+  // falls back to agent 1 when no index is passed, which on a phone with
+  // several cards would pay the wrong agent.
+  const [agentLookup, setAgentLookup] = useState<'loading' | 'ready' | 'missing' | 'failed'>('loading')
+  const [lookupAttempt, setLookupAttempt] = useState(0)
   const [processing, setProcessing] = useState<ProcessingStep[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -78,22 +84,31 @@ export function AgentFundScreen() {
           logger.warn('fund: balance read failed', e?.message)
           if (!cancelled) setBalanceFailed(true)
         })
-      let idx = await x402.getAgentIndexForDevice(device.deviceUidHash)
-      if (idx == null) {
-        const all = await x402.listAgents()
-        idx = all.find((a) => a.publicKey === device.agentPublicKey)?.index ?? null
-      }
-      const agent = idx != null ? await x402.getAgent(idx) : null
-      const pub = agent?.publicKey ?? device.agentPublicKey ?? null
-      if (cancelled) return
-      setAgentIndex(idx)
-      setAgentPub(pub)
-      if (mode === 'topup' && pub) {
-        try { setAgentExists(await stellarService.accountExists(pub)) } catch { /* assume exists */ }
+      setAgentLookup('loading')
+      try {
+        let idx = await x402.getAgentIndexForDevice(device.deviceUidHash)
+        if (idx == null) {
+          const all = await x402.listAgents()
+          idx = all.find((a) => a.publicKey === device.agentPublicKey)?.index ?? null
+        }
+        // The key is on this phone, so derive the address locally instead of a network read.
+        const secret = idx != null ? await x402.getAgentSecret(idx) : null
+        const pub = secret ? Keypair.fromSecret(secret).publicKey() : device.agentPublicKey ?? null
+        if (cancelled) return
+        setAgentIndex(idx)
+        setAgentPub(pub)
+        // Escrow deposits are keyed by the card, not the agent key.
+        setAgentLookup(mode === 'escrow' || secret ? 'ready' : 'missing')
+        if (mode === 'topup' && pub) {
+          try { setAgentExists(await stellarService.accountExists(pub)) } catch { /* assume exists */ }
+        }
+      } catch (e: any) {
+        logger.warn('fund: agent lookup failed', e?.message)
+        if (!cancelled) setAgentLookup('failed')
       }
     })()
     return () => { cancelled = true }
-  }, [device?.id, user?.stellarPublicKey, mode])
+  }, [device?.id, user?.stellarPublicKey, mode, lookupAttempt])
 
   const value = keypadValueToNumber(amount)
   const validation = (() => {
@@ -111,7 +126,7 @@ export function AgentFundScreen() {
   const cardLabel = device?.label ?? 'this card'
 
   const submit = async () => {
-    if (!device) return
+    if (!device || agentLookup !== 'ready') return
     setError(null)
     const steps = (active: number): ProcessingStep[] =>
       ['Signing with your wallet', mode === 'topup' ? 'Sending to agent wallet' : 'Depositing to escrow contract', 'Confirming on Stellar']
@@ -125,7 +140,8 @@ export function AgentFundScreen() {
 
       let hash: string
       if (mode === 'topup') {
-        hash = await x402.topUpAgent(value, keys.stellarSecret, agentIndex ?? undefined)
+        if (agentIndex == null) throw new Error('This card’s agent wallet isn’t on this phone')
+        hash = await x402.topUpAgent(value, keys.stellarSecret, agentIndex)
       } else {
         hash = await x402.fundEscrow({ walletSecret: keys.stellarSecret, deviceHashHex: device.deviceUidHash, amountXlm: value })
       }
@@ -191,7 +207,25 @@ export function AgentFundScreen() {
           <KeyValueRow label="Network fee" value="~0.00001 XLM" last />
           <Text style={styles.explainer}>{copy.explainer}</Text>
           <View style={styles.flex} />
-          <Button label="Confirm" icon="finger-print-outline" onPress={submit} disabled={!!processing} fullWidth />
+          {agentLookup === 'missing' || agentLookup === 'failed' ? (
+            <Text style={styles.lookupError} accessibilityLiveRegion="polite">
+              {agentLookup === 'missing'
+                ? 'This card’s agent wallet key isn’t on this phone, so it can’t be topped up from here.'
+                : 'Couldn’t load this card’s agent wallet. Check your connection and try again.'}
+            </Text>
+          ) : null}
+          {agentLookup === 'failed' ? (
+            <Button label="Try again" icon="refresh" variant="secondary" onPress={() => setLookupAttempt((n) => n + 1)} fullWidth />
+          ) : (
+            <Button
+              label="Confirm"
+              icon="finger-print-outline"
+              onPress={submit}
+              loading={agentLookup === 'loading'}
+              disabled={!!processing || agentLookup !== 'ready'}
+              fullWidth
+            />
+          )}
         </View>
       )}
 
@@ -212,5 +246,6 @@ const styles = StyleSheet.create({
   review: { flex: 1, paddingHorizontal: 20, paddingBottom: Spacing.lg },
   reviewHero: { alignItems: 'center', gap: 6, paddingTop: Spacing.lg, paddingBottom: Spacing.xl },
   reviewLabel: { fontSize: FontSize.sm, color: Colors.mutedWhite },
+  lookupError: { fontSize: FontSize.sm, color: Colors.danger, textAlign: 'center', paddingBottom: Spacing.md },
   explainer: { fontSize: FontSize.sm - 1, color: Colors.mutedWhite, lineHeight: 19, paddingTop: Spacing.md },
 })
