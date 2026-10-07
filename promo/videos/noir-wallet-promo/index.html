@@ -9,6 +9,9 @@
       @font-face { font-family: "Jost"; font-weight: 400; src: url("assets/fonts/Jost-Regular.ttf"); }
       @font-face { font-family: "Jost"; font-weight: 500; src: url("assets/fonts/Jost-Medium.ttf"); }
       @font-face { font-family: "Jost"; font-weight: 600; src: url("assets/fonts/Jost-SemiBold.ttf"); }
+      @font-face { font-family: "Noto Sans"; font-weight: 400; src: url("assets/fonts/noto-sans-latin-400-normal.woff2"); }
+      @font-face { font-family: "Noto Sans"; font-weight: 500; src: url("assets/fonts/noto-sans-latin-500-normal.woff2"); }
+      @font-face { font-family: "Noto Sans Mono"; font-weight: 400; src: url("assets/fonts/noto-sans-mono-latin-400-normal.woff2"); }
       :root {
         --ink: #0a0a0a;
         --gold: #c6a15b;
@@ -23,23 +26,28 @@
       html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--ink); }
       #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: var(--ink); font-family: "Jost", sans-serif; }
 
-      .scene { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(ellipse 85% 75% at 50% 45%, #141312 0%, #0a0a0a 60%, #060606 100%); }
+      .scene { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(ellipse 85% 75% at 50% 45%, #151413 0%, #0a0a0a 60%, #050505 100%); }
+      /* cam = scene-to-scene transition layer; dolly = slow continuous camera drift. */
+      .cam, .dolly { position: absolute; inset: 0; }
+      .amb { position: absolute; width: 1100px; height: 1100px; border-radius: 50%; pointer-events: none;
+        background: radial-gradient(circle, rgba(198, 161, 91, 0.10) 0%, rgba(198, 161, 91, 0.035) 35%, rgba(198, 161, 91, 0) 70%); }
+      .amb.cool { background: radial-gradient(circle, rgba(124, 147, 181, 0.07) 0%, rgba(124, 147, 181, 0.02) 40%, rgba(124, 147, 181, 0) 70%); }
       .abs { position: absolute; }
       .h { font-family: "Jost", sans-serif; font-weight: 600; color: var(--cream); letter-spacing: -0.02em; line-height: 1.02; white-space: nowrap; }
       .gold { color: var(--gold); }
       .label { font-family: var(--mono); font-size: 22px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); white-space: nowrap; }
       .hint { color: var(--hint); }
-      .word { display: inline-block; }
+      .w { display: inline-block; will-change: transform; }
 
       /* Shared phone shell — identical in every frame. Dark metal frame, thin black
-         bezel, side buttons, faint glass sheen. Screen keeps the app's exact 390:844. */
+         bezel, side buttons, glass sheen + a moving specular band. Screen keeps 390:844. */
       .phone {
         position: absolute; width: 365px; height: 774px; border-radius: 60px;
-        background: linear-gradient(150deg, #66666b 0%, #242427 16%, #353538 48%, #18181a 80%, #4e4e52 100%);
+        background: linear-gradient(150deg, #6a6a70 0%, #242427 16%, #37373b 48%, #18181a 80%, #525257 100%);
         box-shadow:
-          inset 0 0 0 1.5px rgba(255, 255, 255, 0.22),
+          inset 0 0 0 1.5px rgba(255, 255, 255, 0.24),
           inset 0 0 0 5px #0b0b0c,
-          0 70px 90px -45px rgba(0, 0, 0, 0.95),
+          0 80px 100px -45px rgba(0, 0, 0, 0.95),
           0 25px 35px -25px rgba(0, 0, 0, 0.85);
       }
       .phone .screen { position: absolute; inset: 8px; border-radius: 52px; overflow: hidden; background: #000; }
@@ -47,15 +55,16 @@
         position: absolute; inset: 8px; border-radius: 52px; pointer-events: none;
         background: linear-gradient(118deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.02) 28%, rgba(255, 255, 255, 0) 42%);
       }
+      .spec { position: absolute; inset: 8px; border-radius: 52px; overflow: hidden; pointer-events: none; }
+      .spec i { position: absolute; top: -20%; left: -70%; width: 55%; height: 140%; transform: skewX(-18deg);
+        background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.11) 50%, rgba(255, 255, 255, 0) 100%); }
       .phone .btn { position: absolute; width: 4px; border-radius: 2px; background: linear-gradient(90deg, #2a2a2c, #4a4a4d, #1c1c1e); }
       .phone .btn.power { right: -3px; top: 200px; height: 92px; }
       .phone .btn.vol1 { left: -3px; top: 165px; height: 58px; }
       .phone .btn.vol2 { left: -3px; top: 238px; height: 58px; }
       .shadow { position: absolute; width: 300px; height: 40px; border-radius: 50%; background: rgba(0, 0, 0, 0.8); filter: blur(22px); }
       .phone .screen img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; }
-      @font-face { font-family: "Noto Sans"; font-weight: 400; src: url("assets/fonts/noto-sans-latin-400-normal.woff2"); }
-      @font-face { font-family: "Noto Sans"; font-weight: 500; src: url("assets/fonts/noto-sans-latin-500-normal.woff2"); }
-      @font-face { font-family: "Noto Sans Mono"; font-weight: 400; src: url("assets/fonts/noto-sans-mono-latin-400-normal.woff2"); }
+
       /* Receipt screen (349 x 758 phone screen; app layout scaled from 390pt) */
       .rcpt { position: absolute; inset: 0; background: #0a0a0a; font-family: "Noto Sans", sans-serif; }
       .rcpt-check { position: absolute; left: 154px; top: 38px; width: 41px; height: 41px; border-radius: 50%; background: #3ad597; display: flex; align-items: center; justify-content: center; }
@@ -71,24 +80,36 @@
       .rcpt-links { position: absolute; left: 0; right: 0; top: 515px; display: flex; justify-content: center; gap: 26px; color: var(--gold); font-size: 12.5px; font-weight: 500; }
       .rcpt-links span { display: inline-flex; align-items: center; gap: 6px; }
       .rcpt-done { position: absolute; left: 18px; right: 18px; bottom: 26px; height: 48px; border-radius: 999px; background: var(--gold); color: #1a1408; font-family: "Jost"; font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: center; }
-      .phone .mask { position: absolute; left: 0; right: 0; bottom: 0; background: var(--ink); }
 
-      /* Matte black NFC card, ISO 85.6:54 */
+      /* Matte black NFC card, ISO 85.6:54 — brushed micro-texture, gold-foil mark, moving sheen. */
       .card {
-        position: absolute; width: 360px; height: 227px; border-radius: 22px;
-        background: linear-gradient(135deg, #1b1b1b 0%, #0d0d0d 100%); border: 2px solid #333;
-        box-shadow: 0 30px 50px -20px rgba(0, 0, 0, 0.9);
+        position: absolute; width: 360px; height: 227px; border-radius: 22px; overflow: hidden;
+        background:
+          repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.012) 0 1px, rgba(255, 255, 255, 0) 1px 3px),
+          linear-gradient(135deg, #202022 0%, #111112 55%, #0a0a0b 100%);
+        border: 1.5px solid #3a3a3c;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 40px 60px -22px rgba(0, 0, 0, 0.95), 0 12px 18px -10px rgba(0, 0, 0, 0.8);
       }
       .card svg { position: absolute; top: 26px; right: 28px; }
-      .card .brand { position: absolute; left: 30px; bottom: 26px; font-family: "Jost"; font-weight: 500; font-size: 22px; letter-spacing: 0.25em; color: #6d6d6d; }
+      .card .brand { position: absolute; left: 30px; bottom: 26px; font-family: "Jost"; font-weight: 500; font-size: 22px; letter-spacing: 0.25em;
+        background: linear-gradient(100deg, #8a7140 0%, #e8cf94 45%, #b08a45 60%, #7d6538 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+      .card .sheen { position: absolute; top: -30%; left: -60%; width: 50%; height: 160%; transform: skewX(-22deg); pointer-events: none;
+        background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.10) 42%, rgba(232, 207, 148, 0.16) 50%, rgba(255, 255, 255, 0.06) 58%, rgba(255, 255, 255, 0) 100%); }
       .ring { position: absolute; border: 2px solid rgba(198, 161, 91, 0.6); border-radius: 50%; opacity: 0; }
 
       .mark { position: absolute; width: 200px; height: auto; }
       .wordmark { position: absolute; font-family: "Jost"; font-weight: 500; font-size: 92px; color: var(--cream); letter-spacing: 0.25em; white-space: nowrap; }
-      .pill { position: absolute; padding: 18px 30px; border-radius: 999px; background: var(--ink); color: var(--cream); font-family: "Jost"; font-weight: 600; font-size: 40px; white-space: nowrap; }
+      .pill { position: absolute; padding: 18px 30px; border-radius: 999px; background: var(--ink); color: var(--cream); font-family: "Jost"; font-weight: 600; font-size: 40px; white-space: nowrap; box-shadow: 0 20px 40px -18px rgba(0, 0, 0, 0.6); }
       .hair { position: absolute; height: 1px; background: var(--hair); transform-origin: left center; }
       .verb { display: inline-block; margin-right: 46px; color: #3a3a3a; }
       .fadeout { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; }
+
+      /* Global film layer: drifting dust, vignette, animated grain. */
+      #fx { position: absolute; inset: 0; pointer-events: none; z-index: 50; }
+      #fx .dust { position: absolute; left: 0; top: 0; border-radius: 50%; background: #ede4d0; }
+      #fx .vig { position: absolute; inset: 0; background: radial-gradient(ellipse 75% 70% at 50% 50%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.55) 100%); }
+      #fx .grain { position: absolute; inset: -128px; opacity: 0.07; mix-blend-mode: overlay;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
     </style>
   </head>
   <body>
@@ -96,7 +117,7 @@
 
       <!-- ───────── Frame 1 — Hook (0–5) ───────── -->
       <div id="f1" class="scene clip" data-start="0" data-duration="5" data-track-index="0">
-        <div class="h abs" style="left:160px; top:330px; font-size:150px;"><span class="word f1w">Your</span> <span class="word f1w">wallet.</span></div>
+        <div id="f1-l1" class="h abs" style="left:160px; top:330px; font-size:150px;">Your wallet.</div>
         <div id="f1-card-line" class="h gold abs" style="left:160px; top:500px; font-size:150px;">on a card.</div>
         <div id="f1-ring" class="ring" style="left:1478px; top:296px; width:120px; height:120px;"></div>
         <div id="f1-card" class="card" style="left:1200px; top:330px;">
@@ -111,7 +132,7 @@
         <div id="f2-paid" class="h abs" style="left:200px; top:400px; font-size:130px;">Paid.</div>
         <div id="f2-settled" class="h gold abs" style="left:200px; top:550px; font-size:130px;">Settled.</div>
         <div id="f2-label" class="label abs" style="left:206px; top:720px;">On Stellar</div>
-        <div class="shadow" style="left:1112px; top:905px;"></div>
+        <div id="f2-shadow" class="shadow" style="left:1112px; top:905px;"></div>
         <div id="f2-phone" class="phone" style="left:1080px; top:153px;">
           <img id="f2-s1" src="assets/Tap.png" alt="" />
           <img id="f2-s2" src="assets/ModalProcessing.png" alt="" style="opacity:0" />
@@ -157,21 +178,21 @@
           <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="#C6A15B" stroke-width="2.4" stroke-linecap="round"><path d="M12 12a11 11 0 0 1 0 16"/><path d="M18 8a17 17 0 0 1 0 24"/><path d="M24 4a23 23 0 0 1 0 32"/></svg>
           <div class="brand">NOIR</div>
         </div>
-        <div id="f2b-bal" class="abs" style="left:1300px; top:600px; width:360px; padding:18px 24px; border-radius:18px; background:#141414; border:1px solid #2a2a2a;">
+        <div id="f2b-bal" class="abs" style="left:1300px; top:600px; width:360px; padding:18px 24px; border-radius:18px; background:linear-gradient(160deg,#1a1a1a,#111); border:1px solid #2a2a2a; box-shadow:0 30px 50px -25px rgba(0,0,0,.9);">
           <div class="label" style="font-size:16px; color:var(--hint);">Agent balance</div>
           <div style="font-family:'Jost'; font-weight:600; font-size:44px; color:var(--cream); margin-top:6px;"><span id="f2b-num">25.00</span> <span style="font-size:22px; color:var(--hint);">XLM</span></div>
           <div id="f2b-paid" style="position:absolute; right:24px; top:46px; font-family:'Jost'; font-weight:500; font-size:22px; color:#3ad597; opacity:0;">−12.00 paid</div>
         </div>
       </div>
 
-      <!-- ───────── Frame 3 — Introducing Noir (11–15.5) ───────── -->
+      <!-- ───────── Frame 3 — Introducing Noir (16–20.5) ───────── -->
       <div id="f3" class="scene clip" data-start="16" data-duration="4.5" data-track-index="0">
         <img id="f3-mark" class="mark" src="assets/noir-mark.png" alt="" style="left:860px; top:250px;" />
         <div id="f3-word" class="wordmark" style="left:0; width:1920px; text-align:center; top:500px;">NOIR</div>
         <div id="f3-tag" class="label" style="position:absolute; left:0; width:1920px; text-align:center; top:640px; font-size:30px; letter-spacing:0.3em;"></div>
       </div>
 
-      <!-- ───────── Frame 4 — Link any card (15.5–22.5) ───────── -->
+      <!-- ───────── Frame 4 — Link any card (20.5–27.5) ───────── -->
       <div id="f4" class="scene clip" data-start="20.5" data-duration="7" data-track-index="0">
         <div id="f4-label" class="label abs" style="left:160px; top:250px;">01 · Link any NFC</div>
         <div id="f4-l1" class="h abs" style="left:160px; top:310px; font-size:84px;">Card. Sticker. Phone.</div>
@@ -181,7 +202,7 @@
           <img id="f4-g1" src="assets/LinkIntro.png" alt="" />
           <img id="f4-g2" src="assets/LinkScan.png" alt="" style="opacity:0" />
         </div>
-        <div class="shadow" style="left:1352px; top:905px;"></div>
+        <div id="f4-shadow" class="shadow" style="left:1352px; top:905px;"></div>
         <div id="f4-phone" class="phone" style="left:1320px; top:153px;">
           <img id="f4-s1" src="assets/LinkIntro.png" alt="" />
           <img id="f4-s2" src="assets/LinkScan.png" alt="" style="opacity:0" />
@@ -191,72 +212,75 @@
         <div id="f4-ring" class="ring" style="left:1402px; top:390px; width:200px; height:200px;"></div>
       </div>
 
-      <!-- ───────── Frame 5 — Its own agent (22.5–29) ───────── -->
+      <!-- ───────── Frame 5 — Its own agent (27.5–34) ───────── -->
       <div id="f5" class="scene clip" data-start="27.5" data-duration="6.5" data-track-index="0">
         <div id="f5-label" class="label abs" style="left:110px; top:330px;">02 · Agent</div>
         <div id="f5-l1" class="h abs" style="left:110px; top:380px; font-size:76px; white-space:normal; width:440px;">Its own agent.</div>
         <div id="f5-l2" class="h gold abs" style="left:1520px; top:380px; font-size:76px; white-space:normal; width:340px;">Its own balance.</div>
-        <div class="shadow" style="left:612px; top:905px;"></div>
+        <div id="f5-sh1" class="shadow" style="left:612px; top:905px;"></div>
         <div id="f5-p1" class="phone" style="left:580px; top:153px;"><img src="assets/Agents.png" alt="" /></div>
         <div id="f5-line" class="hair" style="left:954px; top:470px; width:144px; height:2px; background:var(--gold);"></div>
-        <div class="shadow" style="left:1132px; top:905px;"></div>
+        <div id="f5-sh2" class="shadow" style="left:1132px; top:905px;"></div>
         <div id="f5-p2" class="phone" style="left:1100px; top:153px;"><img src="assets/AgentDetail.png" alt="" /></div>
       </div>
 
-      <!-- ───────── Frame 6 — Load only what it should spend (29–34.5) ───────── -->
+      <!-- ───────── Frame 6 — Load only what it should spend (34–39.5) ───────── -->
       <div id="f6" class="scene clip" data-start="34" data-duration="5.5" data-track-index="0">
         <div id="f6-count" class="h gold abs" style="left:160px; top:200px; font-size:150px;"><span id="f6-num">0</span><span style="font-size:60px; color:var(--hint); margin-left:20px;">XLM</span></div>
         <div id="f6-sub" class="hint abs" style="left:166px; top:375px; font-size:30px; font-family:'Jost'; white-space:nowrap;">From your main wallet to the Black card agent</div>
         <div id="f6-l1" class="h abs" style="left:160px; top:520px; font-size:104px;">It spends only</div>
         <div id="f6-l2" class="h gold abs" style="left:160px; top:640px; font-size:104px;">what you load.</div>
-        <div class="shadow" style="left:1352px; top:905px;"></div>
+        <div id="f6-shadow" class="shadow" style="left:1352px; top:905px;"></div>
         <div id="f6-phone" class="phone" style="left:1320px; top:153px;"><img src="assets/AgentFund.png" alt="" /></div>
       </div>
 
-      <!-- ───────── Frame 7 — Revoke anytime, gold register (34.5–41.5) ───────── -->
-      <div id="f7" class="scene clip" data-start="39.5" data-duration="7" data-track-index="0" style="background:var(--gold);">
+      <!-- ───────── Frame 7 — Revoke anytime, gold register (39.5–46.5) ───────── -->
+      <div id="f7" class="scene clip" data-start="39.5" data-duration="7" data-track-index="0">
+        <div id="f7-bg" class="abs" style="inset:-100px; background:radial-gradient(ellipse 70% 80% at 35% 45%, #d2ae69 0%, #c6a15b 55%, #b48f4c 100%);"></div>
         <div id="f7-l1" class="h abs" style="left:140px; top:250px; font-size:64px; color:var(--ink); opacity:0.7;">Works until</div>
         <div id="f7-l2" class="h abs" style="left:130px; top:330px; font-size:168px; color:var(--ink);">you revoke it.</div>
         <div id="f7-l3" class="h abs" style="left:420px; top:590px; font-size:52px; color:var(--ink);">Every last XLM, back to you.</div>
-        <div id="f7-phone" class="phone" style="left:1430px; top:153px; transform:rotate(4deg);"><img src="assets/ModalRevoke.png" alt="" /></div>
+        <div id="f7-phone" class="phone" style="left:1430px; top:153px;"><img src="assets/ModalRevoke.png" alt="" /></div>
         <div id="f7-pill" class="pill" style="left:140px; top:580px;">25.00 XLM</div>
       </div>
 
-      <!-- ───────── Frame 8 — The whole wallet (41.5–48.5) ───────── -->
+      <!-- ───────── Frame 8 — The whole wallet, 3D coverflow (46.5–53.5) ───────── -->
       <div id="f8" class="scene clip" data-start="46.5" data-duration="7" data-track-index="0">
         <div id="f8-label" class="label abs" style="left:120px; top:60px;">A full Stellar wallet</div>
-        <div id="f8-world" class="abs" style="left:0; top:0; width:2800px; height:1080px;">
-          <div class="phone" style="left:120px;  top:150px; transform:scale(0.82) rotate(-4deg);"><img src="assets/Dashboard.png" alt="" /></div>
-          <div class="phone" style="left:500px;  top:130px; transform:scale(0.82) rotate(-2deg);"><img src="assets/SendAmount.png" alt="" /></div>
-          <div class="phone" style="left:880px;  top:120px; transform:scale(0.82) rotate(0deg);"><img src="assets/SendReview.png" alt="" /></div>
-          <div class="phone" style="left:1260px; top:115px; transform:scale(0.82) rotate(0deg);"><img src="assets/ReceiveNfc.png" alt="" /></div>
-          <div class="phone" style="left:1640px; top:120px; transform:scale(0.82) rotate(2deg);"><img src="assets/History.png" alt="" /></div>
-          <div class="phone" style="left:2020px; top:130px; transform:scale(0.82) rotate(3deg);"><img src="assets/Cards.png" alt="" /></div>
-          <div class="phone" style="left:2400px; top:150px; transform:scale(0.82) rotate(5deg);"><img src="assets/Lock.png" alt="" /></div>
+        <div id="f8-world" class="abs" style="left:0; top:0; width:1920px; height:1080px; perspective:1700px; perspective-origin:50% 45%;">
+          <div class="phone f8p" style="left:777px; top:83px;"><img src="assets/Dashboard.png" alt="" /></div>
+          <div class="phone f8p" style="left:777px; top:83px;"><img src="assets/SendAmount.png" alt="" /></div>
+          <div class="phone f8p" style="left:777px; top:83px;"><img src="assets/SendReview.png" alt="" /></div>
+          <div class="phone f8p" style="left:777px; top:83px;"><img src="assets/ReceiveNfc.png" alt="" /></div>
+          <div class="phone f8p" style="left:777px; top:83px;"><img src="assets/History.png" alt="" /></div>
+          <div class="phone f8p" style="left:777px; top:83px;"><img src="assets/Cards.png" alt="" /></div>
+          <div class="phone f8p" style="left:777px; top:83px;"><img src="assets/Lock.png" alt="" /></div>
         </div>
         <div class="h abs" style="left:0; width:1920px; text-align:center; top:850px; font-size:56px;">
           <span id="v-send" class="verb">Send.</span><span id="v-recv" class="verb">Receive.</span><span id="v-tap" class="verb">Tap.</span><span id="v-track" class="verb">Track.</span><span id="v-lock" class="verb" style="margin-right:0;">Lock.</span>
         </div>
       </div>
 
-      <!-- ───────── Frame 9 — Built on Stellar (48.5–54.5) ───────── -->
+      <!-- ───────── Frame 9 — Built on Stellar (53.5–59.5) ───────── -->
       <div id="f9" class="scene clip" data-start="53.5" data-duration="6" data-track-index="0">
-        <div id="f9-label" class="label abs" style="left:200px; top:200px;">Built on Stellar</div>
-        <div class="hair f9-hair" style="left:200px; top:270px; width:1520px;"></div>
-        <div class="hair f9-hair" style="left:200px; top:420px; width:1520px;"></div>
-        <div class="hair f9-hair" style="left:200px; top:570px; width:1520px;"></div>
-        <div class="hair f9-hair" style="left:200px; top:720px; width:1520px;"></div>
-        <div id="f9-r1" class="h abs" style="left:200px; top:305px; font-size:84px;">Soroban smart contracts</div>
-        <div id="f9-r2" class="h abs" style="left:200px; top:455px; font-size:84px;">x402 tap-to-pay</div>
-        <div id="f9-r3" class="h abs" style="left:200px; top:605px; font-size:84px;">Open source <span class="gold">· MIT</span></div>
-        <div id="f9-chip" class="label abs" style="left:1360px; top:760px; color:var(--steel);">● Live on Testnet</div>
+        <div id="f9-list" class="abs" style="inset:0;">
+          <div id="f9-label" class="label abs" style="left:200px; top:200px;">Built on Stellar</div>
+          <div class="hair f9-hair" style="left:200px; top:270px; width:1520px;"></div>
+          <div class="hair f9-hair" style="left:200px; top:420px; width:1520px;"></div>
+          <div class="hair f9-hair" style="left:200px; top:570px; width:1520px;"></div>
+          <div class="hair f9-hair" style="left:200px; top:720px; width:1520px;"></div>
+          <div id="f9-r1" class="h abs" style="left:200px; top:305px; font-size:84px;">Soroban smart contracts</div>
+          <div id="f9-r2" class="h abs" style="left:200px; top:455px; font-size:84px;">x402 tap-to-pay</div>
+          <div id="f9-r3" class="h abs" style="left:200px; top:605px; font-size:84px;">Open source <span class="gold">· MIT</span></div>
+          <div id="f9-chip" class="label abs" style="left:1360px; top:760px; color:var(--steel);">● Live on Testnet</div>
+        </div>
       </div>
 
-      <!-- ───────── Frame 10 — Outro / CTA (54.5–60) ───────── -->
+      <!-- ───────── Frame 10 — Outro / CTA (59.5–65) ───────── -->
       <div id="f10" class="scene clip" data-start="59.5" data-duration="5.5" data-track-index="0">
         <img id="f10-mark" class="mark" src="assets/noir-mark.png" alt="" style="left:860px; top:190px;" />
         <div id="f10-word" class="wordmark" style="left:0; width:1920px; text-align:center; top:440px;">NOIR</div>
-        <div id="f10-ring" class="ring" style="left:880px; top:500px; width:160px; height:160px;"></div>
+        <div id="f10-ring" class="ring" style="left:880px; top:570px; width:160px; height:160px;"></div>
         <div id="f10-tag" class="label" style="position:absolute; left:0; width:1920px; text-align:center; top:580px; font-size:30px; letter-spacing:0.3em;"></div>
         <div id="f10-url" class="hint" style="position:absolute; left:0; width:1920px; text-align:center; top:660px; font-family:var(--mono); font-size:28px; letter-spacing:0.04em;">github.com/rylsherdamz-rgb/Noir_Wallet</div>
         <div id="f10-card" class="card" style="left:780px; top:1100px;">
@@ -265,80 +289,229 @@
         </div>
         <div id="f10-fade" class="fadeout"></div>
       </div>
+
+      <!-- ───────── Global film layer (whole piece) ───────── -->
+      <div id="fx" class="clip" data-start="0" data-duration="65" data-track-index="1">
+        <div id="fx-dust"></div>
+        <div class="vig"></div>
+        <div id="fx-grain" class="grain"></div>
+      </div>
+
     </div>
 
     <script>
-      // Phone shells: move each phone's content into a rounded screen, add sheen + buttons.
+      // Seeded PRNG — every "random" value is fixed per build, so every render is identical.
+      let seed = 7;
+      const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+
+      // Phone shells: move each phone's content into a rounded screen, add sheen, spec band + buttons.
       for (const phone of document.querySelectorAll(".phone")) {
         const screen = document.createElement("div");
         screen.className = "screen";
         while (phone.firstChild) screen.appendChild(phone.firstChild);
         phone.appendChild(screen);
-        for (const cls of ["glare", "btn power", "btn vol1", "btn vol2"]) {
+        for (const cls of ["glare", "spec", "btn power", "btn vol1", "btn vol2"]) {
           const el = document.createElement("div");
           el.className = cls;
+          if (cls === "spec") el.appendChild(document.createElement("i"));
           phone.appendChild(el);
         }
       }
-
-      // Typed taglines: one span per letter (built once, deterministically).
-      for (const id of ["f3-tag", "f10-tag"]) {
-        const el = document.getElementById(id);
-        el.innerHTML = "TAP INTO TRUST".split("").map((c) => `<span class="ch" style="opacity:0">${c === " " ? "&nbsp;" : c}</span>`).join("");
+      for (const card of document.querySelectorAll(".card")) {
+        const s = document.createElement("div");
+        s.className = "sheen";
+        card.appendChild(s);
       }
 
-      // Wordmarks: one span per letter so the tracking-open is a transform (x), not letterSpacing.
+      // Headlines: one span per word so each word can flip up in 3D. Inline spans stay whole.
+      const splitWords = (el) => {
+        for (const node of [...el.childNodes]) {
+          if (node.nodeType === 3) {
+            const frag = document.createDocumentFragment();
+            for (const part of node.textContent.split(/(\s+)/)) {
+              if (!part) continue;
+              if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(part)); continue; }
+              const w = document.createElement("span");
+              w.className = "w";
+              w.textContent = part;
+              frag.appendChild(w);
+            }
+            el.replaceChild(frag, node);
+          } else if (node.nodeType === 1) {
+            node.classList.add("w");
+          }
+        }
+      };
+      ["f1-l1", "f1-card-line", "f2-tap", "f2-paid", "f2-settled", "f2b-l1", "f2b-l2", "f2b-l3", "f2b-s1", "f2b-s2",
+       "f4-l1", "f4-l2", "f4-l3", "f5-l1", "f5-l2", "f6-sub", "f6-l1", "f6-l2", "f7-l1", "f7-l2", "f7-l3",
+       "f9-r1", "f9-r2", "f9-r3"].forEach((id) => splitWords(document.getElementById(id)));
+
+      // Typed taglines and wordmarks: one span per letter (built once, deterministically).
+      for (const id of ["f3-tag", "f10-tag"]) {
+        document.getElementById(id).innerHTML = "TAP INTO TRUST".split("")
+          .map((c) => `<span class="ch" style="display:inline-block; opacity:0">${c === " " ? "&nbsp;" : c}</span>`).join("");
+      }
       for (const id of ["f3-word", "f10-word"]) {
         document.getElementById(id).innerHTML = "NOIR".split("").map((c) => `<span class="lt" style="display:inline-block">${c}</span>`).join("");
       }
-      // Pull each letter toward the centre by its distance from it; tween back to 0.
-      const trackOpen = (t, id, d) => tl.fromTo(`#${id} .lt`,
-        { opacity: 0, x: (i) => (1.5 - i) * 22 },
-        { opacity: 1, x: 0, duration: d, ease: "power3.out" }, t);
+
+      // Every scene: cam (transition layer) > dolly (continuous camera drift) > content,
+      // with two slow ambient light pools behind the dolly.
+      const SCENES = [
+        ["#f1", 0, 5], ["#f2", 5, 6], ["#f2b", 11, 5], ["#f3", 16, 4.5], ["#f4", 20.5, 7], ["#f5", 27.5, 6.5],
+        ["#f6", 34, 5.5], ["#f7", 39.5, 7], ["#f8", 46.5, 7], ["#f9", 53.5, 6], ["#f10", 59.5, 5.5],
+      ];
+      for (const [sel] of SCENES) {
+        const scene = document.querySelector(sel);
+        const cam = document.createElement("div");
+        cam.className = "cam";
+        const dolly = document.createElement("div");
+        dolly.className = "dolly";
+        while (scene.firstChild) dolly.appendChild(scene.firstChild);
+        if (sel !== "#f7") {
+          for (const cls of ["amb", "amb cool"]) {
+            const a = document.createElement("div");
+            a.className = cls;
+            cam.appendChild(a);
+          }
+        }
+        cam.appendChild(dolly);
+        scene.appendChild(cam);
+      }
+
+      // Dust motes: depth-sorted — small ones are far (slow, faint), big ones near (faster, brighter).
+      const DUST = [];
+      const dustBox = document.getElementById("fx-dust");
+      for (let i = 0; i < 46; i++) {
+        const depth = rnd();
+        const size = 1.2 + depth * 3.4;
+        const el = document.createElement("div");
+        el.className = "dust";
+        el.style.width = el.style.height = `${size}px`;
+        if (depth > 0.75) el.style.filter = `blur(${((depth - 0.75) * 8).toFixed(1)}px)`;
+        dustBox.appendChild(el);
+        DUST.push({ el, x: rnd() * 1920, y: rnd() * 1180, v: 8 + depth * 34, amp: 10 + rnd() * 30,
+                    ph: rnd() * 6.28, a: 0.05 + depth * 0.22 });
+      }
+      const grain = document.getElementById("fx-grain");
+      const film = (t) => {
+        for (const d of DUST) {
+          const y = ((((d.y - d.v * t) % 1180) + 1180) % 1180) - 50;
+          const x = d.x + Math.sin(t * 0.35 + d.ph) * d.amp;
+          d.el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
+          d.el.style.opacity = (d.a * (0.65 + 0.35 * Math.sin(t * 1.1 + d.ph))).toFixed(3);
+        }
+        const n = Math.floor(t * 30);
+        grain.style.transform = `translate3d(${(n * 73) % 128}px, ${(n * 151) % 128}px, 0)`;
+      };
 
       const tl = gsap.timeline({ paused: true });
       const P3 = "power3.out";
-      const inUp = (t, sel, d = 0.8, y = 40) => tl.fromTo(sel, { opacity: 0, y }, { opacity: 1, y: 0, duration: d, ease: P3 }, t);
-      const slam = (t, sel) => tl.fromTo(sel, { opacity: 0, scale: 1.18 }, { opacity: 1, scale: 1, duration: 0.45, ease: "expo.out", transformOrigin: "left center" }, t);
+      const EX = "expo.out";
+
+      // 3D defaults: every phone/card owns its perspective; words flip from their baseline.
+      gsap.set(".phone:not(.f8p), .card, #f2b-bal", { transformPerspective: 1500 });
+      gsap.set(".w", { transformPerspective: 700, transformOrigin: "50% 100% -30px" });
+      gsap.set(".lt, .ch", { transformPerspective: 600 });
+      gsap.set(".ch", { opacity: 0 });
+
+      // ── Motion vocabulary ──
+      const rise = (t, sel, st = 0.07, d = 1.0) => tl.fromTo(`${sel} .w`,
+        { opacity: 0, yPercent: 75, rotationX: -88, filter: "blur(10px)" },
+        { opacity: 1, yPercent: 0, rotationX: 0, filter: "blur(0px)", duration: d, ease: EX, stagger: st }, t);
       const fade = (t, sel, d = 0.5, from = 0, to = 1) => tl.fromTo(sel, { opacity: from }, { opacity: to, duration: d, ease: "power2.out" }, t);
       const ring = (t, sel, s = 2.4) => tl.fromTo(sel, { opacity: 0.9, scale: 0.3 }, { opacity: 0, scale: s, duration: 1.4, ease: "power2.out" }, t);
-      const typeOn = (t, id) => tl.fromTo(`#${id} .ch`, { opacity: 0 }, { opacity: 1, duration: 0.01, stagger: 0.06 }, t);
-      const sceneIn = (t, sel, from = { opacity: 0 }) => tl.fromTo(sel, from, { opacity: 1, scale: 1, duration: 0.45, ease: P3 }, t);
+      const sheen = (t, sel, d = 1.3) => tl.fromTo(`${sel} .sheen`, { xPercent: 0 }, { xPercent: 420, duration: d, ease: "power2.inOut" }, t);
+      const spec = (t, sel, d = 1.4) => tl.fromTo(`${sel} .spec i`, { xPercent: 0 }, { xPercent: 420, duration: d, ease: "power2.inOut" }, t);
+      const typeOn = (t, id) => tl.fromTo(`#${id} .ch`,
+        { opacity: 0, y: 14, filter: "blur(6px)" },
+        { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.5, ease: P3, stagger: 0.045 }, t);
+      const wordmark = (t, id, d) => tl.fromTo(`#${id} .lt`,
+        { opacity: 0, x: (i) => (1.5 - i) * 40, rotationY: -80, z: -220, filter: "blur(8px)" },
+        { opacity: 1, x: 0, rotationY: 0, z: 0, filter: "blur(0px)", duration: d, ease: EX, stagger: 0.09 }, t);
+      // 3D swing-in for a phone, with its floor shadow fading in under it.
+      const phoneIn = (t, sel, shadow, from, to, d = 1.3) => {
+        tl.fromTo(sel, { opacity: 0, ...from }, { opacity: 1, ...to, duration: d, ease: EX }, t);
+        if (shadow) tl.fromTo(shadow, { opacity: 0, scaleX: 0.6 }, { opacity: 1, scaleX: 1, duration: d, ease: P3 }, t + 0.15);
+      };
+      // Slow follow-through after an entrance: keep the object turning so nothing is ever frozen.
+      const drift = (t, sel, to, d) => tl.to(sel, { ...to, duration: d, ease: "sine.inOut" }, t);
 
+      // ── Camera: transitions + continuous drift per scene ──
+      SCENES.forEach(([sel, start, dur], i) => {
+        const cam = `${sel} > .cam`;
+        const dolly = `${sel} .dolly`;
+        const dir = i % 2 ? 1 : -1;
+        // Continuous dolly: slow push-in with a lateral drift, alternating direction per scene.
+        tl.fromTo(dolly, { scale: 1, x: -26 * dir, y: 6 }, { scale: 1.045, x: 26 * dir, y: -6, duration: dur, ease: "none" }, start);
+        // Ambient light pools wander across the frame (F7's gold ground has none).
+        if (sel !== "#f7") tl.fromTo(`${sel} .amb:not(.cool)`, { x: 1100 - i * 37, y: -260 }, { x: 760 - i * 37, y: -120, duration: dur, ease: "sine.inOut" }, start);
+        if (sel !== "#f7") tl.fromTo(`${sel} .amb.cool`, { x: -420, y: 380 }, { x: -200, y: 260, duration: dur, ease: "sine.inOut" }, start);
+        // Enter: fly in from depth through a focus pull. (F1 opens from black; F7 opens with its gold iris.)
+        if (sel === "#f1") {
+          tl.fromTo(cam, { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "power1.out" }, 0);
+        } else if (sel !== "#f7") {
+          tl.fromTo(cam, { opacity: 0, scale: 0.93, filter: "blur(14px)" },
+            { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.7, ease: P3 }, start);
+          tl.set(cam, { filter: "none" }, start + 0.72);
+        }
+        // Exit: the camera flies forward past the scene. (F10 ends on its own fade to black.)
+        if (sel !== "#f10") {
+          tl.fromTo(cam, { opacity: 1, scale: 1, filter: "blur(0px)" },
+            { opacity: 0, scale: 1.09, filter: "blur(12px)", duration: 0.42, ease: "power2.in", immediateRender: false }, start + dur - 0.42);
+        }
+      });
 
-      // Frame 1 — 0
-      tl.fromTo(".f1w", { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.8, ease: P3, stagger: 0.35 }, 0.3);
-      slam(1.7, "#f1-card-line");
-      tl.fromTo("#f1-card", { opacity: 0, x: 700, rotation: -2 }, { opacity: 1, x: 0, rotation: -8, duration: 1.0, ease: "expo.out" }, 1.6);
+      // Frame 1 — 0: the card arrives out of depth and turns to catch the light
+      rise(0.3, "#f1-l1", 0.18, 1.1);
+      rise(1.5, "#f1-card-line", 0.12, 1.0);
+      tl.fromTo("#f1-card",
+        { opacity: 0, x: 520, y: -80, z: -900, rotationY: -75, rotationX: 28, rotationZ: -22 },
+        { opacity: 1, x: 0, y: 0, z: 0, rotationY: -24, rotationX: 12, rotationZ: -8, duration: 1.7, ease: EX }, 1.3);
+      sheen(2.3, "#f1-card", 1.4);
       ring(3.0, "#f1-ring", 2.6);
-      tl.to("#f1-card", { y: -6, duration: 1.2, ease: "sine.inOut", yoyo: true, repeat: 1 }, 2.6);
+      drift(3.0, "#f1-card", { rotationY: -8, rotationX: 5, y: -14 }, 2.0);
 
-      // Frame 2 — 5
+      // Frame 2 — 5: phone swings in, card sweeps to it in an arc, taps, and leaves
       const F2 = 5;
-      tl.fromTo("#f2-phone", { opacity: 0, scale: 1.15, rotationY: 22, transformPerspective: 1800 }, { opacity: 1, scale: 1, rotationY: 9, duration: 0.9, ease: "expo.out" }, F2);
-      tl.fromTo("#f2-card", { opacity: 0, x: 520, rotation: 18 }, { opacity: 1, x: 0, rotation: 10, duration: 0.6, ease: "expo.out" }, F2 + 1.0);
-      ring(F2 + 1.5, "#f2-ring1", 2.2);
-      ring(F2 + 1.8, "#f2-ring2", 2.8);
-      slam(F2 + 1.2, "#f2-tap");
+      phoneIn(F2, "#f2-phone", "#f2-shadow", { x: 220, z: -420, rotationY: 48, rotationX: 8 }, { x: 0, z: 0, rotationY: 15, rotationX: 3 }, 1.3);
+      drift(F2 + 1.3, "#f2-phone", { rotationY: 6, rotationX: 0 }, 4.3);
+      spec(F2 + 0.6, "#f2-phone", 1.6);
+      tl.fromTo("#f2-card",
+        { opacity: 0, x: 560, y: -280, z: 320, rotationY: -65, rotationX: 40, rotationZ: 32 },
+        { opacity: 1, x: 0, y: 0, z: 0, rotationY: -26, rotationX: 16, rotationZ: 10, duration: 0.9, ease: EX }, F2 + 0.8);
+      tl.to("#f2-card", { z: -90, rotationX: 24, duration: 0.16, ease: "power2.in" }, F2 + 1.72);
+      tl.to("#f2-card", { z: 0, rotationX: 16, duration: 0.5, ease: P3 }, F2 + 1.88);
+      sheen(F2 + 1.0, "#f2-card", 1.1);
+      ring(F2 + 1.85, "#f2-ring1", 2.2);
+      ring(F2 + 2.1, "#f2-ring2", 2.8);
+      rise(F2 + 1.2, "#f2-tap");
       fade(F2 + 2.2, "#f2-s2", 0.25);
-      slam(F2 + 2.2, "#f2-paid");
-      tl.to("#f2-card", { opacity: 0, x: 520, duration: 0.6, ease: "power2.in" }, F2 + 2.5);
+      rise(F2 + 2.2, "#f2-paid");
+      tl.to("#f2-card", { opacity: 0, x: 560, y: -220, z: 260, rotationY: -70, rotationZ: 24, duration: 0.7, ease: "power3.in" }, F2 + 2.45);
       fade(F2 + 2.9, "#f2-s3", 0.3);
       tl.fromTo("#f2-check", { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "back.out(2)" }, F2 + 3.0);
       tl.fromTo("#f2-s3 .rcpt-row", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.35, ease: P3, stagger: 0.07 }, F2 + 3.2);
-      slam(F2 + 3.0, "#f2-settled");
+      rise(F2 + 3.0, "#f2-settled");
       fade(F2 + 3.5, "#f2-label", 0.6);
+      spec(F2 + 3.4, "#f2-phone", 1.6);
 
       // Frame 2b — 11: the agent pays on its own
       const F2B = 11;
-      tl.fromTo("#f2b-card", { opacity: 0, x: 300, rotation: 4 }, { opacity: 1, x: 0, rotation: -6, duration: 0.8, ease: "expo.out" }, F2B + 0.1);
-      fade(F2B + 0.4, "#f2b-bal", 0.5);
-      slam(F2B + 0.4, "#f2b-l1");
-      slam(F2B + 1.1, "#f2b-l2");
-      slam(F2B + 1.8, "#f2b-l3");
-      // the tap: card dips, rings pulse, agent balance pays out 12 XLM
-      tl.to("#f2b-card", { y: 22, scale: 0.97, duration: 0.18, ease: "power2.in" }, F2B + 2.4);
-      tl.to("#f2b-card", { y: 0, scale: 1, duration: 0.45, ease: "power3.out" }, F2B + 2.58);
+      tl.fromTo("#f2b-card",
+        { opacity: 0, x: 380, z: -700, rotationY: 65, rotationX: -22, rotationZ: 8 },
+        { opacity: 1, x: 0, z: 0, rotationY: -20, rotationX: 12, rotationZ: -6, duration: 1.3, ease: EX }, F2B + 0.1);
+      drift(F2B + 1.4, "#f2b-card", { rotationY: -12, rotationX: 8 }, 0.95);
+      tl.fromTo("#f2b-bal", { opacity: 0, y: 50, rotationX: -55, transformOrigin: "50% 0%" },
+        { opacity: 1, y: 0, rotationX: 0, duration: 1.0, ease: EX }, F2B + 0.5);
+      rise(F2B + 0.4, "#f2b-l1");
+      rise(F2B + 1.1, "#f2b-l2");
+      rise(F2B + 1.8, "#f2b-l3");
+      // the tap: card dips into the reader, rings pulse, agent balance pays out 12 XLM
+      tl.to("#f2b-card", { z: -130, rotationX: 26, duration: 0.18, ease: "power2.in" }, F2B + 2.4);
+      tl.to("#f2b-card", { z: 0, rotationX: 10, duration: 0.55, ease: P3 }, F2B + 2.58);
+      drift(F2B + 3.15, "#f2b-card", { rotationY: -4, rotationX: 5, y: -10 }, 1.85);
+      sheen(F2B + 2.5, "#f2b-card", 1.2);
       ring(F2B + 2.55, "#f2b-ring1", 2.2);
       ring(F2B + 2.8, "#f2b-ring2", 2.8);
       const bal = { v: 25 };
@@ -346,107 +519,137 @@
         v: 13, duration: 0.7, ease: "power2.out",
         onUpdate: () => { document.getElementById("f2b-num").textContent = bal.v.toFixed(2); },
       }, F2B + 2.7);
-      fade(F2B + 2.7, "#f2b-paid", 0.3);
-      fade(F2B + 3.2, "#f2b-s1", 0.5);
-      fade(F2B + 3.6, "#f2b-s2", 0.5);
+      tl.fromTo("#f2b-paid", { opacity: 0, x: 16 }, { opacity: 1, x: 0, duration: 0.4, ease: P3 }, F2B + 2.7);
+      rise(F2B + 3.2, "#f2b-s1", 0.03, 0.8);
+      rise(F2B + 3.6, "#f2b-s2", 0.04, 0.8);
 
-      // Frame 3 — 16
+      // Frame 3 — 16: brand lockup — the mark resolves flat, the letters turn into place
       const F3 = 16;
-      tl.fromTo("#f3-mark", { opacity: 0, scale: 0.92, filter: "blur(10px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 1.0, ease: P3 }, F3 + 0.2);
-      trackOpen(F3 + 1.0, "f3-word", 1.2);
+      tl.fromTo("#f3-mark", { opacity: 0, scale: 0.9, y: 20, filter: "blur(12px)" }, { opacity: 1, scale: 1, y: 0, filter: "blur(0px)", duration: 1.2, ease: P3 }, F3 + 0.2);
+      wordmark(F3 + 0.9, "f3-word", 1.4);
       typeOn(F3 + 2.2, "f3-tag");
 
-      // Frame 4 — 15.5
+      // Frame 4 — 20.5: link — the phone turns with each step of the flow
       const F4 = 20.5;
-      sceneIn(F4, "#f4-phone", { opacity: 0, x: 120 });
-      tl.fromTo("#f4-phone", { rotationY: 20, transformPerspective: 1800 }, { rotationY: 9, duration: 1.0, ease: P3 }, F4);
-      tl.fromTo("#f4-phone", { x: 120 }, { x: 0, duration: 0.8, ease: P3 }, F4);
+      phoneIn(F4, "#f4-phone", "#f4-shadow", { x: 260, z: -380, rotationY: 52, rotationX: 6 }, { x: 0, z: 0, rotationY: 16, rotationX: 2 }, 1.3);
+      spec(F4 + 0.5, "#f4-phone");
       fade(F4 + 0.3, "#f4-label");
-      inUp(F4 + 0.4, "#f4-l1");
-      // step 2: scan
+      rise(F4 + 0.4, "#f4-l1", 0.12);
+      // step 2: scan — phone pivots toward the viewer, the previous step ghosts back into depth
       fade(F4 + 1.8, "#f4-s2", 0.35);
-      tl.fromTo("#f4-phone", { x: 60 }, { x: 0, duration: 0.6, ease: P3 }, F4 + 1.8);
-      fade(F4 + 1.8, "#f4-ghost", 0.5, 0, 0.28);
-      tl.fromTo("#f4-ghost", { scale: 0.9 }, { scale: 0.8, duration: 0.6, ease: P3 }, F4 + 1.8);
+      tl.to("#f4-phone", { rotationY: 4, x: -24, duration: 0.9, ease: "power3.inOut" }, F4 + 1.7);
+      tl.fromTo("#f4-ghost", { opacity: 0, z: -100, rotationY: 20 }, { opacity: 0.28, z: -380, rotationY: 34, duration: 1.0, ease: P3 }, F4 + 1.8);
       ring(F4 + 2.3, "#f4-ring", 2.2);
-      slam(F4 + 2.4, "#f4-l2");
+      rise(F4 + 2.4, "#f4-l2");
       // step 3: sign → linked
       fade(F4 + 3.6, "#f4-s3", 0.3);
       fade(F4 + 3.6, "#f4-g2", 0.3);
-      tl.fromTo("#f4-phone", { x: 60 }, { x: 0, duration: 0.6, ease: P3 }, F4 + 3.6);
+      tl.to("#f4-phone", { rotationY: 14, x: 0, duration: 0.9, ease: "power3.inOut" }, F4 + 3.5);
       fade(F4 + 4.3, "#f4-s4", 0.3);
-      slam(F4 + 4.5, "#f4-l3");
+      spec(F4 + 4.3, "#f4-phone");
+      rise(F4 + 4.5, "#f4-l3");
+      drift(F4 + 4.4, "#f4-phone", { rotationY: 6 }, 2.2);
 
-      // Frame 5 — 22.5
+      // Frame 5 — 27.5: two phones face each other across the gold link
       const F5 = 27.5;
-      tl.fromTo("#f5-p1", { opacity: 0, y: 80, rotationY: -8, transformPerspective: 1800 }, { opacity: 1, y: 0, rotationY: -6, duration: 0.9, ease: P3 }, F5 + 0.2);
+      phoneIn(F5 + 0.2, "#f5-p1", "#f5-sh1", { y: 120, z: -420, rotationY: -55 }, { y: 0, z: 0, rotationY: -16 }, 1.3);
       fade(F5 + 0.4, "#f5-label");
-      inUp(F5 + 0.5, "#f5-l1");
+      rise(F5 + 0.5, "#f5-l1", 0.1);
       tl.fromTo("#f5-line", { scaleX: 0 }, { scaleX: 1, duration: 0.7, ease: "power2.inOut" }, F5 + 2.0);
-      tl.fromTo("#f5-p2", { opacity: 0, y: 80, rotationY: 8, transformPerspective: 1800 }, { opacity: 1, y: 0, rotationY: 6, duration: 0.9, ease: P3 }, F5 + 2.3);
-      slam(F5 + 4.0, "#f5-l2");
+      phoneIn(F5 + 2.3, "#f5-p2", "#f5-sh2", { y: 120, z: -420, rotationY: 55 }, { y: 0, z: 0, rotationY: 16 }, 1.3);
+      drift(F5 + 1.5, "#f5-p1", { rotationY: -7 }, 4.5);
+      drift(F5 + 3.6, "#f5-p2", { rotationY: 8 }, 2.4);
+      spec(F5 + 2.6, "#f5-p1");
+      spec(F5 + 3.6, "#f5-p2");
+      rise(F5 + 4.0, "#f5-l2", 0.1);
 
-      // Frame 6 — 29
+      // Frame 6 — 34: load the agent
       const F6 = 34;
-      tl.fromTo("#f6-phone", { opacity: 0, x: 160, rotationY: 22, transformPerspective: 1800 }, { opacity: 1, x: 0, rotationY: 9, duration: 0.9, ease: P3 }, F6 + 0.1);
-      fade(F6 + 0.3, "#f6-count", 0.4);
+      phoneIn(F6 + 0.1, "#f6-phone", "#f6-shadow", { x: 200, z: -400, rotationY: 55, rotationX: 6 }, { x: 0, z: 0, rotationY: 16, rotationX: 2 }, 1.3);
+      drift(F6 + 1.4, "#f6-phone", { rotationY: 5, rotationX: 0 }, 3.7);
+      spec(F6 + 1.0, "#f6-phone");
+      tl.fromTo("#f6-count", { opacity: 0, y: 30, rotationX: -50, transformPerspective: 900, transformOrigin: "50% 100%" },
+        { opacity: 1, y: 0, rotationX: 0, duration: 0.9, ease: EX }, F6 + 0.3);
       const counter = { v: 0 };
       tl.fromTo(counter, { v: 0 }, {
         v: 25, duration: 1.6, ease: "power2.out",
         onUpdate: () => { document.getElementById("f6-num").textContent = Math.round(counter.v); },
       }, F6 + 0.4);
-      fade(F6 + 1.2, "#f6-sub", 0.6);
-      inUp(F6 + 2.0, "#f6-l1");
-      inUp(F6 + 2.4, "#f6-l2");
+      rise(F6 + 1.2, "#f6-sub", 0.03, 0.8);
+      rise(F6 + 2.0, "#f6-l1");
+      rise(F6 + 2.4, "#f6-l2");
 
-      // Frame 7 — 34.5 (gold register)
+      // Frame 7 — 39.5 (gold register): gold irises open from the phone's position
       const F7 = 39.5;
-      tl.fromTo("#f7", { scale: 1.08 }, { scale: 1, duration: 0.6, ease: "expo.out" }, F7);
-      fade(F7 + 0.4, "#f7-l1", 0.5, 0, 0.7);
-      slam(F7 + 1.3, "#f7-l2");
-      tl.fromTo("#f7-phone", { opacity: 0, x: 500, rotation: 10 }, { opacity: 1, x: 0, rotation: 4, duration: 0.8, ease: "expo.out" }, F7 + 1.5);
-      // 25.00 XLM pill arcs from the phone to the text column
-      tl.fromTo("#f7-pill", { opacity: 0, x: 1380, y: 120, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.3, ease: "power2.out" }, F7 + 3.0);
-      tl.to("#f7-pill", { x: 0, duration: 1.2, ease: "power2.inOut" }, F7 + 3.2);
+      tl.fromTo("#f7-bg", { clipPath: "circle(0px at 1710px 640px)" }, { clipPath: "circle(2300px at 1710px 640px)", duration: 1.0, ease: "expo.inOut" }, F7);
+      rise(F7 + 0.5, "#f7-l1", 0.1);
+      rise(F7 + 1.3, "#f7-l2", 0.1, 1.1);
+      phoneIn(F7 + 1.2, "#f7-phone", null, { x: 480, z: -500, rotationY: -60, rotationZ: 16 }, { x: 0, z: 0, rotationY: -16, rotationZ: 4 }, 1.3);
+      drift(F7 + 2.5, "#f7-phone", { rotationY: -6, rotationZ: 3 }, 4.0);
+      spec(F7 + 2.0, "#f7-phone");
+      // 25.00 XLM pill arcs from the phone to the text column, tumbling once in 3D
+      tl.fromTo("#f7-pill", { opacity: 0, x: 1380, y: 120, scale: 0.8, rotationX: 0, transformPerspective: 900 }, { opacity: 1, scale: 1, duration: 0.3, ease: "power2.out" }, F7 + 3.0);
+      tl.to("#f7-pill", { x: 0, rotationX: 360, duration: 1.2, ease: "power2.inOut" }, F7 + 3.2);
       tl.to("#f7-pill", { y: -120, duration: 0.6, ease: "power2.out" }, F7 + 3.2);
       tl.to("#f7-pill", { y: 0, duration: 0.6, ease: "power2.in" }, F7 + 3.8);
-      fade(F7 + 4.1, "#f7-l3", 0.6);
+      rise(F7 + 4.1, "#f7-l3", 0.05, 0.9);
 
-      // Frame 8 — 41.5
+      // Frame 8 — 46.5: 3D coverflow — the wallet's screens orbit past the camera
       const F8 = 46.5;
-      tl.fromTo("#f8-world", { opacity: 0, x: 0, filter: "blur(12px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.7, ease: P3 }, F8);
+      const f8p = [...document.querySelectorAll(".f8p")];
+      const flow = { p: -1.2 };
+      const layoutFlow = () => {
+        f8p.forEach((el, i) => {
+          const d = i - flow.p;
+          const ad = Math.abs(d);
+          gsap.set(el, {
+            x: d * 330 + Math.sign(d) * Math.min(ad, 1) * 60,
+            z: -Math.min(ad, 3) * 240 - 60,
+            rotationY: Math.max(-58, Math.min(58, -d * 40)),
+            scale: 0.78,
+            opacity: Math.max(0, 1 - Math.max(0, ad - 2.4) * 0.9),
+            zIndex: 100 - Math.round(ad * 10),
+          });
+        });
+      };
+      tl.fromTo(flow, { p: -1.2 }, { p: 2.0, duration: 1.4, ease: EX, onUpdate: layoutFlow }, F8);
+      tl.to(flow, { p: 6.0, duration: 4.6, ease: "power2.inOut", onUpdate: layoutFlow }, F8 + 1.4);
       fade(F8 + 0.3, "#f8-label");
-      tl.to("#f8-world", { x: -900, duration: 4.4, ease: "power2.inOut" }, F8 + 1.2);
-      const lightUp = (t, sel, color) => tl.to(sel, { color, duration: 0.3, ease: "power2.out" }, t);
+      const lightUp = (t, sel, color) => tl.fromTo(sel, { color: "#3a3a3a", y: 10 }, { color, y: 0, duration: 0.4, ease: P3 }, t);
       lightUp(F8 + 1.9, "#v-send", "#EDE4D0");
       lightUp(F8 + 2.5, "#v-recv", "#EDE4D0");
       lightUp(F8 + 3.1, "#v-tap", "#C6A15B");
       lightUp(F8 + 3.7, "#v-track", "#EDE4D0");
       lightUp(F8 + 5.2, "#v-lock", "#EDE4D0");
 
-      // Frame 9 — 48.5
+      // Frame 9 — 53.5: the stack tilts up out of depth and settles flat
       const F9 = 53.5;
+      tl.fromTo("#f9-list", { rotationX: 26, rotationY: -10, z: -260, transformPerspective: 2000, transformOrigin: "50% 60%" },
+        { rotationX: 3, rotationY: -2, z: 0, duration: 5.6, ease: "power2.out" }, F9);
       fade(F9 + 0.2, "#f9-label");
       tl.fromTo(".f9-hair", { scaleX: 0 }, { scaleX: 1, duration: 0.8, ease: "power2.inOut", stagger: 0.12 }, F9 + 0.3);
-      inUp(F9 + 1.0, "#f9-r1", 0.7, 30);
-      inUp(F9 + 2.0, "#f9-r2", 0.7, 30);
-      inUp(F9 + 3.0, "#f9-r3", 0.7, 30);
-      fade(F9 + 4.1, "#f9-chip", 0.6);
+      rise(F9 + 1.0, "#f9-r1", 0.08);
+      rise(F9 + 2.0, "#f9-r2", 0.08);
+      rise(F9 + 3.0, "#f9-r3", 0.08);
+      tl.fromTo("#f9-chip", { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.6, ease: P3 }, F9 + 4.1);
 
-      // Frame 10 — 54.5
+      // Frame 10 — 59.5: outro — the card spins up through the lockup and taps
       const F10 = 59.5;
-      tl.fromTo("#f10-mark", { opacity: 0, scale: 0.92, filter: "blur(10px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.9, ease: P3 }, F10 + 0.1);
-      trackOpen(F10 + 0.5, "f10-word", 1.0);
-      tl.fromTo("#f10-card", { y: 0, rotation: -6 }, { y: -560, rotation: 0, duration: 0.7, ease: "expo.out" }, F10 + 1.4);
+      tl.fromTo("#f10-mark", { opacity: 0, scale: 0.9, y: 20, filter: "blur(12px)" }, { opacity: 1, scale: 1, y: 0, filter: "blur(0px)", duration: 1.0, ease: P3 }, F10 + 0.1);
+      wordmark(F10 + 0.5, "f10-word", 1.2);
+      tl.fromTo("#f10-card", { y: 0, rotationY: -200, rotationX: 35, rotationZ: -10 },
+        { y: -490, rotationY: -14, rotationX: 10, rotationZ: 0, duration: 1.0, ease: EX }, F10 + 1.3);
+      sheen(F10 + 1.8, "#f10-card", 0.9);
       ring(F10 + 2.0, "#f10-ring", 3.0);
-      tl.to("#f10-card", { y: 0, duration: 0.6, ease: "power2.in" }, F10 + 2.3);
+      tl.to("#f10-card", { y: 0, rotationY: 30, rotationX: 30, duration: 0.6, ease: "power2.in" }, F10 + 2.35);
       typeOn(F10 + 2.8, "f10-tag");
-      fade(F10 + 3.7, "#f10-url", 0.6);
+      tl.fromTo("#f10-url", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.7, ease: P3 }, F10 + 3.7);
       tl.to("#f10-fade", { opacity: 1, duration: 0.6, ease: "none" }, 64.4);
 
-      // Soft cut: every scene after the first fades up from black.
-      [["#f2", 5], ["#f2b", 11], ["#f3", 16], ["#f4", 20.5], ["#f5", 27.5], ["#f6", 34], ["#f8", 46.5], ["#f9", 53.5], ["#f10", 59.5]]
-        .forEach(([sel, t]) => tl.fromTo(sel, { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "power1.out" }, t));
+      // Film layer runs on the same seekable clock.
+      const clock = { t: 0 };
+      tl.fromTo(clock, { t: 0 }, { t: 65, duration: 65, ease: "none", onUpdate: () => film(clock.t) }, 0);
+      film(0);
 
       window.__timelines = window.__timelines || {};
       window.__timelines["main"] = tl;
