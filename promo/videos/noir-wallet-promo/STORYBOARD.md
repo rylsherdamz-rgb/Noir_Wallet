@@ -280,3 +280,9 @@ Scene 2 (1.4–2.8s): the card silhouette glides up from below and taps the lock
 Scene 3 (2.8–4.2s): on "Tap into trust", gold mono tagline types on; then the URL "github.com/rylsherdamz-rgb/Noir_Wallet" fades up in hint-grey mono below.
 Scene 4 (4.2–5.5s): hold; final frame exit = gentle fade to black over the last 0.6s.
 
+## Audio pass (2026-10-08)
+
+- Old mix looped the 19.2 s `assets/bgm/track.mp3` (8 bars, 100 BPM, E minor) 3.4× under the whole video. Replaced with `assets/bgm/score.wav`: a 65 s score arranged to the picture — Em9 pad intro (0–5), beat in on the tap (5), beat-less Gmaj7 brand reveal (16–20.5), beat back (20.5), brighter lift for the gold revoke frame (39.5), Em11 resolve fading out by 64.95. The original loop is layered in, restarted on each section's downbeat. ElevenLabs Music needs a paid plan, so the pads/arp/sub are synthesized (generator kept out of the repo).
+- SFX (`assets/sfx/`, ElevenLabs sound generation): whoosh on each fly-through seam, risers into 16 and 39.5, impacts at 16 / 39.5 / 59.5, tap chime on every card tap, soft ticks on the receipt check and the Frame 8 verbs.
+- Audio now lives in the composition: `music-bed` carved against the `voiceover` group (strength 0.6), voice bus = highpass 80 Hz → compressor → +2 dB at 3 kHz. Renders are mastered to −14 LUFS (YouTube).
+- `assets/clean/*.png`: copies of the 7 screens with the app's close ✕ painted out in the screen's own background color.
