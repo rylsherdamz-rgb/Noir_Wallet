@@ -24,6 +24,7 @@ import { useAppStore } from '@/store/useAppStore'
 import { stellarService } from '@/services/stellar-service'
 import { logger } from '@/lib/logger'
 import { TxFilter, Transaction } from '@/types'
+import { isIncomingTx } from '@/lib/txFormat'
 
 const keyExtractor = (item: Transaction) => item.id
 
@@ -31,8 +32,8 @@ const renderItem = ({ item }: { item: Transaction }) => <TransactionItem transac
 
 const FILTERS = [
   { key: 'all' as TxFilter, label: 'All' },
-  { key: 'confirmed' as TxFilter, label: 'Confirmed' },
-  { key: 'pending' as TxFilter, label: 'Pending' },
+  { key: 'sent' as TxFilter, label: 'Sent' },
+  { key: 'received' as TxFilter, label: 'Received' },
   { key: 'failed' as TxFilter, label: 'Failed' },
 ]
 
@@ -56,7 +57,8 @@ function dayLabel(iso: string) {
   })
 }
 
-export function TransactionHistoryScreen() {
+/** `asTab`: shown as the History tab (no back arrow); otherwise a pushed screen. */
+export function TransactionHistoryScreen({ asTab = false }: { asTab?: boolean } = {}) {
   const { transactions, setTransactions, user } = useAppStore()
   const [filter, setFilter] = useState<TxFilter>('all')
   const [search, setSearch] = useState('')
@@ -114,7 +116,9 @@ export function TransactionHistoryScreen() {
   const sections = useMemo(() => {
     const q = search.trim().toLowerCase()
     const filtered = transactions.filter((tx) => {
-      if (filter !== 'all' && tx.status !== filter) return false
+      if (filter === 'sent' && isIncomingTx(tx)) return false
+      if (filter === 'received' && !isIncomingTx(tx)) return false
+      if ((filter === 'failed' || filter === 'pending' || filter === 'confirmed') && tx.status !== filter) return false
       if (!q) return true
       return (
         tx.merchantName.toLowerCase().includes(q) ||
@@ -138,7 +142,8 @@ export function TransactionHistoryScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScreenHeader
-        title="Transactions"
+        title="Activity"
+        showBack={!asTab}
         rightAction={
           <PressableScale
             onPress={() => load('pull')}
@@ -222,23 +227,21 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceBg,
   },
   searchSection: {
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: 20,
     marginBottom: Spacing.sm,
   },
   filters: {
     marginBottom: Spacing.sm,
   },
   sectionHeader: {
-    fontSize: FontSize.xs,
+    fontSize: FontSize.sm - 1,
     color: Colors.mutedWhite,
-    fontWeight: FontWeight.semibold,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.xs,
+    fontWeight: FontWeight.medium,
+    paddingTop: Spacing.lg,
+    paddingBottom: 6,
   },
   listContent: {
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: 20,
     paddingBottom: Spacing.xxl * 2,
   },
   listEmpty: {

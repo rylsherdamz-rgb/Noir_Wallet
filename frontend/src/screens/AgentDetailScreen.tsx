@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from 'react'
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Alert, Linking } from 'react-native'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Linking } from 'react-native'
+import { popup } from '@/components/popup/Popup'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -7,19 +8,24 @@ import { useRouter, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { useAppStore } from '@/store/useAppStore'
 import { Keypair } from '@stellar/stellar-sdk/axios'
-import { x402, InsufficientFundsError } from '@/domain/x402'
-import type { AgentWallet, OnChainAgentPolicy } from '@/domain/x402'
+import { x402 } from '@/domain/x402'
+import type { AgentWallet, OnChainAgentPolicy, AgentChainStatus } from '@/domain/x402'
 import { describeContractError } from '@/domain/contractErrors'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts, Gradient } from '@/constants/theme'
 import { colorWithOpacity } from '@/constants/designTokens'
-import { StatusPill } from '@/components/StatusPill'
 import { Toast } from '@/components/Toast'
 import { TransactionItem } from '@/components/TransactionItem'
 import { EmptyState } from '@/components/EmptyState'
 import { LinearGradient } from 'expo-linear-gradient'
 import { logger } from '@/lib/logger'
-
-const ESCROW_AMOUNTS = [10, 25, 50, 100]
+import { useHorizonPayments } from '@/hooks/useHorizonPayments'
+import { ProcessingOverlay } from '@/components/flow/ProcessingOverlay'
+import { openReceipt } from '@/lib/receipt'
+import { formatAmount, shortAddress } from '@/lib/txFormat'
+import { ScreenHeader } from '@/components/ScreenHeader'
+import { ErrorState } from '@/components/ui/ErrorState'
+import { SectionLabel, KeyValueRow, TextAction } from '@/components/ui/List'
+import { Button } from '@/components/Button'
 
 function formatStroops(v: bigint): string {
   return (Number(v) / 10_000_000).toFixed(2)
@@ -36,21 +42,21 @@ export function AgentDetailScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { id } = useLocalSearchParams<{ id: string }>()
-  const { user, devices, transactions, addTransaction, removeDevice, network: storeNetwork } = useAppStore()
+  const { user, devices, transactions, removeDevice, network: storeNetwork } = useAppStore()
   const [agent, setAgent] = useState<AgentWallet | null>(null)
   const [agentIndex, setAgentIndex] = useState<number | null>(null)
   const [toast, setToast] = useState<{ visible: boolean; type: 'success' | 'info'; title: string; message?: string }>({
     visible: false, type: 'success', title: '',
   })
-  const [toppingUp, setToppingUp] = useState(false)
-  const [fundingEscrow, setFundingEscrow] = useState(false)
   const [escrowBalance, setEscrowBalance] = useState<bigint | null>(null)
-  const [escrowAmount, setEscrowAmount] = useState(25)
   const [policy, setPolicy] = useState<OnChainAgentPolicy | null>(null)
 
   const device = devices.find((d) => d.id === id) ?? null
   const agentTxs = transactions.filter((tx) => tx.deviceId === device?.deviceUidHash)
-  const authorized = !!device?.agentPublicKey && !!agent
+  // Real on-chain state from agent_registry — not just "we hold a local key".
+  const [chainStatus, setChainStatus] = useState<AgentChainStatus | null>(null)
+  const authorized = chainStatus === 'active'
+  const autoSyncTried = useRef(false)
 
   const loadAgent = async () => {
     if (!device) { setAgent(null); return }
@@ -87,6 +93,47 @@ export function AgentDetailScreen() {
       else logger.warn('escrow balance read failed:', bal.reason?.message)
       if (pol.status === 'fulfilled') setPolicy(pol.value)
       else logger.warn('agent policy read failed:', pol.reason?.message)
+
+      const agentPub = a?.publicKey ?? device.agentPublicKey
+      if (agentPub) {
+        try {
+          const status = await x402.getAgentChainStatus(device.deviceUidHash, agentPub, walletPub)
+          setChainStatus(status)
+          if (status === 'missing' && !autoSyncTried.current) {
+            autoSyncTried.current = true
+            void autoRegister(agentPub)
+          }
+        } catch (e: any) {
+          logger.warn('agent status read failed:', e?.message)
+        }
+      }
+    }
+  }
+
+  // Auto-sync: a linked device whose agent is missing on-chain gets registered
+  // without the user having to find and press "Register Now".
+  const autoRegister = async (agentPub: string) => {
+    if (!device) return
+    setRegistering(true)
+    try {
+      const { walletService } = await import('@/services/wallet')
+      const keys = await walletService.loadKeys()
+      if (!keys?.stellarSecret) return
+      const [result] = await x402.syncAgentRegistrations({
+        walletSecret: keys.stellarSecret,
+        devices: [{ deviceUidHash: device.deviceUidHash, agentPublicKey: agentPub }],
+      })
+      if (result?.outcome === 'registered') {
+        setChainStatus('active')
+        setToast({ visible: true, type: 'success', title: 'Synced', message: 'Agent registered on-chain automatically' })
+        await loadAgent()
+      } else if (result?.outcome === 'failed' || result?.outcome === 'skipped') {
+        logger.warn('agent auto-sync:', result.outcome, result.reason)
+      }
+    } catch (e: any) {
+      logger.warn('agent auto-sync failed:', e?.message)
+    } finally {
+      setRegistering(false)
     }
   }
 
@@ -170,9 +217,14 @@ export function AgentDetailScreen() {
       removeDevice(device.id)
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
       if (unlinked.sweptStroops > 0n) {
-        Alert.alert('Device removed', `${formatStroops(unlinked.sweptStroops)} XLM of escrow was returned to your wallet.`)
+        popup.notice({
+          title: 'Card revoked',
+          message: 'The tap balance was returned to your main wallet.',
+          tone: 'success',
+          details: [{ label: 'Returned', value: `${formatStroops(unlinked.sweptStroops)} XLM`, emphasis: true }],
+        })
       }
-      router.replace('/(tabs)/devices')
+      router.replace('/(tabs)/pos')
     } catch (e: any) {
       logger.warn('unlinkDevice failed:', e?.message)
       setToast({
@@ -186,60 +238,6 @@ export function AgentDetailScreen() {
     }
   }, [device, agent, agentIndex, removing, removeDevice, router])
 
-  const handleTopUp = useCallback(async () => {
-    setToppingUp(true)
-    try {
-      const { walletService } = await import('@/services/wallet')
-      const keys = await walletService.loadKeys()
-      if (!keys?.stellarSecret) throw new Error('No wallet configured')
-      await x402.topUpAgent(50, keys.stellarSecret, agentIndex ?? undefined)
-      setToast({ visible: true, type: 'success', title: 'Agent topped up', message: '50 XLM sent to agent wallet' })
-      await loadAgent()
-    } catch (e: any) {
-      setToast({ visible: true, type: 'info', title: 'Top-up failed', message: e?.message })
-    } finally {
-      setToppingUp(false)
-    }
-  }, [agentIndex])
-
-  const runFundEscrow = useCallback(async (amountXlm: number) => {
-    if (!device) return
-    setFundingEscrow(true)
-    try {
-      const { walletService } = await import('@/services/wallet')
-      const keys = await walletService.loadKeys()
-      if (!keys?.stellarSecret) throw new Error('No wallet configured')
-      await x402.fundEscrow({
-        walletSecret: keys.stellarSecret,
-        deviceHashHex: device.deviceUidHash,
-        amountXlm,
-      })
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
-      setToast({ visible: true, type: 'success', title: 'Escrow funded', message: `${amountXlm} XLM locked for tap-to-pay` })
-      await loadAgent()
-    } catch (e: any) {
-      logger.warn('fundEscrow failed:', e?.message)
-      const message = e instanceof InsufficientFundsError ? e.message : describeContractError('payment_escrow', e)
-      setToast({ visible: true, type: 'info', title: 'Escrow funding failed', message })
-    } finally {
-      setFundingEscrow(false)
-    }
-  }, [device])
-
-  // Moving funds is irreversible from the user's point of view — confirm first.
-  const handleFundEscrow = useCallback(() => {
-    if (!device || fundingEscrow) return
-    const amount = escrowAmount
-    Alert.alert(
-      'Fund escrow?',
-      `Lock ${amount} XLM from your wallet for tap-to-pay on "${device.label}". You can withdraw unused escrow at any time.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: `Fund ${amount} XLM`, onPress: () => { runFundEscrow(amount) } },
-      ],
-    )
-  }, [device, fundingEscrow, escrowAmount, runFundEscrow])
-
   const [withdrawing, setWithdrawing] = useState(false)
   const runWithdraw = useCallback(async (amountStroops: bigint) => {
     if (!device) return
@@ -248,313 +246,157 @@ export function AgentDetailScreen() {
       const { walletService } = await import('@/services/wallet')
       const keys = await walletService.loadKeys()
       if (!keys?.stellarSecret) throw new Error('No wallet configured')
-      await x402.withdrawEscrow({
+      const hash = await x402.withdrawEscrow({
         walletSecret: keys.stellarSecret,
         deviceHashHex: device.deviceUidHash,
         amountStroops,
       })
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
-      setToast({ visible: true, type: 'success', title: 'Escrow withdrawn', message: `${formatStroops(amountStroops)} XLM returned to your wallet` })
-      await loadAgent()
+      openReceipt(router, {
+        title: 'Tap balance withdrawal',
+        amountCents: Number(amountStroops / 100_000n),
+        assetCode: 'XLM',
+        direction: 'in',
+        status: 'confirmed',
+        createdAt: new Date().toISOString(),
+        hash,
+        note: `Returned from ${device.label}'s tap balance to your main wallet`,
+      }, 'push')
     } catch (e: any) {
       logger.warn('withdrawEscrow failed:', e?.message)
       setToast({ visible: true, type: 'info', title: 'Withdrawal failed', message: describeContractError('payment_escrow', e) })
     } finally {
       setWithdrawing(false)
     }
-  }, [device])
+  }, [device, router])
 
   const handleWithdraw = useCallback(() => {
     if (!device || withdrawing || !escrowBalance || escrowBalance <= 0n) return
     const amount = escrowBalance
-    Alert.alert(
-      'Withdraw escrow?',
-      `Return all ${formatStroops(amount)} XLM of escrow to your wallet. Tap-to-pay on this device will stop until you fund it again.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Withdraw', onPress: () => { runWithdraw(amount) } },
+    popup.confirm({
+      title: 'Withdraw tap balance?',
+      message: 'Taps on this card stop until you add funds again.',
+      icon: 'arrow-undo-outline',
+      details: [
+        { label: 'From', value: `${device.label} · tap balance` },
+        { label: 'To', value: 'Main wallet' },
+        { label: 'Amount', value: `${formatStroops(amount)} XLM`, emphasis: true },
       ],
-    )
+      confirmLabel: 'Withdraw',
+    }).then((ok) => { if (ok) runWithdraw(amount) })
   }, [device, withdrawing, escrowBalance, runWithdraw])
 
-  const xlmBalance = agent ? (agent.balanceStroops / 10_000_000).toFixed(2) : '—'
-  const budget = agent ? (agent.spendingBudgetStroops / 10_000_000).toFixed(2) : '—'
-  const spent = agent ? (agent.totalSpentStroops / 10_000_000).toFixed(2) : '—'
-  const remaining = agent ? Math.max(0, (agent.spendingBudgetStroops - agent.totalSpentStroops) / 10_000_000).toFixed(2) : '—'
-  const pct = agent && agent.spendingBudgetStroops > 0
-    ? Math.round((agent.totalSpentStroops / agent.spendingBudgetStroops) * 100) : 0
+  // Live: any payment touching the agent account (top-up, tap, payout)
+  // refreshes balances without pull-to-refresh. Bursts are coalesced.
+  const liveRefresh = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const loadAgentRef = useRef(loadAgent)
+  loadAgentRef.current = loadAgent
+  const liveStatus = useHorizonPayments(agent?.publicKey, () => {
+    if (liveRefresh.current) clearTimeout(liveRefresh.current)
+    liveRefresh.current = setTimeout(() => { loadAgentRef.current() }, 800)
+  })
+  useEffect(() => () => { if (liveRefresh.current) clearTimeout(liveRefresh.current) }, [])
+
+  const agentXlm = agent ? formatAmount(Math.round(agent.balanceStroops / 100_000)) : '—'
+  const escrowXlm = escrowBalance === null ? '—' : formatAmount(Number(escrowBalance / 100_000n))
+  const statusText = chainStatus === null ? 'Checking Stellar…'
+    : authorized ? 'Authorized on-chain'
+    : chainStatus === 'expired' ? 'Authorization expired'
+    : chainStatus === 'mismatch' ? 'Different agent on-chain'
+    : registering ? 'Syncing to Stellar…' : 'Not authorized'
+  const statusColor = authorized ? Colors.success : chainStatus === null || registering ? Colors.mutedWhite : Colors.warning
+  const openFund = (mode: 'topup' | 'escrow') => router.push({ pathname: '/agent-fund/[id]', params: { id: device!.id, mode } })
+  const explorer = (pub: string) =>
+    Linking.openURL(`https://stellar.expert/explorer/${storeNetwork === 'testnet' ? 'testnet' : 'public'}/account/${pub}`)
 
   if (!device) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            accessibilityLabel="Go back"
-          >
-            <Ionicons name="arrow-back" size={24} color={Colors.white} />
-          </PressableScale>
-          <Text style={styles.headerTitle}>Agent</Text>
-          <View style={styles.spacer24} />
-        </View>
-        <View style={styles.notFound}>
-          <Ionicons name="alert-circle-outline" size={48} color={Colors.mutedWhite} />
-          <Text style={styles.notFoundText}>Device not found</Text>
-        </View>
+        <ScreenHeader title="Card" onBackPress={() => router.back()} />
+        <ErrorState icon="search-outline" tone="neutral" title="Card not found" message="It may have been removed from this phone." primary={{ label: 'Back to agents', onPress: () => router.replace('/(tabs)/pos') }} />
       </SafeAreaView>
     )
   }
 
+  const canWithdraw = !withdrawing && !!escrowBalance && escrowBalance > 0n
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.white} />
-        </PressableScale>
-        <Text style={styles.headerTitle}>{device.label}</Text>
-        <StatusPill status={device.status} />
-      </View>
+      <ScreenHeader
+        title={device.label}
+        onBackPress={() => router.back()}
+        rightAction={
+          <View style={styles.live} accessibilityLabel={liveStatus === 'live' ? 'Live updates on' : 'Live updates reconnecting'}>
+            <View style={[styles.liveDot, { backgroundColor: liveStatus === 'live' ? Colors.success : Colors.mutedWhite }]} />
+            <Text style={[styles.liveText, liveStatus === 'live' && { color: Colors.success }]}>{liveStatus === 'live' ? 'Live' : 'Sync'}</Text>
+          </View>
+        }
+      />
 
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.gold} colors={[Colors.gold]} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.gold} colors={[Colors.gold]} />}
       >
-        {/* Agent Wallet Card */}
-        <LinearGradient
-          colors={[Gradient.peak, Gradient.mid]}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          style={styles.walletCard}
-        >
-          <View style={styles.walletIconRow}>
-            <View style={styles.walletIcon}>
-              <Ionicons name="flash" size={28} color={Colors.gold} />
-            </View>
-            <View style={styles.walletTitleArea}>
-              <Text style={styles.walletTitle}>Agent Wallet</Text>
-              {agent?.publicKey && (
-                <Text style={styles.walletKey}>{agent.publicKey.slice(0, 8)}…{agent.publicKey.slice(-6)}</Text>
-              )}
-            </View>
+        <View style={styles.hero}>
+          <View style={styles.statusRow}>
+            <Ionicons name={authorized ? 'shield-checkmark' : 'shield-outline'} size={14} color={statusColor} />
+            <Text style={[styles.statusText, { color: statusColor }]}>{statusText}</Text>
           </View>
-
-          <Text style={styles.balanceAmount}>{xlmBalance}<Text style={styles.balanceUnit}> XLM</Text></Text>
-
-          {device.agentPublicKey && (
-            <View style={styles.authRow}>
-              <Ionicons
-                name={authorized ? 'checkmark-circle' : 'close-circle'}
-                size={16}
-                color={authorized ? Colors.success : Colors.mutedWhite}
-              />
-              <Text style={[styles.authText, authorized && { color: Colors.success }]}>
-                {authorized ? 'Registered on-chain' : 'Not registered'}
-              </Text>
-
-              {!authorized && (
-                <PressableScale
-                  style={styles.registerLink}
-                  onPress={handleRegister}
-                  disabled={registering}
-                >
-                  <Text style={styles.registerLinkText}>{registering ? 'Registering…' : 'Register Now'}</Text>
-                </PressableScale>
-              )}
-            </View>
-          )}
-
-          {agent?.publicKey && (
-            <PressableScale
-              style={styles.expertLink}
-              onPress={() => {
-                const baseUrl = storeNetwork === 'testnet'
-                  ? 'https://stellar.expert/explorer/testnet/account'
-                  : 'https://stellar.expert/explorer/public/account'
-                Linking.openURL(`${baseUrl}/${agent.publicKey}`)
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="View agent wallet on Stellar Expert"
-            >
-              <Ionicons name="open-outline" size={13} color={Colors.gold} />
-              <Text style={styles.expertLinkText}>View on Stellar Expert</Text>
-            </PressableScale>
-          )}
-        </LinearGradient>
-
-        {/* Budget & Spend */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="wallet-outline" size={16} color={Colors.gold} />
-            <Text style={styles.sectionTitle}>Budget</Text>
+          <View style={styles.amountRow}>
+            <Text style={styles.amount} numberOfLines={1} adjustsFontSizeToFit>{escrowXlm}</Text>
+            <Text style={styles.asset}>XLM</Text>
           </View>
-
-          <View style={styles.metricsRow}>
-            <MetricBox label="Budget" value={`${budget} XLM`} />
-            <MetricBox label="Spent" value={`${spent} XLM`} gold={pct > 0} />
-            <MetricBox label="Remaining" value={`${remaining} XLM`} gold />
-          </View>
-
-          {agent && agent.spendingBudgetStroops > 0 && (
-            <View style={styles.progressSection}>
-              <View style={styles.progressBg}>
-                <View style={[styles.progressFill, { width: `${Math.min(pct, 100)}%` }]} />
-              </View>
-              <Text style={styles.progressLabel}>{pct}% of budget used</Text>
-            </View>
+          <Text style={styles.heroSub}>Tap balance · {agentXlm} XLM in agent wallet</Text>
+          {chainStatus === 'missing' && !registering && (
+            <Button label="Authorize on Stellar" size="small" onPress={handleRegister} style={styles.authorize} />
           )}
         </View>
 
-        {/* Delegation policy (agent_registry.get_policy) */}
-        {policy && (
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="key-outline" size={16} color={Colors.gold} />
-              <Text style={styles.sectionTitle}>Agent Policy</Text>
-            </View>
-            <View style={styles.metricsRow}>
-              <MetricBox
-                label="Max / payment"
-                value={policy.maxAmountStroops === 0n ? 'No cap' : `${formatStroops(policy.maxAmountStroops)} XLM`}
-              />
-              <MetricBox label="Asset" value="XLM" />
-              <MetricBox label="Expires" value={describeExpiry(policy.expiresAt)} gold={policy.expiresAt !== 0n} />
-            </View>
-          </View>
+        <View style={styles.quickRow}>
+          <QuickAction icon="add" label="Top up" onPress={() => openFund('topup')} />
+          <QuickAction icon="lock-closed-outline" label="Add tap balance" onPress={() => openFund('escrow')} disabled={!authorized} />
+          <QuickAction icon="arrow-undo-outline" label={withdrawing ? 'Withdrawing…' : 'Withdraw'} onPress={handleWithdraw} disabled={!canWithdraw} />
+          {agent?.publicKey && <QuickAction icon="open-outline" label="Explorer" onPress={() => explorer(agent.publicKey)} />}
+        </View>
+        {!authorized && chainStatus !== null && <Text style={styles.heroNote}>Authorize the agent before adding a tap balance.</Text>}
+
+        <SectionLabel title="Activity" />
+        {agentTxs.length === 0 ? (
+          <Text style={styles.empty}>No payments yet. Tap this card on a Noir terminal, or use NFC tap on the Receive screen.</Text>
+        ) : (
+          agentTxs.map((tx) => <TransactionItem key={tx.id} transaction={tx} />)
         )}
 
-        {/* Escrow (payment_escrow) */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="shield-outline" size={16} color={Colors.gold} />
-            <Text style={styles.sectionTitle}>Escrow Balance</Text>
-          </View>
-          <Text style={styles.escrowBalance}>
-            {escrowBalance === null ? '—' : formatStroops(escrowBalance)}
-            <Text style={styles.balanceUnit}> XLM</Text>
-          </Text>
-          <Text style={styles.escrowCaption}>Locked on-chain for NFC tap payments</Text>
+        <SectionLabel title="Card" />
+        <KeyValueRow label="Status" value={device.status.charAt(0).toUpperCase() + device.status.slice(1)} valueStyle={{ color: device.status === 'active' ? Colors.success : Colors.warning }} />
+        <KeyValueRow label="Agent" value={shortAddress(agent?.publicKey ?? device.agentPublicKey) || 'None'} mono />
+        <KeyValueRow label="Linked" value={new Date(device.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} />
+        {device.lastTapAt && <KeyValueRow label="Last tap" value={new Date(device.lastTapAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} />}
+        <KeyValueRow label="Works until" value={policy && policy.expiresAt !== 0n ? describeExpiry(policy.expiresAt) : 'You revoke it'} last />
 
-          <View style={styles.escrowChips}>
-            {ESCROW_AMOUNTS.map((amt) => (
-              <PressableScale
-                key={amt}
-                style={[styles.escrowChip, escrowAmount === amt && styles.escrowChipActive]}
-                onPress={() => setEscrowAmount(amt)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: escrowAmount === amt }}
-              >
-                <Text style={[styles.escrowChipText, escrowAmount === amt && styles.escrowChipTextActive]}>{amt} XLM</Text>
-              </PressableScale>
-            ))}
-          </View>
-          <PressableScale
-            style={[styles.escrowFundBtn, (fundingEscrow || !authorized) && styles.escrowFundBtnDisabled]}
-            onPress={handleFundEscrow}
-            disabled={fundingEscrow || !authorized}
-            accessibilityRole="button"
-            accessibilityLabel={`Fund escrow with ${escrowAmount} XLM`}
-          >
-            <Ionicons name="shield-checkmark-outline" size={18} color={Colors.black} />
-            <Text style={styles.escrowFundText}>
-              {fundingEscrow ? 'Funding…' : `Fund ${escrowAmount} XLM`}
-            </Text>
-          </PressableScale>
-          {!authorized && (
-            <Text style={styles.escrowCaption}>Register this device on-chain before funding escrow</Text>
-          )}
-          {escrowBalance !== null && escrowBalance > 0n && (
-            <PressableScale
-              style={styles.escrowWithdrawBtn}
-              onPress={handleWithdraw}
-              disabled={withdrawing}
-              accessibilityRole="button"
-              accessibilityLabel="Withdraw all escrow to wallet"
-            >
-              <Text style={styles.escrowWithdrawText}>{withdrawing ? 'Withdrawing…' : 'Withdraw all to wallet'}</Text>
-            </PressableScale>
-          )}
+        <View style={styles.revoke}>
+          <TextAction
+            label={removing ? 'Revoking…' : 'Revoke card'}
+            color={Colors.danger}
+            disabled={removing}
+            onPress={() =>
+              popup.confirm({
+                title: `Revoke ${device.label}?`,
+                message: 'Its agent stops working for good. Its tap balance and agent XLM return to your main wallet.',
+                icon: 'trash-outline',
+                tone: 'danger',
+                confirmLabel: 'Revoke card',
+              }).then((ok) => { if (ok) handleRemoveDevice() })
+            }
+          />
         </View>
-
-        {/* Actions */}
-        <View style={styles.actionsCard}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="flash-outline" size={16} color={Colors.gold} />
-            <Text style={styles.sectionTitle}>Actions</Text>
-          </View>
-
-          <PressableScale
-            style={styles.actionBtn}
-            onPress={handleTopUp}
-            disabled={toppingUp}
-          >
-            <Ionicons name="add-circle-outline" size={20} color={Colors.gold} />
-            <View style={styles.actionContent}>
-              <Text style={styles.actionLabel}>Top Up Agent Wallet</Text>
-              <Text style={styles.actionDesc}>Send 50 XLM from main wallet</Text>
-            </View>
-            <Text style={styles.actionArrow}>{toppingUp ? '…' : '→'}</Text>
-          </PressableScale>
-        </View>
-
-        {/* Transaction History */}
-        <View style={styles.txSection}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="receipt-outline" size={16} color={Colors.gold} />
-            <Text style={styles.sectionTitle}>Payment History</Text>
-          </View>
-          {agentTxs.length === 0 ? (
-            <EmptyState
-              icon="receipt-outline"
-              title="No payments yet"
-              description="Tap this device's NFC tag against a payment terminal and the agent will sign automatically."
-            />
-          ) : (
-            agentTxs.map((tx) => (
-              <TransactionItem key={tx.id} transaction={tx} />
-            ))
-          )}
-        </View>
-
-        {/* Device Info */}
-        <View style={styles.infoCard}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="information-circle-outline" size={16} color={Colors.mutedWhite} />
-            <Text style={[styles.sectionTitle, { color: Colors.mutedWhite }]}>Device Info</Text>
-          </View>
-          <InfoRow label="Label" value={device.label} />
-          <InfoRow label="Status" value={device.status} />
-          <InfoRow label="Agent Key" value={device.agentPublicKey ? `${device.agentPublicKey.slice(0, 8)}…${device.agentPublicKey.slice(-6)}` : 'None'} />
-          <InfoRow label="Created" value={new Date(device.createdAt).toLocaleDateString()} />
-          {device.lastTapAt && (
-            <InfoRow label="Last Tap" value={new Date(device.lastTapAt).toLocaleDateString()} />
-          )}
-        </View>
-
-        {/* Remove device (danger) */}
-        <PressableScale
-          style={[styles.dangerBtn, removing && styles.escrowFundBtnDisabled]}
-          disabled={removing}
-          accessibilityLabel="Remove device"
-          accessibilityHint="Unlinks this device and deletes its agent keys"
-          onPress={() =>
-            Alert.alert(
-              'Revoke Device',
-              `Revoke "${device.label}"? The agent is revoked on-chain, any escrow and all XLM in its agent wallet are returned to your main wallet, and the agent can NEVER be recovered. This cannot be undone.`,
-              [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Revoke', style: 'destructive', onPress: handleRemoveDevice },
-              ],
-            )
-          }
-        >
-          <Ionicons name="trash-outline" size={16} color={Colors.danger} />
-          <Text style={styles.dangerText}>{removing ? 'Revoking…' : 'Revoke Device & Agent'}</Text>
-        </PressableScale>
       </ScrollView>
+
+      <ProcessingOverlay
+        visible={withdrawing || removing}
+        title={removing ? 'Revoking card' : 'Withdrawing tap balance'}
+        subtitle={removing ? 'Revoking the agent and returning all funds to your main wallet.' : 'Returning XLM from escrow to your main wallet.'}
+      />
 
       <Toast
         visible={toast.visible}
@@ -567,143 +409,36 @@ export function AgentDetailScreen() {
   )
 }
 
-function MetricBox({ label, value, gold }: { label: string; value: string; gold?: boolean }) {
+function QuickAction({ icon, label, onPress, disabled }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; disabled?: boolean }) {
   return (
-    <View style={styles.metric}>
-      <Text style={styles.metricLabel}>{label}</Text>
-      <Text style={[styles.metricValue, gold && styles.metricValueGold]}>{value}</Text>
-    </View>
-  )
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue} numberOfLines={1}>{value}</Text>
-    </View>
+    <PressableScale style={[styles.quick, disabled && styles.dimmed]} onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label}>
+      <View style={styles.quickDisc}><Ionicons name={icon} size={22} color={Colors.white} /></View>
+      <Text style={styles.quickLabel} numberOfLines={2}>{label}</Text>
+    </PressableScale>
   )
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surfaceBg },
-  notFound: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
-  notFoundText: { fontSize: FontSize.md, color: Colors.mutedWhite },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
-  },
-  headerTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.white },
-  spacer24: { width: 24 },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: Spacing.md, paddingBottom: 24 },
-
-  // Wallet card
-  walletCard: {
-    borderRadius: BorderRadius.xl, borderWidth: 1, borderColor: Colors.borderGrey,
-    padding: Spacing.lg, marginTop: Spacing.md, overflow: 'hidden',
-  },
-  walletIconRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md },
-  walletIcon: {
-    width: 48, height: 48, borderRadius: 24,
-    backgroundColor: colorWithOpacity(Colors.gold, 0.15),
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: colorWithOpacity(Colors.gold, 0.25),
-    marginRight: Spacing.md,
-  },
-  walletTitleArea: { flex: 1 },
-  walletTitle: { fontFamily: Fonts.display, fontSize: FontSize.md, color: Colors.cream },
-  walletKey: { fontFamily: Fonts.mono, fontSize: FontSize.xs, color: Colors.mutedWhite, marginTop: 2 },
-  balanceAmount: { fontSize: FontSize.xxxl, fontFamily: Fonts.display, color: Colors.white, marginBottom: Spacing.sm },
-  balanceUnit: { fontSize: FontSize.lg, color: Colors.mutedWhite },
-  authRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
-  authText: { fontSize: FontSize.xs, color: Colors.mutedWhite },
-  registerLink: { marginLeft: 'auto' },
-  registerLinkText: { fontSize: FontSize.xs, color: Colors.gold, fontWeight: FontWeight.semibold },
-  expertLink: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: Spacing.sm, alignSelf: 'flex-start' },
-  expertLinkText: { fontSize: FontSize.xs, color: Colors.gold, fontWeight: FontWeight.semibold },
-
-  // Section card
-  sectionCard: {
-    backgroundColor: Colors.cardBg, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: Colors.borderGrey,
-    padding: Spacing.md, marginTop: Spacing.md,
-  },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md },
-  sectionTitle: { fontSize: FontSize.sm, color: Colors.cream, fontWeight: FontWeight.semibold },
-  metricsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
-  metric: { flex: 1, backgroundColor: Gradient.raised, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.borderGrey, padding: Spacing.sm, alignItems: 'center' },
-  metricLabel: { fontSize: FontSize.xs, color: Colors.mutedWhite, marginBottom: 2 },
-  metricValue: { fontSize: FontSize.md, color: Colors.white, fontWeight: FontWeight.bold, fontVariant: ['tabular-nums'] },
-  metricValueGold: { color: Colors.gold },
-  progressSection: { marginTop: Spacing.xs },
-  progressBg: { height: 6, borderRadius: 3, backgroundColor: Gradient.track, marginBottom: Spacing.xs },
-  progressFill: { height: 6, borderRadius: 3, backgroundColor: Colors.gold },
-  progressLabel: { fontSize: FontSize.xs, color: Colors.mutedWhite },
-  escrowBalance: { fontSize: FontSize.xxxl, fontFamily: Fonts.display, color: Colors.white },
-  escrowCaption: { fontSize: FontSize.xs, color: Colors.mutedWhite, marginTop: Spacing.xs },
-  escrowChips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginTop: Spacing.md },
-  escrowChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    borderColor: colorWithOpacity(Colors.gold, 0.3),
-  },
-  escrowChipActive: { backgroundColor: colorWithOpacity(Colors.gold, 0.15), borderColor: Colors.gold },
-  escrowChipText: { fontSize: FontSize.sm, color: Colors.mutedWhite },
-  escrowChipTextActive: { color: Colors.gold, fontWeight: FontWeight.semibold },
-  escrowFundBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.gold,
-  },
-  escrowFundBtnDisabled: { opacity: 0.4 },
-  escrowWithdrawBtn: { alignItems: 'center', paddingVertical: Spacing.sm, marginTop: Spacing.sm },
-  escrowWithdrawText: { fontSize: FontSize.sm, color: Colors.gold, fontWeight: FontWeight.semibold },
-  escrowFundText: { fontSize: FontSize.md, fontWeight: FontWeight.semibold, color: Colors.black },
-
-  // Actions
-  actionsCard: {
-    backgroundColor: Colors.cardBg, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: Colors.borderGrey,
-    padding: Spacing.md, marginTop: Spacing.md,
-  },
-  actionBtn: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Gradient.raised, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.borderGrey,
-    padding: Spacing.md,
-  },
-  actionContent: { flex: 1, marginLeft: Spacing.md },
-  actionLabel: { fontSize: FontSize.sm, color: Colors.white, fontWeight: FontWeight.semibold },
-  actionDesc: { fontSize: FontSize.xs, color: Colors.mutedWhite, marginTop: 2 },
-  actionArrow: { fontSize: FontSize.lg, color: Colors.mutedWhite },
-
-  // Transactions
-  txSection: {
-    backgroundColor: Colors.cardBg, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: Colors.borderGrey,
-    padding: Spacing.md, marginTop: Spacing.md,
-  },
-
-  // Device Info
-  infoCard: {
-    backgroundColor: Colors.cardBg, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: Colors.borderGrey,
-    padding: Spacing.md, marginTop: Spacing.md,
-  },
-  infoRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.md,
-    paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: colorWithOpacity(Colors.borderGrey, 0.4),
-  },
-  infoLabel: { fontSize: FontSize.sm, color: Colors.mutedWhite },
-  infoValue: { flexShrink: 1, fontSize: FontSize.sm, color: Colors.white, fontFamily: Fonts.mono, textAlign: 'right' },
-
-  // Danger
-  dangerBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
-    paddingVertical: Spacing.md, marginTop: Spacing.xxl,
-  },
-  dangerText: { fontSize: FontSize.sm, color: Colors.danger, fontWeight: FontWeight.semibold },
+  scrollContent: { paddingHorizontal: 20 },
+  live: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  liveDot: { width: 6, height: 6, borderRadius: 3 },
+  liveText: { fontSize: FontSize.xs, color: Colors.mutedWhite, fontWeight: FontWeight.medium },
+  hero: { alignItems: 'center', gap: 6, paddingTop: Spacing.sm, paddingBottom: Spacing.md },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  statusText: { fontSize: FontSize.sm - 1, fontWeight: FontWeight.medium },
+  amountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  amount: { fontFamily: Fonts.display, fontSize: 40, color: Colors.white, fontVariant: ['tabular-nums'] },
+  asset: { fontFamily: Fonts.displayMd, fontSize: FontSize.lg - 2, color: Colors.mutedWhite },
+  heroSub: { fontSize: FontSize.sm, color: Colors.mutedWhite },
+  authorize: { marginTop: Spacing.sm },
+  heroNote: { fontSize: FontSize.xs, color: Colors.mutedWhite, textAlign: 'center' },
+  quickRow: { flexDirection: 'row', justifyContent: 'center', gap: 4, paddingVertical: Spacing.md },
+  quick: { width: 78, alignItems: 'center', gap: 8 },
+  quickDisc: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.midGrey, alignItems: 'center', justifyContent: 'center' },
+  quickLabel: { fontSize: FontSize.xs, color: Colors.white, textAlign: 'center', fontWeight: FontWeight.medium },
+  dimmed: { opacity: 0.4 },
+  empty: { fontSize: FontSize.sm, color: Colors.mutedWhite, lineHeight: 20, paddingVertical: Spacing.sm },
+  revoke: { marginTop: Spacing.xl },
 })

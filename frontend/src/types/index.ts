@@ -4,19 +4,19 @@ export type StellarNetwork = 'testnet' | 'mainnet'
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning'
 
-export type TxFilter = 'all' | 'pending' | 'confirmed' | 'failed'
+export type TxFilter = 'all' | 'sent' | 'received' | 'pending' | 'confirmed' | 'failed'
 
 export type AssetCode = 'XLM'
 
 export interface SecuritySettings {
-  biometricLockEnabled: boolean
   backgroundLockTimeoutSec: number
 }
 
 export interface User {
   id: string
-  email: string
-  phoneNumber: string
+  /** Not collected by the app; kept optional for backend API compatibility. */
+  email?: string
+  phoneNumber?: string
   stellarPublicKey: string
   /**
    * Retained for backend API compatibility only — the KYC/verification feature

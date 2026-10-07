@@ -4,8 +4,7 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
-import { NoirLogo } from '@/components/brand/NoirLogo'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
 import { Button } from '@/components/Button'
 import { usePreventScreenCapture } from 'expo-screen-capture'
 
@@ -34,6 +33,13 @@ export function SeedVerifyScreen({ phrase, onComplete, onBack }: SeedVerifyScree
   }, [])
 
   const [answers, setAnswers] = useState<Record<number, string>>({})
+  const [continuing, setContinuing] = useState(false)
+  /** Instant feedback: show the loader, let it paint, then move on. */
+  const handleContinue = () => {
+    if (continuing) return
+    setContinuing(true)
+    setTimeout(onComplete, 50)
+  }
   const [shuffledWords, setShuffledWords] = useState<string[]>([])
 
   useEffect(() => {
@@ -77,7 +83,7 @@ export function SeedVerifyScreen({ phrase, onComplete, onBack }: SeedVerifyScree
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         accessibilityLabel="Go back"
       >
-        <Ionicons name="arrow-back" size={24} color={Colors.white} />
+        <Ionicons name="chevron-back" size={26} color={Colors.white} />
       </PressableScale>
 
       <ScrollView
@@ -85,9 +91,8 @@ export function SeedVerifyScreen({ phrase, onComplete, onBack }: SeedVerifyScree
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <NoirLogo variant="mark" size={40} />
-        <Text style={styles.title}>Verify Your Phrase</Text>
-        <Text style={styles.subtitle}>Select the correct word for each position</Text>
+        <Text style={styles.title}>Confirm your phrase</Text>
+        <Text style={styles.subtitle}>Pick the right word for each number.</Text>
 
         <View style={styles.prompts}>
           {indices.map((idx) => (
@@ -128,8 +133,9 @@ export function SeedVerifyScreen({ phrase, onComplete, onBack }: SeedVerifyScree
         )}
 
         <Button
-          label={isCorrect ? 'Complete Verification' : 'Confirm'}
-          onPress={onComplete}
+          label={isCorrect ? 'Continue' : 'Confirm'}
+          onPress={handleContinue}
+          loading={continuing}
           disabled={!allAnswered || !isCorrect}
         />
       </ScrollView>
@@ -142,16 +148,16 @@ const styles = StyleSheet.create({
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginLeft: Spacing.md, marginTop: Spacing.sm },
   scrollContent: { padding: Spacing.lg, paddingBottom: Spacing.xxl },
 
-  title: { fontSize: FontSize.xl, color: Colors.white, fontWeight: FontWeight.bold, textAlign: 'center', marginTop: Spacing.md },
-  subtitle: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', marginTop: Spacing.xs },
+  title: { fontFamily: Fonts.display, fontSize: 24, color: Colors.cream, marginTop: Spacing.md },
+  subtitle: { fontSize: FontSize.md - 1, color: Colors.mutedWhite, marginTop: Spacing.sm, lineHeight: 22 },
   prompts: { gap: Spacing.sm, marginVertical: Spacing.xl },
-  promptRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.cardBg, borderRadius: BorderRadius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.borderGrey, gap: Spacing.md },
-  promptRowFilled: { borderColor: colorWithOpacity(Colors.gold, 0.25) },
+  promptRow: { flexDirection: 'row', alignItems: 'center', minHeight: 52, borderBottomWidth: 1, borderBottomColor: Colors.midGrey, gap: Spacing.md },
+  promptRowFilled: {},
   promptNum: { fontSize: FontSize.xs, color: Colors.mutedWhite, width: 60 },
   promptAnswer: { flex: 1, fontSize: FontSize.md, color: Colors.white, fontWeight: FontWeight.semibold },
   promptEmpty: { color: Colors.mutedWhite, letterSpacing: 2 },
   wordPool: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.xl, justifyContent: 'center' },
-  wordChip: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full, backgroundColor: Colors.lightGrey, borderWidth: 1, borderColor: Colors.borderGrey },
+  wordChip: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full, backgroundColor: Colors.midGrey },
   wordChipUsed: { opacity: 0.3, backgroundColor: Colors.midGrey },
   wordChipText: { fontSize: FontSize.sm, color: Colors.white, fontWeight: FontWeight.medium },
   wordChipTextUsed: { color: Colors.mutedWhite },

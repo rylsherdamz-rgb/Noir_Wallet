@@ -336,15 +336,15 @@ describe('4b — Export keys screen', () => {
   })
 
   it('does not reveal secrets without authentication', async () => {
-    // The screen must gate on biometrics/PIN — assert the source wires the
-    // auth services rather than reading keys unconditionally.
+    // The screen must gate on the phone's screen lock — assert the source
+    // wires the auth service rather than reading keys unconditionally.
     const fs = await import('node:fs/promises')
     const src = await fs.readFile(
       new URL('../src/screens/ExportKeysScreen.tsx', import.meta.url),
       'utf8',
     )
-    expect(src).toContain('authenticate')
-    expect(src).toContain('verifyPin')
+    expect(src).toContain('authenticateWithDevice')
+    expect(src).not.toContain('pinLock')
     // secrets must never be logged
     expect(src).not.toMatch(/console\.log\([^)]*secret/i)
   })
@@ -370,27 +370,17 @@ describe('6 — QR scanner', () => {
   })
 })
 
-describe('7 — App lock screen (PIN)', () => {
-  beforeEach(() => {
-    mockSecureStore.clear()
-  })
-
+describe('7 — App lock screen (phone screen lock)', () => {
   it('imports lock route', async () => {
     const mod = await import('../../frontend/app/lock')
     expect(mod.default).toBeDefined()
   })
 
-  it('stores PIN hash in SecureStore', async () => {
-    const { setItem, getItem } = await import('@/services/storage')
-    await setItem('app_pin_hash', 'pin_abc123')
-    const stored = await getItem<string>('app_pin_hash')
-    expect(stored).toBe('pin_abc123')
-  })
-
-  it('returns null when no PIN is set', async () => {
-    const { getItem } = await import('@/services/storage')
-    const stored = await getItem<string>('app_pin_hash')
-    expect(stored).toBeNull()
+  it('unlocks with the phone screen lock, not an app PIN', async () => {
+    const fs = await import('node:fs/promises')
+    const src = await fs.readFile(new URL('../app/lock.tsx', import.meta.url), 'utf8')
+    expect(src).toContain('authenticateWithDevice')
+    expect(src).not.toContain('pinLock')
   })
 })
 

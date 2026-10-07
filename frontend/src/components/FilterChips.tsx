@@ -58,21 +58,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: 6,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.lightGrey,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
+    backgroundColor: Colors.midGrey,
   },
   chipActive: {
-    backgroundColor: colorWithOpacity(Colors.gold, 0.12),
-    borderColor: Colors.gold,
+    backgroundColor: Colors.cream,
   },
   label: {
     fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
+    color: Colors.white,
     fontWeight: FontWeight.medium,
   },
   labelActive: {
-    color: Colors.gold,
-    fontWeight: FontWeight.semibold,
+    color: Colors.surfaceBg,
   },
 })

@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Noir Promo Storyboard</title>
+<style>
+@font-face{font-family:Jost;src:url(assets/fonts/Jost-Regular.ttf);font-weight:400}
+@font-face{font-family:Jost;src:url(assets/fonts/Jost-Medium.ttf);font-weight:500}
+@font-face{font-family:Jost;src:url(assets/fonts/Jost-SemiBold.ttf);font-weight:600}
+:root{--ink:#0A0A0A;--ink2:#141414;--gold:#C6A15B;--cream:#EDE4D0;--silver:#CECCD0;--hint:#A9A9A9;--line:#3A3A3A;--page:#050505}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--silver);font-family:system-ui,-apple-system,Roboto,sans-serif;padding:48px 40px 80px}
+header{max-width:1600px;margin:0 auto 36px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap}
+h1{margin:0;font-family:Jost;font-weight:600;font-size:40px;color:var(--cream);letter-spacing:.02em}
+h1 small{font-size:16px;color:var(--gold);letter-spacing:.2em;margin-left:12px;vertical-align:middle}
+.dek{margin:8px 0 0;color:var(--hint);font-size:15px}
+.tag{font-family:ui-monospace,monospace;font-size:12px;letter-spacing:.14em;color:var(--gold);border:1px solid var(--line);padding:8px 12px;border-radius:999px}
+.grid{max-width:1600px;margin:0 auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:36px 28px}
+@media (max-width:1100px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:700px){.grid{grid-template-columns:1fr} body{padding:24px 16px}}
+.act{grid-column:1/-1;font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.2em;color:var(--hint);border-top:1px solid var(--line);padding-top:10px;text-transform:uppercase}
+.cell{display:flex;flex-direction:column;gap:10px}
+.f{aspect-ratio:16/9;container-type:inline-size;background:var(--ink);border:1px solid #1d1d1d;position:relative;overflow:hidden;border-radius:6px}
+.f.goldreg{background:var(--gold)}
+.lab{display:flex;justify-content:space-between;font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.12em;color:var(--cream)}
+.lab span:last-child{color:var(--hint)}
+.note{font-size:13px;line-height:1.5;color:var(--silver);margin:0}
+.note b{color:var(--cream)}
+.chip{align-self:flex-start;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.14em;color:var(--gold);border:1px solid var(--line);border-radius:999px;padding:4px 10px;text-transform:uppercase}
+.phone{position:absolute;width:19cqw;aspect-ratio:390/844;border-radius:2.6cqw;background:#000;border:.45cqw solid #1c1c1c;box-shadow:0 0 0 .12cqw #2c2c2c;overflow:hidden}
+.phone img{width:100%;height:100%;object-fit:cover;object-position:top;display:block}
+.k{position:absolute;font-family:Jost;font-weight:600;color:var(--cream);line-height:1;letter-spacing:-.01em}
+.kg{color:var(--gold)}
+.lbl{position:absolute;font-family:ui-monospace,monospace;font-size:1.05cqw;letter-spacing:.16em;color:var(--gold);text-transform:uppercase}
+.card{position:absolute;width:22cqw;aspect-ratio:85.6/54;border-radius:1.2cqw;background:linear-gradient(135deg,#1b1b1b,#0d0d0d);border:.12cqw solid #333}
+.ring{position:absolute;border-radius:50%;border:.15cqw solid rgba(198,161,91,.4)}
+.hair{position:absolute;height:.08cqw;background:var(--line)}
+.ghost{opacity:.35}
+.seam{grid-column:span 2}
+.seam .f{aspect-ratio:32/9}
+.strip{display:flex;height:100%;align-items:center;padding:0 3cqw;gap:.6cqw}
+.strip div{flex:1;height:11cqw;background:var(--ink2);border:1px solid var(--line);display:flex;flex-direction:column;justify-content:space-between;padding:1cqw;font-family:ui-monospace,monospace;font-size:1.1cqw;color:var(--cream)}
+.strip div i{font-style:normal;color:var(--gold);font-size:.95cqw}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Noir Wallet — Promo <small>V1 · SKETCH</small></h1>
+    <p class="dek">Tap a card to pay on Stellar — it spends only what you load, and works until you revoke it.</p>
+  </div>
+  <div class="tag">1920×1080 · ~60s · 10 BEATS · VO + KINETIC TYPE + MUSIC</div>
+</header>
+
+<main class="grid">
+<div class="act">Act I — the magic (0–15.5s)</div>
+
+<section class="cell"><div class="f" id="frame-01">
+  <div class="card" style="left:56cqw;top:20cqw;transform:rotate(-8deg)"></div>
+  <div class="ring" style="left:60cqw;top:12cqw;width:28cqw;height:28cqw"></div>
+  <div class="k" style="left:8cqw;top:18cqw;font-size:7cqw">Your wallet.</div>
+  <div class="k kg" style="left:8cqw;top:27cqw;font-size:7cqw">on a card.</div>
+</div>
+<div class="lab"><span>01 · HOOK</span><span>frame-01 · 0.0–5.0s</span></div>
+<p class="note"><b>The type moves first:</b> "Your wallet." rises in, then "on a card." lands in gold as the black card glides in from the right and one gold ripple breathes out from it.</p>
+<span class="chip">in: cut</span></section>
+
+<section class="cell"><div class="f" id="frame-02">
+  <div class="phone" style="left:40.5cqw;top:3.5cqw"><img src="assets/Tap.png" alt=""></div>
+  <div class="card" style="left:62cqw;top:22cqw;transform:rotate(12deg)"></div>
+  <div class="k" style="left:8cqw;top:14cqw;font-size:5.6cqw">Tap.</div>
+  <div class="k" style="left:8cqw;top:22cqw;font-size:5.6cqw">Paid.</div>
+  <div class="k kg" style="left:8cqw;top:30cqw;font-size:5.6cqw">Settled.</div>
+  <div class="lbl" style="left:8cqw;top:40cqw">On Stellar</div>
+</div>
+<div class="lab"><span>02 · THE TAP</span><span>frame-02 · 5.0–11.0s</span></div>
+<p class="note"><b>The card swings to the phone's back,</b> gold rings pulse, and the screen cross-dissolves Tap → Processing → Sent (cropped above the date row). Each word stamps on with the voiceover.</p>
+<span class="chip">in: zoom-through</span></section>
+
+<section class="cell"><div class="f" id="frame-03">
+  <img src="assets/noir-mark.png" alt="" style="position:absolute;left:44.5cqw;top:10cqw;width:11cqw">
+  <div class="k" style="left:0;right:0;text-align:center;top:26cqw;font-size:5cqw;letter-spacing:.25em;padding-left:.25em">NOIR</div>
+  <div class="lbl" style="left:0;right:0;text-align:center;top:34cqw;letter-spacing:.5em">Tap into trust</div>
+</div>
+<div class="lab"><span>03 · INTRODUCING NOIR</span><span>frame-03 · 11.0–15.5s</span></div>
+<p class="note"><b>The cat mark settles flat at center</b> (no glow), NOIR tracks open from tight to wide, and the tagline types on in gold.</p>
+<span class="chip">in: blur-crossfade</span></section>
+
+<div class="act">Act II — how it works (15.5–41.5s)</div>
+
+<section class="cell"><div class="f" id="frame-04">
+  <div class="phone ghost" style="left:44cqw;top:5cqw;transform:scale(.86)"><img src="assets/LinkIntro.png" alt=""></div>
+  <div class="phone" style="left:58cqw;top:3.5cqw"><img src="assets/LinkScan.png" alt=""></div>
+  <div class="phone ghost" style="left:76cqw;top:5cqw;transform:scale(.86)"><img src="assets/LinkSuccess.png" alt=""></div>
+  <div class="lbl" style="left:7cqw;top:15cqw">01 · Link</div>
+  <div class="k" style="left:7cqw;top:19cqw;font-size:4.4cqw">Any NFC card.</div>
+  <div class="k" style="left:7cqw;top:25.5cqw;font-size:4.4cqw">Hold.</div>
+  <div class="k kg" style="left:7cqw;top:32cqw;font-size:4.4cqw">Linked.</div>
+</div>
+<div class="lab"><span>04 · LINK ANY CARD</span><span>frame-04 · 15.5–22.5s</span></div>
+<p class="note"><b>The phone carousel slides left</b> through intro, scan and success, with the focused screen at full size. The labels step one per voiceover phrase, and the success check turns green on "registered on Stellar."</p>
+<span class="chip">in: push-slide left</span></section>
+
+<section class="cell"><div class="f" id="frame-05">
+  <div class="phone" style="left:30cqw;top:3.5cqw"><img src="assets/Agents.png" alt=""></div>
+  <div class="phone" style="left:55cqw;top:3.5cqw"><img src="assets/AgentDetail.png" alt=""></div>
+  <div class="hair" style="left:49.5cqw;width:5.5cqw;top:22cqw;background:var(--gold)"></div>
+  <div class="lbl" style="left:6cqw;top:16cqw">02 · Agent</div>
+  <div class="k" style="left:6cqw;top:20cqw;font-size:3.4cqw">Its own<br>agent.</div>
+  <div class="k kg" style="left:78cqw;top:20cqw;font-size:3.4cqw">Its own<br>balance.</div>
+</div>
+<div class="lab"><span>05 · ITS OWN AGENT</span><span>frame-05 · 22.5–29.0s</span></div>
+<p class="note"><b>The left phone rises first,</b> then a gold hairline draws from the "Black card" row to the second phone ("Authorized on Stellar · 25.00 XLM"). The type flanks both phones.</p>
+<span class="chip">in: crossfade</span></section>
+
+<section class="cell"><div class="f" id="frame-06">
+  <div class="phone" style="left:66cqw;top:3.5cqw"><img src="assets/AgentFund.png" alt=""></div>
+  <div class="lbl" style="left:7cqw;top:14cqw">03 · Load</div>
+  <div class="k" style="left:7cqw;top:18cqw;font-size:4.6cqw">It spends only</div>
+  <div class="k kg" style="left:7cqw;top:24.5cqw;font-size:4.6cqw">what you load.</div>
+  <div class="k" style="left:7cqw;top:35cqw;font-size:2.4cqw;color:var(--hint)">Main wallet → Black card agent · <span style="color:var(--cream)">25 XLM</span></div>
+</div>
+<div class="lab"><span>06 · LOAD ONLY WHAT IT SPENDS</span><span>frame-06 · 29.0–34.5s</span></div>
+<p class="note"><b>The amount counts 0 → 25 XLM</b> as the phone's keypad presses play. The two-line claim slides up with a crossfade and then holds still.</p>
+<span class="chip">in: push-slide left</span></section>
+
+<section class="cell"><div class="f goldreg" id="frame-07">
+  <div class="k" style="left:7cqw;top:14cqw;font-size:4cqw;color:#151107;opacity:.7">Works until</div>
+  <div class="k" style="left:7cqw;top:20cqw;font-size:8cqw;color:#0A0A0A">you revoke it.</div>
+  <div class="phone" style="left:72cqw;top:9cqw;transform:rotate(4deg)"><img src="assets/ModalRevoke.png" alt=""></div>
+  <div class="k" style="left:7cqw;top:38cqw;font-size:2cqw;color:#151107">Every last XLM → back to you</div>
+</div>
+<div class="lab"><span>07 · REVOKE ANYTIME</span><span>frame-07 · 34.5–41.5s</span></div>
+<p class="note"><b>The background floods gold,</b> "Works until" waits a beat, then "you revoke it." slams in. The revoke popup phone tilts in from the right, and a balance chip arcs back toward the left.</p>
+<span class="chip">in: zoom-through</span></section>
+
+<div class="act">Act III — trust &amp; close (41.5–60s)</div>
+
+<section class="cell"><div class="f" id="frame-08">
+  <div class="phone" style="left:-4cqw;top:8cqw;transform:rotate(-6deg) scale(.82)"><img src="assets/Dashboard.png" alt=""></div>
+  <div class="phone" style="left:16cqw;top:5cqw;transform:rotate(-3deg) scale(.9)"><img src="assets/SendAmount.png" alt=""></div>
+  <div class="phone" style="left:40.5cqw;top:3.5cqw"><img src="assets/ReceiveNfc.png" alt=""></div>
+  <div class="phone" style="left:65cqw;top:5cqw;transform:rotate(3deg) scale(.9)"><img src="assets/History.png" alt=""></div>
+  <div class="phone" style="left:85cqw;top:8cqw;transform:rotate(6deg) scale(.82)"><img src="assets/Lock.png" alt=""></div>
+  <div class="k" style="left:0;right:0;text-align:center;top:48cqw;font-size:3.2cqw">Send · Receive · <span class="kg">Tap</span> · Track · Lock</div>
+</div>
+<div class="lab"><span>08 · THE WHOLE WALLET</span><span>frame-08 · 41.5–48.5s</span></div>
+<p class="note"><b>The camera glides left to right</b> across the fanned screens, one per verb, and a word barrage lights under each phone as the camera passes it.</p>
+<span class="chip">in: blur-crossfade</span></section>
+
+<section class="cell"><div class="f" id="frame-09">
+  <div class="lbl" style="left:9cqw;top:11cqw">Built on Stellar</div>
+  <div class="hair" style="left:9cqw;right:9cqw;top:16cqw"></div>
+  <div class="k" style="left:9cqw;top:18cqw;font-size:4.2cqw">Soroban smart contracts</div>
+  <div class="hair" style="left:9cqw;right:9cqw;top:25cqw"></div>
+  <div class="k" style="left:9cqw;top:27cqw;font-size:4.2cqw">x402 tap-to-pay</div>
+  <div class="hair" style="left:9cqw;right:9cqw;top:34cqw"></div>
+  <div class="k" style="left:9cqw;top:36cqw;font-size:4.2cqw">Open source <span class="kg">· MIT</span></div>
+  <div class="hair" style="left:9cqw;right:9cqw;top:43cqw"></div>
+  <div class="lbl" style="right:9cqw;top:46cqw;color:#7C93B5">● Live on Testnet</div>
+</div>
+<div class="lab"><span>09 · BUILT ON STELLAR</span><span>frame-09 · 48.5–54.5s</span></div>
+<p class="note"><b>The hairlines draw left to right</b> first, then each line rises into its row on its voiceover phrase. A steel-blue Testnet chip (the app's own Testnet color) fades in last.</p>
+<span class="chip">in: crossfade</span></section>
+
+<section class="cell"><div class="f" id="frame-10">
+  <img src="assets/noir-mark.png" alt="" style="position:absolute;left:45.5cqw;top:8cqw;width:9cqw">
+  <div class="k" style="left:0;right:0;text-align:center;top:21cqw;font-size:4.4cqw;letter-spacing:.25em;padding-left:.25em">NOIR</div>
+  <div class="lbl" style="left:0;right:0;text-align:center;top:28.5cqw;letter-spacing:.5em">Tap into trust</div>
+  <div class="k" style="left:0;right:0;text-align:center;top:42cqw;font-size:1.8cqw;color:var(--hint);font-family:ui-monospace,monospace;font-weight:400">github.com/rylsherdamz-rgb/Noir_Wallet</div>
+</div>
+<div class="lab"><span>10 · OUTRO / CTA</span><span>frame-10 · 54.5–60.0s</span></div>
+<p class="note"><b>The lockup re-forms</b> to mirror frame 03. A card silhouette taps once, one ripple runs, then the URL fades up and the frame holds to the end.</p>
+<span class="chip">in: zoom-through</span></section>
+
+<section class="cell seam"><div class="f"><div class="strip">
+  <div>01<i>cut</i></div><div>02<i>zoom</i></div><div>03<i>blur</i></div><div>04<i>push ←</i></div><div>05<i>fade</i></div><div>06<i>push ←</i></div><div>07<i>zoom</i></div><div>08<i>blur</i></div><div>09<i>fade</i></div><div>10<i>zoom</i></div>
+</div></div>
+<div class="lab"><span>SEAM MAP</span><span>10 seams</span></div>
+<p class="note"><b>Zoom-throughs mark the section turns</b> (tap, revoke, outro), push-slides carry the how-it-works run, and fades handle same-world beats.</p></section>
+
+<section class="cell"><div class="f" style="padding:3cqw">
+  <div style="display:flex;gap:1cqw">
+    <div style="width:7cqw;height:7cqw;background:#0A0A0A;border:1px solid #333"></div>
+    <div style="width:7cqw;height:7cqw;background:#C6A15B"></div>
+    <div style="width:7cqw;height:7cqw;background:#EDE4D0"></div>
+    <div style="width:7cqw;height:7cqw;background:#CECCD0"></div>
+    <div style="width:7cqw;height:7cqw;background:#3A3A3A"></div>
+  </div>
+  <div class="k" style="position:static;margin-top:3cqw;font-size:4cqw">Jost 600 display</div>
+  <div style="margin-top:1.5cqw;font-size:2cqw;color:var(--silver)">System sans body · mono labels</div>
+  <div style="margin-top:2.5cqw;font-size:1.7cqw;line-height:1.5;color:var(--hint)">Gold: one moment per frame. The cat mark only at brand moments, flat with no glow. Green and red only inside the app screens. No emoji, no gradients washing the background.</div>
+</div>
+<div class="lab"><span>TOKENS</span><span>frame.md</span></div></section>
+</main>
+</body>
+</html>

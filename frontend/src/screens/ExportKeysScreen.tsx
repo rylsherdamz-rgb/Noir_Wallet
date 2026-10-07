@@ -14,7 +14,8 @@
  *   to a file. Copy-to-clipboard is the only egress, at the user's request.
  */
 import { useCallback, useEffect, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Platform } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, Platform, TextInput } from 'react-native'
+import { popup } from '@/components/popup/Popup'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
@@ -23,11 +24,14 @@ import { PressableScale } from '@/components/brand/PressableScale'
 import { Toast } from '@/components/Toast'
 import { walletService } from '@/services/wallet'
 import { x402 } from '@/domain/x402'
-import { authenticate, checkAvailability } from '@/services/biometrics'
-import { hasPin, verifyPin } from '@/services/pinLock'
+import { authenticateWithDevice } from '@/services/biometrics'
+import { hasPassword, verifyPassword } from '@/services/appPassword'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
 import { colorWithOpacity } from '@/constants/designTokens'
 import type { ToastType } from '@/types'
+import { ScreenHeader } from '@/components/ScreenHeader'
+import { SectionLabel, TextAction } from '@/components/ui/List'
+import { Button } from '@/components/Button'
 
 interface SecretItem {
   id: string
@@ -44,9 +48,9 @@ export function ExportKeysScreen() {
 
   const [unlocked, setUnlocked] = useState(false)
   const [checking, setChecking] = useState(false)
-  const [needsPin, setNeedsPin] = useState(false)
-  const [pin, setPin] = useState('')
-  const [pinError, setPinError] = useState('')
+  const [needsPassword, setNeedsPassword] = useState(false)
+  const [pw, setPw] = useState('')
+  const [pwError, setPwError] = useState('')
   const [items, setItems] = useState<SecretItem[]>([])
   const [revealed, setRevealed] = useState<Record<string, boolean>>({})
   const [toast, setToast] = useState<{ visible: boolean; type: ToastType; title: string; message?: string }>({
@@ -61,7 +65,6 @@ export function ExportKeysScreen() {
     return () => {
       setItems([])
       setRevealed({})
-      setPin('')
     }
   }, [])
 
@@ -118,52 +121,44 @@ export function ExportKeysScreen() {
 
   const handleUnlock = useCallback(async () => {
     setChecking(true)
-    setPinError('')
     try {
-      const availability = await checkAvailability()
-      if (availability.available) {
-        const result = await authenticate('Authenticate to export your keys')
-        if (!result.ok) {
-          showToast('Not Authenticated', result.message, 'error')
+      // Same gate as the app lock: the phone's own screen lock
+      // (biometrics with device PIN/pattern fallback).
+      const result = await authenticateWithDevice('Authenticate to export your keys')
+      if (!result.ok) {
+        // No screen lock on this phone: fall back to the backup password.
+        if (result.reason === 'no-device-lock' && (await hasPassword())) {
+          setNeedsPassword(true)
           return
         }
-        await loadSecrets()
+        if (result.reason !== 'cancelled') showToast('Not Authenticated', result.message, 'error')
         return
       }
-
-      // Biometrics unavailable — fall back to the app PIN if one is set.
-      if (await hasPin()) {
-        setNeedsPin(true)
-        return
-      }
-
-      showToast(
-        'Set a PIN first',
-        'Enable biometrics or set an app PIN before exporting keys.',
-        'error',
-      )
+      await loadSecrets()
     } finally {
       setChecking(false)
     }
   }, [loadSecrets])
 
-  const handleVerifyPin = useCallback(async () => {
+  const handlePassword = useCallback(async () => {
+    if (!pw) return
     setChecking(true)
-    setPinError('')
+    setPwError('')
     try {
-      const result = await verifyPin(pin)
+      const result = await verifyPassword(pw)
+      setPw('')
       if (!result.ok) {
-        setPinError(pinErrorMessage(result))
-        setPin('')
+        setPwError(result.retryAfterMs > 0
+          ? `Too many attempts. Try again in ${Math.ceil(result.retryAfterMs / 1000)}s.`
+          : 'Incorrect password')
         return
       }
-      setNeedsPin(false)
-      setPin('')
+      setNeedsPassword(false)
       await loadSecrets()
     } finally {
       setChecking(false)
     }
-  }, [pin, loadSecrets])
+  }, [pw, loadSecrets])
 
   const handleCopy = useCallback(async (item: SecretItem) => {
     await Clipboard.setStringAsync(item.value)
@@ -177,14 +172,13 @@ export function ExportKeysScreen() {
     }
     const doReveal = () => setRevealed((prev) => ({ ...prev, [item.id]: true }))
     if (Platform.OS === 'web') { doReveal(); return }
-    Alert.alert(
-      'Reveal secret?',
-      'Make sure nobody can see your screen. Anyone with this value can spend your funds.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Reveal', style: 'destructive', onPress: doReveal },
-      ],
-    )
+    popup.confirm({
+      title: `Reveal ${item.label}?`,
+      message: 'Make sure nobody can see your screen. Anyone with this value can spend your funds.',
+      icon: 'eye-outline',
+      tone: 'danger',
+      confirmLabel: 'Reveal',
+    }).then((ok) => { if (ok) doReveal() })
   }, [revealed])
 
   const relock = useCallback(() => {
@@ -195,251 +189,137 @@ export function ExportKeysScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <PressableScale
-          onPress={() => router.back()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.white} />
-        </PressableScale>
-        <Text style={styles.headerTitle}>Export Keys</Text>
-        {unlocked ? (
-          <PressableScale onPress={relock} accessibilityLabel="Hide keys">
+      <ScreenHeader
+        title="Export keys"
+        onBackPress={() => router.back()}
+        rightAction={unlocked ? (
+          <PressableScale onPress={relock} hitSlop={10} accessibilityRole="button" accessibilityLabel="Hide keys">
             <Ionicons name="lock-closed-outline" size={20} color={Colors.gold} />
           </PressableScale>
-        ) : (
-          <View style={styles.spacer24} />
-        )}
-      </View>
+        ) : undefined}
+      />
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}
-      >
-        {/* Danger notice — always visible */}
-        <View style={styles.warnCard}>
-          <Ionicons name="warning-outline" size={20} color={Colors.danger} />
-          <View style={styles.warnTextWrap}>
-            <Text style={styles.warnTitle}>Anyone with these keys owns your funds</Text>
-            <Text style={styles.warnBody}>
-              Never share them, never type them into a website, and never store them in a screenshot
-              or cloud note. Noir Wallet staff will never ask for them.
+      {!unlocked && (
+        <View style={styles.gateWrap}>
+          <View style={styles.gate}>
+            <Ionicons name={needsPassword ? 'key-outline' : 'finger-print-outline'} size={48} color={Colors.gold} />
+            <Text style={styles.gateTitle}>{needsPassword ? 'Enter your password' : 'Confirm it’s you'}</Text>
+            <Text style={styles.gateBody}>
+              {needsPassword ? 'Your phone has no screen lock, so confirm with your backup password.' : 'Your recovery phrase and keys are shown after you unlock.'}
             </Text>
+            {needsPassword && (
+              <>
+                <TextInput
+                  style={styles.pwInput}
+                  value={pw}
+                  onChangeText={(v) => { setPwError(''); setPw(v) }}
+                  placeholder="Password"
+                  placeholderTextColor={Colors.mutedWhite}
+                  secureTextEntry
+                  autoFocus
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  onSubmitEditing={handlePassword}
+                  accessibilityLabel="Password"
+                />
+                {!!pwError && <Text style={styles.pwError}>{pwError}</Text>}
+              </>
+            )}
+          </View>
+          <View style={styles.warn}>
+            <Ionicons name="warning-outline" size={18} color={Colors.danger} />
+            <Text style={styles.warnText}>Anyone with these keys can take your funds. Never share them, type them into a website, or screenshot them.</Text>
+          </View>
+          <View style={styles.footer}>
+            <Button
+              label={checking ? 'Checking…' : 'Unlock'}
+              icon={needsPassword ? 'lock-open-outline' : 'finger-print-outline'}
+              onPress={needsPassword ? handlePassword : handleUnlock}
+              disabled={checking || (needsPassword && !pw)}
+              fullWidth
+            />
           </View>
         </View>
+      )}
 
-        {!unlocked && !needsPin && (
-          <View style={styles.gate}>
-            <View style={styles.gateIcon}>
-              <Ionicons name="finger-print-outline" size={34} color={Colors.gold} />
-            </View>
-            <Text style={styles.gateTitle}>Authentication required</Text>
-            <Text style={styles.gateBody}>
-              Confirm it's you before your recovery phrase and secret keys are shown.
-            </Text>
-            <PressableScale
-              style={styles.primaryBtn}
-              onPress={handleUnlock}
-              disabled={checking}
-              accessibilityRole="button"
-              accessibilityLabel="Authenticate to export keys"
-            >
-              <Text style={styles.primaryBtnLabel}>{checking ? 'Checking…' : 'Authenticate'}</Text>
-            </PressableScale>
-          </View>
-        )}
-
-        {needsPin && (
-          <View style={styles.gate}>
-            <View style={styles.gateIcon}>
-              <Ionicons name="keypad-outline" size={34} color={Colors.gold} />
-            </View>
-            <Text style={styles.gateTitle}>Enter your PIN</Text>
-            <Text style={styles.gateBody}>Biometrics aren't available, so your app PIN is required.</Text>
-            <TextInput
-              style={styles.pinInput}
-              value={pin}
-              onChangeText={setPin}
-              placeholder="••••••"
-              placeholderTextColor={Colors.mutedWhite}
-              keyboardType="number-pad"
-              secureTextEntry
-              maxLength={12}
-              accessibilityLabel="App PIN"
-            />
-            {!!pinError && <Text style={styles.pinError}>{pinError}</Text>}
-            <PressableScale
-              style={styles.primaryBtn}
-              onPress={handleVerifyPin}
-              disabled={checking || pin.length === 0}
-            >
-              <Text style={styles.primaryBtnLabel}>{checking ? 'Verifying…' : 'Unlock'}</Text>
-            </PressableScale>
-          </View>
-        )}
-
-        {unlocked && items.length === 0 && (
-          <Text style={styles.emptyText}>No exportable keys found on this device.</Text>
-        )}
-
-        {unlocked && items.map((item) => {
-          const isRevealed = !!revealed[item.id]
-          return (
-            <View key={item.id} style={styles.secretCard}>
-              <View style={styles.secretHeader}>
-                <View style={styles.secretTitleWrap}>
-                  <Text style={styles.secretLabel}>{item.label}</Text>
-                  <Text style={styles.secretDesc}>{item.description}</Text>
+      {unlocked && (
+        <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
+          {items.length === 0 && <Text style={styles.emptyText}>No exportable keys found on this device.</Text>}
+          {items.map((item) => {
+            const isRevealed = !!revealed[item.id]
+            return (
+              <View key={item.id}>
+                <SectionLabel title={item.label} />
+                <Text style={styles.desc}>{item.description}</Text>
+                <PressableScale
+                  style={styles.secretBox}
+                  onPress={isRevealed ? () => handleCopy(item) : () => confirmReveal(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={isRevealed ? `Copy ${item.label}` : `Reveal ${item.label}`}
+                >
+                  {item.kind === 'phrase' ? (
+                    <View style={styles.phraseGrid}>
+                      {item.value.trim().split(/\s+/).map((word, i) => (
+                        <View key={i} style={styles.phraseCell}>
+                          <Text style={styles.phraseIndex}>{i + 1}</Text>
+                          <Text style={[styles.phraseWord, !isRevealed && styles.masked]} numberOfLines={1}>{isRevealed ? word : '••••'}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    splitKey(item.value).map((line, i) => (
+                      <Text key={i} style={[styles.keyLine, !isRevealed && styles.masked]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                        {isRevealed ? line : '•'.repeat(line.length)}
+                      </Text>
+                    ))
+                  )}
+                  {!isRevealed && <Text style={styles.tapHint}>Tap to reveal</Text>}
+                  {isRevealed && <Text style={styles.tapHint}>Tap to copy</Text>}
+                </PressableScale>
+                <View style={styles.rowActions}>
+                  <TextAction label={isRevealed ? 'Hide' : 'Reveal'} onPress={() => confirmReveal(item)} center={false} />
+                  <TextAction label="Copy" onPress={() => handleCopy(item)} center={false} />
                 </View>
               </View>
+            )
+          })}
+        </ScrollView>
+      )}
 
-              <View style={[styles.secretBox, item.kind === 'phrase' && styles.secretBoxPhrase]}>
-                <Text
-                  style={[styles.secretValue, !isRevealed && styles.secretMasked]}
-                  selectable={isRevealed}
-                >
-                  {isRevealed ? item.value : maskValue(item.value, item.kind)}
-                </Text>
-              </View>
-
-              <View style={styles.secretActions}>
-                <PressableScale
-                  style={styles.secretAction}
-                  onPress={() => confirmReveal(item)}
-                  accessibilityRole="button"
-                  accessibilityLabel={isRevealed ? `Hide ${item.label}` : `Reveal ${item.label}`}
-                >
-                  <Ionicons name={isRevealed ? 'eye-off-outline' : 'eye-outline'} size={16} color={Colors.gold} />
-                  <Text style={styles.secretActionLabel}>{isRevealed ? 'Hide' : 'Reveal'}</Text>
-                </PressableScale>
-
-                <PressableScale
-                  style={styles.secretAction}
-                  onPress={() => handleCopy(item)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Copy ${item.label}`}
-                >
-                  <Ionicons name="copy-outline" size={16} color={Colors.gold} />
-                  <Text style={styles.secretActionLabel}>Copy</Text>
-                </PressableScale>
-              </View>
-            </View>
-          )
-        })}
-      </ScrollView>
-
-      <Toast
-        visible={toast.visible}
-        type={toast.type}
-        title={toast.title}
-        message={toast.message}
-        onDismiss={() => setToast((prev) => ({ ...prev, visible: false }))}
-      />
+      <Toast visible={toast.visible} type={toast.type} title={toast.title} message={toast.message} onDismiss={() => setToast((prev) => ({ ...prev, visible: false }))} />
     </SafeAreaView>
   )
 }
 
-/** Human-readable message for a failed PIN verification. */
-function pinErrorMessage(result: { reason: string; retryAfterMs?: number }): string {
-  if (result.reason === 'locked') {
-    const secs = Math.ceil((result.retryAfterMs ?? 0) / 1000)
-    return secs > 0
-      ? `Too many attempts. Try again in ${secs}s.`
-      : 'Too many attempts. Try again shortly.'
-  }
-  if (result.reason === 'no-pin') return 'No PIN is set on this device.'
-  return 'Incorrect PIN'
-}
-
-/** Masked placeholder so the layout doesn't jump when revealing. */function maskValue(value: string, kind: 'phrase' | 'key'): string {
-  if (kind === 'phrase') {
-    return value
-      .trim()
-      .split(/\s+/)
-      .map(() => '••••')
-      .join('  ')
-  }
-  return '•'.repeat(Math.min(value.length, 56))
+/** Masked placeholder so the layout doesn't jump when revealing. */
+function splitKey(value: string): string[] {
+  const half = Math.ceil(value.length / 2)
+  return [value.slice(0, half), value.slice(half)].filter(Boolean)
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surfaceBg },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
-  },
-  headerTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.white },
-  spacer24: { width: 24 },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: Spacing.md },
-
-  warnCard: {
-    flexDirection: 'row', gap: Spacing.md,
-    backgroundColor: colorWithOpacity(Colors.danger, 0.08),
-    borderColor: colorWithOpacity(Colors.danger, 0.35), borderWidth: 1,
-    borderRadius: BorderRadius.lg, padding: Spacing.md, marginBottom: Spacing.lg,
-  },
-  warnTextWrap: { flex: 1 },
-  warnTitle: { fontSize: FontSize.sm, color: Colors.danger, fontWeight: FontWeight.bold, marginBottom: 4 },
-  warnBody: { fontSize: FontSize.xs, color: Colors.silver, lineHeight: 18 },
-
-  // Auth gate
-  gate: { alignItems: 'center', paddingVertical: Spacing.xl },
-  gateIcon: {
-    width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: colorWithOpacity(Colors.gold, 0.1),
-    borderWidth: 1, borderColor: colorWithOpacity(Colors.gold, 0.3),
-    marginBottom: Spacing.md,
-  },
-  gateTitle: { fontFamily: Fonts.display, fontSize: FontSize.lg, color: Colors.white },
-  gateBody: {
-    fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center',
-    marginTop: Spacing.sm, marginBottom: Spacing.lg, maxWidth: 300, lineHeight: 20,
-  },
-  primaryBtn: {
-    backgroundColor: Colors.gold, borderRadius: BorderRadius.md,
-    paddingVertical: Spacing.md, paddingHorizontal: Spacing.xl, minHeight: 52,
-    alignItems: 'center', justifyContent: 'center', minWidth: 200,
-  },
-  primaryBtnLabel: {
-    fontFamily: Fonts.display, fontSize: FontSize.md, color: Colors.onGold,
-    letterSpacing: 1, textTransform: 'uppercase',
-  },
-  pinInput: {
-    backgroundColor: Colors.midGrey, borderRadius: BorderRadius.md,
-    borderWidth: 1, borderColor: Colors.borderGrey,
-    color: Colors.white, fontSize: FontSize.lg, letterSpacing: 6, textAlign: 'center',
-    paddingVertical: Spacing.md, width: 220, marginBottom: Spacing.md,
-  },
-  pinError: { fontSize: FontSize.xs, color: Colors.danger, marginBottom: Spacing.md },
-
+  scrollContent: { paddingHorizontal: 20 },
+  gateWrap: { flex: 1 },
+  gate: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 20 },
+  gateTitle: { fontFamily: Fonts.display, fontSize: 22, color: Colors.cream, marginTop: 8 },
+  gateBody: { fontSize: FontSize.md - 1, color: Colors.mutedWhite, textAlign: 'center', lineHeight: 22, maxWidth: 300 },
+  pwInput: { alignSelf: 'stretch', height: 52, paddingHorizontal: Spacing.md, borderRadius: 14, backgroundColor: Colors.midGrey, color: Colors.white, fontSize: FontSize.md, marginTop: Spacing.sm },
+  pwError: { fontSize: FontSize.sm, color: Colors.danger },
+  warn: { flexDirection: 'row', gap: 10, marginHorizontal: 20, padding: 14, borderRadius: 12, backgroundColor: Colors.midGrey },
+  warnText: { flex: 1, fontSize: FontSize.sm - 1, color: Colors.silver, lineHeight: 19 },
+  footer: { paddingHorizontal: 20, paddingTop: Spacing.md, paddingBottom: Spacing.lg },
   emptyText: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', paddingVertical: Spacing.xl },
-
-  // Secret cards
-  secretCard: {
-    backgroundColor: Colors.cardBg, borderRadius: BorderRadius.lg,
-    borderWidth: 1, borderColor: Colors.borderGrey,
-    padding: Spacing.md, marginBottom: Spacing.md,
-  },
-  secretHeader: { marginBottom: Spacing.sm },
-  secretTitleWrap: { flex: 1 },
-  secretLabel: { fontFamily: Fonts.display, fontSize: FontSize.sm, color: Colors.cream },
-  secretDesc: { fontSize: FontSize.xs, color: Colors.mutedWhite, marginTop: 2, lineHeight: 16 },
-  secretBox: {
-    backgroundColor: Colors.midGrey, borderRadius: BorderRadius.md,
-    borderWidth: 1, borderColor: Colors.borderGrey,
-    padding: Spacing.md, marginBottom: Spacing.sm,
-  },
-  secretBoxPhrase: { minHeight: 76 },
-  secretValue: { fontFamily: Fonts.mono, fontSize: FontSize.sm, color: Colors.white, lineHeight: 22 },
-  secretMasked: { color: Colors.mutedWhite, letterSpacing: 1 },
-  secretActions: { flexDirection: 'row', gap: Spacing.sm },
-  secretAction: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.md, borderWidth: 1, borderColor: colorWithOpacity(Colors.gold, 0.35),
-    minHeight: 44,
-  },
-  secretActionLabel: { fontSize: FontSize.sm, color: Colors.gold, fontWeight: FontWeight.semibold },
+  desc: { fontSize: FontSize.xs, color: Colors.mutedWhite, marginBottom: Spacing.sm },
+  secretBox: { borderRadius: 12, backgroundColor: Colors.midGrey, padding: 14, minHeight: 76, justifyContent: 'center' },
+  phraseGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 10 },
+  // Two columns so 8-letter words never wrap or clip.
+  phraseCell: { width: '50%', flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingRight: Spacing.sm },
+  phraseIndex: { fontSize: FontSize.xs, color: Colors.mutedWhite, minWidth: 20, textAlign: 'right' },
+  phraseWord: { flexShrink: 1, fontFamily: Fonts.mono, fontSize: FontSize.sm + 1, color: Colors.white },
+  keyLine: { fontFamily: Fonts.mono, fontSize: FontSize.sm, color: Colors.white, lineHeight: 22, textAlign: 'center' },
+  masked: { color: Colors.mutedWhite, letterSpacing: 1 },
+  tapHint: { fontSize: FontSize.xs, color: Colors.mutedWhite, textAlign: 'center', marginTop: Spacing.sm },
+  rowActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.lg },
 })

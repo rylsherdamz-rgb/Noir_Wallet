@@ -1,0 +1,25 @@
+# Asset inventory (rendered from the "Noir Wallet Screens" design canvas, 1170px wide @3x)
+
+- noir-mark.png — Noir cat mark (gold/cream geometric cat head), transparent PNG. Brand moments only.
+- Splash.png — splash: cat mark, NOIR wordmark, "TAP INTO TRUST". 1170x2532.
+- Intro1.png / Intro2.png / Intro3.png — onboarding: keys / tap / in control.
+- Welcome.png — welcome screen with logo + create/import actions.
+- Lock.png — lock screen.
+- Dashboard.png — wallet home: 10,000.00 XLM balance, Send/Receive/Tap/Top up, assets list incl. "On your cards 40.00 XLM".
+- History.png — activity list.
+- SendAmount.png / SendReview.png — send flow amount keypad + review.
+- Tap.png — merchant "Tap to pay": 12 XLM, keypad, gold "Ready to tap" button.
+- ReceiveNfc.png — receive via NFC tap.
+- ModalProcessing.png — sending/processing overlay.
+- Receipt.png — "Sent 25.00 XLM" receipt (contains a [DATE, TIME] placeholder row — crop or avoid).
+- TxDetail.png — transaction details.
+- LinkIntro.png — link device intro.
+- LinkScan.png — "Hold your card to the phone", gold NFC rings.
+- LinkSign.png — sign & link sheet with the agent policy.
+- LinkSuccess.png — green check, "Card linked".
+- Agents.png — Agents tab: 75.00 in agents, 2 cards (Black card, Keychain tag).
+- AgentDetail.png — Black card agent: "Authorized on Stellar", 25.00 XLM tap balance, "Works until: You revoke it", red "Revoke card". 1170x3240 (tall).
+- AgentFund.png — top up agent amount keypad.
+- Cards.png — cards list.
+- ModalRevoke.png — "Revoke Black card?" red danger popup.
+- Main.png — design system board (colors, type, components) 3840x2532.

@@ -67,7 +67,6 @@ interface AppState {
   setIsScanning: (val: boolean) => void
   setNfcSupported: (val: boolean) => void
   setNetwork: (network: StellarNetwork) => void
-  setBiometricLockEnabled: (val: boolean) => void
   setBackgroundLockTimeoutSec: (sec: number) => void
   addPendingPayment: (payment: QueuedPayment) => void
   removePendingPayment: (id: string) => void
@@ -92,7 +91,6 @@ const initialState = {
   nfcSupported: false,
   network: stellarNetwork as StellarNetwork,
   security: {
-    biometricLockEnabled: false,
     backgroundLockTimeoutSec: 60,
   } as SecuritySettings,
   balanceStale: false,
@@ -141,10 +139,10 @@ export const useAppStore = create<AppState>()(
         // Contract IDs have to move with the RPC. Re-pointing only the RPC left
         // mainnet calling testnet contract addresses, which do not exist there.
         setActiveContractNetwork(network)
-        set({ network })
+        // Balance and history belong to the old network — clear them so the
+        // UI refetches instead of showing testnet data under a mainnet badge.
+        set((s) => (s.network === network ? { network } : { network, balance: { ...s.balance, xlm: 0 }, transactions: [] }))
       },
-      setBiometricLockEnabled: (val) =>
-        set((s) => ({ security: { ...s.security, biometricLockEnabled: val } })),
       setBackgroundLockTimeoutSec: (sec) =>
         set((s) => ({ security: { ...s.security, backgroundLockTimeoutSec: sec } })),
       addPendingPayment: (payment) =>

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { View, Text, StyleSheet, Modal, ScrollView, Platform } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
@@ -18,23 +18,19 @@ import { PressableScale } from '@/components/brand/PressableScale'
 import { Toast } from '@/components/Toast'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { logger } from '@/lib/logger'
+import { ScreenHeader } from '@/components/ScreenHeader'
+import { AmountText } from '@/screens/SendScreen'
 
 export function MerchantPosScreen() {
   const router = useRouter()
-  const { transactions, addTransaction, user, devices, addPendingPayment } = useAppStore()
+  const { addTransaction, user, devices, addPendingPayment } = useAppStore()
   const [amount, setAmount] = useState('')
   const [paymentState, setPaymentState] = useState<'idle' | 'processing'>('idle')
   const [agentMode, setAgentMode] = useState(false)
-  const [pinModalVisible, setPinModalVisible] = useState(false)
-  const [enteredPin, setEnteredPin] = useState('')
   const [lastError, setLastError] = useState<string | null>(null)
   const [toast, setToast] = useState<{ visible: boolean; type: 'success' | 'info'; title: string; message?: string }>({
     visible: false, type: 'success', title: '',
   })
-
-  // Amounts above this (in cents) require a card PIN — mirrors the backend
-  // threshold (100,000,000 stroops).
-  const PIN_REQUIRED_ABOVE_CENTS = 100_000
 
   const amountCents = Math.round(parseFloat(amount) * 100) || 0
   const isActive = amount !== '' && parseFloat(amount) > 0
@@ -45,12 +41,6 @@ export function MerchantPosScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
       }
       setLastError('Enter an amount greater than 0')
-      return
-    }
-
-    // Large amounts require a card PIN — collect it before tapping.
-    if (parseFloat(amount) > PIN_REQUIRED_ABOVE_CENTS && !enteredPin) {
-      setPinModalVisible(true)
       return
     }
 
@@ -116,7 +106,6 @@ export function MerchantPosScreen() {
           amountStroops,
           idempotencyKey: `${scanned.uid}-${Date.now()}`,
           memo: 'Noir tap',
-          pin: enteredPin || undefined,
         })
         if (pay.error) throw new Error(pay.error)
         txHash = pay.stellar_tx_hash || null
@@ -152,7 +141,6 @@ export function MerchantPosScreen() {
         // Reset after showing success
         setTimeout(() => {
           setAmount('')
-          setEnteredPin('')
           setAgentMode(false)
         }, 2000)
       }
@@ -181,111 +169,28 @@ export function MerchantPosScreen() {
         addPendingPayment(queued)
       }
     }
-  }, [amount, amountCents, user, addTransaction, devices, addPendingPayment, enteredPin])
-
-  const recentTxs = transactions
-    .filter((t) => t.merchantName === 'Tap Pay' || t.merchantName === 'NFC Receive')
-    .slice(0, 3)
+  }, [amount, amountCents, user, addTransaction, devices, addPendingPayment])
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <PressableScale
-          onPress={() => router.back()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.white} />
-        </PressableScale>
-        <Text style={styles.headerTitle} accessibilityRole="header">
-          Tap to Pay
-        </Text>
-        <View style={{ width: 24 }} />
+      <ScreenHeader title="Tap to pay" onBackPress={() => router.back()} />
+      <View style={styles.amountArea}>
+        <AmountText value={amount} />
+        <Text style={styles.hint}>Hold the payer’s card to the back of the phone</Text>
+        {lastError ? <ErrorMessage message={lastError} variant="inline" /> : null}
       </View>
-
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.amountSection}>
-          <Text style={styles.currency}>XLM</Text>
-          <Text style={styles.amountDisplay}>
-            {amount || '0'}
-            <Text style={styles.amountCursor}>|</Text>
-          </Text>
-          <Text style={styles.amountHint}>
-            Tap your NFC card against the reader to pay
-          </Text>
-        </View>
-
-        {lastError && <ErrorMessage message={lastError} variant="inline" />}
-
-        {recentTxs.length > 0 && (
-          <View style={styles.recentSection}>
-            <Text style={styles.recentTitle}>Recent</Text>
-            {recentTxs.map((tx) => (
-              <View
-                key={tx.id}
-                style={styles.recentRow}
-                accessibilityLabel={`${tx.merchantName}, ${(tx.amountCents / 100).toFixed(2)} XLM`}
-              >
-                <Text style={styles.recentName} numberOfLines={1}>{tx.merchantName}</Text>
-                <Text style={styles.recentAmount}>{(tx.amountCents / 100).toFixed(2)} XLM</Text>
-              </View>
-            ))}
-          </View>
-        )}
-      </ScrollView>
-
-      <View style={styles.bottom}>
-        <NumericKeypad value={amount} onChangeValue={setAmount} maxDigits={8} />
-        <View style={styles.actionRow}>
-          <Button
-            label={paymentState === 'processing' ? (agentMode ? 'Agent Signing...' : 'Processing...') : 'Tap to Pay'}
-            onPress={handleTap}
-            disabled={!isActive || paymentState === 'processing'}
-            loading={paymentState === 'processing'}
-            icon="radio"
-            accessibilityLabel="Tap NFC tag to process payment"
-          />
-        </View>
+      <NumericKeypad value={amount} onChangeValue={setAmount} maxDigits={8} />
+      <View style={styles.footer}>
+        <Button
+          label={paymentState === 'processing' ? (agentMode ? 'Agent signing…' : 'Processing…') : 'Ready to tap'}
+          onPress={handleTap}
+          disabled={!isActive || paymentState === 'processing'}
+          loading={paymentState === 'processing'}
+          icon="radio"
+          fullWidth
+          accessibilityLabel="Tap NFC card to take payment"
+        />
       </View>
-
-      {/* PIN Modal */}
-      <Modal
-        visible={pinModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPinModalVisible(false)}
-      >
-        <View style={styles.pinOverlay}>
-          <View style={styles.pinCard}>
-            <Text style={styles.pinTitle}>Enter Card PIN</Text>
-            <Text style={styles.pinSub}>
-              Required for amounts over {PIN_REQUIRED_ABOVE_CENTS.toLocaleString()} XLM (4-digit card PIN)
-            </Text>
-            <Text style={styles.pinDots}>{'•'.repeat(enteredPin.length) || '—'}</Text>
-            <NumericKeypad value={enteredPin} onChangeValue={setEnteredPin} maxDigits={6} />
-            <View style={styles.pinActions}>
-              <PressableScale
-                style={styles.pinCancel}
-                onPress={() => { setPinModalVisible(false); setEnteredPin('') }}
-                accessibilityRole="button"
-                accessibilityLabel="Cancel PIN entry"
-              >
-                <Text style={styles.pinCancelText}>Cancel</Text>
-              </PressableScale>
-              <PressableScale
-                style={[styles.pinConfirm, enteredPin.length < 4 && styles.pinDisabled]}
-                disabled={enteredPin.length < 4}
-                onPress={() => { setPinModalVisible(false); handleTap() }}
-                accessibilityRole="button"
-                accessibilityLabel="Confirm PIN and tap"
-              >
-                <Text style={styles.pinConfirmText}>Confirm & Tap</Text>
-              </PressableScale>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       <Toast
         visible={toast.visible}
@@ -300,63 +205,7 @@ export function MerchantPosScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surfaceBg },
-
-  // ── Header ────────────────────────────────────────────────────
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
-  },
-  headerTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.white },
-
-  // ── Amount ────────────────────────────────────────────────────
-  scrollContent: { paddingHorizontal: Spacing.md },
-  amountSection: { alignItems: 'center', paddingVertical: Spacing.xl },
-  currency: { fontSize: FontSize.md, color: Colors.mutedWhite, fontWeight: FontWeight.semibold },
-  amountDisplay: { fontSize: FontSize.hero, fontWeight: FontWeight.heavy, color: Colors.white, letterSpacing: -1, marginTop: Spacing.sm },
-  amountCursor: { color: Colors.gold },
-  amountHint: { fontSize: FontSize.sm, color: Colors.mutedWhite, marginTop: Spacing.sm, textAlign: 'center' },
-
-  // ── Recent Transactions ───────────────────────────────────────
-  recentSection: { marginTop: Spacing.lg },
-  recentTitle: {
-    fontSize: FontSize.xs, color: Colors.mutedWhite, fontWeight: FontWeight.medium,
-    marginBottom: Spacing.sm, textTransform: 'uppercase', letterSpacing: 1,
-  },
-  recentRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.borderGrey,
-  },
-  recentName: { fontSize: FontSize.sm, color: Colors.white, flex: 1, marginRight: Spacing.md },
-  recentAmount: { fontSize: FontSize.sm, color: Colors.gold, fontWeight: FontWeight.semibold },
-
-  // ── Bottom (keypad + CTA) ─────────────────────────────────────
-  bottom: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.md },
-  actionRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
-
-  // ── PIN Modal ─────────────────────────────────────────────────
-  pinOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  pinCard: {
-    backgroundColor: Colors.surfaceBg,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.xl,
-    alignItems: 'center',
-  },
-  pinTitle: { fontSize: FontSize.xl, color: Colors.white, fontWeight: FontWeight.bold },
-  pinSub: { fontSize: FontSize.sm, color: Colors.mutedWhite, marginTop: Spacing.xs, marginBottom: Spacing.md, textAlign: 'center' },
-  pinDots: { fontSize: FontSize.xl, color: Colors.gold, letterSpacing: 6, marginBottom: Spacing.md, minHeight: 28 },
-  pinActions: { flexDirection: 'row', gap: Spacing.md, width: '100%', marginTop: Spacing.md },
-  pinCancel: {
-    flex: 1, paddingVertical: Spacing.md, borderRadius: BorderRadius.md,
-    borderWidth: 1, borderColor: Colors.borderGrey, alignItems: 'center',
-  },
-  pinCancelText: { fontSize: FontSize.md, color: Colors.mutedWhite, fontWeight: FontWeight.semibold },
-  pinConfirm: {
-    flex: 2, paddingVertical: Spacing.md, borderRadius: BorderRadius.md,
-    backgroundColor: Colors.gold, alignItems: 'center',
-  },
-  pinConfirmText: { fontSize: FontSize.md, color: Colors.black, fontWeight: FontWeight.bold },
-  pinDisabled: { backgroundColor: Colors.lightGrey },
+  amountArea: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 20 },
+  hint: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center' },
+  footer: { paddingHorizontal: 20, paddingTop: Spacing.sm, paddingBottom: Spacing.lg },
 })

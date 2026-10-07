@@ -50,6 +50,12 @@ export const DesignTokens = {
       info: '#4A90E2',        // Information states
     },
     
+    // Network colours — only ever used in the network chip/menu, never on CTAs
+    network: {
+      testnet: '#7C93B5',     // cool steel: test money
+      mainnet: '#3ED598',     // green: real money
+    },
+
     // Special Colors
     special: {
       overlay: 'rgba(0, 0, 0, 0.6)',

@@ -171,6 +171,10 @@ export class StellarService {
       isTestnet ? 'https://soroban-testnet.stellar.org' : 'https://soroban.stellar.org',
     ) as rpc.Server
     this.networkPassphrase = isTestnet ? Networks.TESTNET : Networks.PUBLIC
+    // Caches are keyed by address only; the same address has a different
+    // balance on each network, so drop them or the old network's numbers stick.
+    this.existsCache = makeCache<boolean>()
+    this.balanceCache = makeCache<BalanceResult>()
     logger.debug(`[StellarService] network switched to ${this.network}`)
   }
 

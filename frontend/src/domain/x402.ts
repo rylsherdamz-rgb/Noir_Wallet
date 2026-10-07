@@ -79,6 +79,13 @@ export interface AgentPolicyInput {
  * Mirrors register_agent's own validation so the user never signs a tx that
  * is guaranteed to fail with InvalidPolicy.
  */
+/**
+ * Default agent policy applied when a card is linked: a per-payment cap of
+ * 100,000 XLM and no expiry — the agent works until the card is revoked.
+ * Not shown in the link flow (it's on by default).
+ */
+export const DEFAULT_AGENT_CAP_XLM = 100_000
+
 export function buildAgentPolicy(opts: {
   maxAmountXlm?: number
   expiryDays?: number
@@ -93,6 +100,43 @@ export function buildAgentPolicy(opts: {
     maxAmountStroops: BigInt(Math.round(max * 10_000_000)),
     expiresAt: days === 0 ? 0n : BigInt(now + Math.round(days * 86_400)),
   }
+}
+
+// The policy chosen at provisioning is kept per device so an automatic
+// re-registration (e.g. after a contract redeploy) restores the user's own
+// limits instead of silently widening them to "uncapped, never expires".
+const policyKey = (deviceHashHex: string) => `x402.policy.${deviceHashHex}`
+
+async function savePolicy(deviceHashHex: string, policy: AgentPolicyInput): Promise<void> {
+  await SecureStore.setItemAsync(policyKey(deviceHashHex), JSON.stringify({
+    maxAmountStroops: policy.maxAmountStroops.toString(),
+    expiresAt: policy.expiresAt.toString(),
+  }))
+}
+
+async function loadSavedPolicy(deviceHashHex: string): Promise<AgentPolicyInput | null> {
+  const raw = await SecureStore.getItemAsync(policyKey(deviceHashHex))
+  if (!raw) return null
+  try {
+    const p = JSON.parse(raw)
+    return { maxAmountStroops: BigInt(p.maxAmountStroops), expiresAt: BigInt(p.expiresAt) }
+  } catch {
+    return null
+  }
+}
+
+/** Where a device's agent stands on agent_registry, relative to the local agent key. */
+export type AgentChainStatus =
+  | 'active'      // registered for this agent key and not expired
+  | 'missing'     // no policy on-chain (never registered, revoked, or contracts redeployed)
+  | 'expired'     // registered for this agent key but past expires_at
+  | 'mismatch'    // registered for a different agent key
+
+export interface AgentSyncResult {
+  deviceUidHash: string
+  before: AgentChainStatus | 'unknown'
+  outcome: 'ok' | 'registered' | 'skipped' | 'failed'
+  reason?: string
 }
 
 /** On-chain AgentPolicy as read back from agent_registry.get_policy. */
@@ -707,8 +751,13 @@ export const x402 = {
     // surfaces as `sendTransaction status=ERROR, errorResultXdr=undefined`.
     void registerSubmitted
 
+    // Remember an explicitly chosen policy so later automatic re-registration
+    // reuses it; without one, fall back to what was saved at provisioning.
+    if (params.policy) await savePolicy(params.deviceHashHex, params.policy)
+
     if (!agentRegistered) {
-      const { maxAmountStroops, expiresAt } = params.policy ?? { maxAmountStroops: 0n, expiresAt: 0n }
+      const policy = params.policy ?? (await loadSavedPolicy(params.deviceHashHex))
+      const { maxAmountStroops, expiresAt } = policy ?? { maxAmountStroops: 0n, expiresAt: 0n }
       try {
         await stellarService.invokeContract({
           contractId: contractIdAgent,
@@ -721,6 +770,81 @@ export const x402 = {
         if (!agentAlreadyRegistered(e)) throw e
       }
     }
+  },
+
+  /** Read agent_registry for one device and classify it against the local agent key. */
+  async getAgentChainStatus(deviceHashHex: string, agentPublicKey: string, source: string): Promise<AgentChainStatus> {
+    const policy = await this.getAgentPolicy(deviceHashHex, source)
+    if (!policy) return 'missing'
+    if (policy.agent !== agentPublicKey) return 'mismatch'
+    const now = BigInt(Math.floor(Date.now() / 1000))
+    if (policy.expiresAt !== 0n && now > policy.expiresAt) return 'expired'
+    return 'active'
+  },
+
+  /**
+   * Make sure every linked device has its agent registered on agent_registry,
+   * registering any that are missing (e.g. after a contract redeploy, or a
+   * provisioning run that stopped between `register` and `register_agent`).
+   *
+   * Only a *missing* registration is repaired, and only for a device this
+   * wallet still owns and has not revoked. Expired or mismatched agents are
+   * reported, never overwritten — replacing a live policy is the user's call.
+   * Devices are processed one at a time because each write uses the wallet's
+   * account sequence.
+   */
+  async syncAgentRegistrations(params: {
+    walletSecret: string
+    devices: { deviceUidHash: string; agentPublicKey?: string }[]
+  }): Promise<AgentSyncResult[]> {
+    const pub = Keypair.fromSecret(params.walletSecret).publicKey()
+    const results: AgentSyncResult[] = []
+
+    for (const d of params.devices) {
+      const hash = d.deviceUidHash
+      if (!d.agentPublicKey) {
+        results.push({ deviceUidHash: hash, before: 'unknown', outcome: 'skipped', reason: 'no local agent key' })
+        continue
+      }
+      let before: AgentChainStatus
+      try {
+        before = await this.getAgentChainStatus(hash, d.agentPublicKey, pub)
+      } catch (e: any) {
+        results.push({ deviceUidHash: hash, before: 'unknown', outcome: 'failed', reason: e?.message })
+        continue
+      }
+      if (before !== 'missing') {
+        results.push({ deviceUidHash: hash, before, outcome: before === 'active' ? 'ok' : 'skipped' })
+        continue
+      }
+
+      try {
+        // A device absent from device_registry may have been unlinked on another
+        // phone — re-linking it is a user action, not something to do silently.
+        const ownership = await this.getDeviceOwnership(hash, pub)
+        if (ownership.status !== 'mine' || !ownership.active) {
+          const why = ownership.status === 'free' ? 'device not registered on-chain'
+            : ownership.status === 'other' ? 'device owned by another wallet' : 'device revoked'
+          results.push({ deviceUidHash: hash, before, outcome: 'skipped', reason: why })
+          continue
+        }
+        const saved = await loadSavedPolicy(hash)
+        if (saved && saved.expiresAt !== 0n && BigInt(Math.floor(Date.now() / 1000)) >= saved.expiresAt) {
+          // Re-registering would be rejected as InvalidPolicy; the user must pick a new expiry.
+          results.push({ deviceUidHash: hash, before, outcome: 'skipped', reason: 'saved policy has expired' })
+          continue
+        }
+        await this.registerDeviceAndAgentOnChain({
+          walletSecret: params.walletSecret,
+          deviceHashHex: hash,
+          agentPublicKey: d.agentPublicKey,
+        })
+        results.push({ deviceUidHash: hash, before, outcome: 'registered' })
+      } catch (e: any) {
+        results.push({ deviceUidHash: hash, before, outcome: 'failed', reason: e?.message })
+      }
+    }
+    return results
   },
 
   /**

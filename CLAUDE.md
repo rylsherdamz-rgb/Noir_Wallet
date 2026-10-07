@@ -50,11 +50,11 @@ Build order matters: `agent_registry` + `device_registry` WASM before `payment_e
 ## Current state (as of 2026-10-03)
 
 - **Deployed Testnet Contract IDs** (current — matches `frontend/.env`):
-  - device_registry: `CAVDDFFTS3FJZCVLDNOXTPLUYCYEEJGS7TGIOI5U6N4J4EIUFGMDETS5`
-  - agent_registry: `CCFR7FTYU5NAVNRHK5NCTFO22L3K4O4R43BVUK4XRE2WFUGDVTRTIXBG`
-  - payment_escrow: `CBMAP5SOZLGOHEFJX6NLBWJM73W5K6EDBVNDC33N62X2MFOT4RTP4MMO`
-  - Evidence: `deploy-evidence/deploy-testnet-20261003T053204Z.md`. WASM hashes are
-    byte-identical to the 2026-10-01 build (confirmed) — only the IDs/admin changed.
+  - device_registry: `CB4DPMGOA374JIB2ZVD4AHW5GJKQUYNOFGRYNOJ75EFH2KCJSMHOWIRA`
+  - agent_registry: `CBTDMJVCFQDIVWZBKAKZ2FQ3UEJNAAUFYCTJ3E4ON2MYXPLPSIXQ25JZ`
+  - payment_escrow: `CA5S4S7QGHJHJWVJBYL3CXZXZTNGKXMNZVDAEQNN7NUXFP4D7BYK7HIX`
+  - Evidence: `deploy-evidence/deploy-testnet-20261007T050558Z.md` (redeployed
+    2026-10-07; WASM SHA-256 hashes listed there). Deployer/admin unchanged.
   - **Every redeploy mints brand-new IDs** (clean slate, not an upgrade). After any
     redeploy, grep the repo for the old IDs and propagate the new ones everywhere
     (README, `frontend/.env` + `.env.example`, `docs/stellar-development-guide.md`,
@@ -75,7 +75,7 @@ Build order matters: `agent_registry` + `device_registry` WASM before `payment_e
 
 | # | Deliverable | Status |
 |---|-------------|--------|
-| 1 | Soroban contracts (device/agent/escrow registry) | 🟡 Week 1–2 core logic + tests done; redeployed 2026-10-03 |
+| 1 | Soroban contracts (device/agent/escrow registry) | 🟡 Week 1–2 core logic + tests done; redeployed 2026-10-07 |
 | 2 | React Native wallet (Android) | 🟡 register+associate+auth working on Testnet; agent-policy UI, escrow fund/withdraw, safe unlink wired + unit-tested (2026-10-07), Testnet + on-device run pending |
 | 3 | Docs & MIT release | 🟡 architecture.md, AI build guide, dev guide, evidence pack started; not finalized |
 

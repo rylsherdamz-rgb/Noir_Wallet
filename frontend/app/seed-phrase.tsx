@@ -19,12 +19,13 @@ export default function SeedPhraseRoute() {
       displayName: 'My Wallet',
     })
     
-    const funded = await stellarService.fundAccount(keys.stellarPublic)
-    
-    if (!funded) {
-      logger.warn('Account funding failed — will retry on dashboard')
-    }
-    
+    // Fund in the background: the next screens don't need the network, and a
+    // slow or missing connection must never hold the user on this button.
+    // If it fails, the Wallet tab offers "Get free test XLM" (Testnet only).
+    stellarService.fundAccount(keys.stellarPublic)
+      .then((funded) => { if (!funded) logger.warn('Account funding failed — Wallet tab will offer it again') })
+      .catch((e) => logger.warn('Account funding error:', e?.message))
+
     router.replace('/seed-verify')
   }
 

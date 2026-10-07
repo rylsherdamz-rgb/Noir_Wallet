@@ -2,6 +2,14 @@
 
 Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before writing any code.
 
+# Design system
+
+All UI follows `DESIGN.md` (wallet-app conventions, logo rules, tokens, shared
+components in `components/ui`, `components/popup`, `components/brand`). The
+"Noir Wallet Screens" design canvas is the visual reference — update it with
+every UI change. Never hand-roll buttons, headers, lists, popups or loaders,
+and never use `Alert.alert`.
+
 # Stellar Service (`src/services/stellar-service.ts`)
 
 Unified Stellar/Soroban service used by both the app and the CLI.

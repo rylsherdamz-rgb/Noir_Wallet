@@ -9,11 +9,17 @@ export default function ImportWalletRoute() {
   const router = useRouter()
   const { setUser, setIsOnboarded, isOnboarded } = useAppStore()
 
+  // Fund in the background (Testnet only; an imported wallet is usually funded
+  // already). Never hold the user on the button waiting for the network.
+  const fundInBackground = (pub: string) =>
+    stellarService.fundAccount(pub)
+      .then((funded) => { if (!funded) logger.warn('Account funding skipped/failed — Wallet tab will offer it') })
+      .catch((e) => logger.warn('Account funding error:', e?.message))
+
   const handleComplete = async (keys: WalletKeys) => {
     // Already onboarded — just adding another wallet. Go back.
     if (isOnboarded) {
-      const funded = await stellarService.fundAccount(keys.stellarPublic)
-      if (!funded) logger.warn('Account funding failed for additional wallet')
+      fundInBackground(keys.stellarPublic)
       router.back()
       return
     }
@@ -28,14 +34,10 @@ export default function ImportWalletRoute() {
     })
     setIsOnboarded(true)
 
-    const funded = await stellarService.fundAccount(keys.stellarPublic)
-    if (!funded) logger.warn('Account funding failed — will retry on dashboard')
+    fundInBackground(keys.stellarPublic)
 
-    // A freshly imported wallet has no PIN yet on this device. Route through
-    // the lock screen's setup mode so a PIN is mandatory before the wallet
-    // is reachable — biometrics is an optional layer on top, never a
-    // replacement for it.
-    router.replace('/lock')
+    // Name + backup password before the wallet is reachable on this device.
+    router.replace('/setup-profile')
   }
 
   return <ImportWalletScreen onComplete={handleComplete} onBack={() => router.back()} />

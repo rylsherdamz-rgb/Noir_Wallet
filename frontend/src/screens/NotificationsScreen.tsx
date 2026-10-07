@@ -9,6 +9,9 @@ import { colorWithOpacity } from '@/constants/designTokens'
 import { EmptyState } from '@/components/EmptyState'
 import { Notification } from '@/types'
 import { apiService } from '@/services/api'
+import { ScreenHeader } from '@/components/ScreenHeader'
+import { ListRow } from '@/components/ui/List'
+import { VerifyingPulse } from '@/components/brand/VerifyingPulse'
 
 const TYPE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   transaction: 'swap-horizontal',
@@ -18,8 +21,8 @@ const TYPE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  transaction: Colors.gold,
-  security: Colors.danger,
+  transaction: Colors.silver,
+  security: Colors.warning,
   system: Colors.mutedWhite,
   promo: Colors.gold,
 }
@@ -69,178 +72,57 @@ export function NotificationsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.white} />
-        </PressableScale>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Notifications</Text>
-          {unreadCount > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeLabel}>{unreadCount}</Text>
-            </View>
-          )}
-        </View>
-        {unreadCount > 0 && (
-          <PressableScale
-            onPress={markAllRead}
-            accessibilityRole="button"
-            accessibilityLabel="Mark all read"
-          >
-            <Text style={styles.markAllText}>Mark All Read</Text>
+      <ScreenHeader
+        title="Notifications"
+        onBackPress={() => router.back()}
+        rightAction={unreadCount > 0 ? (
+          <PressableScale onPress={markAllRead} hitSlop={10} accessibilityRole="button" accessibilityLabel="Mark all read">
+            <Text style={styles.readAll}>Read all</Text>
           </PressableScale>
-        )}
-      </View>
-
+        ) : undefined}
+      />
       {loading ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color={Colors.gold} />
-        </View>
+        <View style={styles.loading}><VerifyingPulse size={120} /></View>
       ) : (
         <FlatList
           data={notifications}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <NotificationRow item={item} onPress={() => markRead(item.id)} />
-          )}
+          renderItem={({ item, index }) => <NotificationRow item={item} last={index === notifications.length - 1} onPress={() => markRead(item.id)} />}
           contentContainerStyle={styles.listContent}
-          ListEmptyComponent={
-            <EmptyState icon="notifications-off-outline" title="No Notifications" description="You're all caught up!" />
-          }
+          ListEmptyComponent={<EmptyState icon="notifications-off-outline" title="You’re all caught up" description="Payments and card alerts show up here." />}
         />
       )}
     </SafeAreaView>
   )
 }
 
-const NotificationRow = memo(function NotificationRow({
-  item,
-  onPress,
-}: {
-  item: Notification
-  onPress: () => void
-}) {
+const NotificationRow = memo(function NotificationRow({ item, onPress, last }: { item: Notification; onPress: () => void; last?: boolean }) {
   return (
-    <PressableScale
-      style={[styles.notifRow, !item.read && styles.notifUnread]}
-      onPress={onPress}
-    >
-      <View style={[styles.notifIcon, { backgroundColor: colorWithOpacity(TYPE_COLORS[item.type], 0.1) }]}>
-        <Ionicons name={TYPE_ICONS[item.type]} size={20} color={TYPE_COLORS[item.type]} />
-      </View>
-      <View style={styles.notifContent}>
-        <View style={styles.notifHeader}>
-          <Text style={styles.notifTitle} numberOfLines={1}>{item.title}</Text>
-          {!item.read && <View style={styles.unreadDot} />}
+    <ListRow
+      icon={TYPE_ICONS[item.type]}
+      iconColor={TYPE_COLORS[item.type]}
+      title={item.title}
+      subtitle={item.body}
+      right={
+        <View style={styles.right}>
+          <Text style={styles.time}>{timeAgo(item.createdAt)}</Text>
+          {!item.read && <View style={styles.unreadDot} accessibilityLabel="Unread" />}
         </View>
-        <Text style={styles.notifBody} numberOfLines={2}>{item.body}</Text>
-        <Text style={styles.notifTime}>
-          {timeAgo(item.createdAt)}
-        </Text>
-      </View>
-    </PressableScale>
+      }
+      last={last}
+      onPress={onPress}
+      style={!item.read ? styles.unread : undefined}
+    />
   )
 })
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.surfaceBg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-  },
-  headerCenter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  headerTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-  },
-  badge: {
-    backgroundColor: Colors.danger,
-    borderRadius: BorderRadius.full,
-    paddingHorizontal: Spacing.sm,
-    minWidth: 22,
-    height: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeLabel: {
-    fontSize: FontSize.xs,
-    color: Colors.white,
-    fontWeight: FontWeight.bold,
-  },
-  markAllText: {
-    fontSize: FontSize.sm,
-    color: Colors.gold,
-    fontWeight: FontWeight.medium,
-  },
-  listContent: {
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.xxl,
-  },
-  notifRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    padding: Spacing.md,
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  notifUnread: {
-    borderColor: colorWithOpacity(Colors.gold, 0.25),
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.gold,
-    backgroundColor: colorWithOpacity(Colors.gold, 0.05),
-  },
-  notifIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  notifContent: {
-    flex: 1,
-  },
-  notifHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  notifTitle: {
-    flex: 1,
-    fontSize: FontSize.sm,
-    color: Colors.white,
-    fontWeight: FontWeight.semibold,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.gold,
-  },
-  notifBody: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    lineHeight: 16,
-    marginTop: 2,
-  },
-  notifTime: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    marginTop: Spacing.xs,
-  },
+  container: { flex: 1, backgroundColor: Colors.surfaceBg },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  listContent: { paddingHorizontal: 20, paddingBottom: Spacing.xxl, flexGrow: 1 },
+  readAll: { fontSize: FontSize.sm - 1, color: Colors.gold, fontWeight: FontWeight.medium },
+  right: { alignItems: 'flex-end', gap: 6 },
+  time: { fontSize: FontSize.xs, color: Colors.mutedWhite },
+  unreadDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: Colors.gold },
+  unread: {},
 })
