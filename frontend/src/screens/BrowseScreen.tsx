@@ -22,6 +22,8 @@ import { dappConnections } from '@/services/dappConnections'
 import { signForDapp } from '@/services/dappSigner'
 import { authenticateWithDevice } from '@/services/biometrics'
 import { logger } from '@/lib/logger'
+import { ErrorState } from '@/components/ui/ErrorState'
+import { VerifyingPulse } from '@/components/brand/VerifyingPulse'
 
 // react-native-webview 14 intersects its iOS/Android/Windows prop types, which
 // collapse to `never` under our TS config. The component is fine at runtime;
@@ -32,6 +34,13 @@ interface BrowserWebViewProps {
   onNavigationStateChange?: (e: WebViewNavigation) => void
   onLoadProgress?: (e: { nativeEvent: { progress: number } }) => void
   onMessage?: (e: { nativeEvent: { data: string; url: string } }) => void
+  onLoadStart?: () => void
+  onLoadEnd?: () => void
+  onError?: (e: { nativeEvent: { description?: string; code?: number } }) => void
+  domStorageEnabled?: boolean
+  javaScriptEnabled?: boolean
+  thirdPartyCookiesEnabled?: boolean
+  mediaPlaybackRequiresUserAction?: boolean
   injectedJavaScriptBeforeContentLoaded?: string
   injectedJavaScriptBeforeContentLoadedForMainFrameOnly?: boolean
   setSupportMultipleWindows?: boolean
@@ -39,7 +48,7 @@ interface BrowserWebViewProps {
   originWhitelist?: string[]
   ref?: React.Ref<WebViewHandle>
 }
-interface WebViewHandle { goBack(): void; goForward(): void; reload(): void; injectJavaScript(js: string): void }
+interface WebViewHandle { goBack(): void; goForward(): void; reload(): void; stopLoading(): void; injectJavaScript(js: string): void }
 const WebView = RNWebView as unknown as ComponentType<BrowserWebViewProps>
 
 const RECENT_KEY = 'browser_recent'
@@ -176,6 +185,23 @@ function BrowserView({ url, onClose, onVisited, testnet }: { url: string; onClos
   const web = useRef<WebViewHandle>(null)
   const [nav, setNav] = useState<{ url: string; title: string; back: boolean; fwd: boolean }>({ url, title: '', back: false, fwd: false })
   const [progress, setProgress] = useState(0)
+  // What the WebView loads. Changes when the user submits the address bar.
+  const [src, setSrc] = useState(url)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+
+  const go = () => {
+    const next = toBrowserUrl(draft)
+    setEditing(false)
+    if (!next) return
+    setLoadError(null)
+    if (next === src) web.current?.reload()
+    else setSrc(next)
+  }
+
+  const retry = () => { setLoadError(null); web.current?.reload() }
 
   // ── dApp bridge (window.noir) ──
   const address = useAppStore((s) => s.user?.stellarPublicKey ?? null)
@@ -293,16 +319,34 @@ function BrowserView({ url, onClose, onVisited, testnet }: { url: string; onClos
         <PressableScale style={styles.tool} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close browser">
           <Ionicons name="close" size={24} color={Colors.white} />
         </PressableScale>
-        <View style={styles.urlPill} accessibilityLabel={`Address ${nav.url}${siteConnected ? ', connected to your wallet' : ''}`}>
-          {siteConnected && <View style={styles.connectedDot} />}
-          <Ionicons name={nav.url.startsWith('https://') ? 'lock-closed' : 'warning-outline'} size={12} color={nav.url.startsWith('https://') ? Colors.mutedWhite : Colors.warning} />
-          <Text style={styles.urlText} numberOfLines={1}>{host(nav.url)}</Text>
+        <View style={[styles.urlPill, editing && styles.urlPillEditing]}>
+          {!editing && siteConnected && <View style={styles.connectedDot} />}
+          {!editing && (loading
+            ? <VerifyingPulse size={14} />
+            : <Ionicons name={nav.url.startsWith('https://') ? 'lock-closed' : 'warning-outline'} size={12} color={nav.url.startsWith('https://') ? Colors.mutedWhite : Colors.warning} />)}
+          <TextInput
+            style={[styles.urlText, styles.urlInput, editing && styles.urlInputEditing]}
+            value={editing ? draft : host(nav.url)}
+            onChangeText={setDraft}
+            onFocus={() => { setDraft(nav.url); setEditing(true) }}
+            onBlur={() => setEditing(false)}
+            onSubmitEditing={go}
+            selectTextOnFocus
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            returnKeyType="go"
+            placeholder="Search or enter address"
+            placeholderTextColor={Colors.mutedWhite}
+            numberOfLines={1}
+            accessibilityLabel={`Address ${nav.url}${siteConnected ? ', connected to your wallet' : ''}. Edit to go somewhere else`}
+          />
         </View>
         <PressableScale style={styles.tool} onPress={() => Linking.openURL(nav.url)} accessibilityRole="button" accessibilityLabel="Open in your browser">
           <Ionicons name="open-outline" size={20} color={Colors.white} />
         </PressableScale>
       </View>
-      <View style={styles.progressTrack}>{progress < 1 && <View style={[styles.progressFill, { width: `${Math.max(8, progress * 100)}%` }]} />}</View>
+      <View style={styles.progressTrack}>{loading && <View style={[styles.progressFill, { width: `${Math.max(8, progress * 100)}%` }]} />}</View>
       {testnet && (
         <View style={styles.netStrip}>
           <View style={styles.netDot} />
@@ -310,12 +354,20 @@ function BrowserView({ url, onClose, onVisited, testnet }: { url: string; onClos
         </View>
       )}
 
+      <View style={styles.web}>
       <WebView
         ref={web}
-        source={{ uri: url }}
+        source={{ uri: src }}
         style={styles.web}
         onNavigationStateChange={onNav}
+        onLoadStart={() => { setLoading(true); setProgress(0) }}
+        onLoadEnd={() => setLoading(false)}
+        onError={(e) => { setLoading(false); setLoadError(e.nativeEvent.description ?? 'The page didn’t respond') }}
         onLoadProgress={(e: { nativeEvent: { progress: number } }) => setProgress(e.nativeEvent.progress)}
+        javaScriptEnabled
+        domStorageEnabled
+        thirdPartyCookiesEnabled
+        mediaPlaybackRequiresUserAction
         onMessage={onMessage}
         injectedJavaScriptBeforeContentLoaded={providerJs}
         injectedJavaScriptBeforeContentLoadedForMainFrameOnly
@@ -323,11 +375,33 @@ function BrowserView({ url, onClose, onVisited, testnet }: { url: string; onClos
         allowsBackForwardNavigationGestures
         originWhitelist={['https://*']}
       />
+      {/* First paint: the page is still blank, so show the loader over it. */}
+      {loading && progress < 0.3 && !loadError && (
+        <View style={styles.loadingCover} pointerEvents="none">
+          <VerifyingPulse size={96} />
+          <Text style={styles.loadingText}>Loading {host(src)}…</Text>
+        </View>
+      )}
+      {loadError && (
+        <View style={styles.errorCover}>
+          <ErrorState
+            icon="cloud-offline-outline"
+            tone="neutral"
+            title="Couldn’t open this page"
+            message="Check your connection or the address, then try again."
+            details={loadError}
+            primary={{ label: 'Try again', icon: 'refresh', onPress: retry }}
+          />
+        </View>
+      )}
+      </View>
 
       <View style={styles.toolbar}>
         <Tool icon="chevron-back" label="Back" disabled={!nav.back} onPress={() => web.current?.goBack()} />
         <Tool icon="chevron-forward" label="Forward" disabled={!nav.fwd} onPress={() => web.current?.goForward()} />
-        <Tool icon="refresh" label="Reload" onPress={() => web.current?.reload()} />
+        {loading
+          ? <Tool icon="close" label="Stop loading" onPress={() => { web.current?.stopLoading(); setLoading(false) }} />
+          : <Tool icon="refresh" label="Reload" onPress={retry} />}
         <Tool icon="share-outline" label="Share" onPress={() => Share.share({ message: nav.url }).catch(() => {})} />
       </View>
 
@@ -419,6 +493,12 @@ const styles = StyleSheet.create({
   tool: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   dim: { opacity: 0.35 },
   urlPill: { flex: 1, height: 38, borderRadius: 12, backgroundColor: Colors.midGrey, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: Spacing.md },
+  urlPillEditing: { justifyContent: 'flex-start', borderWidth: 1, borderColor: Colors.gold },
+  urlInput: { flexShrink: 1, paddingVertical: 0, textAlign: 'center', minWidth: 60 },
+  urlInputEditing: { flex: 1, textAlign: 'left' },
+  loadingCover: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: Colors.surfaceBg, alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
+  loadingText: { color: Colors.mutedWhite, fontSize: FontSize.sm },
+  errorCover: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: Colors.surfaceBg },
   connectedDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.success },
   signBody: { gap: Spacing.md },
   ops: { borderRadius: 14, backgroundColor: Colors.midGrey, paddingHorizontal: Spacing.md },
@@ -429,8 +509,8 @@ const styles = StyleSheet.create({
   warn: { color: Colors.danger, fontSize: FontSize.sm - 1, lineHeight: 18, textAlign: 'center' },
   caution: { color: Colors.warning, fontSize: FontSize.sm - 1, lineHeight: 18, textAlign: 'center' },
   urlText: { color: Colors.white, fontSize: FontSize.sm, fontWeight: '500', flexShrink: 1 },
-  progressTrack: { height: 2, backgroundColor: Gradient.panel },
-  progressFill: { height: 2, backgroundColor: Colors.gold },
+  progressTrack: { height: 3, backgroundColor: Gradient.panel },
+  progressFill: { height: 3, backgroundColor: Colors.gold },
   netStrip: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: Spacing.md, paddingVertical: 6, backgroundColor: Colors.midGrey },
   netDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.testnet },
   netText: { color: Colors.silver, fontSize: FontSize.xs },
