@@ -23,7 +23,7 @@
       html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--ink); }
       #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: var(--ink); font-family: "Jost", sans-serif; }
 
-      .scene { position: absolute; inset: 0; overflow: hidden; background: var(--ink); }
+      .scene { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(ellipse 85% 75% at 50% 45%, #141312 0%, #0a0a0a 60%, #060606 100%); }
       .abs { position: absolute; }
       .h { font-family: "Jost", sans-serif; font-weight: 600; color: var(--cream); letter-spacing: -0.02em; line-height: 1.02; white-space: nowrap; }
       .gold { color: var(--gold); }
@@ -31,17 +31,28 @@
       .hint { color: var(--hint); }
       .word { display: inline-block; }
 
-      /* Shared phone shell — identical in every frame. 390:844 screen. */
+      /* Shared phone shell — identical in every frame. Dark metal frame, thin black
+         bezel, side buttons, faint glass sheen. Screen keeps the app's exact 390:844. */
       .phone {
-        position: absolute; width: 365px; height: 808px; border-radius: 50px;
-        background: var(--ink); border: 9px solid #1c1c1c; box-shadow: 0 0 0 2px #2c2c2c;
-        overflow: hidden;
+        position: absolute; width: 365px; height: 774px; border-radius: 60px;
+        background: linear-gradient(150deg, #66666b 0%, #242427 16%, #353538 48%, #18181a 80%, #4e4e52 100%);
+        box-shadow:
+          inset 0 0 0 1.5px rgba(255, 255, 255, 0.22),
+          inset 0 0 0 5px #0b0b0c,
+          0 70px 90px -45px rgba(0, 0, 0, 0.95),
+          0 25px 35px -25px rgba(0, 0, 0, 0.85);
       }
-      .phone::after { /* soft contact shadow, below only */
-        content: ""; position: absolute; left: 10%; right: 10%; bottom: -40px; height: 40px;
+      .phone .screen { position: absolute; inset: 8px; border-radius: 52px; overflow: hidden; background: #000; }
+      .phone .glare {
+        position: absolute; inset: 8px; border-radius: 52px; pointer-events: none;
+        background: linear-gradient(118deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.02) 28%, rgba(255, 255, 255, 0) 42%);
       }
-      .shadow { position: absolute; width: 300px; height: 40px; border-radius: 50%; background: rgba(0, 0, 0, 0.75); filter: blur(18px); }
-      .phone img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+      .phone .btn { position: absolute; width: 4px; border-radius: 2px; background: linear-gradient(90deg, #2a2a2c, #4a4a4d, #1c1c1e); }
+      .phone .btn.power { right: -3px; top: 200px; height: 92px; }
+      .phone .btn.vol1 { left: -3px; top: 165px; height: 58px; }
+      .phone .btn.vol2 { left: -3px; top: 238px; height: 58px; }
+      .shadow { position: absolute; width: 300px; height: 40px; border-radius: 50%; background: rgba(0, 0, 0, 0.8); filter: blur(22px); }
+      .phone .screen img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; }
       .phone .mask { position: absolute; left: 0; right: 0; bottom: 0; background: var(--ink); }
 
       /* Matte black NFC card, ISO 85.6:54 */
@@ -82,8 +93,8 @@
         <div id="f2-paid" class="h abs" style="left:200px; top:400px; font-size:130px;">Paid.</div>
         <div id="f2-settled" class="h gold abs" style="left:200px; top:550px; font-size:130px;">Settled.</div>
         <div id="f2-label" class="label abs" style="left:206px; top:720px;">On Stellar</div>
-        <div class="shadow" style="left:1112px; top:910px;"></div>
-        <div id="f2-phone" class="phone" style="left:1080px; top:136px;">
+        <div class="shadow" style="left:1112px; top:905px;"></div>
+        <div id="f2-phone" class="phone" style="left:1080px; top:153px;">
           <img id="f2-s1" src="assets/Tap.png" alt="" />
           <img id="f2-s2" src="assets/ModalProcessing.png" alt="" style="opacity:0" />
           <div id="f2-s3" style="position:absolute; inset:0; opacity:0;">
@@ -112,12 +123,12 @@
         <div id="f4-l1" class="h abs" style="left:160px; top:310px; font-size:96px;">Any NFC card.</div>
         <div id="f4-l2" class="h abs" style="left:160px; top:430px; font-size:96px;">Hold.</div>
         <div id="f4-l3" class="h gold abs" style="left:160px; top:550px; font-size:96px;">Linked.</div>
-        <div id="f4-ghost" class="phone" style="left:860px; top:136px; opacity:0;">
+        <div id="f4-ghost" class="phone" style="left:860px; top:153px; opacity:0;">
           <img id="f4-g1" src="assets/LinkIntro.png" alt="" />
           <img id="f4-g2" src="assets/LinkScan.png" alt="" style="opacity:0" />
         </div>
-        <div class="shadow" style="left:1352px; top:910px;"></div>
-        <div id="f4-phone" class="phone" style="left:1320px; top:136px;">
+        <div class="shadow" style="left:1352px; top:905px;"></div>
+        <div id="f4-phone" class="phone" style="left:1320px; top:153px;">
           <img id="f4-s1" src="assets/LinkIntro.png" alt="" />
           <img id="f4-s2" src="assets/LinkScan.png" alt="" style="opacity:0" />
           <img id="f4-s3" src="assets/LinkSign.png" alt="" style="opacity:0" />
@@ -131,11 +142,11 @@
         <div id="f5-label" class="label abs" style="left:110px; top:330px;">02 · Agent</div>
         <div id="f5-l1" class="h abs" style="left:110px; top:380px; font-size:76px; white-space:normal; width:440px;">Its own agent.</div>
         <div id="f5-l2" class="h gold abs" style="left:1520px; top:380px; font-size:76px; white-space:normal; width:340px;">Its own balance.</div>
-        <div class="shadow" style="left:612px; top:910px;"></div>
-        <div id="f5-p1" class="phone" style="left:580px; top:136px;"><img src="assets/Agents.png" alt="" /></div>
+        <div class="shadow" style="left:612px; top:905px;"></div>
+        <div id="f5-p1" class="phone" style="left:580px; top:153px;"><img src="assets/Agents.png" alt="" /></div>
         <div id="f5-line" class="hair" style="left:954px; top:470px; width:144px; height:2px; background:var(--gold);"></div>
-        <div class="shadow" style="left:1132px; top:910px;"></div>
-        <div id="f5-p2" class="phone" style="left:1100px; top:136px;"><img src="assets/AgentDetail.png" alt="" /></div>
+        <div class="shadow" style="left:1132px; top:905px;"></div>
+        <div id="f5-p2" class="phone" style="left:1100px; top:153px;"><img src="assets/AgentDetail.png" alt="" /></div>
       </div>
 
       <!-- ───────── Frame 6 — Load only what it should spend (29–34.5) ───────── -->
@@ -144,8 +155,8 @@
         <div id="f6-sub" class="hint abs" style="left:166px; top:375px; font-size:30px; font-family:'Jost'; white-space:nowrap;">From your main wallet to the Black card agent</div>
         <div id="f6-l1" class="h abs" style="left:160px; top:520px; font-size:104px;">It spends only</div>
         <div id="f6-l2" class="h gold abs" style="left:160px; top:640px; font-size:104px;">what you load.</div>
-        <div class="shadow" style="left:1352px; top:910px;"></div>
-        <div id="f6-phone" class="phone" style="left:1320px; top:136px;"><img src="assets/AgentFund.png" alt="" /></div>
+        <div class="shadow" style="left:1352px; top:905px;"></div>
+        <div id="f6-phone" class="phone" style="left:1320px; top:153px;"><img src="assets/AgentFund.png" alt="" /></div>
       </div>
 
       <!-- ───────── Frame 7 — Revoke anytime, gold register (34.5–41.5) ───────── -->
@@ -153,7 +164,7 @@
         <div id="f7-l1" class="h abs" style="left:140px; top:250px; font-size:64px; color:var(--ink); opacity:0.7;">Works until</div>
         <div id="f7-l2" class="h abs" style="left:130px; top:330px; font-size:168px; color:var(--ink);">you revoke it.</div>
         <div id="f7-l3" class="h abs" style="left:420px; top:590px; font-size:52px; color:var(--ink);">Every last XLM, back to you.</div>
-        <div id="f7-phone" class="phone" style="left:1430px; top:136px; transform:rotate(4deg);"><img src="assets/ModalRevoke.png" alt="" /></div>
+        <div id="f7-phone" class="phone" style="left:1430px; top:153px; transform:rotate(4deg);"><img src="assets/ModalRevoke.png" alt="" /></div>
         <div id="f7-pill" class="pill" style="left:140px; top:580px;">25.00 XLM</div>
       </div>
 
@@ -203,6 +214,19 @@
     </div>
 
     <script>
+      // Phone shells: move each phone's content into a rounded screen, add sheen + buttons.
+      for (const phone of document.querySelectorAll(".phone")) {
+        const screen = document.createElement("div");
+        screen.className = "screen";
+        while (phone.firstChild) screen.appendChild(phone.firstChild);
+        phone.appendChild(screen);
+        for (const cls of ["glare", "btn power", "btn vol1", "btn vol2"]) {
+          const el = document.createElement("div");
+          el.className = cls;
+          phone.appendChild(el);
+        }
+      }
+
       // Typed taglines: one span per letter (built once, deterministically).
       for (const id of ["f3-tag", "f10-tag"]) {
         const el = document.getElementById(id);
@@ -237,7 +261,7 @@
 
       // Frame 2 — 5
       const F2 = 5;
-      tl.fromTo("#f2-phone", { opacity: 0, scale: 1.15 }, { opacity: 1, scale: 1, duration: 0.7, ease: "expo.out" }, F2);
+      tl.fromTo("#f2-phone", { opacity: 0, scale: 1.15, rotationY: 22, transformPerspective: 1800 }, { opacity: 1, scale: 1, rotationY: 9, duration: 0.9, ease: "expo.out" }, F2);
       tl.fromTo("#f2-card", { opacity: 0, x: 520, rotation: 18 }, { opacity: 1, x: 0, rotation: 10, duration: 0.6, ease: "expo.out" }, F2 + 1.0);
       ring(F2 + 1.5, "#f2-ring1", 2.2);
       ring(F2 + 1.8, "#f2-ring2", 2.8);
@@ -258,6 +282,7 @@
       // Frame 4 — 15.5
       const F4 = 15.5;
       sceneIn(F4, "#f4-phone", { opacity: 0, x: 120 });
+      tl.fromTo("#f4-phone", { rotationY: 20, transformPerspective: 1800 }, { rotationY: 9, duration: 1.0, ease: P3 }, F4);
       tl.fromTo("#f4-phone", { x: 120 }, { x: 0, duration: 0.8, ease: P3 }, F4);
       fade(F4 + 0.3, "#f4-label");
       inUp(F4 + 0.4, "#f4-l1");
@@ -277,16 +302,16 @@
 
       // Frame 5 — 22.5
       const F5 = 22.5;
-      tl.fromTo("#f5-p1", { opacity: 0, y: 80 }, { opacity: 1, y: 0, duration: 0.9, ease: P3 }, F5 + 0.2);
+      tl.fromTo("#f5-p1", { opacity: 0, y: 80, rotationY: -8, transformPerspective: 1800 }, { opacity: 1, y: 0, rotationY: -6, duration: 0.9, ease: P3 }, F5 + 0.2);
       fade(F5 + 0.4, "#f5-label");
       inUp(F5 + 0.5, "#f5-l1");
       tl.fromTo("#f5-line", { scaleX: 0 }, { scaleX: 1, duration: 0.7, ease: "power2.inOut" }, F5 + 2.0);
-      tl.fromTo("#f5-p2", { opacity: 0, y: 80 }, { opacity: 1, y: 0, duration: 0.9, ease: P3 }, F5 + 2.3);
+      tl.fromTo("#f5-p2", { opacity: 0, y: 80, rotationY: 8, transformPerspective: 1800 }, { opacity: 1, y: 0, rotationY: 6, duration: 0.9, ease: P3 }, F5 + 2.3);
       slam(F5 + 4.0, "#f5-l2");
 
       // Frame 6 — 29
       const F6 = 29;
-      tl.fromTo("#f6-phone", { opacity: 0, x: 160 }, { opacity: 1, x: 0, duration: 0.8, ease: P3 }, F6 + 0.1);
+      tl.fromTo("#f6-phone", { opacity: 0, x: 160, rotationY: 22, transformPerspective: 1800 }, { opacity: 1, x: 0, rotationY: 9, duration: 0.9, ease: P3 }, F6 + 0.1);
       fade(F6 + 0.3, "#f6-count", 0.4);
       const counter = { v: 0 };
       tl.fromTo(counter, { v: 0 }, {
@@ -341,6 +366,10 @@
       typeOn(F10 + 2.8, "f10-tag");
       fade(F10 + 3.7, "#f10-url", 0.6);
       tl.to("#f10-fade", { opacity: 1, duration: 0.6, ease: "none" }, 59.4);
+
+      // Soft cut: every scene after the first fades up from black.
+      [["#f2", 5], ["#f3", 11], ["#f4", 15.5], ["#f5", 22.5], ["#f6", 29], ["#f8", 41.5], ["#f9", 48.5], ["#f10", 54.5]]
+        .forEach(([sel, t]) => tl.fromTo(sel, { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "power1.out" }, t));
 
       window.__timelines = window.__timelines || {};
       window.__timelines["main"] = tl;
