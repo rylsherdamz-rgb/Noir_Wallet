@@ -92,7 +92,7 @@
     </style>
   </head>
   <body>
-    <div id="root" data-composition-id="main" data-start="0" data-duration="60" data-width="1920" data-height="1080">
+    <div id="root" data-composition-id="main" data-start="0" data-duration="65" data-width="1920" data-height="1080">
 
       <!-- ───────── Frame 1 — Hook (0–5) ───────── -->
       <div id="f1" class="scene clip" data-start="0" data-duration="5" data-track-index="0">
@@ -144,20 +144,40 @@
         </div>
       </div>
 
+      <!-- ───────── Frame 2b — The agent pays: no phone, no unlock, no confirm (11–16) ───────── -->
+      <div id="f2b" class="scene clip" data-start="11" data-duration="5" data-track-index="0">
+        <div id="f2b-l1" class="h abs" style="left:160px; top:200px; font-size:132px;">No phone.</div>
+        <div id="f2b-l2" class="h abs" style="left:160px; top:345px; font-size:132px;">No unlock.</div>
+        <div id="f2b-l3" class="h gold abs" style="left:160px; top:490px; font-size:132px;">No confirm.</div>
+        <div id="f2b-s1" class="hint abs" style="left:166px; top:690px; font-family:'Jost'; font-size:38px; white-space:nowrap;">The card’s agent pays from its own balance —</div>
+        <div id="f2b-s2" class="abs" style="left:166px; top:742px; font-family:'Jost'; font-weight:500; font-size:38px; color:var(--cream); white-space:nowrap;">settled on Stellar in seconds.</div>
+        <div id="f2b-ring1" class="ring" style="left:1378px; top:330px; width:200px; height:200px;"></div>
+        <div id="f2b-ring2" class="ring" style="left:1378px; top:330px; width:200px; height:200px;"></div>
+        <div id="f2b-card" class="card" style="left:1300px; top:316px;">
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="#C6A15B" stroke-width="2.4" stroke-linecap="round"><path d="M12 12a11 11 0 0 1 0 16"/><path d="M18 8a17 17 0 0 1 0 24"/><path d="M24 4a23 23 0 0 1 0 32"/></svg>
+          <div class="brand">NOIR</div>
+        </div>
+        <div id="f2b-bal" class="abs" style="left:1300px; top:600px; width:360px; padding:18px 24px; border-radius:18px; background:#141414; border:1px solid #2a2a2a;">
+          <div class="label" style="font-size:16px; color:var(--hint);">Agent balance</div>
+          <div style="font-family:'Jost'; font-weight:600; font-size:44px; color:var(--cream); margin-top:6px;"><span id="f2b-num">25.00</span> <span style="font-size:22px; color:var(--hint);">XLM</span></div>
+          <div id="f2b-paid" style="position:absolute; right:24px; top:46px; font-family:'Jost'; font-weight:500; font-size:22px; color:#3ad597; opacity:0;">−12.00 paid</div>
+        </div>
+      </div>
+
       <!-- ───────── Frame 3 — Introducing Noir (11–15.5) ───────── -->
-      <div id="f3" class="scene clip" data-start="11" data-duration="4.5" data-track-index="0">
+      <div id="f3" class="scene clip" data-start="16" data-duration="4.5" data-track-index="0">
         <img id="f3-mark" class="mark" src="assets/noir-mark.png" alt="" style="left:860px; top:250px;" />
         <div id="f3-word" class="wordmark" style="left:0; width:1920px; text-align:center; top:500px;">NOIR</div>
         <div id="f3-tag" class="label" style="position:absolute; left:0; width:1920px; text-align:center; top:640px; font-size:30px; letter-spacing:0.3em;"></div>
       </div>
 
       <!-- ───────── Frame 4 — Link any card (15.5–22.5) ───────── -->
-      <div id="f4" class="scene clip" data-start="15.5" data-duration="7" data-track-index="0">
-        <div id="f4-label" class="label abs" style="left:160px; top:250px;">01 · Link</div>
-        <div id="f4-l1" class="h abs" style="left:160px; top:310px; font-size:96px;">Any NFC card.</div>
+      <div id="f4" class="scene clip" data-start="20.5" data-duration="7" data-track-index="0">
+        <div id="f4-label" class="label abs" style="left:160px; top:250px;">01 · Link any NFC</div>
+        <div id="f4-l1" class="h abs" style="left:160px; top:310px; font-size:84px;">Card. Sticker. Phone.</div>
         <div id="f4-l2" class="h abs" style="left:160px; top:430px; font-size:96px;">Hold.</div>
         <div id="f4-l3" class="h gold abs" style="left:160px; top:550px; font-size:96px;">Linked.</div>
-        <div id="f4-ghost" class="phone" style="left:860px; top:153px; opacity:0;">
+        <div id="f4-ghost" class="phone" style="left:1000px; top:153px; opacity:0;">
           <img id="f4-g1" src="assets/LinkIntro.png" alt="" />
           <img id="f4-g2" src="assets/LinkScan.png" alt="" style="opacity:0" />
         </div>
@@ -172,7 +192,7 @@
       </div>
 
       <!-- ───────── Frame 5 — Its own agent (22.5–29) ───────── -->
-      <div id="f5" class="scene clip" data-start="22.5" data-duration="6.5" data-track-index="0">
+      <div id="f5" class="scene clip" data-start="27.5" data-duration="6.5" data-track-index="0">
         <div id="f5-label" class="label abs" style="left:110px; top:330px;">02 · Agent</div>
         <div id="f5-l1" class="h abs" style="left:110px; top:380px; font-size:76px; white-space:normal; width:440px;">Its own agent.</div>
         <div id="f5-l2" class="h gold abs" style="left:1520px; top:380px; font-size:76px; white-space:normal; width:340px;">Its own balance.</div>
@@ -184,7 +204,7 @@
       </div>
 
       <!-- ───────── Frame 6 — Load only what it should spend (29–34.5) ───────── -->
-      <div id="f6" class="scene clip" data-start="29" data-duration="5.5" data-track-index="0">
+      <div id="f6" class="scene clip" data-start="34" data-duration="5.5" data-track-index="0">
         <div id="f6-count" class="h gold abs" style="left:160px; top:200px; font-size:150px;"><span id="f6-num">0</span><span style="font-size:60px; color:var(--hint); margin-left:20px;">XLM</span></div>
         <div id="f6-sub" class="hint abs" style="left:166px; top:375px; font-size:30px; font-family:'Jost'; white-space:nowrap;">From your main wallet to the Black card agent</div>
         <div id="f6-l1" class="h abs" style="left:160px; top:520px; font-size:104px;">It spends only</div>
@@ -194,7 +214,7 @@
       </div>
 
       <!-- ───────── Frame 7 — Revoke anytime, gold register (34.5–41.5) ───────── -->
-      <div id="f7" class="scene clip" data-start="34.5" data-duration="7" data-track-index="0" style="background:var(--gold);">
+      <div id="f7" class="scene clip" data-start="39.5" data-duration="7" data-track-index="0" style="background:var(--gold);">
         <div id="f7-l1" class="h abs" style="left:140px; top:250px; font-size:64px; color:var(--ink); opacity:0.7;">Works until</div>
         <div id="f7-l2" class="h abs" style="left:130px; top:330px; font-size:168px; color:var(--ink);">you revoke it.</div>
         <div id="f7-l3" class="h abs" style="left:420px; top:590px; font-size:52px; color:var(--ink);">Every last XLM, back to you.</div>
@@ -203,7 +223,7 @@
       </div>
 
       <!-- ───────── Frame 8 — The whole wallet (41.5–48.5) ───────── -->
-      <div id="f8" class="scene clip" data-start="41.5" data-duration="7" data-track-index="0">
+      <div id="f8" class="scene clip" data-start="46.5" data-duration="7" data-track-index="0">
         <div id="f8-label" class="label abs" style="left:120px; top:60px;">A full Stellar wallet</div>
         <div id="f8-world" class="abs" style="left:0; top:0; width:2800px; height:1080px;">
           <div class="phone" style="left:120px;  top:150px; transform:scale(0.82) rotate(-4deg);"><img src="assets/Dashboard.png" alt="" /></div>
@@ -220,7 +240,7 @@
       </div>
 
       <!-- ───────── Frame 9 — Built on Stellar (48.5–54.5) ───────── -->
-      <div id="f9" class="scene clip" data-start="48.5" data-duration="6" data-track-index="0">
+      <div id="f9" class="scene clip" data-start="53.5" data-duration="6" data-track-index="0">
         <div id="f9-label" class="label abs" style="left:200px; top:200px;">Built on Stellar</div>
         <div class="hair f9-hair" style="left:200px; top:270px; width:1520px;"></div>
         <div class="hair f9-hair" style="left:200px; top:420px; width:1520px;"></div>
@@ -233,7 +253,7 @@
       </div>
 
       <!-- ───────── Frame 10 — Outro / CTA (54.5–60) ───────── -->
-      <div id="f10" class="scene clip" data-start="54.5" data-duration="5.5" data-track-index="0">
+      <div id="f10" class="scene clip" data-start="59.5" data-duration="5.5" data-track-index="0">
         <img id="f10-mark" class="mark" src="assets/noir-mark.png" alt="" style="left:860px; top:190px;" />
         <div id="f10-word" class="wordmark" style="left:0; width:1920px; text-align:center; top:440px;">NOIR</div>
         <div id="f10-ring" class="ring" style="left:880px; top:500px; width:160px; height:160px;"></div>
@@ -309,14 +329,35 @@
       slam(F2 + 3.0, "#f2-settled");
       fade(F2 + 3.5, "#f2-label", 0.6);
 
-      // Frame 3 — 11
-      const F3 = 11;
+      // Frame 2b — 11: the agent pays on its own
+      const F2B = 11;
+      tl.fromTo("#f2b-card", { opacity: 0, x: 300, rotation: 4 }, { opacity: 1, x: 0, rotation: -6, duration: 0.8, ease: "expo.out" }, F2B + 0.1);
+      fade(F2B + 0.4, "#f2b-bal", 0.5);
+      slam(F2B + 0.4, "#f2b-l1");
+      slam(F2B + 1.1, "#f2b-l2");
+      slam(F2B + 1.8, "#f2b-l3");
+      // the tap: card dips, rings pulse, agent balance pays out 12 XLM
+      tl.to("#f2b-card", { y: 22, scale: 0.97, duration: 0.18, ease: "power2.in" }, F2B + 2.4);
+      tl.to("#f2b-card", { y: 0, scale: 1, duration: 0.45, ease: "power3.out" }, F2B + 2.58);
+      ring(F2B + 2.55, "#f2b-ring1", 2.2);
+      ring(F2B + 2.8, "#f2b-ring2", 2.8);
+      const bal = { v: 25 };
+      tl.fromTo(bal, { v: 25 }, {
+        v: 13, duration: 0.7, ease: "power2.out",
+        onUpdate: () => { document.getElementById("f2b-num").textContent = bal.v.toFixed(2); },
+      }, F2B + 2.7);
+      fade(F2B + 2.7, "#f2b-paid", 0.3);
+      fade(F2B + 3.2, "#f2b-s1", 0.5);
+      fade(F2B + 3.6, "#f2b-s2", 0.5);
+
+      // Frame 3 — 16
+      const F3 = 16;
       tl.fromTo("#f3-mark", { opacity: 0, scale: 0.92, filter: "blur(10px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 1.0, ease: P3 }, F3 + 0.2);
       trackOpen(F3 + 1.0, "f3-word", 1.2);
       typeOn(F3 + 2.2, "f3-tag");
 
       // Frame 4 — 15.5
-      const F4 = 15.5;
+      const F4 = 20.5;
       sceneIn(F4, "#f4-phone", { opacity: 0, x: 120 });
       tl.fromTo("#f4-phone", { rotationY: 20, transformPerspective: 1800 }, { rotationY: 9, duration: 1.0, ease: P3 }, F4);
       tl.fromTo("#f4-phone", { x: 120 }, { x: 0, duration: 0.8, ease: P3 }, F4);
@@ -337,7 +378,7 @@
       slam(F4 + 4.5, "#f4-l3");
 
       // Frame 5 — 22.5
-      const F5 = 22.5;
+      const F5 = 27.5;
       tl.fromTo("#f5-p1", { opacity: 0, y: 80, rotationY: -8, transformPerspective: 1800 }, { opacity: 1, y: 0, rotationY: -6, duration: 0.9, ease: P3 }, F5 + 0.2);
       fade(F5 + 0.4, "#f5-label");
       inUp(F5 + 0.5, "#f5-l1");
@@ -346,7 +387,7 @@
       slam(F5 + 4.0, "#f5-l2");
 
       // Frame 6 — 29
-      const F6 = 29;
+      const F6 = 34;
       tl.fromTo("#f6-phone", { opacity: 0, x: 160, rotationY: 22, transformPerspective: 1800 }, { opacity: 1, x: 0, rotationY: 9, duration: 0.9, ease: P3 }, F6 + 0.1);
       fade(F6 + 0.3, "#f6-count", 0.4);
       const counter = { v: 0 };
@@ -359,7 +400,7 @@
       inUp(F6 + 2.4, "#f6-l2");
 
       // Frame 7 — 34.5 (gold register)
-      const F7 = 34.5;
+      const F7 = 39.5;
       tl.fromTo("#f7", { scale: 1.08 }, { scale: 1, duration: 0.6, ease: "expo.out" }, F7);
       fade(F7 + 0.4, "#f7-l1", 0.5, 0, 0.7);
       slam(F7 + 1.3, "#f7-l2");
@@ -372,7 +413,7 @@
       fade(F7 + 4.1, "#f7-l3", 0.6);
 
       // Frame 8 — 41.5
-      const F8 = 41.5;
+      const F8 = 46.5;
       tl.fromTo("#f8-world", { opacity: 0, x: 0, filter: "blur(12px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.7, ease: P3 }, F8);
       fade(F8 + 0.3, "#f8-label");
       tl.to("#f8-world", { x: -900, duration: 4.4, ease: "power2.inOut" }, F8 + 1.2);
@@ -384,7 +425,7 @@
       lightUp(F8 + 5.2, "#v-lock", "#EDE4D0");
 
       // Frame 9 — 48.5
-      const F9 = 48.5;
+      const F9 = 53.5;
       fade(F9 + 0.2, "#f9-label");
       tl.fromTo(".f9-hair", { scaleX: 0 }, { scaleX: 1, duration: 0.8, ease: "power2.inOut", stagger: 0.12 }, F9 + 0.3);
       inUp(F9 + 1.0, "#f9-r1", 0.7, 30);
@@ -393,7 +434,7 @@
       fade(F9 + 4.1, "#f9-chip", 0.6);
 
       // Frame 10 — 54.5
-      const F10 = 54.5;
+      const F10 = 59.5;
       tl.fromTo("#f10-mark", { opacity: 0, scale: 0.92, filter: "blur(10px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.9, ease: P3 }, F10 + 0.1);
       trackOpen(F10 + 0.5, "f10-word", 1.0);
       tl.fromTo("#f10-card", { y: 0, rotation: -6 }, { y: -560, rotation: 0, duration: 0.7, ease: "expo.out" }, F10 + 1.4);
@@ -401,10 +442,10 @@
       tl.to("#f10-card", { y: 0, duration: 0.6, ease: "power2.in" }, F10 + 2.3);
       typeOn(F10 + 2.8, "f10-tag");
       fade(F10 + 3.7, "#f10-url", 0.6);
-      tl.to("#f10-fade", { opacity: 1, duration: 0.6, ease: "none" }, 59.4);
+      tl.to("#f10-fade", { opacity: 1, duration: 0.6, ease: "none" }, 64.4);
 
       // Soft cut: every scene after the first fades up from black.
-      [["#f2", 5], ["#f3", 11], ["#f4", 15.5], ["#f5", 22.5], ["#f6", 29], ["#f8", 41.5], ["#f9", 48.5], ["#f10", 54.5]]
+      [["#f2", 5], ["#f2b", 11], ["#f3", 16], ["#f4", 20.5], ["#f5", 27.5], ["#f6", 34], ["#f8", 46.5], ["#f9", 53.5], ["#f10", 59.5]]
         .forEach(([sel, t]) => tl.fromTo(sel, { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "power1.out" }, t));
 
       window.__timelines = window.__timelines || {};
