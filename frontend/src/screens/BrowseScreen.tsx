@@ -138,7 +138,8 @@ function BrowserView({ url, onClose, onVisited, testnet }: { url: string; onClos
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    // Top only: the tab bar below already pads for the bottom inset.
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.bar}>
         <PressableScale style={styles.tool} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close browser">
           <Ionicons name="close" size={24} color={Colors.white} />
