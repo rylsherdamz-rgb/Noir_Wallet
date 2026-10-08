@@ -1,41 +1,58 @@
 (function () {
   'use strict';
 
+  document.documentElement.classList.add('js');
+
+  // Header hairline once the page scrolls
+  var header = document.querySelector('.site-header');
+  if (header) {
+    var onScroll = function () { header.classList.toggle('is-scrolled', window.scrollY > 8); };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+  }
+
   // Mobile nav toggle
   var toggle = document.getElementById('nav-toggle');
   var nav = document.getElementById('site-nav');
 
   if (toggle && nav) {
-    toggle.addEventListener('click', function () {
-      var isOpen = nav.classList.toggle('is-open');
+    var setOpen = function (isOpen) {
+      nav.classList.toggle('is-open', isOpen);
       toggle.classList.toggle('is-open', isOpen);
       toggle.setAttribute('aria-expanded', String(isOpen));
+      toggle.setAttribute('aria-label', isOpen ? 'Close menu' : 'Open menu');
+    };
+
+    toggle.addEventListener('click', function () {
+      setOpen(!nav.classList.contains('is-open'));
     });
 
     nav.querySelectorAll('a').forEach(function (link) {
-      link.addEventListener('click', function () {
-        nav.classList.remove('is-open');
-        toggle.classList.remove('is-open');
-        toggle.setAttribute('aria-expanded', 'false');
-      });
+      link.addEventListener('click', function () { setOpen(false); });
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && nav.classList.contains('is-open')) {
+        setOpen(false);
+        toggle.focus();
+      }
     });
   }
 
-  // GitHub star count
-  var starBadge = document.getElementById('gh-stars');
+  // GitHub star count — shown only when the API answers
+  var stars = document.getElementById('gh-stars');
+  var starsWrap = document.getElementById('gh-stars-wrap');
 
-  if (starBadge) {
+  if (stars && starsWrap) {
     fetch('https://api.github.com/repos/rylsherdamz-rgb/Noir_Wallet')
       .then(function (res) { return res.ok ? res.json() : Promise.reject(res); })
       .then(function (data) {
         if (typeof data.stargazers_count === 'number') {
-          starBadge.textContent = data.stargazers_count.toLocaleString();
+          stars.textContent = data.stargazers_count.toLocaleString();
+          starsWrap.hidden = false;
         }
       })
-      .catch(function () {
-        var share = starBadge.closest('.gh-share');
-        if (share) share.style.display = 'none';
-      });
+      .catch(function () {});
   }
 
   // Scroll reveal
