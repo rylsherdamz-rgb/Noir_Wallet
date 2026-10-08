@@ -38,7 +38,7 @@ if (typeof (global as any).EventTarget === 'undefined') {
 }
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Stack, useRouter } from 'expo-router'
+import { Stack, useRouter, usePathname } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { StyleSheet, AppState, Linking, Alert, AppStateStatus } from 'react-native'
@@ -49,7 +49,8 @@ import { nfcService } from '@/services/nfc'
 import { useAppStore } from '@/store/useAppStore'
 import { apiService } from '@/services/api'
 import { x402 } from '@/domain/x402'
-import { hasPin } from '@/services/pinLock'
+import { hasAppLock } from '@/services/appLock'
+import { isSystemPromptActive } from '@/services/biometrics'
 import { ToastProvider } from '@/components/ToastProvider'
 import { Device } from '@/types'
 import NetInfo from '@react-native-community/netinfo'
@@ -67,6 +68,10 @@ export default function RootLayout() {
   const addTransaction = useAppStore((s) => s.addTransaction)
   const security = useAppStore((s) => s.security)
   const appStateRef = useRef(AppState.currentState)
+  const backgroundedAtRef = useRef<number | null>(null)
+  const pathname = usePathname()
+  const pathnameRef = useRef(pathname)
+  pathnameRef.current = pathname
 
   const flushPendingPayments = useCallback(async () => {
     if (pendingPayments.length === 0) return
@@ -200,22 +205,29 @@ export default function RootLayout() {
     return () => subscription.remove()
   }, [])
 
-  // App state listener for auto-lock
+  // App state listener for auto-lock.
+  //
+  // The elapsed time is measured when the app comes *back*, not with a timer
+  // started on the way out: the timer fired even after the user had returned,
+  // and the unlock prompt itself (which briefly backgrounds the app) re-armed
+  // it — so the wallet kept asking to be unlocked again and again.
   useEffect(() => {
-    const handleAppState = (nextState: AppStateStatus) => {
-      if (appStateRef.current === 'active' && nextState.match(/inactive|background/)) {
-        const lockedAt = Date.now()
-        appStateRef.current = nextState
-        setTimeout(async () => {
-          if (await hasPin()) {
-            router.replace('/lock')
-          }
-        }, security.backgroundLockTimeoutSec * 1000)
-      } else if (nextState === 'active') {
-        appStateRef.current = nextState
-      } else {
-        appStateRef.current = nextState
+    const UNGUARDED = ['/lock', '/create-password', '/onboarding', '/seed-phrase', '/seed-verify', '/import-wallet', '/']
+    const handleAppState = async (nextState: AppStateStatus) => {
+      const prev = appStateRef.current
+      appStateRef.current = nextState
+      if (prev === 'active' && nextState.match(/inactive|background/)) {
+        if (!isSystemPromptActive()) backgroundedAtRef.current = Date.now()
+        return
       }
+      if (nextState !== 'active') return
+      const backgroundedAt = backgroundedAtRef.current
+      backgroundedAtRef.current = null
+      if (backgroundedAt === null || isSystemPromptActive()) return
+      if (Date.now() - backgroundedAt < security.backgroundLockTimeoutSec * 1000) return
+      if (!useAppStore.getState().isOnboarded) return
+      if (UNGUARDED.includes(pathnameRef.current)) return
+      if (await hasAppLock()) router.replace('/lock')
     }
     const subscription = AppState.addEventListener('change', handleAppState)
     return () => subscription.remove()
@@ -231,7 +243,8 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="onboarding" />
-        <Stack.Screen name="lock" options={{ animation: 'fade' }} />
+        <Stack.Screen name="lock" options={{ animation: 'fade', gestureEnabled: false }} />
+        <Stack.Screen name="create-password" options={{ animation: 'fade', gestureEnabled: false }} />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="send" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="receive" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />

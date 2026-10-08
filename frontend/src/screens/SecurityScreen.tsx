@@ -1,10 +1,10 @@
 import { colorWithOpacity } from '@/constants/designTokens'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { View, Text, StyleSheet, ScrollView, Switch } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { useRouter } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { Button } from '@/components/Button'
 import { Toast } from '@/components/Toast'
@@ -17,6 +17,8 @@ import { apiService } from '@/services/api'
 import { usePreventScreenCapture } from 'expo-screen-capture'
 import { authenticate, checkAvailability, unavailableMessage } from '@/services/biometrics'
 import { useToast } from '@/components/ToastProvider'
+import { hasPassword, clearPassword } from '@/services/passwordLock'
+import { clearPin } from '@/services/pinLock'
 
 const TIMEOUT_OPTIONS = [30, 60, 120, 300]
 
@@ -41,6 +43,14 @@ export function SecurityScreen() {
   })
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [passwordSet, setPasswordSet] = useState(false)
+
+  // Re-check on focus so the row reflects a password just created or changed.
+  useFocusEffect(
+    useCallback(() => {
+      hasPassword().then(setPasswordSet)
+    }, [])
+  )
 
   const showToast = (title: string, message?: string, type: ToastType = 'info') => {
     setToast({ visible: true, type, title, message })
@@ -58,10 +68,10 @@ export function SecurityScreen() {
     }
     const availability = await checkAvailability()
     if (!availability.available) {
-      showToast('Biometrics Unavailable', unavailableMessage(availability.reason), 'error')
+      showToast('Phone Unlock Unavailable', unavailableMessage(availability.reason), 'error')
       return
     }
-    const result = await authenticate('Confirm to enable biometric unlock')
+    const result = await authenticate('Confirm to enable phone unlock')
     if (!result.ok) {
       showToast('Not Enabled', result.message, 'error')
       return
@@ -119,8 +129,8 @@ export function SecurityScreen() {
               <View style={styles.settingInfo}>
                 <Ionicons name="finger-print-outline" size={20} color={Colors.white} />
                 <View style={styles.settingText}>
-                  <Text style={styles.settingLabel}>Biometric Lock</Text>
-                  <Text style={styles.settingDesc}>Use Face ID / fingerprint to unlock</Text>
+                  <Text style={styles.settingLabel}>Phone Unlock</Text>
+                  <Text style={styles.settingDesc}>Fingerprint, face or your phone's PIN / pattern</Text>
                 </View>
               </View>
               <Switch
@@ -129,11 +139,32 @@ export function SecurityScreen() {
                 trackColor={{ false: Colors.lightGrey, true: colorWithOpacity(Colors.gold, 0.38) }}
                 thumbColor={security.biometricLockEnabled ? Colors.gold : Colors.mutedWhite}
                 accessibilityRole="switch"
-                accessibilityLabel="Biometric lock"
-                accessibilityHint="Requires Face ID or fingerprint to unlock the wallet"
+                accessibilityLabel="Phone unlock"
+                accessibilityHint="Lets your phone's fingerprint, face or screen lock unlock the wallet. Your wallet password always works too."
                 accessibilityState={{ checked: security.biometricLockEnabled }}
               />
             </View>
+
+            <View style={styles.divider} />
+
+            <PressableScale
+              style={styles.settingRow}
+              onPress={() => router.push('/create-password?from=settings')}
+              accessibilityRole="button"
+              accessibilityLabel="Wallet password"
+              accessibilityHint="Create or change the password that unlocks your wallet"
+            >
+              <View style={styles.settingInfo}>
+                <Ionicons name="key-outline" size={20} color={Colors.white} />
+                <View style={styles.settingText}>
+                  <Text style={styles.settingLabel}>Wallet Password</Text>
+                  <Text style={styles.settingDesc}>
+                    {passwordSet ? 'Change the password used to unlock' : 'Create a password to unlock'}
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
+            </PressableScale>
 
             <View style={styles.divider} />
 
@@ -299,6 +330,9 @@ export function SecurityScreen() {
           }
           await walletService.clearKeys()
           await x402.clearAllAgents()
+          // The unlock secrets belong to the deleted wallet; a new one sets its own.
+          await clearPassword()
+          await clearPin()
           reset()
           router.replace('/onboarding')
         }}

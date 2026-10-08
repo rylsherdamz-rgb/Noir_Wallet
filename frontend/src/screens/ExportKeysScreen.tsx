@@ -5,8 +5,9 @@
  * main Stellar secret key, and each per-card x402 agent secret.
  *
  * Security posture:
- * - Nothing is revealed until the user re-authenticates (biometrics, or PIN
- *   when biometrics are unavailable/not enrolled).
+ * - Nothing is revealed until the user re-authenticates: the phone's own
+ *   unlock (fingerprint, face or screen lock) when it has one, otherwise — or
+ *   whenever the user prefers — the wallet password (or a legacy app PIN).
  * - Secrets are held in component state only while the screen is mounted and
  *   are wiped on unmount / when the screen is re-locked.
  * - Values are masked by default; revealing is per-item and explicit.
@@ -25,6 +26,7 @@ import { walletService } from '@/services/wallet'
 import { x402 } from '@/domain/x402'
 import { authenticate, checkAvailability } from '@/services/biometrics'
 import { hasPin, verifyPin } from '@/services/pinLock'
+import { hasPassword, verifyPassword } from '@/services/passwordLock'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
 import { colorWithOpacity } from '@/constants/designTokens'
 import type { ToastType } from '@/types'
@@ -44,7 +46,8 @@ export function ExportKeysScreen() {
 
   const [unlocked, setUnlocked] = useState(false)
   const [checking, setChecking] = useState(false)
-  const [needsPin, setNeedsPin] = useState(false)
+  /** Which wallet secret the fallback form asks for, or null while it is hidden. */
+  const [needsSecret, setNeedsSecret] = useState<'password' | 'pin' | null>(null)
   const [pin, setPin] = useState('')
   const [pinError, setPinError] = useState('')
   const [items, setItems] = useState<SecretItem[]>([])
@@ -116,6 +119,25 @@ export function ExportKeysScreen() {
     setUnlocked(true)
   }, [])
 
+  /** Show the password (or legacy PIN) form — only for a secret that exists. */
+  const showSecretForm = useCallback(async () => {
+    setPinError('')
+    setPin('')
+    if (await hasPassword()) {
+      setNeedsSecret('password')
+      return
+    }
+    if (await hasPin()) {
+      setNeedsSecret('pin')
+      return
+    }
+    showToast(
+      'Create a password first',
+      'Set a wallet password in Security settings before exporting keys.',
+      'error',
+    )
+  }, [])
+
   const handleUnlock = useCallback(async () => {
     setChecking(true)
     setPinError('')
@@ -123,47 +145,36 @@ export function ExportKeysScreen() {
       const availability = await checkAvailability()
       if (availability.available) {
         const result = await authenticate('Authenticate to export your keys')
-        if (!result.ok) {
-          showToast('Not Authenticated', result.message, 'error')
+        if (result.ok) {
+          await loadSecrets()
           return
         }
-        await loadSecrets()
-        return
+        // Declining the phone prompt means "let me type my password instead".
+        if (result.reason !== 'cancelled') showToast('Not Authenticated', result.message, 'error')
       }
-
-      // Biometrics unavailable — fall back to the app PIN if one is set.
-      if (await hasPin()) {
-        setNeedsPin(true)
-        return
-      }
-
-      showToast(
-        'Set a PIN first',
-        'Enable biometrics or set an app PIN before exporting keys.',
-        'error',
-      )
+      await showSecretForm()
     } finally {
       setChecking(false)
     }
-  }, [loadSecrets])
+  }, [loadSecrets, showSecretForm])
 
   const handleVerifyPin = useCallback(async () => {
     setChecking(true)
     setPinError('')
     try {
-      const result = await verifyPin(pin)
+      const result = needsSecret === 'password' ? await verifyPassword(pin) : await verifyPin(pin)
       if (!result.ok) {
-        setPinError(pinErrorMessage(result))
+        setPinError(pinErrorMessage(result, needsSecret ?? 'pin'))
         setPin('')
         return
       }
-      setNeedsPin(false)
+      setNeedsSecret(null)
       setPin('')
       await loadSecrets()
     } finally {
       setChecking(false)
     }
-  }, [pin, loadSecrets])
+  }, [pin, needsSecret, loadSecrets])
 
   const handleCopy = useCallback(async (item: SecretItem) => {
     await Clipboard.setStringAsync(item.value)
@@ -229,7 +240,7 @@ export function ExportKeysScreen() {
           </View>
         </View>
 
-        {!unlocked && !needsPin && (
+        {!unlocked && !needsSecret && (
           <View style={styles.gate}>
             <View style={styles.gateIcon}>
               <Ionicons name="finger-print-outline" size={34} color={Colors.gold} />
@@ -247,26 +258,43 @@ export function ExportKeysScreen() {
             >
               <Text style={styles.primaryBtnLabel}>{checking ? 'Checking…' : 'Authenticate'}</Text>
             </PressableScale>
+            <PressableScale
+              onPress={showSecretForm}
+              disabled={checking}
+              accessibilityRole="button"
+              accessibilityLabel="Use wallet password instead"
+            >
+              <Text style={styles.altLabel}>Use password instead</Text>
+            </PressableScale>
           </View>
         )}
 
-        {needsPin && (
+        {needsSecret && (
           <View style={styles.gate}>
             <View style={styles.gateIcon}>
               <Ionicons name="keypad-outline" size={34} color={Colors.gold} />
             </View>
-            <Text style={styles.gateTitle}>Enter your PIN</Text>
-            <Text style={styles.gateBody}>Biometrics aren't available, so your app PIN is required.</Text>
+            <Text style={styles.gateTitle}>
+              {needsSecret === 'password' ? 'Enter your password' : 'Enter your PIN'}
+            </Text>
+            <Text style={styles.gateBody}>
+              {needsSecret === 'password'
+                ? 'Use the wallet password you created during setup.'
+                : 'Use your app PIN to continue.'}
+            </Text>
             <TextInput
               style={styles.pinInput}
               value={pin}
               onChangeText={setPin}
-              placeholder="••••••"
+              placeholder={needsSecret === 'password' ? 'Wallet password' : '••••••'}
               placeholderTextColor={Colors.mutedWhite}
-              keyboardType="number-pad"
+              keyboardType={needsSecret === 'password' ? 'default' : 'number-pad'}
               secureTextEntry
-              maxLength={12}
-              accessibilityLabel="App PIN"
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={needsSecret === 'password' ? 128 : 12}
+              onSubmitEditing={handleVerifyPin}
+              accessibilityLabel={needsSecret === 'password' ? 'Wallet password' : 'App PIN'}
             />
             {!!pinError && <Text style={styles.pinError}>{pinError}</Text>}
             <PressableScale
@@ -341,7 +369,7 @@ export function ExportKeysScreen() {
 }
 
 /** Human-readable message for a failed PIN verification. */
-function pinErrorMessage(result: { reason: string; retryAfterMs?: number }): string {
+function pinErrorMessage(result: { reason: string; retryAfterMs?: number }, kind: 'password' | 'pin'): string {
   if (result.reason === 'locked') {
     const secs = Math.ceil((result.retryAfterMs ?? 0) / 1000)
     return secs > 0
@@ -349,7 +377,8 @@ function pinErrorMessage(result: { reason: string; retryAfterMs?: number }): str
       : 'Too many attempts. Try again shortly.'
   }
   if (result.reason === 'no-pin') return 'No PIN is set on this device.'
-  return 'Incorrect PIN'
+  if (result.reason === 'no-password') return 'No wallet password is set on this device.'
+  return kind === 'password' ? 'Incorrect password' : 'Incorrect PIN'
 }
 
 /** Masked placeholder so the layout doesn't jump when revealing. */function maskValue(value: string, kind: 'phrase' | 'key'): string {
@@ -412,6 +441,7 @@ const styles = StyleSheet.create({
     color: Colors.white, fontSize: FontSize.lg, letterSpacing: 6, textAlign: 'center',
     paddingVertical: Spacing.md, width: 220, marginBottom: Spacing.md,
   },
+  altLabel: { fontSize: FontSize.sm, color: Colors.mutedWhite, marginTop: Spacing.md },
   pinError: { fontSize: FontSize.xs, color: Colors.danger, marginBottom: Spacing.md },
 
   emptyText: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', paddingVertical: Spacing.xl },

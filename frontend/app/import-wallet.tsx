@@ -31,7 +31,7 @@ export default function ImportWalletRoute() {
     const funded = await stellarService.fundAccount(keys.stellarPublic)
     if (!funded) logger.warn('Account funding failed — will retry on dashboard')
 
-    router.replace('/(tabs)')
+    router.replace('/create-password')
   }
 
   return <ImportWalletScreen onComplete={handleComplete} onBack={() => router.back()} />

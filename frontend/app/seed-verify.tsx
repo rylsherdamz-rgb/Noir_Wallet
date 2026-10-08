@@ -32,7 +32,7 @@ export default function SeedVerifyRoute() {
       phrase={phrase}
       onComplete={() => {
         setIsOnboarded(true)
-        router.replace('/(tabs)')
+        router.replace('/create-password')
       }}
       onBack={() => router.back()}
     />

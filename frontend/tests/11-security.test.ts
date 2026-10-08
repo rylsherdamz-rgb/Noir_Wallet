@@ -10,11 +10,22 @@ import {
   FREE_ATTEMPTS,
 } from '@/services/pinLock'
 import { setItem, getItem, removeItem } from '@/services/storage'
-import { checkAvailability, authenticate, unavailableMessage } from '@/services/biometrics'
+import { checkAvailability, authenticate, unavailableMessage, isSystemPromptActive } from '@/services/biometrics'
+import {
+  setPassword,
+  verifyPassword,
+  clearPassword,
+  hasPassword,
+  validatePassword,
+  getPasswordLockout,
+  MIN_PASSWORD_LENGTH,
+} from '@/services/passwordLock'
+import { hasAppLock, getUnlockMethods } from '@/services/appLock'
 import * as LocalAuthentication from 'expo-local-authentication'
 
 const PIN_KEY = 'app_pin_hash'
 const ATTEMPTS_KEY = 'app_pin_attempts'
+const PASSWORD_KEY = 'app_password_hash'
 
 describe('pinLock — lockout schedule', () => {
   it('allows the first attempts without any lockout', () => {
@@ -136,24 +147,32 @@ describe('pinLock — storage and verification', () => {
   })
 })
 
-describe('biometrics', () => {
+describe('device unlock', () => {
   beforeEach(() => {
-    vi.mocked(LocalAuthentication.hasHardwareAsync).mockResolvedValue(true)
-    vi.mocked(LocalAuthentication.isEnrolledAsync).mockResolvedValue(true)
+    vi.mocked(LocalAuthentication.getEnrolledLevelAsync).mockResolvedValue(
+      LocalAuthentication.SecurityLevel.BIOMETRIC_STRONG
+    )
     vi.mocked(LocalAuthentication.authenticateAsync).mockResolvedValue({ success: true } as any)
   })
 
-  it('reports availability when hardware is present and enrolled', async () => {
-    expect(await checkAvailability()).toMatchObject({ available: true })
+  it('reports biometric availability when a fingerprint or face is enrolled', async () => {
+    expect(await checkAvailability()).toMatchObject({ available: true, biometric: true })
   })
 
-  it('distinguishes missing hardware from a missing enrolment', async () => {
-    vi.mocked(LocalAuthentication.hasHardwareAsync).mockResolvedValue(false)
-    expect(await checkAvailability()).toEqual({ available: false, reason: 'no-hardware' })
+  it("is available with only the phone's PIN / pattern set", async () => {
+    vi.mocked(LocalAuthentication.getEnrolledLevelAsync).mockResolvedValue(LocalAuthentication.SecurityLevel.SECRET)
+    expect(await checkAvailability()).toMatchObject({ available: true, biometric: false })
+  })
 
-    vi.mocked(LocalAuthentication.hasHardwareAsync).mockResolvedValue(true)
-    vi.mocked(LocalAuthentication.isEnrolledAsync).mockResolvedValue(false)
-    expect(await checkAvailability()).toEqual({ available: false, reason: 'not-enrolled' })
+  it('is unavailable when the phone has no lock of any kind — and never prompts', async () => {
+    vi.mocked(LocalAuthentication.getEnrolledLevelAsync).mockResolvedValue(LocalAuthentication.SecurityLevel.NONE)
+    vi.mocked(LocalAuthentication.authenticateAsync).mockClear()
+    expect(await checkAvailability()).toEqual({ available: false, reason: 'no-device-lock' })
+
+    const result = await authenticate()
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.reason).toBe('unavailable')
+    expect(LocalAuthentication.authenticateAsync).not.toHaveBeenCalled()
   })
 
   it('succeeds when the prompt succeeds', async () => {
@@ -170,7 +189,7 @@ describe('biometrics', () => {
     if (!result.ok) expect(result.reason).toBe('cancelled')
   })
 
-  it('surfaces a biometric lockout distinctly so the UI can fall back to the PIN', async () => {
+  it('surfaces a lockout distinctly so the UI can fall back to the password', async () => {
     vi.mocked(LocalAuthentication.authenticateAsync).mockResolvedValue({
       success: false,
       error: 'lockout',
@@ -180,20 +199,102 @@ describe('biometrics', () => {
     if (!result.ok) expect(result.reason).toBe('lockout')
   })
 
-  it('never falls back to the device passcode', async () => {
+  it("accepts the phone's own PIN / pattern as a fallback", async () => {
     await authenticate()
     expect(LocalAuthentication.authenticateAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ disableDeviceFallback: true })
+      expect.objectContaining({ disableDeviceFallback: false, cancelLabel: 'Use password' })
     )
   })
 
+  it('marks the system prompt as active so auto-lock ignores it', async () => {
+    let seenDuring = false
+    vi.mocked(LocalAuthentication.authenticateAsync).mockImplementation(async () => {
+      seenDuring = isSystemPromptActive()
+      return { success: true } as any
+    })
+    await authenticate()
+    expect(seenDuring).toBe(true)
+    // Still settling immediately after, then clear.
+    expect(isSystemPromptActive()).toBe(true)
+    expect(isSystemPromptActive(Date.now() + 5_000)).toBe(false)
+  })
+
   it('gives a distinct sentence for each unavailable reason', () => {
-    const messages = [
-      unavailableMessage('no-hardware'),
-      unavailableMessage('not-enrolled'),
-      unavailableMessage('unsupported-platform'),
-    ]
-    expect(new Set(messages).size).toBe(3)
+    const messages = [unavailableMessage('no-device-lock'), unavailableMessage('unsupported-platform')]
+    expect(new Set(messages).size).toBe(2)
     messages.forEach((m) => expect(m.length).toBeGreaterThan(0))
+  })
+})
+
+describe('wallet password', () => {
+  beforeEach(async () => {
+    await clearPassword()
+    await clearPin()
+  })
+
+  it('rejects passwords that are too short', () => {
+    expect(validatePassword('short')).not.toBeNull()
+    expect(validatePassword('x'.repeat(MIN_PASSWORD_LENGTH))).toBeNull()
+    expect(validatePassword(' '.repeat(MIN_PASSWORD_LENGTH))).not.toBeNull()
+  })
+
+  it('refuses to store an invalid password', async () => {
+    await expect(setPassword('short')).rejects.toThrow()
+    expect(await hasPassword()).toBe(false)
+  })
+
+  it('round-trips through argon2id and never stores plaintext', async () => {
+    expect(await hasPassword()).toBe(false)
+    await setPassword('correct horse')
+    expect(await hasPassword()).toBe(true)
+    const record = await getItem<{ v: number; salt: string; hash: string }>(PASSWORD_KEY)
+    expect(record?.salt).toMatch(/^[0-9a-f]{32}$/)
+    expect(record?.hash).toMatch(/^[0-9a-f]{64}$/)
+    expect(JSON.stringify(record)).not.toContain('correct horse')
+    expect(await verifyPassword('correct horse')).toEqual({ ok: true })
+  })
+
+  it('rejects a wrong password and locks out after repeated attempts', async () => {
+    await setPassword('correct horse')
+    const now = 2_000_000
+    const first = await verifyPassword('wrong password', now)
+    expect(first.ok).toBe(false)
+    if (!first.ok) expect(first.reason).toBe('wrong')
+
+    for (let i = 1; i < FREE_ATTEMPTS + 1; i++) await verifyPassword('wrong password', now)
+    const locked = await verifyPassword('correct horse', now)
+    expect(locked.ok).toBe(false)
+    if (!locked.ok) expect(locked.reason).toBe('locked')
+
+    expect(await verifyPassword('correct horse', now + 31_000)).toEqual({ ok: true })
+    expect((await getPasswordLockout()).failures).toBe(0)
+  })
+
+  it('keeps its lockout separate from the PIN', async () => {
+    await setPassword('correct horse')
+    await setPin('123456')
+    await verifyPin('000000')
+    expect((await getPasswordLockout()).failures).toBe(0)
+  })
+
+  it('reports no-password rather than wrong when none is set', async () => {
+    const result = await verifyPassword('anything at all')
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.reason).toBe('no-password')
+  })
+
+  it('only counts as an app lock once a password or PIN exists', async () => {
+    expect(await hasAppLock()).toBe(false)
+    await setPassword('correct horse')
+    expect(await hasAppLock()).toBe(true)
+    await clearPassword()
+    await setPin('123456')
+    expect(await hasAppLock()).toBe(true)
+  })
+
+  it('lists only the unlock methods that are actually set up', async () => {
+    await setPassword('correct horse')
+    vi.mocked(LocalAuthentication.getEnrolledLevelAsync).mockResolvedValue(LocalAuthentication.SecurityLevel.NONE)
+    expect(await getUnlockMethods()).toEqual({ password: true, pin: false, device: false, deviceBiometric: false })
   })
 })

@@ -183,9 +183,11 @@ vi.mock('expo-modules-core', () => ({
 vi.mock('expo-local-authentication', () => ({
   hasHardwareAsync: vi.fn().mockResolvedValue(true),
   isEnrolledAsync: vi.fn().mockResolvedValue(true),
+  getEnrolledLevelAsync: vi.fn().mockResolvedValue(3),
   supportedAuthenticationTypesAsync: vi.fn().mockResolvedValue([1]),
   authenticateAsync: vi.fn().mockResolvedValue({ success: true }),
   AuthenticationType: { FINGERPRINT: 1, FACIAL_RECOGNITION: 2, IRIS: 3 },
+  SecurityLevel: { NONE: 0, SECRET: 1, BIOMETRIC_WEAK: 2, BIOMETRIC_STRONG: 3 },
 }))
 
 // Mock expo-screen-capture (native screenshot blocking)

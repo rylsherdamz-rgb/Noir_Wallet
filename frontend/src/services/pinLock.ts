@@ -70,16 +70,19 @@ function legacyHash(input: string): string {
 }
 
 /** Length-independent, value-independent comparison of two hex digests. */
-function constantTimeEqual(a: string, b: string): boolean {
+export function constantTimeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false
   let diff = 0
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
   return diff === 0
 }
 
-async function derive(pin: string, salt: Uint8Array): Promise<string> {
-  return bytesToHex(await argon2idAsync(pin, salt, ARGON2_PARAMS))
+/** argon2id digest of a secret, hex-encoded. Shared with the wallet password. */
+export async function deriveSecret(secret: string, salt: Uint8Array): Promise<string> {
+  return bytesToHex(await argon2idAsync(secret, salt, ARGON2_PARAMS))
 }
+
+const derive = deriveSecret
 
 /**
  * Lockout duration after `failures` consecutive wrong attempts. Doubles per

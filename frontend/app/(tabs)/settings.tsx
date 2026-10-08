@@ -17,6 +17,8 @@ import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants
 import { StellarNetwork } from '@/types'
 import { walletService } from '@/services/wallet'
 import { x402 } from '@/domain/x402'
+import { clearPassword } from '@/services/passwordLock'
+import { clearPin } from '@/services/pinLock'
 
 const TIMEOUT_OPTIONS: { label: string; sec: number }[] = [
   { label: 'Immediately', sec: 0 },
@@ -51,6 +53,8 @@ export default function SettingsScreen() {
             setBusy(true)
             await walletService.clearKeys()
             await x402.clearAllAgents()
+            await clearPassword()
+            await clearPin()
             reset()
             router.replace('/onboarding')
           },
@@ -111,7 +115,7 @@ export default function SettingsScreen() {
               <View>
                 <Text style={styles.rowLabel}>Security Settings</Text>
                 <Text style={styles.navHint}>
-                  {security.biometricLockEnabled ? 'Biometric + Auto-lock' : 'Tap to configure'}
+                  {security.biometricLockEnabled ? 'Password + Phone unlock' : 'Password + Auto-lock'}
                 </Text>
               </View>
             </View>

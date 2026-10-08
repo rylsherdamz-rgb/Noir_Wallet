@@ -1,21 +1,20 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { Colors, Spacing, FontSize, FontWeight } from '@/constants/theme'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { NumericKeypad } from '@/components/NumericKeypad'
+import { KeyboardAwareScreen } from '@/components/KeyboardAwareScreen'
+import { Button } from '@/components/Button'
 import { useAppStore } from '@/store/useAppStore'
-import {
-  hasPin as hasStoredPin,
-  setPin as storePin,
-  verifyPin,
-  getLockout,
-  lockoutRemainingMs,
-} from '@/services/pinLock'
-import { authenticate, checkAvailability } from '@/services/biometrics'
+import { verifyPin, getLockout, lockoutRemainingMs, type LockoutState } from '@/services/pinLock'
+import { verifyPassword, getPasswordLockout } from '@/services/passwordLock'
+import { getUnlockMethods, type UnlockMethods } from '@/services/appLock'
+import { authenticate } from '@/services/biometrics'
 
-const MAX_LENGTH = 6
+const PIN_LENGTH = 6
+
+type Method = 'password' | 'pin'
 
 function formatCountdown(ms: number): string {
   const total = Math.ceil(ms / 1000)
@@ -26,41 +25,50 @@ function formatCountdown(ms: number): string {
 
 export default function LockScreen() {
   const router = useRouter()
-  const biometricEnabled = useAppStore((s) => s.security.biometricLockEnabled)
+  const deviceUnlockEnabled = useAppStore((s) => s.security.biometricLockEnabled)
 
+  const [methods, setMethods] = useState<UnlockMethods | null>(null)
+  const [method, setMethod] = useState<Method>('password')
   const [pin, setPin] = useState('')
-  const [mode, setMode] = useState<'setup' | 'unlock' | 'confirm'>('unlock')
-  const [confirmPin, setConfirmPin] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [hasPin, setHasPin] = useState<boolean | null>(null)
   const [busy, setBusy] = useState(false)
-  const [lockedUntil, setLockedUntil] = useState(0)
+  const [lockouts, setLockouts] = useState<Record<Method, number>>({ password: 0, pin: 0 })
   const [now, setNow] = useState(Date.now())
-  const [biometricAvailable, setBiometricAvailable] = useState(false)
-  const biometricTried = useRef(false)
+  const deviceTried = useRef(false)
 
-  const remainingMs = Math.max(0, lockedUntil - now)
+  const remainingMs = Math.max(0, lockouts[method] - now)
   const isLocked = remainingMs > 0
+  const canUseDevice = !!methods?.device && deviceUnlockEnabled
+
+  const unlock = useCallback(() => {
+    router.replace('/(tabs)')
+  }, [router])
 
   useEffect(() => {
     let cancelled = false
     async function init() {
-      const [existing, lockout, availability] = await Promise.all([
-        hasStoredPin(),
+      const [available, pinLockout, passwordLockout] = await Promise.all([
+        getUnlockMethods(),
         getLockout(),
-        checkAvailability(),
+        getPasswordLockout(),
       ])
       if (cancelled) return
-      setHasPin(existing)
-      setMode(existing ? 'unlock' : 'setup')
-      setLockedUntil(lockout.lockedUntil)
-      setBiometricAvailable(availability.available)
+      // Nothing of the wallet's own to unlock with: never strand the user on a
+      // prompt for a secret that does not exist — send them to create one.
+      if (!available.password && !available.pin) {
+        router.replace('/create-password')
+        return
+      }
+      setMethods(available)
+      setMethod(available.password ? 'password' : 'pin')
+      setLockouts({ password: passwordLockout.lockedUntil, pin: pinLockout.lockedUntil })
     }
     init()
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [router])
 
   // Drive the countdown only while a lockout is actually running.
   useEffect(() => {
@@ -69,160 +77,194 @@ export default function LockScreen() {
     return () => clearInterval(timer)
   }, [isLocked])
 
-  const unlock = useCallback(() => {
-    router.replace('/(tabs)')
-  }, [router])
-
-  const promptBiometric = useCallback(async () => {
+  const promptDevice = useCallback(async () => {
     setError('')
     const result = await authenticate()
     if (result.ok) {
       unlock()
       return
     }
-    // A cancel is a deliberate choice to use the PIN instead — not an error.
+    // A cancel is a deliberate choice to use the password instead — not an error.
     if (result.reason !== 'cancelled') setError(result.message)
   }, [unlock])
 
-  // Offer biometrics once per mount, before the user starts typing.
+  // Offer the phone's own unlock once per mount, and only when it is both
+  // turned on in settings and actually configured on this phone.
   useEffect(() => {
-    if (mode !== 'unlock' || !biometricEnabled || !biometricAvailable || isLocked) return
-    if (biometricTried.current) return
-    biometricTried.current = true
-    promptBiometric()
-  }, [mode, biometricEnabled, biometricAvailable, isLocked, promptBiometric])
+    if (!methods || !canUseDevice || deviceTried.current) return
+    deviceTried.current = true
+    promptDevice()
+  }, [methods, canUseDevice, promptDevice])
 
-  const handleVerify = useCallback(
+  const applyFailure = useCallback(
+    (which: Method, lockout: LockoutState, wrongMessage: string) => {
+      setLockouts((prev) => ({ ...prev, [which]: lockout.lockedUntil }))
+      setNow(Date.now())
+      const remaining = lockoutRemainingMs(lockout)
+      setError(remaining > 0 ? `Too many attempts. Try again in ${formatCountdown(remaining)}.` : wrongMessage)
+    },
+    []
+  )
+
+  const handlePin = useCallback(
     async (candidate: string) => {
       setBusy(true)
       const result = await verifyPin(candidate)
       setBusy(false)
       setPin('')
       if (result.ok) {
-        setLockedUntil(0)
         unlock()
         return
       }
-      const lockout = await getLockout()
-      setLockedUntil(lockout.lockedUntil)
-      setNow(Date.now())
-      if (result.reason === 'locked' || result.retryAfterMs > 0) {
-        setError(`Too many attempts. Try again in ${formatCountdown(lockoutRemainingMs(lockout))}.`)
-      } else if (result.reason === 'no-pin') {
-        setError('No PIN is set on this device.')
-        setHasPin(false)
-        setMode('setup')
-      } else {
-        setError('Incorrect PIN')
-      }
+      applyFailure('pin', await getLockout(), 'Incorrect PIN')
     },
-    [unlock]
+    [unlock, applyFailure]
   )
 
-  const handleSave = useCallback(
-    async (candidate: string) => {
-      if (pin !== candidate) {
-        setError('PINs do not match')
-        setPin('')
-        setConfirmPin('')
-        setMode('setup')
-        return
-      }
-      setBusy(true)
-      await storePin(candidate)
-      setBusy(false)
+  const handlePassword = useCallback(async () => {
+    if (!password || busy || isLocked) return
+    setBusy(true)
+    const result = await verifyPassword(password)
+    setBusy(false)
+    if (result.ok) {
+      setPassword('')
       unlock()
-    },
-    [pin, unlock]
-  )
-
-  const handleChange = (next: string) => {
-    if (busy || isLocked) return
-    setError('')
-    if (mode === 'confirm') {
-      setConfirmPin(next)
-      if (next.length === MAX_LENGTH) handleSave(next)
       return
     }
+    setPassword('')
+    applyFailure('password', await getPasswordLockout(), 'Incorrect password')
+  }, [password, busy, isLocked, unlock, applyFailure])
+
+  const handlePinChange = (next: string) => {
+    if (busy || isLocked) return
+    setError('')
     setPin(next)
-    if (next.length !== MAX_LENGTH) return
-    if (mode === 'unlock') handleVerify(next)
-    else setMode('confirm')
+    if (next.length === PIN_LENGTH) handlePin(next)
   }
 
-  const displayPin = mode === 'confirm' ? confirmPin : pin
+  const switchMethod = (next: Method) => {
+    setError('')
+    setPin('')
+    setPassword('')
+    setMethod(next)
+  }
 
-  if (hasPin === null) return null
+  if (!methods) return null
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Ionicons name="lock-closed-outline" size={48} color={Colors.gold} />
-        <Text style={styles.title}>
-          {mode === 'setup' ? 'Set App PIN' : mode === 'confirm' ? 'Confirm PIN' : 'Enter PIN'}
+    <KeyboardAwareScreen scroll contentContainerStyle={styles.content}>
+      <Ionicons name="lock-closed-outline" size={48} color={Colors.gold} />
+      <Text style={styles.title}>{method === 'password' ? 'Enter Password' : 'Enter PIN'}</Text>
+      {isLocked ? (
+        <Text style={styles.error} accessibilityLiveRegion="polite">
+          Too many attempts. Try again in {formatCountdown(remainingMs)}.
         </Text>
-        {isLocked ? (
-          <Text style={styles.error} accessibilityLiveRegion="polite">
-            Too many attempts. Try again in {formatCountdown(remainingMs)}.
-          </Text>
-        ) : error ? (
-          <Text style={styles.error} accessibilityLiveRegion="polite">
-            {error}
-          </Text>
-        ) : null}
+      ) : error ? (
+        <Text style={styles.error} accessibilityLiveRegion="polite">
+          {error}
+        </Text>
+      ) : null}
 
-        <View
-          style={styles.dots}
-          accessibilityRole="progressbar"
-          accessibilityLabel={`${displayPin.length} of ${MAX_LENGTH} digits entered`}
-        >
-          {Array.from({ length: MAX_LENGTH }).map((_, i) => (
-            <View key={i} style={[styles.dot, i < displayPin.length && styles.dotFilled]} />
-          ))}
+      {method === 'password' ? (
+        <View style={styles.passwordBlock}>
+          <TextInput
+            style={styles.passwordInput}
+            value={password}
+            onChangeText={(t) => {
+              setError('')
+              setPassword(t)
+            }}
+            placeholder="Wallet password"
+            placeholderTextColor={Colors.mutedWhite}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="current-password"
+            textContentType="password"
+            returnKeyType="go"
+            onSubmitEditing={handlePassword}
+            editable={!busy && !isLocked}
+            autoFocus={!canUseDevice}
+            accessibilityLabel="Wallet password"
+          />
+          <Button
+            label="Unlock"
+            onPress={handlePassword}
+            loading={busy}
+            disabled={!password || isLocked}
+            fullWidth
+          />
         </View>
-
-        <NumericKeypad value={displayPin} onChangeValue={handleChange} maxDigits={MAX_LENGTH} />
-
-        {mode === 'unlock' && biometricEnabled && biometricAvailable && !isLocked && (
-          <TouchableOpacity
-            onPress={promptBiometric}
-            style={styles.biometricBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Unlock with biometrics"
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      ) : (
+        <>
+          <View
+            style={styles.dots}
+            accessibilityRole="progressbar"
+            accessibilityLabel={`${pin.length} of ${PIN_LENGTH} digits entered`}
           >
-            <Ionicons name="finger-print-outline" size={22} color={Colors.gold} />
-            <Text style={styles.biometricLabel}>Use biometrics</Text>
-          </TouchableOpacity>
-        )}
+            {Array.from({ length: PIN_LENGTH }).map((_, i) => (
+              <View key={i} style={[styles.dot, i < pin.length && styles.dotFilled]} />
+            ))}
+          </View>
+          <NumericKeypad value={pin} onChangeValue={handlePinChange} maxDigits={PIN_LENGTH} />
+        </>
+      )}
 
-        {mode === 'setup' && (
-          <TouchableOpacity
-            onPress={unlock}
-            style={styles.skipBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Skip PIN setup"
-            accessibilityHint="Continues without a PIN. Your wallet will not be locked."
-          >
-            <Text style={styles.skipLabel}>Skip</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </SafeAreaView>
+      {canUseDevice && (
+        <TouchableOpacity
+          onPress={promptDevice}
+          style={styles.linkBtn}
+          accessibilityRole="button"
+          accessibilityLabel={methods.deviceBiometric ? 'Unlock with biometrics' : 'Unlock with phone screen lock'}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons
+            name={methods.deviceBiometric ? 'finger-print-outline' : 'phone-portrait-outline'}
+            size={22}
+            color={Colors.gold}
+          />
+          <Text style={styles.linkLabel}>
+            {methods.deviceBiometric ? 'Use biometrics' : 'Use phone screen lock'}
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {method === 'password' && methods.pin && (
+        <TouchableOpacity onPress={() => switchMethod('pin')} style={styles.linkBtn} accessibilityRole="button">
+          <Text style={styles.secondaryLabel}>Use PIN instead</Text>
+        </TouchableOpacity>
+      )}
+      {method === 'pin' && methods.password && (
+        <TouchableOpacity onPress={() => switchMethod('password')} style={styles.linkBtn} accessibilityRole="button">
+          <Text style={styles.secondaryLabel}>Use password instead</Text>
+        </TouchableOpacity>
+      )}
+    </KeyboardAwareScreen>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surfaceBg },
   content: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.xl,
     gap: Spacing.md,
   },
   title: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, color: Colors.white },
   error: { fontSize: FontSize.sm, color: Colors.danger, textAlign: 'center' },
+  passwordBlock: { alignSelf: 'stretch', gap: Spacing.md, marginTop: Spacing.lg },
+  passwordInput: {
+    backgroundColor: Colors.lightGrey,
+    borderWidth: 1,
+    borderColor: Colors.borderGrey,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    fontSize: FontSize.md,
+    color: Colors.white,
+  },
   dots: { flexDirection: 'row', gap: Spacing.md, marginVertical: Spacing.lg },
   dot: {
     width: 14,
@@ -233,8 +275,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderGrey,
   },
   dotFilled: { backgroundColor: Colors.gold, borderColor: Colors.gold },
-  biometricBtn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.md },
-  biometricLabel: { fontSize: FontSize.md, color: Colors.gold, fontWeight: FontWeight.medium },
-  skipBtn: { paddingVertical: Spacing.md },
-  skipLabel: { fontSize: FontSize.md, color: Colors.mutedWhite },
+  linkBtn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.sm },
+  linkLabel: { fontSize: FontSize.md, color: Colors.gold, fontWeight: FontWeight.medium },
+  secondaryLabel: { fontSize: FontSize.md, color: Colors.mutedWhite },
 })
