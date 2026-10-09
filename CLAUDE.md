@@ -22,11 +22,18 @@ Out of scope: Mainnet, iOS, other NFC hardware, fiat ramp, multisig, multi-chain
 
 - Work happens on `instaward-development` → PR into `instaward` → PR into `main`.
   Never push straight to `main`.
-- **~One scoped deliverable commit per week**, mapped to that week's Expected Output
-  in `Noir/_SCF Instaward - Deliverables & Constraints.md`. Don't scatter unrelated
-  files into a deliverable commit.
-- Rule of thumb before committing: "does this belong to the current week's Expected
-  Output?" If not, hold it.
+- **Always commit after making changes** (user rule, 2026-10-09) — once the change
+  is done and tests/`tsc` pass, commit it on `instaward-development`. Stage only the
+  files that change touched (never sweep in unrelated dirty files like `landing/`,
+  `promo/` or `.graphify/`). Conventional-commit subject + a body that details what
+  changed and why. Committing is not pushing and not a PR — push/PR only when asked.
+- **Every commit carries these co-authors** (only people who contribute to the repo):
+  ```
+  Co-Authored-By: Johnrick Rabara <jrabara101@gmail.com>
+  Co-Authored-By: Jefferson Tuparan <jeffersontuparanst@gmail.com>
+  ```
+- Keep commits scoped: one logical change per commit, mapped where possible to the
+  week's Expected Output in `Noir/_SCF Instaward - Deliverables & Constraints.md`.
 
 ## Architecture
 

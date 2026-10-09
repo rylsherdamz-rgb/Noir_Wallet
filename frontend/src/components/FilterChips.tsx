@@ -53,6 +53,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.sm,
     paddingVertical: 8,
+    // Inside the scroll content (not on the ScrollView) so chips line up with
+    // the 20px screen gutter yet still scroll edge-to-edge, and the last chip
+    // keeps its right padding when scrolled to the end.
+    paddingHorizontal: 20,
   },
   chip: {
     paddingHorizontal: Spacing.md,
