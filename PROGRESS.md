@@ -47,7 +47,7 @@ This maps every weekly deliverable to its status. Measure every commit against t
 - [x] Reconciled Contract IDs to one evidence-backed set across README, `.env.example`, and the Obsidian notes
 - [x] Corrected README contract method tables + build guide to match the Rust source
 - [x] Week 1 evidence index — `deploy-evidence/WEEK1-EVIDENCE.md`
-- [ ] Record deploy-time transaction hashes (needs the Stellar CLI; contract explorer links already published)
+- [x] Record deploy-time transaction hashes — create + initialize tx links for the current deploy in `deploy-evidence/deploy-testnet-20261007T050558Z.md` (recovered from Horizon / RPC, 2026-10-09)
 - [ ] Capture wallet create/import evidence (screenshot or recording)
 
 ### Week 2 — NFC provisioning + register + association + agent auth + escrow fund (wire app ↔ contracts)  🟡 IN PROGRESS
@@ -59,7 +59,7 @@ This maps every weekly deliverable to its status. Measure every commit against t
 - [x] Device register via DeviceRegistry (on-chain association) — verified on Testnet 2026-10-03
 - [x] Agent authorization UI passes constraints (limit, asset, expiry) to AgentRegistry — per-payment cap + expiry chosen in the provisioning signature sheet (`buildAgentPolicy`), asset = native XLM SAC; policy read back via `get_policy` on Agent Detail (2026-10-06, unit-tested; Testnet run pending)
 - [x] Escrow funding wired to PaymentEscrow — `x402.fundEscrow` → `fund_escrow(token, wallet, device_hash, i128)`, amount picker + live `balance_of` on Agent Detail (2026-10-06, unit-tested; Testnet run pending)
-- [ ] App ↔ deployed Soroban contracts integration verified on Testnet
+- [x] App ↔ deployed Soroban contracts integration verified on Testnet — the app's own `x402` code ran register + constrained agent → foreign-wallet rejection → fund → withdraw → unlink live (`npm run test:testnet`, evidence `deploy-evidence/week2-testnet-flow-20261009T044804Z.md`, 2026-10-09)
 
 ### Week 3 — Full x402 flow + tests + security paths + docs  ⬜ NOT STARTED
 **Expected output:** Complete x402 flow validated; automated tests passing; positive/negative security validation; developer docs.
@@ -157,6 +157,30 @@ Admin `GCDAAT6G6BUANDLY432YEAFY2MHUDP4PVEQ6ODMKWMUL6THLDY4GY2KD` · evidence `de
 Redeploy script: `scripts/redeploy-contracts.sh` (build → hash → deploy → initialize → write evidence).
 
 ---
+
+## Session Log — 2026-10-09 (Week 1–2 gaps)
+
+- **Week 2 Testnet gate run** — `frontend/testnet/week2-flow.testnet.ts` drives the
+  app's `walletService` + `x402` against the deployed contracts with a simulated
+  NTAG213 UID; all 5 steps pass. Tx links: `deploy-evidence/week2-testnet-flow-20261009T044804Z.md`.
+- **Bugs that run found (fixed):**
+  - Registration returned before `register` / `register_agent` were final, so
+    provisioning could report success early and an immediate ownership read said
+    "free". Both now wait for finality.
+  - `fund_escrow` accepted an unregistered device hash; the deposit is then
+    unrecoverable (withdraw/sweep resolve the owner via device_registry). The app
+    now refuses (`DeviceNotLinkedError`), and the contract fix
+    (`DeviceNotRegistered = 8`, 45 contract tests) is committed — **needs a
+    redeploy to take effect on Testnet**.
+  - `accountExists` cached "missing" for 30s, so a freshly Friendbot-funded wallet
+    looked absent; `fundAccount` reported failure on slow Friendbot responses even
+    when funding succeeded.
+- **Deploy tx hashes** for the current deploy recovered from Horizon/RPC and added
+  to `deploy-evidence/deploy-testnet-20261007T050558Z.md`.
+- **Wallet create/import** verified at the service level on Testnet (same keys
+  after import, account funded) in the same run.
+- **App lock:** wallet password is now the default unlock; phone unlock is an
+  opt-in toggle (Security). Landing page redesigned to the app's design system.
 
 ## Session Log — 2026-10-03 (app ↔ contracts wiring)
 
