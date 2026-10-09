@@ -47,7 +47,7 @@ device's full escrow balance to owner.
 Build order matters: `agent_registry` + `device_registry` WASM before `payment_escrow`
 (it `contractimport!`s them). See `Noir/_Redeploy Contracts.md` for the redeploy runbook.
 
-## Current state (as of 2026-10-03)
+## Current state (as of 2026-10-09)
 
 - **Deployed Testnet Contract IDs** (current — matches `frontend/.env`):
   - device_registry: `CB4DPMGOA374JIB2ZVD4AHW5GJKQUYNOFGRYNOJ75EFH2KCJSMHOWIRA`
@@ -61,8 +61,14 @@ Build order matters: `agent_registry` + `device_registry` WASM before `payment_e
     `docs/Evidence/README.md`, `Noir/DeviceRegistry.md`/`AgentRegistry.md`/`PaymentEscrow.md`,
     PROGRESS.md). `scripts/redeploy-contracts.sh UPDATE_ENV=1` auto-patches `frontend/.env`
     only — the docs above are manual.
-- Contract tests: 44 passing, 0 failed (`cargo test` from `backend/`).
-- Frontend: `tsc --noEmit` clean, Vitest 243/243 passing (as of 2026-10-07).
+- Contract tests: 45 passing, 0 failed (`cargo test` from `backend/`). `payment_escrow.fund_escrow`
+  now rejects unregistered devices (`DeviceNotRegistered = 8`, commit `5fb7fe6`) — **not yet
+  redeployed**; the live Testnet contracts still accept it (the app guards it client-side).
+- Frontend: `tsc --noEmit` clean, Vitest 285/285 passing (as of 2026-10-09).
+  `npm run test:testnet` (opt-in, live Testnet) runs the Week 2 path through the app's own
+  `x402` code and writes tx evidence to `deploy-evidence/week2-testnet-flow-*.md` — passing.
+- App lock: wallet password is the default unlock; phone unlock is an opt-in toggle
+  (`security.deviceUnlockEnabled`, `services/appLock.ts`). No app PIN (`pinLock.ts` is gone).
 - **Play Store target:** contract IDs for EAS builds live in `frontend/eas.json`
   (`base` profile) because `frontend/.env` is gitignored — update them there too on
   redeploy. Secrets go in `eas env`, never in eas.json. `app.json` blocks unused
@@ -81,11 +87,11 @@ Build order matters: `agent_registry` + `device_registry` WASM before `payment_e
 
 ### Open items (don't re-derive these — just pick up here)
 
-- Push local commits on `instaward-development` (as of last session there were
-  unpushed commits — check `git status`/`git log origin/instaward-development..HEAD`).
-- Testnet run of the Week 2 path: provision with policy → `fund_escrow` →
-  `defund_escrow` → unlink (revoke_agent → sweep_on_revoke → device revoke).
-  Code + unit tests done 2026-10-07; never executed against Testnet yet.
+- Redeploy contracts so the `fund_escrow` registration check is live (new IDs → propagate
+  everywhere, see redeploy note above), then re-run `npm run test:testnet`.
+- Week 1–2 Testnet/evidence gaps closed 2026-10-09 (deploy tx hashes, wallet create/import
+  screenshots in `docs/Evidence/wallet/`, Week 2 live run). The Android emulator image does
+  not trust `*.stellar.org`'s Sectigo chain — use Node or hardware for anything networked.
 - NTAG213 provisioning flow still needs on-device testing (NFC write timeout,
   ownership screens, scan animation, taller policy signature sheet).
 - Escrow invariant: never call `device_registry.revoke` while escrow > 0 — it
