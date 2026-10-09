@@ -5,6 +5,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import * as Clipboard from 'expo-clipboard'
+import { useToast } from '@/components/ToastProvider'
 import { useRouter } from 'expo-router'
 import { useFocusEffect } from 'expo-router'
 import { useAppStore } from '@/store/useAppStore'
@@ -53,6 +54,7 @@ export function formatRelativeTime(timestamp: number, now: number = Date.now()):
 
 export function DashboardScreen() {
   const router = useRouter()
+  const toast = useToast()
   const insets = useSafeAreaInsets()
   const { user, balance, devices, transactions, setTransactions, setBalance, network: storeNetwork, updateDevice } = useAppStore()
   const [refreshing, setRefreshing] = useState(false)
@@ -166,6 +168,7 @@ export function DashboardScreen() {
     if (!user?.stellarPublicKey) return
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     await Clipboard.setStringAsync(user.stellarPublicKey)
+    toast.success('Address copied', 'Your Stellar address is on the clipboard.')
   }
 
   const handleRename = useCallback(() => {
