@@ -273,7 +273,7 @@ export function AgentDetailScreen() {
   const handleWithdraw = useCallback(() => {
     if (!device || withdrawing || !escrowBalance || escrowBalance <= 0n) return
     const amount = escrowBalance
-    popup.confirm({
+    popup.sign({
       title: 'Withdraw tap balance?',
       message: 'Taps on this card stop until you add funds again.',
       icon: 'arrow-undo-outline',
@@ -312,7 +312,8 @@ export function AgentDetailScreen() {
     : chainStatus === 'mismatch' ? 'Different agent on-chain'
     : registering ? 'Syncing to Stellar…' : 'Not authorized'
   const statusColor = authorized ? Colors.success : chainStatus === null || registering ? Colors.mutedWhite : Colors.warning
-  const openFund = (mode: 'topup' | 'escrow') => router.push({ pathname: '/agent-fund/[id]', params: { id: device!.id, mode } })
+  // One funding action: "Top up" funds the agent wallet, which taps pay from.
+  const openFund = () => router.push({ pathname: '/agent-fund/[id]', params: { id: device!.id } })
   const explorer = (pub: string) =>
     Linking.openURL(`https://stellar.expert/explorer/${storeNetwork === 'testnet' ? 'testnet' : 'public'}/account/${pub}`)
 
@@ -361,12 +362,10 @@ export function AgentDetailScreen() {
         </View>
 
         <View style={styles.quickRow}>
-          <QuickAction icon="add" label="Top up" onPress={() => openFund('topup')} />
-          <QuickAction icon="lock-closed-outline" label="Add tap balance" onPress={() => openFund('escrow')} disabled={!authorized} />
+          <QuickAction icon="add" label="Top up" onPress={openFund} />
           <QuickAction icon="arrow-undo-outline" label={withdrawing ? 'Withdrawing…' : 'Withdraw'} onPress={handleWithdraw} disabled={!canWithdraw} />
           {agent?.publicKey && <QuickAction icon="open-outline" label="Explorer" onPress={() => explorer(agent.publicKey)} />}
         </View>
-        {!authorized && chainStatus !== null && <Text style={styles.heroNote}>Authorize the agent before adding a tap balance.</Text>}
 
         <SectionLabel title="Activity" />
         {agentTxs.length === 0 ? (
@@ -389,7 +388,7 @@ export function AgentDetailScreen() {
             color={Colors.danger}
             disabled={removing}
             onPress={() =>
-              popup.confirm({
+              popup.sign({
                 title: `Revoke ${device.label}?`,
                 message: 'Its agent stops working for good. Its tap balance and agent XLM return to your main wallet.',
                 icon: 'trash-outline',

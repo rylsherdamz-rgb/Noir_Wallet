@@ -3,7 +3,10 @@
  *
  * - <Dialog>  centred card for decisions (confirm / notice / small forms)
  * - <Sheet>   bottom sheet for richer content (wallet list, signature request)
- * - popup.confirm() / popup.notice()  imperative API backed by <PopupHost>,
+ * - <SignSheet> bottom sheet for anything that signs a transaction — the
+ *   wallet-app convention: a signature request rises from the bottom with
+ *   what you're signing, never a centred dialog
+ * - popup.confirm() / popup.notice() / popup.sign()  imperative API backed by <PopupHost>,
  *   usable from any screen or plain module (replaces native Alert.alert,
  *   which renders as a stock Android box outside the brand).
  *
@@ -233,6 +236,62 @@ export function Sheet({ visible, onClose, title, subtitle, icon, tone = 'brand',
   )
 }
 
+/* ───────────────────────────── SignSheet ────────────────────────────── */
+
+export interface SignSheetProps {
+  visible: boolean
+  onClose: () => void
+  onSign: () => void
+  title: string
+  message?: string
+  icon?: keyof typeof Ionicons.glyphMap
+  tone?: PopupTone
+  details?: PopupDetail[]
+  signLabel?: string
+  cancelLabel?: string
+  loading?: boolean
+}
+
+/** Signature request: what is being signed, then Sign / Cancel at the thumb. */
+export function SignSheet({
+  visible, onClose, onSign, title, message, icon = 'finger-print-outline', tone = 'brand', details,
+  signLabel = 'Sign', cancelLabel = 'Cancel', loading,
+}: SignSheetProps) {
+  useEffect(() => {
+    if (visible && tone === 'danger') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {})
+  }, [visible, tone])
+  const close = () => { if (!loading) onClose() }
+  return (
+    <Sheet
+      visible={visible}
+      onClose={close}
+      title={title}
+      subtitle={message}
+      icon={icon}
+      tone={tone}
+      dismissible={!loading}
+      footer={
+        <>
+          <Button
+            label={signLabel}
+            icon="finger-print-outline"
+            variant={tone === 'danger' ? 'danger' : 'primary'}
+            onPress={onSign}
+            loading={loading}
+            fullWidth
+          />
+          <PressableScale style={styles.secondary} onPress={close} disabled={loading} accessibilityRole="button" accessibilityLabel={cancelLabel}>
+            <Text style={styles.secondaryText}>{cancelLabel}</Text>
+          </PressableScale>
+        </>
+      }
+    >
+      {details && details.length > 0 ? <PopupDetails rows={details} /> : null}
+      <Text style={styles.signNote}>Signed with your wallet key on this phone.</Text>
+    </Sheet>
+  )
+}
+
 /* ───────────────────── imperative API + host ───────────────────── */
 
 export interface ConfirmOptions {
@@ -255,6 +314,7 @@ export interface NoticeOptions {
 
 type Request =
   | { kind: 'confirm'; opts: ConfirmOptions; resolve: (ok: boolean) => void }
+  | { kind: 'sign'; opts: ConfirmOptions; resolve: (ok: boolean) => void }
   | { kind: 'notice'; opts: NoticeOptions; resolve: (ok: boolean) => void }
 
 let enqueue: ((r: Request) => void) | null = null
@@ -270,6 +330,10 @@ const DEFAULT_ICON: Record<PopupTone, keyof typeof Ionicons.glyphMap> = {
 export const popup = {
   confirm(opts: ConfirmOptions): Promise<boolean> {
     return new Promise((resolve) => (enqueue ? enqueue({ kind: 'confirm', opts, resolve }) : resolve(false)))
+  },
+  /** Confirm something that signs a transaction — shown as a bottom sheet. */
+  sign(opts: ConfirmOptions): Promise<boolean> {
+    return new Promise((resolve) => (enqueue ? enqueue({ kind: 'sign', opts, resolve }) : resolve(false)))
   },
   notice(opts: NoticeOptions): Promise<void> {
     return new Promise((resolve) => (enqueue ? enqueue({ kind: 'notice', opts, resolve: () => resolve() }) : resolve()))
@@ -301,6 +365,23 @@ export function PopupHost() {
   }, [])
 
   if (!current) return null
+  if (current.kind === 'sign') {
+    const so = current.opts
+    return (
+      <SignSheet
+        visible={visible}
+        onClose={() => finish(false)}
+        onSign={() => finish(true)}
+        title={so.title}
+        message={so.message}
+        icon={so.icon}
+        tone={so.tone}
+        details={so.details}
+        signLabel={so.confirmLabel}
+        cancelLabel={so.cancelLabel}
+      />
+    )
+  }
   const o = current.opts
   const tone = o.tone ?? 'brand'
   const confirmLabel = current.kind === 'confirm'
@@ -369,4 +450,5 @@ const styles = StyleSheet.create({
   handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.borderGrey, marginBottom: Spacing.md },
   sheetHeader: { alignItems: 'center', marginBottom: Spacing.lg, paddingHorizontal: Spacing.lg },
   sheetFooter: { marginTop: Spacing.lg, gap: Spacing.xs },
+  signNote: { fontSize: FontSize.xs, color: Colors.mutedWhite, textAlign: 'center', marginTop: Spacing.md },
 })

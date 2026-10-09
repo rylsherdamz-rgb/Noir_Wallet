@@ -9,11 +9,12 @@ import { useToast } from '@/components/ToastProvider'
 import { useRouter } from 'expo-router'
 import { useFocusEffect } from 'expo-router'
 import { useAppStore } from '@/store/useAppStore'
+import { mergeHistory } from '@/lib/localTx'
 import { TestnetFaucetBanner } from '@/components/TestnetFaucetBanner'
 import { SkeletonLoader } from '@/components/SkeletonLoader'
 import { EmptyState } from '@/components/EmptyState'
 import { PressableScale } from '@/components/brand/PressableScale'
-import { TapGlyph, SparkGlyph } from '@/components/brand/BrandGlyph'
+import { TapGlyph, StellarMark } from '@/components/brand/BrandGlyph'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts, Gradient } from '@/constants/theme'
 import { stellarService } from '@/services/stellar-service'
 import { Transaction } from '@/types'
@@ -101,17 +102,7 @@ export function DashboardScreen() {
       if (user?.stellarPublicKey) {
         try {
           const onChain = await stellarService.getPaymentHistory(user.stellarPublicKey)
-          const chainHashes = new Set(onChain.map((t) => t.stellarTxHash).filter(Boolean))
-          const chainIds = new Set(onChain.map((t) => t.id))
-          const localOnly = useAppStore
-            .getState()
-            .transactions.filter(
-              (t) => !chainIds.has(t.id) && !(t.stellarTxHash && chainHashes.has(t.stellarTxHash)),
-            )
-          const merged = [...onChain, ...localOnly].sort(
-            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-          )
-          setTransactions(merged)
+          setTransactions(mergeHistory(onChain, useAppStore.getState().transactions))
         } catch {
           failures.history = true
         }
@@ -259,7 +250,7 @@ export function DashboardScreen() {
           <Action label="Send" primary onPress={() => router.push('/send')}><Ionicons name="arrow-up" size={22} color={Colors.onGold} /></Action>
           <Action label="Receive" onPress={() => router.push('/receive')}><Ionicons name="arrow-down" size={22} color={Colors.white} /></Action>
           <Action label="Tap" onPress={() => router.push('/tap')}><TapGlyph size={22} color={Colors.white} /></Action>
-          <Action label="Top up" onPress={() => router.push(devices[0] ? `/agent/${devices[0].id}` : '/link-device')}><Ionicons name="add" size={24} color={Colors.white} /></Action>
+          <Action label="Top up" onPress={() => router.push(devices.length === 1 ? `/agent-fund/${devices[0].id}` : devices[0] ? '/(tabs)/pos' : '/link-device')}><Ionicons name="add" size={24} color={Colors.white} /></Action>
         </View>
 
         {storeNetwork === 'testnet' && hasKey && balance.xlm === 0 && <TestnetFaucetBanner />}
@@ -276,7 +267,7 @@ export function DashboardScreen() {
         {tab === 'assets' && (
           <View>
             <Row
-              icon={<View style={styles.xlmIcon}><SparkGlyph size={20} color={Colors.gold} /></View>}
+              icon={<View style={styles.xlmIcon}><StellarMark size={22} color={Colors.gold} /></View>}
               title="Stellar Lumens"
               sub="XLM"
               value={balance.xlm.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

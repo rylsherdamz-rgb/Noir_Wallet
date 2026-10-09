@@ -431,7 +431,7 @@ export function DeviceProvisioningScreen() {
           <Text style={styles.body}>{displayLabel} is registered on Stellar{agentCreated ? ' and its agent is ready' : ''}. Top it up to start tapping.</Text>
         </View>
         <View style={styles.footer}>
-          <Button label="Top up card" onPress={() => { reset(); router.replace('/(tabs)/pos') }} fullWidth />
+          <Button label="Top up card" onPress={() => { const id = tagHash; reset(); router.replace(id ? `/agent-fund/${id}` : '/(tabs)/pos') }} fullWidth />
           <TextAction label="Done" color={Colors.cream} onPress={() => { reset(); router.replace('/(tabs)/pos') }} />
         </View>
       </>

@@ -3,6 +3,7 @@ import { secureGetItem, secureSetItem, secureDeleteItem } from '@/services/secur
 import { stellarService } from '@/services/stellar-service'
 import { AppConfig } from '@/constants/config'
 import { logger } from '@/lib/logger'
+import { humanizeStellarError } from '@/lib/stellarErrors'
 import { spendableBalance, minimumBalance, toStellarAmount } from '@/lib/stellarAccount'
 
 const SecureStore = {
@@ -447,6 +448,35 @@ export const x402 = {
     return null
   },
 
+  /**
+   * Find the agent index for a card using only data on this phone — no
+   * network reads, so it is instant. Order: the stored device link, then the
+   * stored public key of each agent, then an HD re-derivation from the seed.
+   * A match found by key is re-linked to the card so the next lookup is the
+   * fast path. Returns null when the card's agent was not made on this phone;
+   * callers must never fall back to agent 1 (that would pay from the wrong card).
+   */
+  async resolveAgentIndex(deviceHash: string, agentPublicKey?: string | null): Promise<number | null> {
+    const linked = await this.getAgentIndexForDevice(deviceHash)
+    if (linked != null) return linked
+    if (!agentPublicKey) return null
+
+    const indexes = await readIndexes()
+    for (const i of indexes) {
+      const secret = await SecureStore.getItemAsync(legacySecretKey(i))
+      if (!secret) continue
+      const pub = (await SecureStore.getItemAsync(legacyPublicKey(i))) || Keypair.fromSecret(secret).publicKey()
+      if (pub === agentPublicKey) {
+        await this.linkAgentToDevice(i, deviceHash)
+        return i
+      }
+    }
+
+    // Keys missing locally (fresh restore): rebuild them from the seed.
+    const healed = await this.syncAgentsFromDevices([{ deviceUidHash: deviceHash, agentPublicKey }])
+    return healed > 0 ? this.getAgentIndexForDevice(deviceHash) : null
+  },
+
   /** Link an existing agent index to a device hash. */
   async linkAgentToDevice(index: number, deviceHash: string): Promise<void> {
     await SecureStore.setItemAsync(legacyDeviceKey(index), deviceHash)
@@ -517,9 +547,21 @@ export const x402 = {
     if (!secret) return { error: 'No agent wallet' }
 
     const agentPub = Keypair.fromSecret(secret).publicKey()
-    const exists = await stellarService.accountExists(agentPub)
-    if (!exists) {
-      return { error: 'Agent wallet has no funds — top it up from the agent screen' }
+    // One Horizon read tells us both "does it exist" and "can it cover this".
+    // accountExists() reports a timeout as "missing", which blamed an empty
+    // card for what was really a slow network.
+    let bal: { xlm: number; subentryCount?: number }
+    try {
+      bal = await stellarService.getBalanceStrict(agentPub)
+    } catch (e: any) {
+      return { error: humanizeStellarError(e) }
+    }
+    if (bal.xlm <= 0) {
+      return { error: 'This card has no balance yet — open the card and tap Top up.' }
+    }
+    const available = spendableBalance(bal.xlm, bal.subentryCount ?? 0)
+    if (parseFloat(params.amount) > available) {
+      return { error: `This card only has ${Math.max(0, available).toFixed(2)} XLM to spend — open the card and tap Top up.` }
     }
 
     const cost = Math.ceil(parseFloat(params.amount) * 10_000_000)

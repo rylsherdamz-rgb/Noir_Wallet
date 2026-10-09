@@ -21,6 +21,7 @@ import { SkeletonLoader } from '@/components/SkeletonLoader'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { ScreenHeader } from '@/components/ScreenHeader'
 import { useAppStore } from '@/store/useAppStore'
+import { mergeHistory } from '@/lib/localTx'
 import { stellarService } from '@/services/stellar-service'
 import { logger } from '@/lib/logger'
 import { TxFilter, Transaction } from '@/types'
@@ -80,17 +81,7 @@ export function TransactionHistoryScreen({ asTab = false }: { asTab?: boolean } 
         const onChain = await stellarService.getPaymentHistory(walletPub)
         // Keep locally-recorded txs (e.g. pending taps) that Horizon hasn't
         // indexed yet; drop them once their hash shows up on-chain.
-        const chainHashes = new Set(onChain.map((t) => t.stellarTxHash).filter(Boolean))
-        const chainIds = new Set(onChain.map((t) => t.id))
-        const localOnly = useAppStore
-          .getState()
-          .transactions.filter(
-            (t) => !chainIds.has(t.id) && !(t.stellarTxHash && chainHashes.has(t.stellarTxHash)),
-          )
-        const merged = [...onChain, ...localOnly].sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        )
-        setTransactions(merged)
+        setTransactions(mergeHistory(onChain, useAppStore.getState().transactions))
         if (mode === 'pull') haptic(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success))
       } catch (e: any) {
         logger.warn('[transactions] history load failed:', e?.message ?? e)

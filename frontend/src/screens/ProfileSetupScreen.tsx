@@ -13,6 +13,7 @@ import { NewPasswordFields, isNewPasswordReady } from '@/components/NewPasswordF
 import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '@/constants/theme'
 import { colorWithOpacity } from '@/constants/designTokens'
 import { Button } from '@/components/Button'
+import { ProcessingOverlay, afterOverlayPaints, stepsAt } from '@/components/flow/ProcessingOverlay'
 
 const MAX_NAME = 32
 
@@ -44,6 +45,8 @@ export function ProfileSetupScreen() {
     if (!canFinish) return
     setSaving(true)
     setError(null)
+    // Password hashing blocks the JS thread — show the progress screen first.
+    await afterOverlayPaints()
     try {
       await setPassword(pw)
       if (user) setUser({ ...user, displayName: trimmed })
@@ -134,6 +137,14 @@ export function ProfileSetupScreen() {
           )}
         </View>
       </KeyboardAvoidingView>
+
+      <ProcessingOverlay
+        visible={saving}
+        title="Securing your wallet"
+        subtitle="Locking your wallet with your new password."
+        steps={stepsAt(['Hardening your password', 'Saving on this phone'], 0)}
+        footnote="Keep the app open — this takes a few seconds on your phone."
+      />
     </SafeAreaView>
   )
 }

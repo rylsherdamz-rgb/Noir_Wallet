@@ -7,6 +7,7 @@ import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/co
 import { Button } from '@/components/Button'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { walletService, WalletKeys } from '@/services/wallet'
+import { ProcessingOverlay, afterOverlayPaints, stepsAt } from '@/components/flow/ProcessingOverlay'
 
 interface ImportWalletScreenProps {
   onComplete: (keys: WalletKeys) => void | Promise<void>
@@ -17,6 +18,7 @@ export function ImportWalletScreen({ onComplete, onBack }: ImportWalletScreenPro
   const [input, setInput] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [stage, setStage] = useState(0)
 
   const handleImport = async () => {
     setError(null)
@@ -27,18 +29,21 @@ export function ImportWalletScreen({ onComplete, onBack }: ImportWalletScreenPro
       return
     }
 
+    setStage(0)
     setLoading(true)
-    // Let the spinner paint before CPU-heavy key derivation blocks the JS thread.
-    await new Promise((r) => setTimeout(r, 50))
+    // Put the full-screen progress up before CPU-heavy key derivation blocks the JS thread.
+    await afterOverlayPaints()
     try {
       const label = `Wallet ${1 + (await walletService.getWalletList()).length}`
       const keys = await walletService.deriveKeys(phrase, label)
+      setStage(1)
       await walletService.saveKeys(keys)
       await walletService.addWalletToList({
         label: keys.label || 'Imported Wallet',
         stellarPublic: keys.stellarPublic,
         createdAt: new Date().toISOString(),
       })
+      setStage(2)
       await onComplete(keys)
     } catch (e: any) {
       setError(e.message || 'Failed to import wallet')
@@ -90,6 +95,14 @@ export function ImportWalletScreen({ onComplete, onBack }: ImportWalletScreenPro
         />
       </ScrollView>
       </KeyboardAvoidingView>
+
+      <ProcessingOverlay
+        visible={loading}
+        title="Importing your wallet"
+        subtitle="Restoring your Stellar keys from your recovery phrase."
+        steps={stepsAt(['Deriving your keys', 'Encrypting them on this phone', 'Getting your wallet ready'], stage)}
+        footnote="Keep the app open — this happens on your phone, nothing is sent anywhere."
+      />
     </SafeAreaView>
   )
 }

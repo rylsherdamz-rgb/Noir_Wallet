@@ -58,6 +58,8 @@ interface AppState {
   removeDevice: (id: string) => void
   setTransactions: (transactions: Transaction[]) => void
   addTransaction: (transaction: Transaction) => void
+  updateTransaction: (id: string, updates: Partial<Transaction>) => void
+  removeTransaction: (id: string) => void
   setBalance: (balance: Balance) => void
   updateBalance: (updates: Partial<Balance>) => void
   setBalanceStale: (val: boolean) => void
@@ -125,6 +127,10 @@ export const useAppStore = create<AppState>()(
       setTransactions: (transactions) => set({ transactions }),
       addTransaction: (transaction) =>
         set((s) => ({ transactions: [transaction, ...s.transactions] })),
+      updateTransaction: (id, updates) =>
+        set((s) => ({ transactions: s.transactions.map((t) => (t.id === id ? { ...t, ...updates } : t)) })),
+      removeTransaction: (id) =>
+        set((s) => ({ transactions: s.transactions.filter((t) => t.id !== id) })),
       setBalance: (balance) => set({ balance }),
       updateBalance: (updates) =>
         set((s) => ({ balance: { ...s.balance, ...updates } })),
@@ -173,6 +179,9 @@ export const useAppStore = create<AppState>()(
         devices: state.devices,
         pendingPayments: state.pendingPayments,
         pendingTxHashes: state.pendingTxHashes,
+        // In-flight payments survive an app restart so Activity still shows
+        // them; everything else is re-read from Horizon.
+        transactions: state.transactions.filter((t) => t.status === 'pending'),
         isOnboarded: state.isOnboarded,
         isWalletCreated: state.isWalletCreated,
         network: state.network,

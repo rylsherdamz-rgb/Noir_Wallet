@@ -17,6 +17,7 @@ vi.mock('@/services/stellar-service', () => ({
     submitPayment: vi.fn().mockResolvedValue({ hash: 'test-mock-hash' }),
     submitCreateAccount: vi.fn().mockResolvedValue({ hash: 'test-create-hash' }),
     getBalance: vi.fn().mockResolvedValue({ xlm: 500 }),
+    getBalanceStrict: vi.fn().mockResolvedValue({ xlm: 500, subentryCount: 0 }),
     invokeContract: vi.fn().mockResolvedValue('mock-invoke-hash'),
     readContract: vi.fn().mockResolvedValue('0'),
     accountExists: vi.fn().mockResolvedValue(true),
@@ -175,6 +176,7 @@ describe('x402 multi-agent logic', () => {
     const { stellarService } = await import('@/services/stellar-service')
     ;(stellarService.accountExists as ReturnType<typeof vi.fn>).mockResolvedValue(true)
     ;(stellarService.getBalance as ReturnType<typeof vi.fn>).mockResolvedValue({ xlm: 500 })
+    ;(stellarService.getBalanceStrict as ReturnType<typeof vi.fn>).mockResolvedValue({ xlm: 500, subentryCount: 0 })
   })
 
   it('createAgent generates a valid keypair and default budget', async () => {
@@ -332,11 +334,50 @@ describe('x402 multi-agent logic', () => {
   it('payWithAgent returns error when agent account missing on-chain', async () => {
     const { x402 } = await import('@/domain/x402')
     const { stellarService } = await import('@/services/stellar-service')
-    ;(stellarService.accountExists as ReturnType<typeof vi.fn>).mockResolvedValue(false)
+    ;(stellarService.getBalanceStrict as ReturnType<typeof vi.fn>).mockResolvedValue({ xlm: 0, subentryCount: 0 })
     const a = await x402.createAgent()
     const result = await x402.payWithAgent({ agentIndex: a.index, destination: 'GABC', amount: '1' })
-    expect('error' in result).toBe(true)
+    expect('error' in result && result.error).toMatch(/Top up/)
     expect(stellarService.submitPayment).not.toHaveBeenCalled()
+  })
+
+  it('payWithAgent refuses a tap the card balance cannot cover', async () => {
+    const { x402 } = await import('@/domain/x402')
+    const { stellarService } = await import('@/services/stellar-service')
+    ;(stellarService.getBalanceStrict as ReturnType<typeof vi.fn>).mockResolvedValue({ xlm: 3, subentryCount: 0 })
+    const a = await x402.createAgent()
+    const result = await x402.payWithAgent({ agentIndex: a.index, destination: 'GABC', amount: '5' })
+    expect('error' in result && result.error).toMatch(/only has 2\.00 XLM/)
+    expect(stellarService.submitPayment).not.toHaveBeenCalled()
+  })
+
+  it('payWithAgent reports a slow network as a network problem, not an empty card', async () => {
+    const { x402 } = await import('@/domain/x402')
+    const { stellarService } = await import('@/services/stellar-service')
+    ;(stellarService.getBalanceStrict as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('[getBalance] timed out after 12s'))
+    const a = await x402.createAgent()
+    const result = await x402.payWithAgent({ agentIndex: a.index, destination: 'GABC', amount: '1' })
+    expect('error' in result && result.error).toMatch(/did not respond in time/)
+    expect(stellarService.submitPayment).not.toHaveBeenCalled()
+  })
+
+  it('resolveAgentIndex finds an unlinked card by its agent key and links it', async () => {
+    const { x402 } = await import('@/domain/x402')
+    await x402.createAgent({ label: 'Card A' })
+    const b = await x402.createAgent({ label: 'Card B' })
+    const hash = 'ab'.repeat(32)
+    expect(await x402.getAgentIndexForDevice(hash)).toBeNull()
+    expect(await x402.resolveAgentIndex(hash, b.publicKey)).toBe(b.index)
+    // Linked now — the next lookup takes the fast path.
+    expect(await x402.getAgentIndexForDevice(hash)).toBe(b.index)
+  })
+
+  it('resolveAgentIndex returns null (never agent 1) for a card whose agent is not on this phone', async () => {
+    const { x402 } = await import('@/domain/x402')
+    await x402.createAgent({ label: 'Card A' })
+    const stranger = Keypair.random().publicKey()
+    expect(await x402.resolveAgentIndex('cd'.repeat(32), stranger)).toBeNull()
+    expect(await x402.resolveAgentIndex('cd'.repeat(32), null)).toBeNull()
   })
 
   it('syncAgentsFromDevices rebuilds agents from persisted devices (no agents after login)', async () => {

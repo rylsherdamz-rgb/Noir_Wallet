@@ -81,6 +81,19 @@ function makeCache<T>(): Cache<T> {
 const DEFAULT_TIMEOUT_MS = 20000
 
 /**
+ * Horizon's error title is just "Transaction Failed"; the reason lives in
+ * extras.result_codes (op_underfunded, tx_bad_seq, …). Keep the codes so
+ * humanizeStellarError() can turn them into a sentence.
+ */
+function horizonErrorText(err: any): string {
+  const data = err?.response?.data
+  const codes = data?.extras?.result_codes
+  const list = [codes?.transaction, ...(Array.isArray(codes?.operations) ? codes.operations : [])].filter(Boolean)
+  const base = data?.detail || data?.title || err?.message || 'Transaction failed'
+  return list.length ? `${base} (${list.join(', ')})` : base
+}
+
+/**
  * Fail fast instead of hanging forever. Horizon and Soroban RPC calls on the
  * public testnet regularly stall without an HTTP error, and the SDK configures
  * no request timeout — a stuck request would otherwise block the UI
@@ -241,6 +254,25 @@ export class StellarService {
     }
   }
 
+  /**
+   * Like getBalance, but a network failure throws instead of reading as 0 XLM.
+   * Use it where "empty" and "couldn't check" need different messages. A
+   * missing (never-funded) account is still a real 0.
+   */
+  async getBalanceStrict(publicKey: string): Promise<BalanceResult> {
+    try {
+      return await this.balanceCache(publicKey, BALANCE_CACHE_TTL_MS, async () => {
+        const account = await withTimeout(this.horizon.loadAccount(publicKey), '[getBalance]', 12000)
+        const native = (account.balances as any[]).find((b: any) => b.asset_type === 'native')
+        return { xlm: parseFloat(native?.balance ?? '0'), subentryCount: (account as any).subentry_count ?? 0 }
+      })
+    } catch (e: any) {
+      const status = e?.response?.status ?? e?.response?.statusCode
+      if (status === 404 || e?.name === 'NotFoundError') return { xlm: 0, subentryCount: 0 }
+      throw e
+    }
+  }
+
   /** Drop the cached balance for an account after it sends or receives funds. */
   invalidateBalance(publicKey: string): void {
     this.balanceCache.invalidate(publicKey)
@@ -378,8 +410,7 @@ export class StellarService {
       const result = await withTimeout(this.horizon.submitTransaction(tx), '[submitPayment]', 20000)
       return { hash: result.hash }
     } catch (err: any) {
-      const msg = err?.response?.data?.detail || err?.response?.data?.title || err?.message || 'Transaction failed'
-      return { error: msg }
+      return { error: horizonErrorText(err) }
     }
   }
 
@@ -423,8 +454,7 @@ export class StellarService {
       const result = await withTimeout(this.horizon.submitTransaction(tx), '[submitCreateAccount]', 20000)
       return { hash: result.hash }
     } catch (err: any) {
-      const msg = err?.response?.data?.detail || err?.response?.data?.title || err?.message || 'Transaction failed'
-      return { error: msg }
+      return { error: horizonErrorText(err) }
     }
   }
 

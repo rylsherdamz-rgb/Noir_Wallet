@@ -9,6 +9,7 @@ import { NewPasswordFields, isNewPasswordReady } from '@/components/NewPasswordF
 import { hasPassword, setPassword, verifyPassword } from '@/services/appPassword'
 import { Colors, Spacing, FontSize, Fonts } from '@/constants/theme'
 import { colorWithOpacity } from '@/constants/designTokens'
+import { ProcessingOverlay, afterOverlayPaints, stepsAt } from '@/components/flow/ProcessingOverlay'
 
 /**
  * Create or change the wallet password.
@@ -37,6 +38,8 @@ export function CreatePasswordScreen({ onDone, onBack }: { onDone: () => void; o
     if (!canSave) return
     setSaving(true)
     setError(null)
+    // Password hashing blocks the JS thread — show the progress screen first.
+    await afterOverlayPaints()
     try {
       if (isChange) {
         const result = await verifyPassword(current)
@@ -114,6 +117,14 @@ export function CreatePasswordScreen({ onDone, onBack }: { onDone: () => void; o
           <Button label={saving ? 'Securing…' : isChange ? 'Change password' : 'Save password'} onPress={save} disabled={!canSave} loading={saving} fullWidth />
         </View>
       </KeyboardAvoidingView>
+
+      <ProcessingOverlay
+        visible={saving}
+        title="Securing your wallet"
+        subtitle="Locking your wallet with your new password."
+        steps={stepsAt(['Hardening your password', 'Saving on this phone'], 0)}
+        footnote="Keep the app open — this takes a few seconds on your phone."
+      />
     </SafeAreaView>
   )
 }

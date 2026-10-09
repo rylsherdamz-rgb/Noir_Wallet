@@ -85,7 +85,7 @@ Never put `fontWeight` on a Jost style — the weight is in the font file.
 | Lists | `ui/List`: `PageTitle`, `SectionLabel`, `ListRow`, `KeyValueRow`, `TextAction` |
 | Errors / blocked states | `ui/ErrorState` (+ `NetworkTag`) |
 | Network | `NetworkPicker` — chip + dropdown, always confirms the switch |
-| Popups | `popup/Popup`: `Dialog`, `Sheet`, `popup.confirm()`, `popup.notice()` — never `Alert.alert` |
+| Popups | `popup/Popup`: `Dialog`, `Sheet`, `SignSheet`, `popup.confirm()`, `popup.sign()`, `popup.notice()` — never `Alert.alert` |
 | Amounts | `AmountText`, `AssetChip` (SendScreen), `flow/AmountEntry`, flat `NumericKeypad` |
 | Loading | `brand/VerifyingPulse` (breathing cat) — never a bare spinner |
 | Brand moment | `brand/BrandMark`, `brand/BrandBackdrop` |
@@ -98,6 +98,12 @@ square (avatars and the round action discs on Wallet/Agent are buttons).
 Plain elevated card, hairline border. Dialog = question as the title, one
 line of context, optional detail rows, one button + quiet "Cancel". Sheets
 close by swipe-down or backdrop tap (no ✕, no Cancel).
+
+**Signing is always a bottom sheet** (`SignSheet` / `popup.sign()`), never a
+centred dialog: anything that signs a Stellar transaction (send, withdraw,
+revoke, link) rises from the bottom with what is being signed and a
+fingerprint "Sign…" button + quiet "Cancel" at thumb reach. Dialogs are for
+decisions that sign nothing (remove from this phone, reveal, switch network).
 
 ## 7. Patterns
 

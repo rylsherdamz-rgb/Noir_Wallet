@@ -9,6 +9,7 @@ import { Button } from '@/components/Button'
 import { walletService, WalletKeys } from '@/services/wallet'
 import { usePreventScreenCapture } from 'expo-screen-capture'
 import { logger } from '@/lib/logger'
+import { ProcessingOverlay, afterOverlayPaints, stepsAt } from '@/components/flow/ProcessingOverlay'
 
 interface SeedPhraseScreenProps {
   onNext: (keys: WalletKeys) => void | Promise<void>
@@ -24,6 +25,7 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
   const [phrase, setPhrase] = useState<string[]>([])
   const [revealed, setRevealed] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [stage, setStage] = useState(0)
 
   useEffect(() => {
     walletService.generateMnemonic().then((m) => setPhrase(m.split(' ')))
@@ -33,18 +35,21 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
     // Guard against a double-tap firing this twice before React re-renders the
     // button into its disabled/loading state.
     if (loading) return
+    setStage(0)
     setLoading(true)
-    // Let the spinner paint before key derivation (CPU-heavy, blocks the JS
-    // thread) — otherwise the button looks frozen.
-    await new Promise((r) => setTimeout(r, 50))
+    // Key derivation is CPU-heavy and blocks the JS thread — put the
+    // full-screen progress up first so the app never looks frozen.
+    await afterOverlayPaints()
     try {
       const keys = await walletService.deriveKeys(phrase.join(' '), 'My Wallet')
+      setStage(1)
       await walletService.saveKeys(keys)
       await walletService.addWalletToList({
         label: keys.label || 'My Wallet',
         stellarPublic: keys.stellarPublic,
         createdAt: new Date().toISOString(),
       })
+      setStage(2)
       await onNext(keys)
     } catch (e) {
       logger.error('Failed to save keys:', e)
@@ -110,9 +115,19 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
           />
         </View>
       </ScrollView>
+
+      <ProcessingOverlay
+        visible={loading}
+        title="Generating your wallet"
+        subtitle="Creating your Stellar keys from your recovery phrase."
+        steps={stepsAt(GENERATE_STEPS, stage)}
+        footnote="Keep the app open — this happens on your phone, nothing is sent anywhere."
+      />
     </SafeAreaView>
   )
 }
+
+const GENERATE_STEPS = ['Deriving your keys', 'Encrypting them on this phone', 'Getting your wallet ready']
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surfaceBg },

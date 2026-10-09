@@ -61,7 +61,7 @@ export default function ScanQrRoute() {
         </View>
         <View style={styles.scanArea}>
           <View style={styles.scanFrame} />
-          <Text style={styles.hint}>Point camera at a Stellar address QR code</Text>
+          <Text style={styles.hint}>Point the camera at a Stellar address or payment-request QR</Text>
         </View>
       </View>
     </View>

@@ -11,15 +11,19 @@ import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter, useGlobalSearchParams } from 'expo-router'
-import { Colors, Spacing, FontSize, FontWeight, FontScaleCap, Fonts } from '@/constants/theme'
+import { Colors, Spacing, FontSize, FontWeight, FontScaleCap, Fonts, Gradient } from '@/constants/theme'
 import { Button } from '@/components/Button'
 import { NumericKeypad } from '@/components/NumericKeypad'
 import { ErrorMessage } from '@/components/ErrorMessage'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { SignSheet } from '@/components/popup/Popup'
 import { Avatar } from '@/components/Avatar'
 import { EmptyState } from '@/components/EmptyState'
 import { KeyboardAwareScreen } from '@/components/KeyboardAwareScreen'
 import { useAppStore } from '@/store/useAppStore'
+import { readCardHash, resolveCardRecipient } from '@/lib/cardTap'
+import { sendXlm } from '@/lib/sendPayment'
+import { parsePaymentQr } from '@/lib/paymentQr'
+import { Segmented } from '@/components/ui/Segmented'
 import { walletService } from '@/services/wallet'
 import { stellarService } from '@/services/stellar-service'
 import {
@@ -38,21 +42,25 @@ import { openReceipt } from '@/lib/receipt'
 import { formatAmount } from '@/lib/txFormat'
 import { ScreenHeader } from '@/components/ScreenHeader'
 import { SectionLabel, ListRow, KeyValueRow } from '@/components/ui/List'
-import { TapGlyph, SparkGlyph } from '@/components/brand/BrandGlyph'
+import { TapGlyph, StellarMark } from '@/components/brand/BrandGlyph'
 import { ErrorState } from '@/components/ui/ErrorState'
 
 export function SendScreen() {
   const router = useRouter()
   const params = useGlobalSearchParams()
-  const { balance, devices } = useAppStore()
+  const { balance, devices, user } = useAppStore()
   const [amount, setAmount] = useState('')
-  const [recipient, setRecipient] = useState((params?.scannedAddress as string) || '')
+  const [recipient, setRecipient] = useState('')
   const [recipientTouched, setRecipientTouched] = useState(false)
   const [note, setNote] = useState('')
   const [step, setStep] = useState<'amount' | 'recipient' | 'review'>('amount')
   const [showConfirm, setShowConfirm] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Recipient picked by tapping their card: who it is, shown on Review.
+  const [recipientMode, setRecipientMode] = useState<'address' | 'nfc' | 'qr'>('address')
+  const [recipientLabel, setRecipientLabel] = useState<string | null>(null)
+  const [nfcState, setNfcState] = useState<'idle' | 'scanning' | 'resolving'>('idle')
   /** Raw failure from the last submit — drives the full "Payment failed" state. */
   const [sendFailed, setSendFailed] = useState<string | null>(null)
 
@@ -61,12 +69,26 @@ export function SendScreen() {
     setAmount(val)
   }, [])
 
+  // A scanned QR: a bare address, or a payment request (SEP-0007) that may
+  // also carry the amount and a memo. A request with an amount goes straight
+  // to Review; otherwise the user still confirms the recipient.
   useEffect(() => {
-    if (params?.scannedAddress) {
-      setRecipient(params.scannedAddress as string)
+    const raw = params?.scannedAddress as string | undefined
+    if (!raw) return
+    router.setParams({ scannedAddress: undefined })
+    const req = parsePaymentQr(raw)
+    if (!req) {
+      setError('That QR code isn’t a Stellar address or payment request.')
       setStep('recipient')
-      router.setParams({ scannedAddress: undefined })
+      return
     }
+    setError(null)
+    setRecipientLabel(null)
+    setRecipient(req.destination)
+    setRecipientTouched(true)
+    if (req.memo) setNote(req.memo)
+    if (req.amount) setAmount(req.amount)
+    setStep(req.amount || parseFloat(amount) > 0 ? 'review' : 'amount')
   }, [params?.scannedAddress])
 
   const amountNum = parseFloat(amount) || 0
@@ -105,7 +127,37 @@ export function SendScreen() {
     setStep('recipient')
   }
 
+  /**
+   * Pay by tapping the recipient's card: read its UID, hash it the same way
+   * linking does, and look up who owns it in device_registry. Your own card
+   * resolves to its agent wallet (same as the "Your cards" list).
+   */
+  const handleTapRecipient = async () => {
+    setError(null)
+    setNfcState('scanning')
+    try {
+      const card = await readCardHash()
+      if (!card) {
+        setError('No card detected — hold the card flat against the back of the phone and try again.')
+        return
+      }
+      setNfcState('resolving')
+      if (!user?.stellarPublicKey) throw new Error('No wallet configured')
+      const to = await resolveCardRecipient(card.hash, devices, user.stellarPublicKey)
+      setRecipient(to.address)
+      setRecipientLabel(to.label)
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+      setRecipientTouched(true)
+      setStep('review')
+    } catch (e: any) {
+      setError(humanizeStellarError(e))
+    } finally {
+      setNfcState('idle')
+    }
+  }
+
   const handleSelectRecipient = (addr: string) => {
+    setRecipientLabel(null)
     setRecipient(addr)
     setRecipientTouched(true)
     setStep('review')
@@ -126,19 +178,12 @@ export function SendScreen() {
     setSending(true)
     setError(null)
     try {
-      const keys = await walletService.loadKeys()
-      if (!keys?.stellarSecret) {
-        throw new Error('Wallet not initialized')
-      }
-      const result = await stellarService.submitPayment({
-        sourceSecret: keys.stellarSecret,
+      const hash = await sendXlm({
         destination: trimmedRecipient,
-        amount: toStellarAmount(amountNum),
-        memo: note.trim() || undefined,
+        amountXlm: amountNum,
+        memo: note,
+        label: recipientLabel ? `Sent · ${recipientLabel}` : `Sent · ${trimmedRecipient.slice(0, 4)}…${trimmedRecipient.slice(-4)}`,
       })
-      if ('error' in result) {
-        throw new Error(result.error)
-      }
       setShowConfirm(false)
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       openReceipt(router, {
@@ -150,7 +195,7 @@ export function SendScreen() {
         createdAt: new Date().toISOString(),
         counterpartyLabel: 'To',
         counterparty: trimmedRecipient,
-        hash: result.hash,
+        hash,
         note: note.trim() ? `Memo: ${note.trim()}` : undefined,
       })
     } catch (e: any) {
@@ -217,12 +262,36 @@ export function SendScreen() {
         <ScreenHeader title="Send to" onBackPress={() => setStep('amount')} />
         <View style={styles.pad}>
           <Text style={styles.sending}>Sending <Text style={styles.sendingAmt}>{formatAmount(Math.round(amountNum * 100))} XLM</Text></Text>
+          <Segmented
+            value={recipientMode}
+            onChange={(m) => { setError(null); setRecipientMode(m) }}
+            options={[{ value: 'address', label: 'Address' }, { value: 'nfc', label: 'NFC tap' }, { value: 'qr', label: 'QR' }]}
+            style={styles.segment}
+          />
+          {recipientMode === 'qr' ? (
+            <>
+              <View style={styles.nfcStage}>
+                <Ionicons name="qr-code-outline" size={44} color={Colors.gold} />
+                <Text style={styles.nfcPrompt}>Scan the recipient’s address or payment-request QR. If it asks for an amount, that amount is used. You’ll review before anything is sent.</Text>
+              </View>
+              {error ? <ErrorMessage message={error} variant="inline" /> : null}
+            </>
+          ) : recipientMode === 'nfc' ? (
+            <>
+              <View style={styles.nfcStage}>
+                <TapGlyph size={44} color={Colors.gold} />
+                <Text style={styles.nfcPrompt}>Hold the recipient’s Noir card to the back of your phone. You’ll review before anything is sent.</Text>
+              </View>
+              {error ? <ErrorMessage message={error} variant="inline" /> : null}
+            </>
+          ) : (
+          <>
           <View style={[styles.field, recipientError && styles.fieldError]}>
             <Text style={styles.fieldLabel}>To</Text>
             <TextInput
               style={styles.addressInput}
               value={recipient}
-              onChangeText={(text) => { setError(null); setRecipient(text) }}
+              onChangeText={(text) => { setError(null); setRecipientLabel(null); setRecipient(text) }}
               onBlur={() => setRecipientTouched(true)}
               placeholder="Stellar address"
               placeholderTextColor={Colors.mutedWhite}
@@ -255,11 +324,32 @@ export function SendScreen() {
               ))}
             </>
           )}
+          </>
+          )}
         </View>
         <View style={styles.flexSpacer} />
         <View style={styles.footer}>
-          <Button label="Review" onPress={handleReview} disabled={!recipientValid} fullWidth />
+          {recipientMode === 'qr' ? (
+            <Button label="Scan QR code" icon="scan-outline" onPress={() => router.push('/scan-qr')} fullWidth />
+          ) : recipientMode === 'nfc' ? (
+            <Button label="Tap card to pay" icon="wifi-outline" onPress={handleTapRecipient} fullWidth />
+          ) : (
+            <Button label="Review" onPress={handleReview} disabled={!recipientValid} fullWidth />
+          )}
         </View>
+
+        <ProcessingOverlay
+          visible={nfcState !== 'idle'}
+          variant={nfcState === 'scanning' ? 'nfc' : 'verify'}
+          title={nfcState === 'scanning' ? 'Hold their card to your phone' : 'Finding the card’s owner'}
+          subtitle={`Sending ${formatAmount(Math.round(amountNum * 100))} XLM`}
+          steps={[
+            { label: nfcState === 'scanning' ? 'Waiting for card' : 'Card detected', state: nfcState === 'scanning' ? 'active' : 'done' },
+            { label: 'Looking up the owner on Stellar', state: nfcState === 'resolving' ? 'active' : 'pending' },
+            { label: 'Review payment', state: 'pending' },
+          ]}
+          footnote="Nothing is sent until you confirm on the next screen."
+        />
       </KeyboardAwareScreen>
     )
   }
@@ -272,7 +362,8 @@ export function SendScreen() {
           <Text style={styles.reviewLabel}>You’re sending</Text>
           <AmountText value={toStellarAmount(amountNum)} size={44} />
         </View>
-        <KeyValueRow label="To" value={`${trimmedRecipient.slice(0, 6)}…${trimmedRecipient.slice(-6)}`} mono />
+        {recipientLabel ? <KeyValueRow label="To" value={recipientLabel} /> : null}
+        <KeyValueRow label={recipientLabel ? 'Address' : 'To'} value={`${trimmedRecipient.slice(0, 6)}…${trimmedRecipient.slice(-6)}`} mono />
         <KeyValueRow label="Network fee" value={`${toStellarAmount(BASE_FEE_XLM)} XLM`} />
         <KeyValueRow label="Total" value={`${toStellarAmount(total)} XLM`} valueStyle={styles.total} last />
         <View style={[styles.noteField, !memoValid && styles.fieldError]}>
@@ -293,17 +384,19 @@ export function SendScreen() {
         <Button label="Confirm & send" icon="finger-print-outline" onPress={() => setShowConfirm(true)} disabled={!memoValid || !recipientValid || amountNum <= 0} fullWidth />
       </View>
 
-      <ConfirmDialog
+      <SignSheet
         visible={showConfirm}
         title={`Send ${toStellarAmount(amountNum)} XLM?`}
         message="Stellar payments are final."
         details={[
-          { label: 'To', value: `${trimmedRecipient.slice(0, 6)}…${trimmedRecipient.slice(-6)}`, mono: true },
+          ...(recipientLabel ? [{ label: 'To', value: recipientLabel }] : []),
+          { label: recipientLabel ? 'Address' : 'To', value: `${trimmedRecipient.slice(0, 6)}…${trimmedRecipient.slice(-6)}`, mono: true },
+          { label: 'Network fee', value: `${toStellarAmount(BASE_FEE_XLM)} XLM` },
           { label: 'Total', value: `${toStellarAmount(total)} XLM`, emphasis: true },
         ]}
-        confirmLabel="Send"
-        onConfirm={handleSend}
-        onCancel={() => setShowConfirm(false)}
+        signLabel="Sign & send"
+        onSign={handleSend}
+        onClose={() => setShowConfirm(false)}
         loading={sending}
       />
 
@@ -325,7 +418,7 @@ export function SendScreen() {
 export function AssetChip() {
   return (
     <View style={styles.assetChip}>
-      <View style={styles.assetIcon}><SparkGlyph size={13} color={Colors.gold} /></View>
+      <View style={styles.assetIcon}><StellarMark size={14} color={Colors.gold} /></View>
       <Text style={styles.assetText}>XLM</Text>
     </View>
   )
@@ -365,6 +458,9 @@ const styles = StyleSheet.create({
   assetIcon: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#1d1a12', alignItems: 'center', justifyContent: 'center' },
   assetText: { fontSize: FontSize.sm, color: Colors.white, fontWeight: FontWeight.medium },
 
+  segment: { marginTop: Spacing.xs },
+  nfcStage: { alignItems: 'center', gap: Spacing.md, paddingTop: Spacing.xxl, paddingHorizontal: Spacing.lg },
+  nfcPrompt: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', lineHeight: 20 },
   sending: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', paddingVertical: Spacing.sm },
   sendingAmt: { color: Colors.white },
   field: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingHorizontal: 14, borderRadius: 14, backgroundColor: Colors.midGrey, marginTop: Spacing.sm },
