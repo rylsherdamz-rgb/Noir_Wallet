@@ -11,6 +11,7 @@ import { useAppStore } from '@/store/useAppStore'
 import { getItem, setItem } from '@/services/storage'
 import { Colors, Spacing, FontSize, Gradient } from '@/constants/theme'
 import { toBrowserUrl } from '@/lib/browserUrl'
+import { POPULAR_APPS, SCF_APPS, SCF_DIRECTORY_URL, recommendMessage, type StellarApp } from '@/constants/stellarApps'
 import * as Crypto from 'expo-crypto'
 import { Sheet, PopupDetails, popup } from '@/components/popup/Popup'
 import { Button } from '@/components/Button'
@@ -55,14 +56,7 @@ const RECENT_KEY = 'browser_recent'
 const MAX_RECENT = 8
 
 type IoniconName = keyof typeof Ionicons.glyphMap
-const APPS: { name: string; url: string; testnetUrl?: string; desc: string; icon: IoniconName }[] = [
-  { name: 'StellarExpert', url: 'https://stellar.expert/explorer/public', testnetUrl: 'https://stellar.expert/explorer/testnet', desc: 'Explorer', icon: 'search-outline' },
-  { name: 'Stellar Lab', url: 'https://lab.stellar.org', desc: 'Developer tools', icon: 'flask-outline' },
-  { name: 'Soroswap', url: 'https://app.soroswap.finance', desc: 'Swap tokens', icon: 'swap-horizontal-outline' },
-  { name: 'Aquarius', url: 'https://aqua.network', desc: 'Liquidity & rewards', icon: 'water-outline' },
-  { name: 'Blend', url: 'https://mainnet.blend.capital', testnetUrl: 'https://testnet.blend.capital', desc: 'Lend & borrow', icon: 'layers-outline' },
-  { name: 'StellarTerm', url: 'https://stellarterm.com', desc: 'Trade', icon: 'trending-up-outline' },
-]
+const SCF_PREVIEW = 5
 
 interface Recent { url: string; title: string }
 
@@ -82,6 +76,7 @@ export function BrowseScreen() {
   const [recent, setRecent] = useState<Recent[]>([])
   const address = useAppStore((s) => s.user?.stellarPublicKey)
   const [connected, setConnected] = useState<string[]>([])
+  const [showAllScf, setShowAllScf] = useState(false)
 
   useEffect(() => {
     getItem<Recent[]>(RECENT_KEY).then((r) => setRecent(Array.isArray(r) ? r : [])).catch(() => {})
@@ -120,6 +115,13 @@ export function BrowseScreen() {
     setUrl(target)
   }
 
+  const appUrl = (a: StellarApp) => (network !== 'mainnet' && a.testnetUrl ? a.testnetUrl : a.url)
+  const recommend = (a: StellarApp) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    Share.share({ message: recommendMessage(a) }).catch(() => {})
+  }
+  const scfShown = showAllScf ? SCF_APPS : SCF_APPS.slice(0, SCF_PREVIEW)
+
   if (url) return <BrowserView url={url} onClose={() => setUrl(null)} onVisited={remember} testnet={network !== 'mainnet'} />
 
   return (
@@ -144,18 +146,60 @@ export function BrowseScreen() {
         </View>
 
         <SectionLabel title="Stellar apps" />
-        {APPS.map((a, i) => (
+        {POPULAR_APPS.map((a, i) => (
+          <ListRow
+            key={a.name}
+            icon={a.icon}
+            iconColor={Colors.gold}
+            title={a.name}
+            subtitle={a.scf ? `${a.desc} · SCF funded` : a.desc}
+            chevron
+            last={i === POPULAR_APPS.length - 1}
+            onPress={() => open(appUrl(a))}
+            onLongPress={() => recommend(a)}
+          />
+        ))}
+
+        <SectionLabel
+          title="Funded by the Stellar Community Fund"
+          right={
+            <PressableScale onPress={() => open(SCF_DIRECTORY_URL)} accessibilityRole="link" accessibilityLabel="See all SCF funded projects">
+              <Text style={styles.sectionLink}>See all</Text>
+            </PressableScale>
+          }
+        />
+        <Text style={styles.sectionNote}>
+          {network !== 'mainnet'
+            ? 'Projects backed by Stellar’s grant program. Most run on Mainnet only, so your Testnet balance won’t show there.'
+            : 'Projects backed by Stellar’s grant program. Tap the share icon to recommend one.'}
+        </Text>
+        {scfShown.map((a, i) => (
           <ListRow
             key={a.name}
             icon={a.icon}
             iconColor={Colors.gold}
             title={a.name}
             subtitle={a.desc}
-            chevron
-            last={i === APPS.length - 1}
-            onPress={() => open(network !== 'mainnet' && a.testnetUrl ? a.testnetUrl : a.url)}
+            last={i === scfShown.length - 1 && showAllScf}
+            onPress={() => open(appUrl(a))}
+            onLongPress={() => recommend(a)}
+            right={
+              <PressableScale onPress={() => recommend(a)} style={styles.shareBtn} accessibilityRole="button" accessibilityLabel={`Recommend ${a.name}`}>
+                <Ionicons name="share-social-outline" size={20} color={Colors.mutedWhite} />
+              </PressableScale>
+            }
           />
         ))}
+        {!showAllScf && SCF_APPS.length > SCF_PREVIEW && (
+          <ListRow
+            icon="chevron-down"
+            iconColor={Colors.mutedWhite}
+            title={`Show ${SCF_APPS.length - SCF_PREVIEW} more`}
+            titleColor={Colors.gold}
+            last
+            onPress={() => setShowAllScf(true)}
+          />
+        )}
 
         {connected.length > 0 && (
           <>
@@ -488,6 +532,9 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingBottom: Spacing.xxl },
   search: { flexDirection: 'row', alignItems: 'center', gap: 10, height: 46, paddingHorizontal: 14, borderRadius: 14, backgroundColor: Colors.midGrey, marginTop: Spacing.sm },
   searchInput: { flex: 1, color: Colors.white, fontSize: FontSize.md - 1, paddingVertical: 0 },
+  sectionLink: { fontSize: FontSize.sm, color: Colors.gold, fontWeight: '600', paddingVertical: Spacing.xs },
+  sectionNote: { fontSize: FontSize.xs, color: Colors.mutedWhite, lineHeight: 18, marginTop: -Spacing.xs, marginBottom: Spacing.xs },
+  shareBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginRight: -Spacing.sm },
   note: { fontSize: FontSize.xs, color: Colors.mutedWhite, lineHeight: 18, paddingTop: Spacing.lg },
   bar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: Spacing.sm, paddingVertical: 6 },
   tool: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
