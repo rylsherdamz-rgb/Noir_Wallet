@@ -42,6 +42,10 @@ pub enum Error {
     NothingToClaim = 5,
     DuplicateAuth = 6,
     AgentStillActive = 7,
+    /// fund_escrow for a device hash device_registry does not know. Refused
+    /// because defund/sweep resolve the owner through device_registry, so a
+    /// deposit for an unregistered device could never be recovered.
+    DeviceNotRegistered = 8,
 }
 
 #[contract]
@@ -110,6 +114,18 @@ impl PaymentEscrow {
         amount: i128,
     ) {
         wallet.require_auth();
+
+        let device_registry_id: Address = env
+            .storage()
+            .persistent()
+            .get(&DataKey::DeviceRegistry)
+            .unwrap_or_else(|| panic_with_error!(&env, Error::DeviceNotRegistered));
+        let registered = device_registry::Client::new(&env, &device_registry_id)
+            .try_get_owner(&device_hash)
+            .map_or(false, |r| r.is_ok());
+        if !registered {
+            panic_with_error!(&env, Error::DeviceNotRegistered);
+        }
 
         let token_client = soroban_sdk::token::Client::new(&env, &token);
         token_client.transfer(&wallet, &env.current_contract_address(), &amount);
