@@ -61,7 +61,7 @@ export function TransactionDetailScreen() {
   const shareTx = async () => {
     if (!tx) return
     const lines = [
-      `Noir Wallet — ${title}`,
+      `Noir — ${title}`,
       `Amount: ${signedAmount}`,
       counterparty ? `${counterpartyLabel}: ${counterparty}` : null,
       `Date: ${formattedDate}, ${formattedTime}`,

@@ -41,7 +41,7 @@ export type DeviceAuthResult =
 const NO_DEVICE_LOCK = 'Set a screen lock on your phone to protect your wallet.'
 
 /** Unlock with the phone's own screen lock (biometrics with PIN/pattern fallback). */
-export async function authenticateWithDevice(promptMessage = 'Unlock Noir Wallet'): Promise<DeviceAuthResult> {
+export async function authenticateWithDevice(promptMessage = 'Unlock Noir'): Promise<DeviceAuthResult> {
   if (!(await hasDeviceSecurity())) {
     return { ok: false, reason: 'no-device-lock', message: NO_DEVICE_LOCK }
   }

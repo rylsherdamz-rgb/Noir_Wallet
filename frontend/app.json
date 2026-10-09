@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Noir Wallet",
+    "name": "Noir",
     "slug": "noir-wallet",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -12,7 +12,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.noirwallet.app",
       "infoPlist": {
-        "NFCReaderUsageDescription": "Noir Wallet uses NFC to link RFID cards and stickers to your wallet, and to process contactless payments."
+        "NFCReaderUsageDescription": "Noir uses NFC to link RFID cards and stickers to your wallet, and to process contactless payments."
       }
     },
     "android": {
@@ -81,8 +81,8 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "Noir Wallet saves transaction receipts to your photos.",
-          "savePhotosPermission": "Noir Wallet saves transaction receipts to your photos.",
+          "photosPermission": "Noir saves transaction receipts to your photos.",
+          "savePhotosPermission": "Noir saves transaction receipts to your photos.",
           "isAccessMediaLocationEnabled": false,
           "granularPermissions": [
             "photo"

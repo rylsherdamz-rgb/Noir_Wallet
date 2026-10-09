@@ -80,7 +80,7 @@ export default function SettingsScreen() {
         <ListRow icon="notifications-outline" title="Notifications" chevron last onPress={() => router.push('/settings/notifications')} />
 
         <SectionLabel title="About" />
-        <ListRow icon="information-circle-outline" title="Noir Wallet" value="v1.0.0" last />
+        <ListRow icon="information-circle-outline" title="Noir" value="v1.0.0" last />
 
         <View style={styles.reset}>
           <TextAction label="Sign out & reset this phone" color={Colors.danger} onPress={handleReset} disabled={busy} />

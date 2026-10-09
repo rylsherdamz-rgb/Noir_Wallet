@@ -18,7 +18,7 @@ export default function ScanQrRoute() {
           <Ionicons name="camera-outline" size={64} color={Colors.mutedWhite} />
           <Text style={styles.permissionTitle}>Camera Access Needed</Text>
           <Text style={styles.permissionDesc}>
-            Noir Wallet needs camera access to scan QR codes and NFC tags for recipient addresses.
+            Noir needs camera access to scan QR codes and NFC tags for recipient addresses.
           </Text>
           <TouchableOpacity style={styles.button} onPress={requestPermission}>
             <Text style={styles.buttonLabel}>Grant Permission</Text>

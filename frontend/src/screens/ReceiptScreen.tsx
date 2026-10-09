@@ -134,7 +134,7 @@ export function ReceiptScreen() {
 
           <View style={styles.brandRow}>
             <Image source={NOIR_MARK} style={styles.mark} resizeMode="contain" />
-            <Text style={styles.brand}>Noir Wallet</Text>
+            <Text style={styles.brand}>Noir</Text>
           </View>
         </View>
 
