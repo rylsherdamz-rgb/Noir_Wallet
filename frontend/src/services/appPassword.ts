@@ -1,9 +1,8 @@
 /**
- * App password — the fallback unlock for phones with no screen lock.
+ * Wallet password — the default unlock, set during onboarding.
  *
- * Unlocking normally goes through the phone's own screen lock (see
- * biometrics.ts). A phone without one still needs something between a thief
- * and the wallet, so onboarding sets this password. It is stretched with
+ * Phone unlock (biometrics.ts) is an optional extra on top of it, so the
+ * wallet never depends on the phone having a screen lock. It is stretched with
  * argon2id (memory-hard) against a per-install random salt, and wrong attempts
  * are throttled with a persisted exponential backoff.
  */

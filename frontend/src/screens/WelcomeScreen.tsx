@@ -17,7 +17,7 @@ interface WelcomeScreenProps {
 const POINTS: { title: string; desc: string; icon: React.ReactNode }[] = [
   { title: 'Any NFC card or sticker', desc: 'Link it once — it becomes your tap-to-pay key.', icon: <TapGlyph size={22} color={Colors.gold} /> },
   { title: 'Agents pay for you', desc: 'Each card has its own agent that signs the tap.', icon: <Ionicons name="flash-outline" size={22} color={Colors.gold} /> },
-  { title: 'Your keys stay here', desc: 'Kept on this phone, behind your screen lock.', icon: <Ionicons name="key-outline" size={22} color={Colors.gold} /> },
+  { title: 'Your keys stay here', desc: 'Kept on this phone, behind your wallet password.', icon: <Ionicons name="key-outline" size={22} color={Colors.gold} /> },
 ]
 
 /** Welcome: a brand moment — the cat + wordmark, three plain points, one action. */

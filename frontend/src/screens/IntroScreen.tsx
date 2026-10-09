@@ -24,7 +24,7 @@ const SLIDES: Slide[] = [
     key: 'keys',
     eyebrow: 'Self-custody',
     title: 'Your keys,\nyour wallet',
-    body: 'Your Stellar keys are created and kept on this phone, behind your phone’s own screen lock. No one — not even Noir — can move your funds.',
+    body: 'Your Stellar keys are created and kept on this phone, behind your wallet password. No one — not even Noir — can move your funds.',
     art: () => (
       <View style={styles.artStage}>
         <Image source={NOIR_MARK} style={styles.mark} resizeMode="contain" />

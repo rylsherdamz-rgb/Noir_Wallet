@@ -48,7 +48,7 @@ This maps every weekly deliverable to its status. Measure every commit against t
 - [x] Corrected README contract method tables + build guide to match the Rust source
 - [x] Week 1 evidence index — `deploy-evidence/WEEK1-EVIDENCE.md`
 - [x] Record deploy-time transaction hashes — create + initialize tx links for the current deploy in `deploy-evidence/deploy-testnet-20261007T050558Z.md` (recovered from Horizon / RPC, 2026-10-09)
-- [ ] Capture wallet create/import evidence (screenshot or recording)
+- [x] Capture wallet create/import evidence — Android release-build screenshots in `docs/Evidence/wallet/` (import → password → wallet → lock); create path on-chain in the Week 2 Testnet run (phrase screens are FLAG_SECURE by design)
 
 ### Week 2 — NFC provisioning + register + association + agent auth + escrow fund (wire app ↔ contracts)  🟡 IN PROGRESS
 **Planned:** NTAG213 provisioning; device register via DeviceRegistry; wallet-to-device association; delegated payment agent authorization (with constraints); escrow funding; connect RN app to deployed contracts.

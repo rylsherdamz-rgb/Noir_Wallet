@@ -35,6 +35,13 @@ this repo.
 | agent_registry.wasm | `b0da4885fd635a6b3d76250c9423424c84c409a2e617b76946ffd2af90c7a22b` |
 | payment_escrow.wasm | `3861809c9dfbcc4bf9d9941cc76ebeafb4a7d37453e15074826093d12a2941ed` |
 
+## Wallet create / import (Android)
+
+Screenshots of import → wallet password → wallet → password lock on a release build:
+[`wallet/README.md`](wallet/README.md). Live Testnet run of create/import, device +
+agent registration, escrow fund/withdraw and unlink, with tx links:
+`deploy-evidence/week2-testnet-flow-*.md`.
+
 ## Explorer screenshots
 
 ### device_registry — `CCSW6R7A…`
