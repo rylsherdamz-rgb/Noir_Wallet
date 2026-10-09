@@ -65,3 +65,38 @@ describe('device unlock (phone screen lock)', () => {
     }
   })
 })
+
+describe('phone unlock is optional; the wallet password is the default', () => {
+  beforeEach(async () => {
+    const { clearPassword } = await import('@/services/appPassword')
+    await clearPassword()
+    vi.mocked(LocalAuthentication.getEnrolledLevelAsync).mockResolvedValue(LocalAuthentication.SecurityLevel.BIOMETRIC_STRONG)
+  })
+
+  it('reports no password and no phone unlock for a wallet that set neither', async () => {
+    const { getUnlockOptions } = await import('@/services/appLock')
+    expect(await getUnlockOptions(false)).toEqual({ password: false, device: false, deviceBiometric: false })
+  })
+
+  it('offers phone unlock only when it is turned on and the phone has a lock', async () => {
+    const { getUnlockOptions } = await import('@/services/appLock')
+    const { setPassword } = await import('@/services/appPassword')
+    await setPassword('correct-horse1')
+    expect(await getUnlockOptions(true)).toEqual({ password: true, device: true, deviceBiometric: true })
+    expect(await getUnlockOptions(false)).toEqual({ password: true, device: false, deviceBiometric: false })
+    vi.mocked(LocalAuthentication.getEnrolledLevelAsync).mockResolvedValue(LocalAuthentication.SecurityLevel.NONE)
+    expect(await getUnlockOptions(true)).toEqual({ password: true, device: false, deviceBiometric: false })
+  })
+
+  it('labels a PIN-only phone lock as non-biometric', async () => {
+    const { getUnlockOptions } = await import('@/services/appLock')
+    vi.mocked(LocalAuthentication.getEnrolledLevelAsync).mockResolvedValue(LocalAuthentication.SecurityLevel.SECRET)
+    expect(await getUnlockOptions(true)).toMatchObject({ device: true, deviceBiometric: false })
+  })
+
+  it('treats "Use password" on the system prompt as a cancel, not a failure', async () => {
+    vi.mocked(LocalAuthentication.authenticateAsync).mockResolvedValue({ success: false, error: 'user_fallback' } as any)
+    expect(await authenticateWithDevice()).toMatchObject({ ok: false, reason: 'cancelled' })
+    expect(LocalAuthentication.authenticateAsync).toHaveBeenCalledWith(expect.objectContaining({ cancelLabel: 'Use password' }))
+  })
+})

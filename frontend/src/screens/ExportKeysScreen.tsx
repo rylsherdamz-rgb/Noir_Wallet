@@ -25,7 +25,9 @@ import { Toast } from '@/components/Toast'
 import { walletService } from '@/services/wallet'
 import { x402 } from '@/domain/x402'
 import { authenticateWithDevice } from '@/services/biometrics'
-import { hasPassword, verifyPassword } from '@/services/appPassword'
+import { verifyPassword } from '@/services/appPassword'
+import { getUnlockOptions } from '@/services/appLock'
+import { useAppStore } from '@/store/useAppStore'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
 import { colorWithOpacity } from '@/constants/designTokens'
 import type { ToastType } from '@/types'
@@ -48,7 +50,20 @@ export function ExportKeysScreen() {
 
   const [unlocked, setUnlocked] = useState(false)
   const [checking, setChecking] = useState(false)
-  const [needsPassword, setNeedsPassword] = useState(false)
+  // The wallet password is the default gate; phone unlock goes first only
+  // when it is turned on in Security settings and the phone has a lock.
+  const deviceUnlockEnabled = useAppStore((st) => st.security.deviceUnlockEnabled)
+  const [needsPassword, setNeedsPassword] = useState(true)
+  const [deviceAvailable, setDeviceAvailable] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    getUnlockOptions(deviceUnlockEnabled).then((o) => {
+      if (cancelled) return
+      setDeviceAvailable(o.device)
+      setNeedsPassword(!o.device)
+    })
+    return () => { cancelled = true }
+  }, [deviceUnlockEnabled])
   const [pw, setPw] = useState('')
   const [pwError, setPwError] = useState('')
   const [items, setItems] = useState<SecretItem[]>([])
@@ -122,16 +137,15 @@ export function ExportKeysScreen() {
   const handleUnlock = useCallback(async () => {
     setChecking(true)
     try {
-      // Same gate as the app lock: the phone's own screen lock
-      // (biometrics with device PIN/pattern fallback).
+      // Same gate as the app lock: phone unlock when on, else the password.
       const result = await authenticateWithDevice('Authenticate to export your keys')
       if (!result.ok) {
-        // No screen lock on this phone: fall back to the backup password.
-        if (result.reason === 'no-device-lock' && (await hasPassword())) {
+        // Cancelled, or the phone lock went away: use the wallet password.
+        if (result.reason === 'cancelled' || result.reason === 'no-device-lock') {
           setNeedsPassword(true)
           return
         }
-        if (result.reason !== 'cancelled') showToast('Not Authenticated', result.message, 'error')
+        showToast('Not Authenticated', result.message, 'error')
         return
       }
       await loadSecrets()
@@ -205,7 +219,7 @@ export function ExportKeysScreen() {
             <Ionicons name={needsPassword ? 'key-outline' : 'finger-print-outline'} size={48} color={Colors.gold} />
             <Text style={styles.gateTitle}>{needsPassword ? 'Enter your password' : 'Confirm it’s you'}</Text>
             <Text style={styles.gateBody}>
-              {needsPassword ? 'Your phone has no screen lock, so confirm with your backup password.' : 'Your recovery phrase and keys are shown after you unlock.'}
+              {needsPassword ? 'Confirm with your wallet password to show your keys.' : 'Your recovery phrase and keys are shown after you unlock.'}
             </Text>
             {needsPassword && (
               <>
@@ -238,6 +252,13 @@ export function ExportKeysScreen() {
               disabled={checking || (needsPassword && !pw)}
               fullWidth
             />
+            {deviceAvailable && (
+              <TextAction
+                label={needsPassword ? 'Use phone unlock instead' : 'Use password instead'}
+                onPress={() => { setPwError(''); setPw(''); setNeedsPassword((v) => !v) }}
+                disabled={checking}
+              />
+            )}
           </View>
         </View>
       )}
@@ -309,7 +330,7 @@ const styles = StyleSheet.create({
   pwError: { fontSize: FontSize.sm, color: Colors.danger },
   warn: { flexDirection: 'row', gap: 10, marginHorizontal: 20, padding: 14, borderRadius: 12, backgroundColor: Colors.midGrey },
   warnText: { flex: 1, fontSize: FontSize.sm - 1, color: Colors.silver, lineHeight: 19 },
-  footer: { paddingHorizontal: 20, paddingTop: Spacing.md, paddingBottom: Spacing.lg },
+  footer: { paddingHorizontal: 20, paddingTop: Spacing.md, paddingBottom: Spacing.lg, gap: Spacing.md },
   emptyText: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', paddingVertical: Spacing.xl },
   desc: { fontSize: FontSize.xs, color: Colors.mutedWhite, marginBottom: Spacing.sm },
   secretBox: { borderRadius: 12, backgroundColor: Colors.midGrey, padding: 14, minHeight: 76, justifyContent: 'center' },

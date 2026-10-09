@@ -1,10 +1,10 @@
 import { colorWithOpacity } from '@/constants/designTokens'
-import { useState } from 'react'
-import { View, Text, StyleSheet, ScrollView } from 'react-native'
+import { useCallback, useState } from 'react'
+import { View, Text, StyleSheet, ScrollView, Switch } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { useRouter } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
 import { Button } from '@/components/Button'
 import { Toast } from '@/components/Toast'
@@ -16,7 +16,8 @@ import { x402 } from '@/domain/x402'
 import { apiService } from '@/services/api'
 import { usePreventScreenCapture } from 'expo-screen-capture'
 import { useToast } from '@/components/ToastProvider'
-import { clearPassword } from '@/services/appPassword'
+import { clearPassword, hasPassword } from '@/services/appPassword'
+import { hasDeviceBiometrics, hasDeviceSecurity } from '@/services/biometrics'
 import { ScreenHeader } from '@/components/ScreenHeader'
 import { SectionLabel, ListRow, TextAction } from '@/components/ui/List'
 
@@ -33,8 +34,23 @@ export function SecurityScreen() {
   const {
     security,
     setBackgroundLockTimeoutSec,
+    setDeviceUnlockEnabled,
     reset,
   } = useAppStore()
+  const [passwordSet, setPasswordSet] = useState(true)
+  const [device, setDevice] = useState<{ secured: boolean; biometric: boolean }>({ secured: false, biometric: false })
+
+  // Re-read on focus: the user may have just created a password, or added a
+  // screen lock in system settings.
+  useFocusEffect(useCallback(() => {
+    let cancelled = false
+    Promise.all([hasPassword(), hasDeviceSecurity(), hasDeviceBiometrics()]).then(([pw, secured, biometric]) => {
+      if (cancelled) return
+      setPasswordSet(pw)
+      setDevice({ secured, biometric })
+    })
+    return () => { cancelled = true }
+  }, []))
   const [toast, setToast] = useState<{ visible: boolean; type: ToastType; title: string; message?: string }>({
     visible: false,
     type: 'info',
@@ -54,7 +70,7 @@ export function SecurityScreen() {
       return
     }
     // Secrets are never dumped into a toast — the export screen gates the
-    // reveal behind biometrics/PIN and offers masked copy instead.
+    // reveal behind the wallet password (or phone unlock) and offers masked copy instead.
     router.push('/settings/export-keys')
   }
 
@@ -73,7 +89,31 @@ export function SecurityScreen() {
       <ScreenHeader title="Security" onBackPress={() => router.back()} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <SectionLabel title="Unlock" />
-        <ListRow icon="finger-print-outline" title="Phone screen lock" subtitle="Fingerprint, face or phone PIN" value="On" valueColor={Colors.success} />
+        <ListRow
+          icon="lock-closed-outline"
+          title="Wallet password"
+          subtitle={passwordSet ? 'Used to unlock Noir' : 'Not set — create one to protect your wallet'}
+          subtitleColor={passwordSet ? undefined : Colors.danger}
+          value={passwordSet ? 'Change' : 'Create'}
+          valueColor={Colors.gold}
+          onPress={() => router.push({ pathname: '/create-password', params: { from: 'settings' } })}
+        />
+        <ListRow
+          icon={device.biometric ? 'finger-print-outline' : 'phone-portrait-outline'}
+          title="Phone unlock"
+          subtitle={device.secured ? 'Fingerprint, face or phone PIN before the password' : 'Set a screen lock on your phone to use this'}
+          disabled={!device.secured}
+          right={
+            <Switch
+              value={device.secured && security.deviceUnlockEnabled}
+              onValueChange={setDeviceUnlockEnabled}
+              disabled={!device.secured}
+              trackColor={{ false: Colors.borderGrey, true: Colors.gold }}
+              thumbColor={Colors.cream}
+              accessibilityLabel="Phone unlock"
+            />
+          }
+        />
         <ListRow icon="time-outline" title="Auto-lock" subtitle="After the app is in the background" value={lock < 60 ? `${lock}s` : `${lock / 60} min`} last />
         <View style={styles.chips}>
           {TIMEOUT_OPTIONS.map((sec) => (

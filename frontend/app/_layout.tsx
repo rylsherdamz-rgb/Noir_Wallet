@@ -234,7 +234,8 @@ export default function RootLayout() {
   // while the app is in use. Leaving the app records a timestamp; coming back
   // after more than `backgroundLockTimeoutSec` shows the lock. The system
   // unlock sheet itself backgrounds the app on Android, so that round-trip is
-  // ignored, as is anything before onboarding or while already on /lock.
+  // ignored, as is anything before onboarding or while already on /lock or
+  // setting up a password.
   const backgroundedAtRef = useRef<number | null>(null)
   const pathname = usePathname()
   const pathnameRef = useRef(pathname)
@@ -254,7 +255,8 @@ export default function RootLayout() {
       const awayMs = Date.now() - backgroundedAtRef.current
       backgroundedAtRef.current = null
       const { isOnboarded } = useAppStore.getState()
-      const onLockOrSetup = pathnameRef.current === '/lock' || pathnameRef.current === '/' || pathnameRef.current.startsWith('/onboarding') || pathnameRef.current === '/setup-profile'
+      const path = pathnameRef.current
+      const onLockOrSetup = path === '/lock' || path === '/' || path.startsWith('/onboarding') || path === '/setup-profile' || path === '/create-password'
       if (isOnboarded && !onLockOrSetup && awayMs >= security.backgroundLockTimeoutSec * 1000) {
         router.replace('/lock')
       }
@@ -273,7 +275,8 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="onboarding" />
-        <Stack.Screen name="lock" options={{ animation: 'fade' }} />
+        <Stack.Screen name="lock" options={{ animation: 'fade', gestureEnabled: false }} />
+        <Stack.Screen name="create-password" options={{ animation: 'fade', gestureEnabled: false }} />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="send" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="receive" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />

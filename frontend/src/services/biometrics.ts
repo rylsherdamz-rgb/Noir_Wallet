@@ -1,10 +1,10 @@
 /**
- * App unlock via the phone's own screen lock.
+ * Phone unlock: the phone's own fingerprint, face, PIN or pattern.
  *
- * The wallet keeps no PIN of its own. Unlocking delegates to the OS:
- * fingerprint/face if enrolled, otherwise the phone's PIN / pattern / password
- * — the same model banking wallets like Maya use. The app never sees or stores
- * that secret.
+ * Optional, and offered only when the user turned it on in Security settings
+ * and the phone actually has a lock. The wallet password (appPassword.ts) is
+ * always the alternative — cancelling the system prompt hands control back to
+ * it. The app never sees or stores the phone's own secret.
  */
 import { Platform } from 'react-native'
 import * as LocalAuthentication from 'expo-local-authentication'
@@ -27,6 +27,13 @@ export async function hasDeviceSecurity(): Promise<boolean> {
   return level !== LocalAuthentication.SecurityLevel.NONE
 }
 
+/** True when a fingerprint or face is enrolled, not just a PIN / pattern. */
+export async function hasDeviceBiometrics(): Promise<boolean> {
+  if (Platform.OS === 'web') return false
+  const level = await LocalAuthentication.getEnrolledLevelAsync()
+  return level >= LocalAuthentication.SecurityLevel.BIOMETRIC_WEAK
+}
+
 export type DeviceAuthResult =
   | { ok: true }
   | { ok: false; reason: 'cancelled' | 'failed' | 'lockout' | 'no-device-lock'; message: string }
@@ -42,20 +49,21 @@ export async function authenticateWithDevice(promptMessage = 'Unlock Noir Wallet
   try {
     const result = await LocalAuthentication.authenticateAsync({
       promptMessage,
+      cancelLabel: 'Use password',
       disableDeviceFallback: false,
     })
     if (result.success) return { ok: true }
     const error = 'error' in result ? result.error : 'unknown'
-    if (error === 'user_cancel' || error === 'system_cancel' || error === 'app_cancel') {
+    if (error === 'user_cancel' || error === 'system_cancel' || error === 'app_cancel' || error === 'user_fallback') {
       return { ok: false, reason: 'cancelled', message: 'Unlock cancelled.' }
     }
     if (error === 'lockout') {
-      return { ok: false, reason: 'lockout', message: 'Too many attempts. Try again in a moment.' }
+      return { ok: false, reason: 'lockout', message: 'Too many attempts. Use your wallet password.' }
     }
     if (error === 'passcode_not_set' || error === 'not_enrolled') {
       return { ok: false, reason: 'no-device-lock', message: NO_DEVICE_LOCK }
     }
-    return { ok: false, reason: 'failed', message: 'Could not unlock. Try again.' }
+    return { ok: false, reason: 'failed', message: 'Could not unlock. Use your wallet password.' }
   } finally {
     // Clear after the activity transition settles so the returning
     // background→active AppState event is still recognised as ours.

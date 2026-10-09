@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { View, Animated, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useAppStore } from '@/store/useAppStore'
+import { hasPassword } from '@/services/appPassword'
 import { Colors, Spacing } from '@/constants/theme'
 import { BrandBackdrop } from '@/components/brand/BrandBackdrop'
 import { BrandMark } from '@/components/brand/BrandMark'
@@ -41,9 +42,9 @@ export default function Index() {
       router.replace('/onboarding')
       return
     }
-    // Every cold start of an existing wallet goes through the lock, which
-    // unlocks with the phone's own screen lock.
-    router.replace('/lock')
+    // Only ask for a secret the user actually set. A wallet created before
+    // the password existed is sent to create one instead of a dead prompt.
+    router.replace((await hasPassword()) ? '/lock' : '/create-password')
   }, [router])
 
   useEffect(() => {

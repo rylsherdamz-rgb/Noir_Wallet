@@ -68,6 +68,7 @@ interface AppState {
   setNfcSupported: (val: boolean) => void
   setNetwork: (network: StellarNetwork) => void
   setBackgroundLockTimeoutSec: (sec: number) => void
+  setDeviceUnlockEnabled: (enabled: boolean) => void
   addPendingPayment: (payment: QueuedPayment) => void
   removePendingPayment: (id: string) => void
   clearPendingPayments: () => void
@@ -92,6 +93,7 @@ const initialState = {
   network: stellarNetwork as StellarNetwork,
   security: {
     backgroundLockTimeoutSec: 60,
+    deviceUnlockEnabled: true,
   } as SecuritySettings,
   balanceStale: false,
   storeVersion: STORE_VERSION_HASH,
@@ -145,6 +147,8 @@ export const useAppStore = create<AppState>()(
       },
       setBackgroundLockTimeoutSec: (sec) =>
         set((s) => ({ security: { ...s.security, backgroundLockTimeoutSec: sec } })),
+      setDeviceUnlockEnabled: (enabled) =>
+        set((s) => ({ security: { ...s.security, deviceUnlockEnabled: enabled } })),
       addPendingPayment: (payment) =>
         set((s) => ({ pendingPayments: [...s.pendingPayments, payment] })),
       removePendingPayment: (id) =>
@@ -177,6 +181,11 @@ export const useAppStore = create<AppState>()(
       }) as unknown as AppState,
       onRehydrateStorage: () => (state) => {
         if (state?.network) stellarService.setNetwork(state.network)
+        // Installs persisted before the phone-unlock toggle existed unlocked with
+        // the phone by default — keep that on rather than silently dropping it.
+        if (state?.security && typeof state.security.deviceUnlockEnabled !== 'boolean') {
+          useAppStore.setState({ security: { ...state.security, deviceUnlockEnabled: true } })
+        }
         if (state && state.storeVersion !== STORE_VERSION_HASH) {
           useAppStore.setState({
             devices: [],

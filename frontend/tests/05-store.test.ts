@@ -80,6 +80,14 @@ describe('useAppStore', () => {
     expect(useAppStore.getState().network).toBe('mainnet')
   })
 
+  it('phone unlock defaults on and can be turned off', async () => {
+    const { useAppStore } = await import('../src/store/useAppStore')
+    useAppStore.getState().reset()
+    expect(useAppStore.getState().security.deviceUnlockEnabled).toBe(true)
+    useAppStore.getState().setDeviceUnlockEnabled(false)
+    expect(useAppStore.getState().security.deviceUnlockEnabled).toBe(false)
+  })
+
   it('setBackgroundLockTimeoutSec updates timeout', async () => {
     const { useAppStore } = await import('@/store/useAppStore')
     useAppStore.getState().setBackgroundLockTimeoutSec(120)

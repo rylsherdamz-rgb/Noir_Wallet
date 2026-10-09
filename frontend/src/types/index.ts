@@ -10,6 +10,8 @@ export type AssetCode = 'XLM'
 
 export interface SecuritySettings {
   backgroundLockTimeoutSec: number
+  /** Offer the phone's own unlock (fingerprint, face, PIN/pattern) before the wallet password. */
+  deviceUnlockEnabled: boolean
 }
 
 export interface User {
