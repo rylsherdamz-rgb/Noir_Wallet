@@ -190,7 +190,7 @@ export class StellarService {
   }
 
   async accountExists(publicKey: string, retries = 2): Promise<boolean> {
-    return this.existsCache(publicKey, CACHE_TTL_MS, async () => {
+    const exists = await this.existsCache(publicKey, CACHE_TTL_MS, async () => {
       for (let attempt = 0; attempt <= retries; attempt++) {
         try {
           await withTimeout(this.horizon.loadAccount(publicKey), '[accountExists]', 12000)
@@ -209,6 +209,11 @@ export class StellarService {
       }
       return false
     })
+    // Only "exists" is cached. A missing account appears the moment Friendbot
+    // or a payment funds it — caching "no" made a freshly funded wallet look
+    // absent for 30s, so registration right after onboarding failed.
+    if (!exists) this.existsCache.invalidate(publicKey)
+    return exists
   }
 
   async getBalance(publicKey: string): Promise<BalanceResult> {
@@ -459,6 +464,9 @@ export class StellarService {
           const text = await response.text()
           logger.warn('Friendbot error:', text)
           if (text.includes('already') || text.includes('exist')) return true
+          // A gateway error or slow response can still have funded the
+          // account — check before retrying or reporting failure.
+          if (await this.accountExists(publicKey)) return true
           continue
         }
 
@@ -475,10 +483,16 @@ export class StellarService {
       } catch (e: any) {
         if (e.name === 'AbortError') {
           logger.warn('Friendbot timed out — account may still be funding')
+          if (await this.accountExists(publicKey).catch(() => false)) return true
           continue
         }
         logger.warn('Friendbot failed:', e.message)
       }
+    }
+    // The last request may have funded the account after we stopped waiting.
+    for (let i = 0; i < 5; i++) {
+      if (await this.accountExists(publicKey).catch(() => false)) return true
+      await new Promise(r => setTimeout(r, 2000))
     }
     return false
   }

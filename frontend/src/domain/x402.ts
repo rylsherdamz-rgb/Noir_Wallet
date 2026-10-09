@@ -18,6 +18,19 @@ export type DeviceOwnership =
   | { status: 'free' }
   | { status: 'mine' | 'other'; owner: string; agent: string; createdAt: number | null; active: boolean }
 
+/**
+ * Thrown before funding escrow for a tag that is not registered to this wallet.
+ * payment_escrow.fund_escrow accepts any device hash, but withdraw and sweep
+ * resolve the owner through device_registry — so XLM sent for an unregistered
+ * tag could never be recovered.
+ */
+export class DeviceNotLinkedError extends Error {
+  constructor() {
+    super('This tag is not linked to your wallet. Finish linking it before adding funds.')
+    this.name = 'DeviceNotLinkedError'
+  }
+}
+
 /** Thrown when a tag is already bound to a different wallet on-chain. */
 export class DeviceOwnedByOtherWalletError extends Error {
   constructor(public readonly owner: string, public readonly createdAt: number | null) {
@@ -729,7 +742,9 @@ export const x402 = {
     let registerSubmitted = false
     if (!deviceRegistered) {
       try {
-        await stellarService.invokeContract({
+        // Wait for finality: callers read ownership / fund escrow right after,
+        // and a submitted-but-unconfirmed register still reads as "free".
+        await stellarService.invokeContractAndWait({
           contractId: contractIdDevice,
           method: 'register',
           args: [walletScVal, deviceHashScVal, agentScVal],
@@ -759,7 +774,7 @@ export const x402 = {
       const policy = params.policy ?? (await loadSavedPolicy(params.deviceHashHex))
       const { maxAmountStroops, expiresAt } = policy ?? { maxAmountStroops: 0n, expiresAt: 0n }
       try {
-        await stellarService.invokeContract({
+        await stellarService.invokeContractAndWait({
           contractId: contractIdAgent,
           method: 'register_agent',
           args: [walletScVal, deviceHashScVal, agentScVal, ...agentPolicyArgs(maxAmountStroops, expiresAt)],
@@ -968,6 +983,12 @@ export const x402 = {
 
     const walletPub = Keypair.fromSecret(params.walletSecret).publicKey()
     const amountStroops = BigInt(Math.round(params.amountXlm * 10_000_000))
+
+    // Never fund a tag this wallet does not own: the deposit would be
+    // stranded (see DeviceNotLinkedError).
+    const ownership = await this.getDeviceOwnership(params.deviceHashHex, walletPub)
+    if (ownership.status === 'other') throw new DeviceOwnedByOtherWalletError(ownership.owner, ownership.createdAt)
+    if (ownership.status !== 'mine') throw new DeviceNotLinkedError()
 
     // Refuse up front rather than letting the token transfer fail on-chain:
     // the account must keep its base reserve after the deposit.

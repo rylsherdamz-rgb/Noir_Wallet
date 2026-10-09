@@ -9,7 +9,7 @@ import { PressableScale } from '@/components/brand/PressableScale'
 import { AmountEntry } from '@/components/flow/AmountEntry'
 import { ProcessingOverlay, type ProcessingStep } from '@/components/flow/ProcessingOverlay'
 import { useAppStore } from '@/store/useAppStore'
-import { x402, InsufficientFundsError } from '@/domain/x402'
+import { x402, InsufficientFundsError, DeviceNotLinkedError, DeviceOwnedByOtherWalletError } from '@/domain/x402'
 import { stellarService } from '@/services/stellar-service'
 import { spendableBalance } from '@/lib/stellarAccount'
 import { keypadValueToNumber } from '@/lib/keypadInput'
@@ -163,7 +163,7 @@ export function AgentFundScreen() {
     } catch (e: any) {
       setProcessing(null)
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {})
-      if (e instanceof InsufficientFundsError) setError(e.message)
+      if (e instanceof InsufficientFundsError || e instanceof DeviceNotLinkedError || e instanceof DeviceOwnedByOtherWalletError) setError(e.message)
       // Escrow failures carry payment_escrow error codes; a top-up is a plain payment.
       else setError(mode === 'escrow' ? describeContractError('payment_escrow', e) : e?.message ?? 'Transaction failed')
       setStep('amount')

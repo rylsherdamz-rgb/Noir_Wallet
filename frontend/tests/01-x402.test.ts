@@ -473,7 +473,7 @@ describe('x402 registerDeviceAndAgentOnChain sequence handling', () => {
     // Faithfully emulate invokeContract's effect on the shared account:
     // TransactionBuilder.build() raises the source account sequence by one.
     const seqAtCall: Record<string, string> = {}
-    ;(stellarService.invokeContract as any) = vi
+    ;(stellarService.invokeContractAndWait as any) = vi
       .fn()
       .mockImplementation(async ({ method, sourceAccount }: any) => {
         // Builder stamps (currentSeq + 1) onto the tx, then increments.
@@ -520,7 +520,7 @@ describe('x402 registerDeviceAndAgentOnChain sequence handling', () => {
 
     const calls: string[] = []
     const seqAtCall: Record<string, string> = {}
-    ;(stellarService.invokeContract as any) = vi
+    ;(stellarService.invokeContractAndWait as any) = vi
       .fn()
       .mockImplementation(async ({ method, sourceAccount }: any) => {
         calls.push(method)
@@ -541,7 +541,7 @@ describe('x402 registerDeviceAndAgentOnChain sequence handling', () => {
 
     // register_agent must match the on-chain signature:
     // (wallet, device_hash, agent, max_amount: i128, asset: Address, expires_at: u64)
-    const agentCall = (stellarService.invokeContract as any).mock.calls
+    const agentCall = (stellarService.invokeContractAndWait as any).mock.calls
       .find(([p]: any) => p.method === 'register_agent')[0]
     expect(agentCall.args).toHaveLength(6)
     expect(agentCall.args[3].switch().name).toBe('scvI128')
@@ -601,14 +601,14 @@ describe('x402 device ownership', () => {
     ;(stellarService.readContract as any) = vi.fn().mockResolvedValue(info)
     ;(stellarService.walletAddressScVal as any) = vi.fn().mockReturnValue({})
     ;(stellarService.deviceHashScVal as any) = vi.fn().mockReturnValue({})
-    ;(stellarService.invokeContract as any) = vi.fn()
+    ;(stellarService.invokeContractAndWait as any) = vi.fn()
 
     await expect(x402.registerDeviceAndAgentOnChain({
       walletSecret: wallet.secret(),
       deviceHashHex: 'c'.repeat(64),
       agentPublicKey: Keypair.random().publicKey(),
     })).rejects.toBeInstanceOf(DeviceOwnedByOtherWalletError)
-    expect(stellarService.invokeContract).not.toHaveBeenCalled()
+    expect(stellarService.invokeContractAndWait).not.toHaveBeenCalled()
   })
 })
 
@@ -649,7 +649,7 @@ describe('x402 agent policy (constrained delegation)', () => {
     })
     ;(stellarService.walletAddressScVal as any) = vi.fn().mockReturnValue({})
     ;(stellarService.deviceHashScVal as any) = vi.fn().mockReturnValue({})
-    ;(stellarService.invokeContract as any) = vi.fn().mockResolvedValue('hash')
+    ;(stellarService.invokeContractAndWait as any) = vi.fn().mockResolvedValue('hash')
 
     const policy = buildAgentPolicy({ maxAmountXlm: 10, expiryDays: 7, nowSec: 5_000 })
     await x402.registerDeviceAndAgentOnChain({
@@ -659,7 +659,7 @@ describe('x402 agent policy (constrained delegation)', () => {
       policy,
     })
 
-    const agentCall = (stellarService.invokeContract as any).mock.calls
+    const agentCall = (stellarService.invokeContractAndWait as any).mock.calls
       .find(([p]: any) => p.method === 'register_agent')[0]
     expect(scValToNative(agentCall.args[3])).toBe(100_000_000n)
     expect(scValToNative(agentCall.args[5])).toBe(BigInt(5_000 + 7 * 86_400))
@@ -681,7 +681,7 @@ describe('x402 agent policy (constrained delegation)', () => {
     })
     ;(stellarService.walletAddressScVal as any) = vi.fn().mockReturnValue({})
     ;(stellarService.deviceHashScVal as any) = vi.fn().mockReturnValue({})
-    ;(stellarService.invokeContract as any) = vi.fn().mockImplementation(async ({ method }: any) => {
+    ;(stellarService.invokeContractAndWait as any) = vi.fn().mockImplementation(async ({ method }: any) => {
       if (method === 'register_agent') throw new Error('HostError: Error(Contract, #4)')
       return 'hash'
     })
@@ -734,6 +734,7 @@ describe('x402 escrow funding (payment_escrow)', () => {
     ;(stellarService.invokeContractAndWait as any) = vi.fn().mockResolvedValue('fund-hash')
 
     const wallet = Keypair.random()
+    vi.spyOn(x402, 'getDeviceOwnership').mockResolvedValueOnce({ status: 'mine', owner: wallet.publicKey(), agent: '', createdAt: null, active: true })
     const hash = await x402.fundEscrow({ walletSecret: wallet.secret(), deviceHashHex: 'f'.repeat(64), amountXlm: 25 })
 
     expect(hash).toBe('fund-hash')
@@ -798,9 +799,27 @@ describe('x402 escrow safety (production paths)', () => {
     const { sdk, stellarService, x402, InsufficientFundsError } = await setup()
     stellarService.getBalance = vi.fn().mockResolvedValue({ xlm: 20, subentryCount: 0 })
     stellarService.invokeContractAndWait = vi.fn()
+    vi.spyOn(x402, 'getDeviceOwnership').mockResolvedValueOnce({ status: 'mine', owner: 'G', agent: '', createdAt: null, active: true })
     await expect(x402.fundEscrow({
       walletSecret: sdk.Keypair.random().secret(), deviceHashHex: 'f'.repeat(64), amountXlm: 25,
     })).rejects.toBeInstanceOf(InsufficientFundsError)
+    expect(stellarService.invokeContractAndWait).not.toHaveBeenCalled()
+  })
+
+  it('fundEscrow refuses a tag that is not registered to this wallet (funds would be stranded)', async () => {
+    const { sdk, stellarService, x402, DeviceNotLinkedError, DeviceOwnedByOtherWalletError } = await setup()
+    stellarService.getBalance = vi.fn().mockResolvedValue({ xlm: 500, subentryCount: 0 })
+    stellarService.invokeContractAndWait = vi.fn()
+    const secret = sdk.Keypair.random().secret()
+
+    vi.spyOn(x402, 'getDeviceOwnership').mockResolvedValueOnce({ status: 'free' })
+    await expect(x402.fundEscrow({ walletSecret: secret, deviceHashHex: 'f'.repeat(64), amountXlm: 5 }))
+      .rejects.toBeInstanceOf(DeviceNotLinkedError)
+
+    vi.spyOn(x402, 'getDeviceOwnership').mockResolvedValueOnce({ status: 'other', owner: 'GOTHER', agent: '', createdAt: null, active: true })
+    await expect(x402.fundEscrow({ walletSecret: secret, deviceHashHex: 'f'.repeat(64), amountXlm: 5 }))
+      .rejects.toBeInstanceOf(DeviceOwnedByOtherWalletError)
+
     expect(stellarService.invokeContractAndWait).not.toHaveBeenCalled()
   })
 
