@@ -38,7 +38,7 @@ if (typeof (global as any).EventTarget === 'undefined') {
 }
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Stack, useRouter } from 'expo-router'
+import { Stack, useRouter, usePathname } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { StyleSheet, AppState, Linking, Alert, AppStateStatus } from 'react-native'
@@ -49,12 +49,14 @@ import { nfcService } from '@/services/nfc'
 import { useAppStore } from '@/store/useAppStore'
 import { apiService } from '@/services/api'
 import { x402 } from '@/domain/x402'
-import { hasPin } from '@/services/pinLock'
+import { isDeviceAuthInProgress } from '@/services/biometrics'
 import { ToastProvider } from '@/components/ToastProvider'
+import { PopupHost } from '@/components/popup/Popup'
 import { Device } from '@/types'
 import NetInfo from '@react-native-community/netinfo'
 import { logger } from '@/lib/logger'
 import { Colors } from '@/constants/theme'
+import { checkIncomingPayments, initNotifications, registerPaymentBackgroundTask, startBackgroundPolling } from '@/services/paymentNotifier'
 
 SplashScreen.preventAutoHideAsync()
 
@@ -155,10 +157,35 @@ export default function RootLayout() {
         logger.warn('[on-chain sync] failed:', e?.message)
       }
 
+      // Agent registration sync: register any linked device's agent that is
+      // missing from agent_registry. Runs in the background (it may submit
+      // transactions) so it never holds up the splash screen.
+      void (async () => {
+        try {
+          const { devices } = useAppStore.getState()
+          if (devices.length === 0) return
+          const { walletService } = await import('@/services/wallet')
+          const keys = await walletService.loadKeys()
+          if (!keys?.stellarSecret) return
+          const results = await x402.syncAgentRegistrations({ walletSecret: keys.stellarSecret, devices })
+          for (const r of results) {
+            if (r.outcome === 'registered') logger.debug(`[agent sync] registered agent for ${r.deviceUidHash.slice(0, 8)}`)
+            else if (r.outcome !== 'ok') logger.warn(`[agent sync] ${r.deviceUidHash.slice(0, 8)} ${r.outcome} (${r.before}): ${r.reason ?? ''}`)
+          }
+        } catch (e: any) {
+          logger.warn('[agent sync] failed:', e?.message)
+        }
+      })()
+
       // Push notification registration
       try {
+        await initNotifications()
         const { status } = await Notifications.requestPermissionsAsync()
         if (status === 'granted') {
+          // Received-payment alerts: record where each account is now, then
+          // keep watching while backgrounded (poll) and closed (background task).
+          void checkIncomingPayments()
+          void registerPaymentBackgroundTask()
           const token = await Notifications.getExpoPushTokenAsync()
           await apiService.registerPushToken(token.data)
         }
@@ -178,6 +205,9 @@ export default function RootLayout() {
     if (ready) SplashScreen.hideAsync()
   }, [ready])
 
+  // Received-payment alerts while the app is in the background but still running.
+  useEffect(() => startBackgroundPolling(), [])
+
   // Connectivity listener: flush pending payments on reconnect
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
@@ -193,33 +223,47 @@ export default function RootLayout() {
     const handleDeepLink = (event: { url: string }) => {
       const url = event.url
       if (url.includes('noirwallet://activate')) {
-        router.replace('/(tabs)/devices')
+        router.replace('/link-device')
       }
     }
     const subscription = Linking.addEventListener('url', handleDeepLink)
     return () => subscription.remove()
   }, [])
 
-  // App state listener for auto-lock
+  // Auto-lock: decided on RETURN to the foreground, never by a timer firing
+  // while the app is in use. Leaving the app records a timestamp; coming back
+  // after more than `backgroundLockTimeoutSec` shows the lock. The system
+  // unlock sheet itself backgrounds the app on Android, so that round-trip is
+  // ignored, as is anything before onboarding or while already on /lock or
+  // setting up a password.
+  const backgroundedAtRef = useRef<number | null>(null)
+  const pathname = usePathname()
+  const pathnameRef = useRef(pathname)
+  pathnameRef.current = pathname
   useEffect(() => {
     const handleAppState = (nextState: AppStateStatus) => {
-      if (appStateRef.current === 'active' && nextState.match(/inactive|background/)) {
-        const lockedAt = Date.now()
-        appStateRef.current = nextState
-        setTimeout(async () => {
-          if (await hasPin()) {
-            router.replace('/lock')
-          }
-        }, security.backgroundLockTimeoutSec * 1000)
-      } else if (nextState === 'active') {
-        appStateRef.current = nextState
-      } else {
-        appStateRef.current = nextState
+      const prev = appStateRef.current
+      appStateRef.current = nextState
+      if (isDeviceAuthInProgress()) return
+
+      if (prev === 'active' && nextState === 'background') {
+        backgroundedAtRef.current = Date.now()
+        return
+      }
+      if (nextState !== 'active' || backgroundedAtRef.current == null) return
+
+      const awayMs = Date.now() - backgroundedAtRef.current
+      backgroundedAtRef.current = null
+      const { isOnboarded } = useAppStore.getState()
+      const path = pathnameRef.current
+      const onLockOrSetup = path === '/lock' || path === '/' || path.startsWith('/onboarding') || path === '/setup-profile' || path === '/create-password'
+      if (isOnboarded && !onLockOrSetup && awayMs >= security.backgroundLockTimeoutSec * 1000) {
+        router.replace('/lock')
       }
     }
     const subscription = AppState.addEventListener('change', handleAppState)
     return () => subscription.remove()
-  }, [security.backgroundLockTimeoutSec])
+  }, [security.backgroundLockTimeoutSec, router])
 
   if (!ready) return null
 
@@ -231,7 +275,8 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="onboarding" />
-        <Stack.Screen name="lock" options={{ animation: 'fade' }} />
+        <Stack.Screen name="lock" options={{ animation: 'fade', gestureEnabled: false }} />
+        <Stack.Screen name="create-password" options={{ animation: 'fade', gestureEnabled: false }} />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="send" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="receive" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
@@ -246,7 +291,12 @@ export default function RootLayout() {
         <Stack.Screen name="settings/security" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="settings/notifications" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="agent/[id]" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="agent-fund/[id]" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="setup-profile" options={{ animation: 'slide_from_right', gestureEnabled: false }} />
+        <Stack.Screen name="link-device" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="receipt" options={{ animation: 'fade', gestureEnabled: false }} />
       </Stack>
+      <PopupHost />
       </ToastProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

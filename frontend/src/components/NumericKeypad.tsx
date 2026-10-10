@@ -3,24 +3,36 @@ import { PressableScale } from '@/components/brand/PressableScale'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { DesignTokens } from '@/constants/designTokens'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius, FontScaleCap } from '@/constants/theme'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius, FontScaleCap, Fonts } from '@/constants/theme'
+import { applyKeypadKey, type KeypadKey } from '@/lib/keypadInput'
 
 const SCREEN_WIDTH = Dimensions.get('window').width
-const KEY_SIZE = Math.min(Math.floor((SCREEN_WIDTH - Spacing.lg * 2 - Spacing.md * 4) / 3), 80)
-const KEY_GAP = Math.max(Spacing.sm, (SCREEN_WIDTH - Spacing.lg * 2 - KEY_SIZE * 3) / 4)
 
 interface NumericKeypadProps {
   value: string
   onChangeValue: (val: string) => void
   maxDigits?: number
   hapticFeedback?: boolean
+  /**
+   * Dims the keypad and ignores presses. The caller (e.g. lock.tsx while a
+   * PIN hash is running) already ignores input during this window, but with
+   * no visual change the keys look fully live — tapping them does nothing,
+   * which reads as the screen having frozen. Dimming makes the "busy, please
+   * wait" state visible instead of silent.
+   */
+  disabled?: boolean
+  /**
+   * Amount entry: the bottom-left key becomes a decimal point, and input
+   * follows `applyKeypadKey` (one point, max 7 decimals, no leading zeros).
+   * Off by default so PIN pads keep accepting a leading 0.
+   */
+  allowDecimal?: boolean
 }
 
-const keys = [
+const digitRows = [
   ['1', '2', '3'],
   ['4', '5', '6'],
   ['7', '8', '9'],
-  ['clear', '0', 'backspace'],
 ]
 
 export function NumericKeypad({
@@ -28,8 +40,13 @@ export function NumericKeypad({
   onChangeValue,
   maxDigits = 8,
   hapticFeedback = true,
+  disabled = false,
+  allowDecimal = false,
 }: NumericKeypadProps) {
+  const keys = [...digitRows, [allowDecimal ? '.' : 'clear', '0', 'backspace']]
   const handlePress = (key: string) => {
+    if (disabled) return
+
     // Haptic feedback
     if (hapticFeedback && Platform.OS !== 'web') {
       if (key === 'clear' || key === 'backspace') {
@@ -39,6 +56,10 @@ export function NumericKeypad({
       }
     }
 
+    if (allowDecimal) {
+      onChangeValue(applyKeypadKey(value, key as KeypadKey, { maxDigits }))
+      return
+    }
     if (key === 'clear') {
       onChangeValue('')
       return
@@ -52,7 +73,7 @@ export function NumericKeypad({
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, disabled && styles.containerDisabled]}>
       {keys.map((row, rowIdx) => (
         <View key={rowIdx} style={styles.row}>
           {row.map((key) => {
@@ -62,13 +83,29 @@ export function NumericKeypad({
                   key={key}
                   style={[styles.key, styles.specialKey]}
                   onPress={() => handlePress(key)}
-
+                  disabled={disabled}
                   accessibilityRole="button"
                   accessibilityLabel="Clear all"
+                  accessibilityState={{ disabled }}
                 >
                   <Text style={styles.specialKeyText} maxFontSizeMultiplier={FontScaleCap.keypad}>
                     Clear
                   </Text>
+                </PressableScale>
+              )
+            }
+            if (key === '.') {
+              return (
+                <PressableScale
+                  key={key}
+                  style={styles.key}
+                  onPress={() => handlePress(key)}
+                  disabled={disabled}
+                  accessibilityRole="button"
+                  accessibilityLabel="Decimal point"
+                  accessibilityState={{ disabled }}
+                >
+                  <Text style={styles.keyText} maxFontSizeMultiplier={FontScaleCap.keypad}>.</Text>
                 </PressableScale>
               )
             }
@@ -78,11 +115,12 @@ export function NumericKeypad({
                   key={key}
                   style={styles.key}
                   onPress={() => handlePress(key)}
-
+                  disabled={disabled}
                   accessibilityRole="button"
                   accessibilityLabel="Delete last digit"
+                  accessibilityState={{ disabled }}
                 >
-                  <Ionicons name="backspace-outline" size={28} color={Colors.white} />
+                  <Ionicons name="backspace-outline" size={24} color={Colors.white} />
                 </PressableScale>
               )
             }
@@ -91,9 +129,10 @@ export function NumericKeypad({
                 key={key}
                 style={styles.key}
                 onPress={() => handlePress(key)}
-
+                disabled={disabled}
                 accessibilityRole="button"
                 accessibilityLabel={`Digit ${key}`}
+                accessibilityState={{ disabled }}
               >
                 <Text style={styles.keyText} maxFontSizeMultiplier={FontScaleCap.keypad}>
                   {key}
@@ -109,32 +148,28 @@ export function NumericKeypad({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.xs,
   },
+  containerDisabled: {
+    opacity: 0.45,
+  },
+  // Flat keys (wallet-app convention): no discs, just a generous hit area.
   row: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: KEY_GAP,
-    marginBottom: KEY_GAP,
   },
   key: {
-    width: KEY_SIZE,
-    height: KEY_SIZE,
-    borderRadius: KEY_SIZE / 2,
-    backgroundColor: Colors.lightGrey,
+    flex: 1,
+    height: 60,
     alignItems: 'center',
     justifyContent: 'center',
-    ...DesignTokens.shadows.card,
   },
   keyText: {
-    fontSize: Math.min(FontSize.xxl, KEY_SIZE * 0.45),
+    fontFamily: Fonts.displayMd,
+    fontSize: 26,
     color: Colors.white,
-    fontWeight: FontWeight.semibold,
   },
-  specialKey: {
-    backgroundColor: Colors.midGrey,
-  },
+  specialKey: {},
   specialKeyText: {
     fontSize: FontSize.sm,
     color: Colors.mutedWhite,

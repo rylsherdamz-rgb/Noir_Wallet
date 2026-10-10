@@ -4,27 +4,43 @@
     "appVersionSource": "remote"
   },
   "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal",
+    "base": {
+      "env": {
+        "EXPO_PUBLIC_STELLAR_NETWORK": "testnet",
+        "EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT": "CB4DPMGOA374JIB2ZVD4AHW5GJKQUYNOFGRYNOJ75EFH2KCJSMHOWIRA",
+        "EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT": "CBTDMJVCFQDIVWZBKAKZ2FQ3UEJNAAUFYCTJ3E4ON2MYXPLPSIXQ25JZ",
+        "EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT": "CA5S4S7QGHJHJWVJBYL3CXZXZTNGKXMNZVDAEQNN7NUXFP4D7BYK7HIX"
+      },
       "cache": {
         "disabled": true
       }
     },
+    "development": {
+      "extends": "base",
+      "developmentClient": true,
+      "distribution": "internal"
+    },
     "preview": {
+      "extends": "base",
       "distribution": "internal",
-      "cache": {
-        "disabled": true
+      "android": {
+        "buildType": "apk"
       }
     },
     "production": {
+      "extends": "base",
       "autoIncrement": true,
-      "cache": {
-        "disabled": true
+      "android": {
+        "buildType": "app-bundle"
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "track": "internal",
+        "releaseStatus": "draft"
+      }
+    }
   }
 }

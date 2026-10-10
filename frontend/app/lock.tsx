@@ -1,21 +1,20 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet, Image, TouchableOpacity, AppState, TextInput, KeyboardAvoidingView, Platform } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { Colors, Spacing, FontSize, FontWeight } from '@/constants/theme'
-import { NumericKeypad } from '@/components/NumericKeypad'
+import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '@/constants/theme'
+import { colorWithOpacity } from '@/constants/designTokens'
+import { VerifyingPulse } from '@/components/brand/VerifyingPulse'
+import { BrandBackdrop } from '@/components/brand/BrandBackdrop'
+import { Button } from '@/components/Button'
+import { TextAction } from '@/components/ui/List'
+import { authenticateWithDevice } from '@/services/biometrics'
+import { verifyPassword, getLockout, lockoutRemainingMs } from '@/services/appPassword'
+import { getUnlockOptions, type UnlockOptions } from '@/services/appLock'
 import { useAppStore } from '@/store/useAppStore'
-import {
-  hasPin as hasStoredPin,
-  setPin as storePin,
-  verifyPin,
-  getLockout,
-  lockoutRemainingMs,
-} from '@/services/pinLock'
-import { authenticate, checkAvailability } from '@/services/biometrics'
 
-const MAX_LENGTH = 6
+const NOIR_MARK = require('../assets/noir-mark.png')
 
 function formatCountdown(ms: number): string {
   const total = Math.ceil(ms / 1000)
@@ -24,217 +23,177 @@ function formatCountdown(ms: number): string {
   return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`
 }
 
+/**
+ * App lock. The wallet password is the default. Phone unlock (fingerprint,
+ * face, or the phone's own PIN / pattern) is offered first only when it is
+ * turned on in Security settings and the phone actually has a lock;
+ * cancelling it leaves the password in front of the user.
+ */
 export default function LockScreen() {
   const router = useRouter()
-  const biometricEnabled = useAppStore((s) => s.security.biometricLockEnabled)
-
-  const [pin, setPin] = useState('')
-  const [mode, setMode] = useState<'setup' | 'unlock' | 'confirm'>('unlock')
-  const [confirmPin, setConfirmPin] = useState('')
-  const [error, setError] = useState('')
-  const [hasPin, setHasPin] = useState<boolean | null>(null)
+  const deviceUnlockEnabled = useAppStore((s) => s.security.deviceUnlockEnabled)
+  const [options, setOptions] = useState<UnlockOptions | null>(null)
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [pw, setPw] = useState('')
+  const [showPw, setShowPw] = useState(false)
   const [lockedUntil, setLockedUntil] = useState(0)
   const [now, setNow] = useState(Date.now())
-  const [biometricAvailable, setBiometricAvailable] = useState(false)
-  const biometricTried = useRef(false)
+  const autoPrompted = useRef(false)
 
   const remainingMs = Math.max(0, lockedUntil - now)
-  const isLocked = remainingMs > 0
+  const isLockedOut = remainingMs > 0
+
+  const resolveOptions = useCallback(async () => {
+    const next = await getUnlockOptions(deviceUnlockEnabled)
+    // Never strand the user on a prompt for a secret that does not exist: a
+    // wallet created before the password existed is sent to create one.
+    if (!next.password) return router.replace('/create-password')
+    setLockedUntil((await getLockout()).lockedUntil)
+    setOptions(next)
+  }, [deviceUnlockEnabled, router])
+
+  useEffect(() => { resolveOptions() }, [resolveOptions])
+
+  // Re-check when returning from system settings (e.g. a screen lock was added).
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s) => { if (s === 'active') resolveOptions() })
+    return () => sub.remove()
+  }, [resolveOptions])
 
   useEffect(() => {
-    let cancelled = false
-    async function init() {
-      const [existing, lockout, availability] = await Promise.all([
-        hasStoredPin(),
-        getLockout(),
-        checkAvailability(),
-      ])
-      if (cancelled) return
-      setHasPin(existing)
-      setMode(existing ? 'unlock' : 'setup')
-      setLockedUntil(lockout.lockedUntil)
-      setBiometricAvailable(availability.available)
-    }
-    init()
-    return () => {
-      cancelled = true
-    }
-  }, [])
+    if (!isLockedOut) return
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [isLockedOut])
 
-  // Drive the countdown only while a lockout is actually running.
-  useEffect(() => {
-    if (!isLocked) return
-    const timer = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(timer)
-  }, [isLocked])
-
-  const unlock = useCallback(() => {
-    router.replace('/(tabs)')
-  }, [router])
-
-  const promptBiometric = useCallback(async () => {
+  const unlockWithDevice = useCallback(async () => {
+    if (busy) return
+    setBusy(true)
     setError('')
-    const result = await authenticate()
-    if (result.ok) {
-      unlock()
-      return
-    }
-    // A cancel is a deliberate choice to use the PIN instead — not an error.
-    if (result.reason !== 'cancelled') setError(result.message)
-  }, [unlock])
-
-  // Offer biometrics once per mount, before the user starts typing.
-  useEffect(() => {
-    if (mode !== 'unlock' || !biometricEnabled || !biometricAvailable || isLocked) return
-    if (biometricTried.current) return
-    biometricTried.current = true
-    promptBiometric()
-  }, [mode, biometricEnabled, biometricAvailable, isLocked, promptBiometric])
-
-  const handleVerify = useCallback(
-    async (candidate: string) => {
-      setBusy(true)
-      const result = await verifyPin(candidate)
+    try {
+      const result = await authenticateWithDevice()
+      if (result.ok) return router.replace('/(tabs)')
+      if (result.reason === 'no-device-lock') resolveOptions()
+      // A cancel is a deliberate choice to use the password instead — not an error.
+      else if (result.reason !== 'cancelled') setError(result.message)
+    } finally {
       setBusy(false)
-      setPin('')
-      if (result.ok) {
-        setLockedUntil(0)
-        unlock()
-        return
-      }
+    }
+  }, [busy, router, resolveOptions])
+
+  // Offer phone unlock by itself once, when it is on and available.
+  useEffect(() => {
+    if (!options?.device || autoPrompted.current) return
+    autoPrompted.current = true
+    unlockWithDevice()
+  }, [options, unlockWithDevice])
+
+  const unlockWithPassword = async () => {
+    if (busy || !pw || isLockedOut) return
+    setBusy(true)
+    setError('')
+    try {
+      const result = await verifyPassword(pw)
+      setPw('')
+      if (result.ok) return router.replace('/(tabs)')
       const lockout = await getLockout()
       setLockedUntil(lockout.lockedUntil)
       setNow(Date.now())
-      if (result.reason === 'locked' || result.retryAfterMs > 0) {
-        setError(`Too many attempts. Try again in ${formatCountdown(lockoutRemainingMs(lockout))}.`)
-      } else if (result.reason === 'no-pin') {
-        setError('No PIN is set on this device.')
-        setHasPin(false)
-        setMode('setup')
-      } else {
-        setError('Incorrect PIN')
-      }
-    },
-    [unlock]
-  )
-
-  const handleSave = useCallback(
-    async (candidate: string) => {
-      if (pin !== candidate) {
-        setError('PINs do not match')
-        setPin('')
-        setConfirmPin('')
-        setMode('setup')
-        return
-      }
-      setBusy(true)
-      await storePin(candidate)
+      if (result.reason === 'no-password') return resolveOptions()
+      setError(result.retryAfterMs > 0
+        ? `Too many attempts. Try again in ${formatCountdown(lockoutRemainingMs(lockout))}.`
+        : 'Incorrect password')
+    } catch {
+      setError('Something went wrong checking your password. Try again.')
+    } finally {
       setBusy(false)
-      unlock()
-    },
-    [pin, unlock]
-  )
-
-  const handleChange = (next: string) => {
-    if (busy || isLocked) return
-    setError('')
-    if (mode === 'confirm') {
-      setConfirmPin(next)
-      if (next.length === MAX_LENGTH) handleSave(next)
-      return
     }
-    setPin(next)
-    if (next.length !== MAX_LENGTH) return
-    if (mode === 'unlock') handleVerify(next)
-    else setMode('confirm')
   }
 
-  const displayPin = mode === 'confirm' ? confirmPin : pin
-
-  if (hasPin === null) return null
+  if (options === null) return <View style={styles.container} />
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Ionicons name="lock-closed-outline" size={48} color={Colors.gold} />
-        <Text style={styles.title}>
-          {mode === 'setup' ? 'Set App PIN' : mode === 'confirm' ? 'Confirm PIN' : 'Enter PIN'}
-        </Text>
-        {isLocked ? (
-          <Text style={styles.error} accessibilityLiveRegion="polite">
-            Too many attempts. Try again in {formatCountdown(remainingMs)}.
-          </Text>
-        ) : error ? (
-          <Text style={styles.error} accessibilityLiveRegion="polite">
-            {error}
-          </Text>
-        ) : null}
+    <View style={styles.container}>
+      <BrandBackdrop />
+      <SafeAreaView style={styles.flex}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={styles.content}>
+          <Image source={NOIR_MARK} style={styles.mark} resizeMode="contain" accessibilityLabel="Noir" />
+          <Text style={styles.title}>Welcome back</Text>
+          <Text style={styles.subtitle}>Enter your wallet password to unlock.</Text>
 
-        <View
-          style={styles.dots}
-          accessibilityRole="progressbar"
-          accessibilityLabel={`${displayPin.length} of ${MAX_LENGTH} digits entered`}
-        >
-          {Array.from({ length: MAX_LENGTH }).map((_, i) => (
-            <View key={i} style={[styles.dot, i < displayPin.length && styles.dotFilled]} />
-          ))}
+          <View style={[styles.field, !!error && styles.fieldError]}>
+            <Ionicons name="lock-closed-outline" size={18} color={Colors.mutedWhite} />
+            <TextInput
+              style={styles.input}
+              value={pw}
+              onChangeText={(v) => { setError(''); setPw(v) }}
+              placeholder="Password"
+              placeholderTextColor={Colors.mutedWhite}
+              secureTextEntry={!showPw}
+              autoFocus={!options.device}
+              autoCapitalize="none"
+              autoCorrect={false}
+              textContentType="password"
+              returnKeyType="go"
+              onSubmitEditing={unlockWithPassword}
+              editable={!busy && !isLockedOut}
+              accessibilityLabel="Password"
+            />
+            <TouchableOpacity onPress={() => setShowPw((v) => !v)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={showPw ? 'Hide password' : 'Show password'}>
+              <Ionicons name={showPw ? 'eye-off-outline' : 'eye-outline'} size={20} color={Colors.mutedWhite} />
+            </TouchableOpacity>
+          </View>
+
+          {busy ? (
+            <View style={styles.busyRow} accessibilityLiveRegion="polite">
+              <VerifyingPulse size={18} color={Colors.gold} />
+              <Text style={styles.busyText}>{pw ? 'Checking…' : 'Waiting for unlock…'}</Text>
+            </View>
+          ) : isLockedOut ? (
+            <Text style={styles.error} accessibilityLiveRegion="polite">Too many attempts. Try again in {formatCountdown(remainingMs)}.</Text>
+          ) : error ? (
+            <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text>
+          ) : null}
         </View>
 
-        <NumericKeypad value={displayPin} onChangeValue={handleChange} maxDigits={MAX_LENGTH} />
-
-        {mode === 'unlock' && biometricEnabled && biometricAvailable && !isLocked && (
-          <TouchableOpacity
-            onPress={promptBiometric}
-            style={styles.biometricBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Unlock with biometrics"
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="finger-print-outline" size={22} color={Colors.gold} />
-            <Text style={styles.biometricLabel}>Use biometrics</Text>
-          </TouchableOpacity>
-        )}
-
-        {mode === 'setup' && (
-          <TouchableOpacity
-            onPress={unlock}
-            style={styles.skipBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Skip PIN setup"
-            accessibilityHint="Continues without a PIN. Your wallet will not be locked."
-          >
-            <Text style={styles.skipLabel}>Skip</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </SafeAreaView>
+        <View style={styles.footer}>
+          <PrimaryButton icon="lock-open-outline" label="Unlock" onPress={unlockWithPassword} disabled={busy || !pw || isLockedOut} />
+          {options.device && (
+            <TextAction
+              label={options.deviceBiometric ? 'Use fingerprint or face' : 'Use phone screen lock'}
+              onPress={unlockWithDevice}
+              disabled={busy}
+            />
+          )}
+        </View>
+      </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   )
+}
+
+function PrimaryButton({ icon, label, onPress, disabled }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; disabled?: boolean }) {
+  return <Button icon={icon} label={label} onPress={onPress} disabled={disabled} fullWidth />
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surfaceBg },
-  content: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.xl,
-    gap: Spacing.md,
+  flex: { flex: 1 },
+  content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.xl, gap: Spacing.md },
+  mark: { width: 84, height: 88, marginBottom: Spacing.lg },
+  title: { fontFamily: Fonts.display, fontSize: FontSize.xl, color: Colors.cream, textAlign: 'center' },
+  subtitle: { fontSize: FontSize.sm, color: Colors.silver, textAlign: 'center', lineHeight: 20 },
+  field: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, alignSelf: 'stretch',
+    backgroundColor: Colors.cardBg, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.borderGrey,
+    paddingHorizontal: Spacing.md, minHeight: 56, marginTop: Spacing.md,
   },
-  title: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, color: Colors.white },
+  fieldError: { borderColor: colorWithOpacity(Colors.danger, 0.6) },
+  input: { flex: 1, color: Colors.white, fontSize: FontSize.md, paddingVertical: Spacing.md },
   error: { fontSize: FontSize.sm, color: Colors.danger, textAlign: 'center' },
-  dots: { flexDirection: 'row', gap: Spacing.md, marginVertical: Spacing.lg },
-  dot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: Colors.lightGrey,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  dotFilled: { backgroundColor: Colors.gold, borderColor: Colors.gold },
-  biometricBtn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.md },
-  biometricLabel: { fontSize: FontSize.md, color: Colors.gold, fontWeight: FontWeight.medium },
-  skipBtn: { paddingVertical: Spacing.md },
-  skipLabel: { fontSize: FontSize.md, color: Colors.mutedWhite },
+  busyRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  busyText: { fontSize: FontSize.sm, color: Colors.gold },
+  footer: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xl, gap: Spacing.md },
 })

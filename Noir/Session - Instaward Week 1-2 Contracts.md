@@ -60,9 +60,9 @@ cargo build --release --target wasm32v1-none -p device-registry -p agent-registr
 1. **Cargo.lock**: `cargo update -p soroban-env-host` dropped an incompatible `ed25519-dalek v3.0.0` that broke host-target test compilation (`ChaCha20Rng: CryptoRng` not satisfied). Modifies `backend/asset/Cargo.lock`.
 2. **device_registry tests**: rewrote to the generated-client pattern (`DeviceRegistryClient`). The old direct-call-inside-`as_contract` pattern tripped `Error(Auth, ExistingValue)` ("frame is already authorized") under SDK 25 on multi-register/revoke sequences, and a `catch_unwind` test didn't compile under SDK 25 (replaced with `#[should_panic]`).
 
-## Blocked
+## Blocked (RESOLVED 2026-10-03)
 
-`soroban`/`stellar` CLI is **not installed** in this environment, so Testnet redeploy (and publishing new Contract IDs + WASM hashes) could not be done here. Code + tests are verified instead; deploy remains a Week 1 follow-up once the CLI is available. New frontend Testnet IDs already present in `frontend/.env.example` are from a prior deploy and will change once these contract changes are redeployed.
+At the time, `soroban`/`stellar` CLI was **not installed**, so Testnet redeploy could not be done. **Now resolved** — see [[Session - Instaward Week 1 Deploy & Docs]]: contracts redeployed to Testnet, new Contract IDs + WASM hashes published, and tests expanded from 41 → 44.
 
 ## Scope note
 

@@ -229,6 +229,18 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "Error(Contract, #8)")]
+    fn test_fund_unregistered_device_rejected() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let f = setup(&env, 1000, 0);
+        // Funds for a hash device_registry does not know could never be
+        // withdrawn or swept (both resolve the owner there) — refuse them.
+        f.escrow
+            .fund_escrow(&f.token_id, &f.wallet, &random_bytes_32(&env), &500);
+    }
+
+    #[test]
     #[should_panic(expected = "Error(Contract, #2)")]
     fn test_insufficient_balance_rejected() {
         let env = Env::default();

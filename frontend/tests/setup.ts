@@ -53,6 +53,13 @@ vi.mock('@stellar/stellar-sdk', async () => {
       static native() { return new MockAsset('XLM', '') as any }
       getAssetType() { return (this as any).code === 'XLM' ? 'native' : 'credit_alphanum4' }
       getCode() { return (this as any).code }
+      contractId(passphrase: string) {
+        const RealAsset = (actual as any).Asset
+        const real = (this as any).code === 'XLM' && !(this as any).issuer
+          ? RealAsset.native()
+          : new RealAsset((this as any).code, (this as any).issuer)
+        return real.contractId(passphrase)
+      }
     },
     Horizon: {
       Server: class MockHorizonServer {
@@ -186,6 +193,8 @@ vi.mock('expo-local-authentication', () => ({
   supportedAuthenticationTypesAsync: vi.fn().mockResolvedValue([1]),
   authenticateAsync: vi.fn().mockResolvedValue({ success: true }),
   AuthenticationType: { FINGERPRINT: 1, FACIAL_RECOGNITION: 2, IRIS: 3 },
+  getEnrolledLevelAsync: vi.fn().mockResolvedValue(1),
+  SecurityLevel: { NONE: 0, SECRET: 1, BIOMETRIC_WEAK: 2, BIOMETRIC_STRONG: 3 },
 }))
 
 // Mock expo-screen-capture (native screenshot blocking)

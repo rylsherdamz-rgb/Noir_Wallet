@@ -1,0 +1,1922 @@
+{
+  "frontend/app/(tabs)/_layout.tsx": {
+    "mtime": 1789964295265.6606,
+    "hash": "02ecd54b9431826b5c06638800079fc1"
+  },
+  "frontend/app/(tabs)/devices.tsx": {
+    "mtime": 1789964295265.6846,
+    "hash": "2e04b7d0b567d04f8609d6138c7ca2fe"
+  },
+  "frontend/app/(tabs)/index.tsx": {
+    "mtime": 1789964295265.6846,
+    "hash": "bec428068f8d37eea4255c0278250df1"
+  },
+  "frontend/app/(tabs)/pos.tsx": {
+    "mtime": 1789964295265.6846,
+    "hash": "28b5123f1d381c17e67d806f46ec78c0"
+  },
+  "frontend/app/(tabs)/settings.tsx": {
+    "mtime": 1789971181961.2769,
+    "hash": "8cdea74c94ce134ad2ebad473b8cd292"
+  },
+  "frontend/app/+not-found.tsx": {
+    "mtime": 1789964295265.6846,
+    "hash": "943e000793001099179bedf341c9f3cd"
+  },
+  "frontend/app/_layout.tsx": {
+    "mtime": 1789964295265.6846,
+    "hash": "0a7775fa75849affbbbcf6ef6532134a"
+  },
+  "frontend/app/agent/[id].tsx": {
+    "mtime": 1789964295265.6846,
+    "hash": "2bfaea9a999dc5379d4e3801f2bff99d"
+  },
+  "frontend/app/cards.tsx": {
+    "mtime": 1789964295265.6846,
+    "hash": "7faa5545645645c29cc8523c569053be"
+  },
+  "frontend/app/fiat.tsx": {
+    "mtime": 1789964295265.6846,
+    "hash": "5032e83d39d2336c8ba0b7f447c1e571"
+  },
+  "frontend/app/import-wallet.tsx": {
+    "mtime": 1789974936203.9165,
+    "hash": "f18b0ce188907e42185e022e0536a519"
+  },
+  "frontend/app/index.tsx": {
+    "mtime": 1789974050186.0425,
+    "hash": "7f832fc2e9b86ef720e90cddaff4c38a"
+  },
+  "frontend/app/lock.tsx": {
+    "mtime": 1789964295265.6846,
+    "hash": "08eeaf08db5f13a1b429e94cb04a402b"
+  },
+  "frontend/app/onboarding.tsx": {
+    "mtime": 1789964295265.6846,
+    "hash": "71f29433eae83ba14557d1573d4e6fb5"
+  },
+  "frontend/app/profile.tsx": {
+    "mtime": 1789964295265.6846,
+    "hash": "2175551c000d20f8c9137a26331b1dff"
+  },
+  "frontend/app/receive.tsx": {
+    "mtime": 1789964295265.6846,
+    "hash": "c0a0caca66acaa5c3c129646b7b3d15a"
+  },
+  "frontend/app/scan-qr.tsx": {
+    "mtime": 1789964295265.6846,
+    "hash": "0548be83d9fa45093ae473e83712d7ad"
+  },
+  "frontend/app/seed-phrase.tsx": {
+    "mtime": 1789974936203.5405,
+    "hash": "69d5b29635439e20ce6be7faa17686bb"
+  },
+  "frontend/app/seed-verify.tsx": {
+    "mtime": 1789964295265.6846,
+    "hash": "cbc9f9cbad0151dd4653a63f1db5172a"
+  },
+  "frontend/app/send.tsx": {
+    "mtime": 1789964295265.6846,
+    "hash": "e30a2a72190496cdeb777b9ebad4d95e"
+  },
+  "frontend/app/settings/notifications.tsx": {
+    "mtime": 1789964295265.6846,
+    "hash": "adf37d7bc040c40af7d829615a82d528"
+  },
+  "frontend/app/settings/security.tsx": {
+    "mtime": 1789964295266.098,
+    "hash": "7ab1b4846ad762e5664551c12c26ef3a"
+  },
+  "frontend/app/tap.tsx": {
+    "mtime": 1789964295266.098,
+    "hash": "f5d554ea80c772aa56160d120b0c536c"
+  },
+  "frontend/app/transaction/[id].tsx": {
+    "mtime": 1789964295266.098,
+    "hash": "03eadcec41346e98317cc4c406d48d82"
+  },
+  "frontend/app/transactions.tsx": {
+    "mtime": 1789964295266.098,
+    "hash": "4a02641c1074d5d6608c4d753d90e463"
+  },
+  "frontend/babel.config.js": {
+    "mtime": 1789964295300.033,
+    "hash": "bcbfcd9dc88415cbb3ebf941bc7e6807"
+  },
+  "frontend/global.d.ts": {
+    "mtime": 1789964295300.033,
+    "hash": "7b574c49fe226e07d8f619bb06d4bb31"
+  },
+  "frontend/index.ts": {
+    "mtime": 1789964295300.033,
+    "hash": "e56985cea8fab2d48d17ecdeeb21826b"
+  },
+  "frontend/metro.config.js": {
+    "mtime": 1789964295300.033,
+    "hash": "cf31e8c789f700bbdd397410ca9f350d"
+  },
+  "frontend/scripts/stellar-cli.ts": {
+    "mtime": 1789964295300.033,
+    "hash": "8ccf84d5a57d6d4b869b9e071fad0be7"
+  },
+  "frontend/src/components/ActionSheet.tsx": {
+    "mtime": 1789964295303.1938,
+    "hash": "fb34a90d82d77268401ecdcb8c41380c"
+  },
+  "frontend/src/components/AmountInput.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "e054b698f0af34a869913e533d375835"
+  },
+  "frontend/src/components/Avatar.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "b12eb0c88d5422c8c6ce6e9b2d2f9a67"
+  },
+  "frontend/src/components/BalanceCard.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "65ab0e7aaccc186927c5755efbc46d55"
+  },
+  "frontend/src/components/Button.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "4f6634595383292c7dee5b222a471ce1"
+  },
+  "frontend/src/components/Card.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "ddf1fab391e93e7819a231842758464a"
+  },
+  "frontend/src/components/ChatBubble.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "613517df9060b2192f9ba9570b67c35a"
+  },
+  "frontend/src/components/ConfirmDialog.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "ab82b020a853437ac4631cfb2590da04"
+  },
+  "frontend/src/components/EmptyState.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "83cee3d21112566f3649340b631e087c"
+  },
+  "frontend/src/components/ErrorMessage.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "8cf9238c09335aa3f72b55cc596b3d64"
+  },
+  "frontend/src/components/FilterChips.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "9d03af9398d8e8a5e4f0308bee7bc251"
+  },
+  "frontend/src/components/KeyboardAwareScreen.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "fac5113cb3ac0c5e2461263a1241de34"
+  },
+  "frontend/src/components/NumericKeypad.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "abfa479be1ef25cdc0dc2caebe61b302"
+  },
+  "frontend/src/components/ProgressIndicator.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "98830ae7db8c27701fbac65ccd0c4763"
+  },
+  "frontend/src/components/ReadyToTapIndicator.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "44e29d5e4c70c116ba0cd3e400344eac"
+  },
+  "frontend/src/components/ScreenHeader.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "a3274458bd71748992965732c6f2fed4"
+  },
+  "frontend/src/components/SearchBar.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "eaac03e6617d2eb1c4d1cd00936cec6a"
+  },
+  "frontend/src/components/SectionHeader.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "5282485aea430f56b7375c24ccbd1de2"
+  },
+  "frontend/src/components/SkeletonLoader.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "45e76aa9d777a8d6d68533006bf9eff3"
+  },
+  "frontend/src/components/SmartTip.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "85fc72f5419fe73ef4244d2ccafb2f26"
+  },
+  "frontend/src/components/StatusPill.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "c3a295bd12d02ae3dc681437b7ea03c8"
+  },
+  "frontend/src/components/TestnetFaucetBanner.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "f9895ed26fec283dbe324be435f0194d"
+  },
+  "frontend/src/components/Toast.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "6d18cbc240b9623bbf044dff135a0747"
+  },
+  "frontend/src/components/ToastProvider.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "40605500980b2055df90f3d8a4121d5d"
+  },
+  "frontend/src/components/TransactionItem.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "5a18aac2be8260ae6effa4883cd55ab1"
+  },
+  "frontend/src/components/WalletSwitcher.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "798621dc8f97573e12c57d59de577a54"
+  },
+  "frontend/src/components/brand/BrandGlyph.tsx": {
+    "mtime": 1789964295303.2493,
+    "hash": "a8e17be7ddb758e63757bc9efd3c8b1b"
+  },
+  "frontend/src/components/brand/NoirLogo.tsx": {
+    "mtime": 1789964295303.9392,
+    "hash": "5fa759640c56d3e684d7814123628a4f"
+  },
+  "frontend/src/components/brand/PressableScale.tsx": {
+    "mtime": 1789964295303.9392,
+    "hash": "c125e4668321fc208faf19e84b5dab97"
+  },
+  "frontend/src/components/brand/SignalRipple.tsx": {
+    "mtime": 1789964295303.9392,
+    "hash": "44ee21410d9979710d148a11b110d28c"
+  },
+  "frontend/src/constants/config.ts": {
+    "mtime": 1789974917181.702,
+    "hash": "6ad13f9ca5c5cafe3ae3ed9a65e2d9ce"
+  },
+  "frontend/src/constants/theme.ts": {
+    "mtime": 1789964295304.0647,
+    "hash": "643e3f773f00b0ba22290d87228bdeb4"
+  },
+  "frontend/src/domain/x402.ts": {
+    "mtime": 1791003990709.9739,
+    "hash": "60b1e596fd87674d99c1651e2148d141"
+  },
+  "frontend/src/hooks/useCountUp.ts": {
+    "mtime": 1789964295304.0647,
+    "hash": "68ccd4e4bba3feaa7bf1614c6efb8702"
+  },
+  "frontend/src/hooks/useNfc.ts": {
+    "mtime": 1789964295304.1895,
+    "hash": "bef8154305e541103825a0570a57d690"
+  },
+  "frontend/src/hooks/useProfile.ts": {
+    "mtime": 1789964295304.1895,
+    "hash": "9ef84e1802053d75d64a43afd044133f"
+  },
+  "frontend/src/lib/logger.ts": {
+    "mtime": 1789964295304.1895,
+    "hash": "e652b2f7f36dc3b78f9da24b138e2121"
+  },
+  "frontend/src/lib/soroban.ts": {
+    "mtime": 1789964295304.2522,
+    "hash": "bc4b578f37f45b2b5a0e561258ba7c68"
+  },
+  "frontend/src/lib/stellarAccount.ts": {
+    "mtime": 1789964295304.2522,
+    "hash": "684c3df14928c64b614d6b17192b30a9"
+  },
+  "frontend/src/lib/stellarErrors.ts": {
+    "mtime": 1789964295304.2522,
+    "hash": "067b78de40d35f7e4df208c151308918"
+  },
+  "frontend/src/screens/AgentDetailScreen.tsx": {
+    "mtime": 1789972834323.3374,
+    "hash": "c20867b09eb1e6593af253c159bc9103"
+  },
+  "frontend/src/screens/AgentListScreen.tsx": {
+    "mtime": 1789974109710.0261,
+    "hash": "e37e305d843b3112e0d7b8d9a33e2ebc"
+  },
+  "frontend/src/screens/BlockchainScreen.tsx": {
+    "mtime": 1789964295304.365,
+    "hash": "504eb10172a0fa31e74131d6fb32d146"
+  },
+  "frontend/src/screens/CardsScreen.tsx": {
+    "mtime": 1789964295304.365,
+    "hash": "aa919e66324b37d1c8e2c3198dde6c46"
+  },
+  "frontend/src/screens/DashboardScreen.tsx": {
+    "mtime": 1789964295304.365,
+    "hash": "d3c2a58abef1ffdf67f2b894f98a6cd2"
+  },
+  "frontend/src/screens/DeviceProvisioningScreen.tsx": {
+    "mtime": 1789971021771.173,
+    "hash": "ae2500b65d9579bf8fdc5fe18b4d333f"
+  },
+  "frontend/src/screens/ImportWalletScreen.tsx": {
+    "mtime": 1789964295304.365,
+    "hash": "89daa3ea8e4aa3f63be4f61b419a0c12"
+  },
+  "frontend/src/screens/MerchantPosScreen.tsx": {
+    "mtime": 1789971105652.581,
+    "hash": "be5ef6f6feefc84b96df043d491b284d"
+  },
+  "frontend/src/screens/NotificationsScreen.tsx": {
+    "mtime": 1789964295304.365,
+    "hash": "8e114fb7c36ee1684b9f17527d09e07d"
+  },
+  "frontend/src/screens/ProfileScreen.tsx": {
+    "mtime": 1789974902458.5137,
+    "hash": "3268a2cfa2668606c3a2fc8039fa5b4b"
+  },
+  "frontend/src/screens/ReceiveScreen.tsx": {
+    "mtime": 1789971117195.6914,
+    "hash": "b68e85c77016a46cc9259a578c6c700a"
+  },
+  "frontend/src/screens/SecurityScreen.tsx": {
+    "mtime": 1789974858595.666,
+    "hash": "704299558d8839c3e6cad7a95f85f85b"
+  },
+  "frontend/src/screens/SeedPhraseScreen.tsx": {
+    "mtime": 1790238531511.5303,
+    "hash": "e38c35792cce9f921f0065f8d75cf882"
+  },
+  "frontend/src/screens/SeedVerifyScreen.tsx": {
+    "mtime": 1789964295304.365,
+    "hash": "836b691bf83688c2b4f1adf1ab0a13e6"
+  },
+  "frontend/src/screens/SendScreen.tsx": {
+    "mtime": 1789964295304.365,
+    "hash": "76651f171b926923294e70b55a39c4c8"
+  },
+  "frontend/src/screens/TransactionDetailScreen.tsx": {
+    "mtime": 1789964295304.365,
+    "hash": "bd4b51884a7b6930fd9450dafd3ca839"
+  },
+  "frontend/src/screens/TransactionHistoryScreen.tsx": {
+    "mtime": 1789964295304.365,
+    "hash": "7e5e81e8365dadf5755704f3b7586aef"
+  },
+  "frontend/src/screens/WelcomeScreen.tsx": {
+    "mtime": 1789964295304.365,
+    "hash": "06e5a013728cac3cfd83acb3908440e7"
+  },
+  "frontend/src/services/api.ts": {
+    "mtime": 1789964295304.365,
+    "hash": "071d9746b6647458cb2ee2f163d9ebbc"
+  },
+  "frontend/src/services/biometrics.ts": {
+    "mtime": 1789964295304.9849,
+    "hash": "8963e5f14d36cb446a2756909a867530"
+  },
+  "frontend/src/services/fxRates.ts": {
+    "mtime": 1789964295304.9849,
+    "hash": "7214f90d80b8ac9c28b876dbbc4e6ab6"
+  },
+  "frontend/src/services/nfc.ts": {
+    "mtime": 1789964295304.9849,
+    "hash": "a53cb554ab68d94735e2650f109fee88"
+  },
+  "frontend/src/services/pinLock.ts": {
+    "mtime": 1789964295304.9849,
+    "hash": "020aa85256029fe51d67860df70b5363"
+  },
+  "frontend/src/services/secureStorage.ts": {
+    "mtime": 1789964295304.9849,
+    "hash": "f30ddf402ccfe50bbd60c6127dd3dc9a"
+  },
+  "frontend/src/services/stellar-service.ts": {
+    "mtime": 1790947850329.2698,
+    "hash": "6cdafd76ac99c59ca583d4c3ba0598d6"
+  },
+  "frontend/src/services/stellar.ts": {
+    "mtime": 1789964295304.9849,
+    "hash": "5ebff7f19ee994b9f8ce29267b5b4870"
+  },
+  "frontend/src/services/storage.ts": {
+    "mtime": 1789964295304.9849,
+    "hash": "dabe658147f2116a5c35bb58e8d7d9da"
+  },
+  "frontend/src/services/txMonitor.ts": {
+    "mtime": 1789964295304.9849,
+    "hash": "9afe0d6b8dacf10a53bcb8f40d34f9a8"
+  },
+  "frontend/src/services/wallet.ts": {
+    "mtime": 1789970918687.7107,
+    "hash": "d75c32a3c5b5552f7aa6d9e42f67c4d4"
+  },
+  "frontend/src/store/useAppStore.ts": {
+    "mtime": 1789964295304.9849,
+    "hash": "ac6d417cb812876a80797c7185e92be2"
+  },
+  "frontend/src/types/index.ts": {
+    "mtime": 1789974927311.607,
+    "hash": "ddfbf9ce08e3983920d83732adc08e13"
+  },
+  "frontend/tailwind.config.js": {
+    "mtime": 1789964295304.9849,
+    "hash": "c787efc567f726162d3650d1260f7ee4"
+  },
+  "frontend/tests/01-x402.test.ts": {
+    "mtime": 1791004052184.873,
+    "hash": "82d2e309359170f348c694182b7bf7d8"
+  },
+  "frontend/tests/02-stellar.test.ts": {
+    "mtime": 1789964295305.322,
+    "hash": "a7d2069832f7d59d3cbe9ceebecbb8ac"
+  },
+  "frontend/tests/03-nfc.test.ts": {
+    "mtime": 1789964295305.322,
+    "hash": "70dbb9c707af5951d2f7dfc6e9e59f8a"
+  },
+  "frontend/tests/04-api.test.ts": {
+    "mtime": 1789964295305.322,
+    "hash": "bcb9ce7c46d809ae97f72058337a2c32"
+  },
+  "frontend/tests/05-store.test.ts": {
+    "mtime": 1789964295305.322,
+    "hash": "b91f58f61d8ad4d536c59d539d0dbbb9"
+  },
+  "frontend/tests/06-components.test.ts": {
+    "mtime": 1789964295305.322,
+    "hash": "78f3c4afce39fb11d0a8c0a8fab738d6"
+  },
+  "frontend/tests/07-screens.test.ts": {
+    "mtime": 1789964295305.322,
+    "hash": "ff70fa9ec2147a9fd6c6957d9188ebd9"
+  },
+  "frontend/tests/08-fxrates.test.ts": {
+    "mtime": 1789964295305.322,
+    "hash": "16a8ceb4ec563f595ed0be0ac067d08a"
+  },
+  "frontend/tests/09-constants.test.ts": {
+    "mtime": 1789974952334.723,
+    "hash": "5e49d3f9bb5acf795cf8425104f8e83a"
+  },
+  "frontend/tests/10-new-features.test.ts": {
+    "mtime": 1789974966304.6116,
+    "hash": "0261afc29a6ef95ae467c9364dad1aa8"
+  },
+  "frontend/tests/11-security.test.ts": {
+    "mtime": 1789964295305.322,
+    "hash": "c825cc0f18811f52c747691af8d73677"
+  },
+  "frontend/tests/12-send.test.ts": {
+    "mtime": 1789964295305.322,
+    "hash": "98f56a9021faf426f433f72a8042f247"
+  },
+  "frontend/tests/13-network-freshness.test.ts": {
+    "mtime": 1789964295305.322,
+    "hash": "145acab1d042a772467c4340534c268c"
+  },
+  "frontend/tests/14-logger.test.ts": {
+    "mtime": 1789964295305.322,
+    "hash": "29490ffff9e034b2b1070e16d95c0595"
+  },
+  "frontend/tests/setup.ts": {
+    "mtime": 1791004040684.5754,
+    "hash": "f12db828a66c76d6fa5ddb405030c1d6"
+  },
+  "frontend/vitest.config.ts": {
+    "mtime": 1789964295305.322,
+    "hash": "61080f87ab45db2624c8dde764573ed7"
+  },
+  "landing/js/main.js": {
+    "mtime": 1789964295420.0337,
+    "hash": "f46804e3f7f000ad11230a1547a97fad"
+  },
+  "promo/eslint.config.mjs": {
+    "mtime": 1789964295426.81,
+    "hash": "e20d59bb6b64567da14d80c3da2c6b15"
+  },
+  "promo/generate-voiceover.ts": {
+    "mtime": 1789964295426.81,
+    "hash": "521417f08bf6d20dc93132e133a30eb6"
+  },
+  "promo/pubmat/shoot.js": {
+    "mtime": 1789967834185.887,
+    "hash": "9b291912869e17e57af484bd9052c704"
+  },
+  "promo/pubmat/test-editor.js": {
+    "mtime": 1789968285550.0388,
+    "hash": "66a146df013841537e93d29417361026"
+  },
+  "promo/remotion.config.ts": {
+    "mtime": 1789964295428.0195,
+    "hash": "989f1d8038590cb5a802522f7589ba3e"
+  },
+  "promo/src/Composition.tsx": {
+    "mtime": 1789964295428.0195,
+    "hash": "02f2b0c0fc83361ef41d81381c8fc848"
+  },
+  "promo/src/NoirPromo.tsx": {
+    "mtime": 1789964295430.0442,
+    "hash": "316941cf746f672b27c31456e313a133"
+  },
+  "promo/src/Root.tsx": {
+    "mtime": 1789964295430.0442,
+    "hash": "df3d5feed27fc0f730f79a0a9f10e780"
+  },
+  "promo/src/app-screens/AgentsApp.tsx": {
+    "mtime": 1789964295430.0442,
+    "hash": "7d399e0463f1f5e10098b42192a93ba5"
+  },
+  "promo/src/app-screens/BlockchainApp.tsx": {
+    "mtime": 1789964295430.1077,
+    "hash": "165d7f71c826f4c9d605bd889f6dd778"
+  },
+  "promo/src/app-screens/DashboardApp.tsx": {
+    "mtime": 1789964295430.1077,
+    "hash": "bc6326c23486866d52cf06cf2e254112"
+  },
+  "promo/src/app-screens/DevicesApp.tsx": {
+    "mtime": 1789964295430.1077,
+    "hash": "a51b58af25b753bbec61102988dd4a93"
+  },
+  "promo/src/app-screens/ReceiveApp.tsx": {
+    "mtime": 1789964295430.1077,
+    "hash": "f2902d4fd059324c6a6ff56f339ab4f9"
+  },
+  "promo/src/app-screens/SendApp.tsx": {
+    "mtime": 1789964295430.1077,
+    "hash": "47d52ff5b2182dfa602d549f84ac0d03"
+  },
+  "promo/src/app-screens/TransactionsApp.tsx": {
+    "mtime": 1789964295430.1077,
+    "hash": "dbec554a64928a1b149b26a4564fc926"
+  },
+  "promo/src/app-screens/WelcomeApp.tsx": {
+    "mtime": 1789964295430.1077,
+    "hash": "ce701d5bf3a92ee4c71be5999539f3b6"
+  },
+  "promo/src/components/CatLogo.tsx": {
+    "mtime": 1789964295430.1077,
+    "hash": "96c25b9e1e4ebc48bbfcf21469048f9b"
+  },
+  "promo/src/components/Icon.tsx": {
+    "mtime": 1789964295430.356,
+    "hash": "5a02816cb93c86ed87b410526c4f301d"
+  },
+  "promo/src/components/PhoneFrame.tsx": {
+    "mtime": 1789964295430.356,
+    "hash": "7e93c99440f57766280a0223cc92736b"
+  },
+  "promo/src/get-audio-duration.ts": {
+    "mtime": 1789964295430.356,
+    "hash": "0d166cb79a2eca4f1b02baaa27798f58"
+  },
+  "promo/src/index.ts": {
+    "mtime": 1789964295430.356,
+    "hash": "d92d9dee1ab16aa44a75ae7fbfb843ca"
+  },
+  "promo/src/scenes/Architecture.tsx": {
+    "mtime": 1789964295430.356,
+    "hash": "790883d0609268dd31aaf2a17e7c7d33"
+  },
+  "promo/src/scenes/Intro.tsx": {
+    "mtime": 1789964295430.4868,
+    "hash": "ea6d01d97262d7ce698772fd8255aad8"
+  },
+  "promo/src/scenes/Outro.tsx": {
+    "mtime": 1789964295430.4868,
+    "hash": "e7332ae3ec25971bfe45831b9e0c44d2"
+  },
+  "promo/src/scenes/Problem.tsx": {
+    "mtime": 1789964295430.4868,
+    "hash": "07e93c7d308289cb80301f6552cdeaa6"
+  },
+  "promo/src/scenes/SceneShell.tsx": {
+    "mtime": 1789964295430.4868,
+    "hash": "65e011f6c7cf2b347196857525befcbd"
+  },
+  "promo/src/scenes/UseCases.tsx": {
+    "mtime": 1789964295430.4868,
+    "hash": "cfb028cde9af77fb60be66bde255c3d5"
+  },
+  "promo/src/scenes/X402.tsx": {
+    "mtime": 1789964295430.4868,
+    "hash": "305cdb93a93610b2518481c5634c546a"
+  },
+  "promo/src/theme.ts": {
+    "mtime": 1789964295430.4868,
+    "hash": "8bee154e4141cc6c300d74c6bd98337d"
+  },
+  "promotion/eslint.config.mjs": {
+    "mtime": 1789964295430.6292,
+    "hash": "e20d59bb6b64567da14d80c3da2c6b15"
+  },
+  "promotion/generate-voiceover.ts": {
+    "mtime": 1789964295430.6292,
+    "hash": "57264382d9bacfeb17c94df928de1881"
+  },
+  "promotion/remotion.config.ts": {
+    "mtime": 1789964295434.2693,
+    "hash": "0d86136286d992966939c392159e773f"
+  },
+  "promotion/scripts/grid.mjs": {
+    "mtime": 1789964295434.2693,
+    "hash": "20aa6bf187025d6dc9e3b2477c19c427"
+  },
+  "promotion/scripts/meta.mjs": {
+    "mtime": 1789964295436.247,
+    "hash": "6c7272beb37f9b809f83fed63f27deb8"
+  },
+  "promotion/scripts/whitescan.mjs": {
+    "mtime": 1789964295436.247,
+    "hash": "9f02ea280d4baa46be537707f9d93cf0"
+  },
+  "promotion/src/Composition.tsx": {
+    "mtime": 1789964295436.247,
+    "hash": "02f2b0c0fc83361ef41d81381c8fc848"
+  },
+  "promotion/src/DemoShell.tsx": {
+    "mtime": 1789964295436.2944,
+    "hash": "e79814b59556795d2077b9542644b116"
+  },
+  "promotion/src/NoirDemo.tsx": {
+    "mtime": 1789964295436.2944,
+    "hash": "2372e53bbf6df2cf5c1cd83bbc572074"
+  },
+  "promotion/src/NoirPromo.tsx": {
+    "mtime": 1789964295436.2944,
+    "hash": "316941cf746f672b27c31456e313a133"
+  },
+  "promotion/src/Root.tsx": {
+    "mtime": 1789964295436.2944,
+    "hash": "e3788d9c8dd2002ba78394f68e89c4b2"
+  },
+  "promotion/src/app-screens/AgentsApp.tsx": {
+    "mtime": 1789964295436.2944,
+    "hash": "7d399e0463f1f5e10098b42192a93ba5"
+  },
+  "promotion/src/app-screens/BlockchainApp.tsx": {
+    "mtime": 1789964295436.3774,
+    "hash": "165d7f71c826f4c9d605bd889f6dd778"
+  },
+  "promotion/src/app-screens/DashboardApp.tsx": {
+    "mtime": 1789964295436.3774,
+    "hash": "bc6326c23486866d52cf06cf2e254112"
+  },
+  "promotion/src/app-screens/DevicesApp.tsx": {
+    "mtime": 1789964295436.3774,
+    "hash": "a51b58af25b753bbec61102988dd4a93"
+  },
+  "promotion/src/app-screens/ReceiveApp.tsx": {
+    "mtime": 1789964295436.3774,
+    "hash": "f2902d4fd059324c6a6ff56f339ab4f9"
+  },
+  "promotion/src/app-screens/RevokeApp.tsx": {
+    "mtime": 1789964295436.3774,
+    "hash": "1f3cbf48941465b8cdf39587a5880a07"
+  },
+  "promotion/src/app-screens/SendApp.tsx": {
+    "mtime": 1789964295436.3774,
+    "hash": "47d52ff5b2182dfa602d549f84ac0d03"
+  },
+  "promotion/src/app-screens/TransactionsApp.tsx": {
+    "mtime": 1789964295436.3774,
+    "hash": "dbec554a64928a1b149b26a4564fc926"
+  },
+  "promotion/src/app-screens/WelcomeApp.tsx": {
+    "mtime": 1789964295436.3774,
+    "hash": "ce701d5bf3a92ee4c71be5999539f3b6"
+  },
+  "promotion/src/components/CatLogo.tsx": {
+    "mtime": 1789964295436.3774,
+    "hash": "96c25b9e1e4ebc48bbfcf21469048f9b"
+  },
+  "promotion/src/components/Icon.tsx": {
+    "mtime": 1789964295436.553,
+    "hash": "5a02816cb93c86ed87b410526c4f301d"
+  },
+  "promotion/src/components/PhoneFrame.tsx": {
+    "mtime": 1789964295436.553,
+    "hash": "7e93c99440f57766280a0223cc92736b"
+  },
+  "promotion/src/demo-scenes/NfcTagScene.tsx": {
+    "mtime": 1789964295436.553,
+    "hash": "e90e90367a0d987eadcbe82c243f786d"
+  },
+  "promotion/src/demo-scenes/PosEscrowScene.tsx": {
+    "mtime": 1789964295436.6755,
+    "hash": "35cc5747416805c84a9f1a95faa70da5"
+  },
+  "promotion/src/demo-scenes/Subtitle.tsx": {
+    "mtime": 1789964295436.6755,
+    "hash": "c0bbf71886402cd2cd1cf784fb820605"
+  },
+  "promotion/src/demo-scenes/TapToPayScene.tsx": {
+    "mtime": 1789964295436.6755,
+    "hash": "c95f1b631f82e8015ea77a8eab50f1ab"
+  },
+  "promotion/src/demo-scenes/TitleScenes.tsx": {
+    "mtime": 1789964295436.6755,
+    "hash": "999df5affef209c5092cbf77213b4c7c"
+  },
+  "promotion/src/demo-scenes/WalkthroughScenes.tsx": {
+    "mtime": 1789964295436.6755,
+    "hash": "26dd7389f3f46b9da043116be180f88a"
+  },
+  "promotion/src/get-audio-duration.ts": {
+    "mtime": 1789964295436.6755,
+    "hash": "0d166cb79a2eca4f1b02baaa27798f58"
+  },
+  "promotion/src/index.ts": {
+    "mtime": 1789964295436.6755,
+    "hash": "d92d9dee1ab16aa44a75ae7fbfb843ca"
+  },
+  "promotion/src/scenes/Architecture.tsx": {
+    "mtime": 1789964295436.6755,
+    "hash": "790883d0609268dd31aaf2a17e7c7d33"
+  },
+  "promotion/src/scenes/Intro.tsx": {
+    "mtime": 1789964295436.8083,
+    "hash": "ea6d01d97262d7ce698772fd8255aad8"
+  },
+  "promotion/src/scenes/Outro.tsx": {
+    "mtime": 1789964295436.8083,
+    "hash": "e7332ae3ec25971bfe45831b9e0c44d2"
+  },
+  "promotion/src/scenes/Problem.tsx": {
+    "mtime": 1789964295436.8083,
+    "hash": "07e93c7d308289cb80301f6552cdeaa6"
+  },
+  "promotion/src/scenes/SceneShell.tsx": {
+    "mtime": 1789964295436.8083,
+    "hash": "65e011f6c7cf2b347196857525befcbd"
+  },
+  "promotion/src/scenes/UseCases.tsx": {
+    "mtime": 1789964295436.8083,
+    "hash": "cfb028cde9af77fb60be66bde255c3d5"
+  },
+  "promotion/src/scenes/X402.tsx": {
+    "mtime": 1789964295436.8083,
+    "hash": "305cdb93a93610b2518481c5634c546a"
+  },
+  "promotion/src/theme.ts": {
+    "mtime": 1789964295436.8083,
+    "hash": "8bee154e4141cc6c300d74c6bd98337d"
+  },
+  "promotion/src/voiceover-script.ts": {
+    "mtime": 1789964295436.8083,
+    "hash": "ae76c2760a60218451a6b16d09c197e2"
+  },
+  "scripts/estimate-mainnet-cost.ts": {
+    "mtime": 1790958069498.862,
+    "hash": "0b4f1740a139d7d48f065c56bb329ad2"
+  },
+  ".github/ISSUE_TEMPLATE/bug_report.yml": {
+    "mtime": 1789969802095.6946,
+    "hash": "f2492e550599c26431457e0cf41ec907"
+  },
+  ".github/ISSUE_TEMPLATE/config.yml": {
+    "mtime": 1789969819132.7158,
+    "hash": "f9392ab22fffc60ab241e8a431da5790"
+  },
+  ".github/ISSUE_TEMPLATE/feature_request.yml": {
+    "mtime": 1789969811675.8936,
+    "hash": "0a8b8d507fd7c1312b343aceefb97710"
+  },
+  ".github/PULL_REQUEST_TEMPLATE.md": {
+    "mtime": 1790958069517.0347,
+    "hash": "abc8b3e7bc0f31988c836fe92eb0e392"
+  },
+  ".github/workflows/frontend.yml": {
+    "mtime": 1790950935566.4592,
+    "hash": "12ad470dd42cf14308e8e58dcbbdea22"
+  },
+  ".github/workflows/pages.yml": {
+    "mtime": 1789964295033.8716,
+    "hash": "7d065c19d787ee3ee67a3578ba5413b1"
+  },
+  ".kiro/specs/noir-wallet-ui/design.md": {
+    "mtime": 1789964295034.0952,
+    "hash": "43c580942d56c3d63efe02bdb1c041c3"
+  },
+  ".kiro/specs/noir-wallet-ui/requirements.md": {
+    "mtime": 1789964295034.0952,
+    "hash": "18020fc7a5ec01a0b038b7922a2f644c"
+  },
+  ".kiro/specs/noir-wallet-ui/tasks.md": {
+    "mtime": 1789964295034.0952,
+    "hash": "fee1de830531e7fe2b3d5c35b0aaed10"
+  },
+  "AGENTS.md": {
+    "mtime": 1789964295034.7449,
+    "hash": "6a47d64fcc136324ca395065a707ef76"
+  },
+  "CHANGELOG.md": {
+    "mtime": 1789969842673.211,
+    "hash": "10f0c1e19b85d01f425043d2c73be5a8"
+  },
+  "CODE_OF_CONDUCT.md": {
+    "mtime": 1789969764214.9187,
+    "hash": "87e26481864c1bdadbb311e5cdd32ca8"
+  },
+  "CONTRIBUTING.md": {
+    "mtime": 1790958069508.2283,
+    "hash": "2736280373a07e8a989ec7183a69ffff"
+  },
+  "README.md": {
+    "mtime": 1790994315123.7927,
+    "hash": "5049efa6988d66f1d617917510c3c32a"
+  },
+  "SECURITY.md": {
+    "mtime": 1790958069512.3787,
+    "hash": "6734d3d0f575356963498cb7783597cb"
+  },
+  "community_assets/bayanihan_design_system/DESIGN.md": {
+    "mtime": 1789964295200.0325,
+    "hash": "46fd2283da8a92678ea2f15280391b25"
+  },
+  "community_assets/delete_confirmation_modal/code.html": {
+    "mtime": 1789964295210.0327,
+    "hash": "601aa7c679081b6b303baa8bcb8b1f04"
+  },
+  "community_assets/explore_the_marketplace/code.html": {
+    "mtime": 1789964295212.508,
+    "hash": "6b7ee6ce0ac54fec9435baf781b655fb"
+  },
+  "community_assets/explore_the_marketplace_linked/code.html": {
+    "mtime": 1789964295213.1335,
+    "hash": "e4505447fb0d5de9b766b0af28c202c1"
+  },
+  "community_assets/food_detail_view_standardized/code.html": {
+    "mtime": 1789964295220.0327,
+    "hash": "6de8d177a2836b4084bdc482ab879ed0"
+  },
+  "community_assets/home_feed/code.html": {
+    "mtime": 1789964295230.0327,
+    "hash": "ad5fa93df9326f3a16a87b085227969c"
+  },
+  "community_assets/home_feed_linked/code.html": {
+    "mtime": 1789964295233.142,
+    "hash": "446ff603fd55e8e9a04c4421bb9cb9e8"
+  },
+  "community_assets/home_feed_standardized/code.html": {
+    "mtime": 1789964295233.866,
+    "hash": "f0dc2e01b565f45bfebbe117a73e72ae"
+  },
+  "community_assets/job_detail_standardized/code.html": {
+    "mtime": 1789964295234.5933,
+    "hash": "4b0a735299b87edbbebc91bbdb0ce888"
+  },
+  "community_assets/job_listings/code.html": {
+    "mtime": 1789964295235.3835,
+    "hash": "eae22640e1f9571a4850f6b7414382b6"
+  },
+  "community_assets/job_listings_standardized/code.html": {
+    "mtime": 1789964295236.0933,
+    "hash": "a550bc435050f2dc7a630f7a2fba1c69"
+  },
+  "community_assets/location_permission/code.html": {
+    "mtime": 1789964295237.002,
+    "hash": "5597b4538b6986f4ac548389472d8a1a"
+  },
+  "community_assets/login_standardized/code.html": {
+    "mtime": 1789964295237.9834,
+    "hash": "003086a1d289023308965ef0c103c46c"
+  },
+  "community_assets/manage_food_post_standardized/code.html": {
+    "mtime": 1789964295238.7422,
+    "hash": "3ebb5f714ce3d6c0581a5a4db3f8c5be"
+  },
+  "community_assets/manage_your_job_post_standardized/code.html": {
+    "mtime": 1789964295239.4795,
+    "hash": "84c8fe7a45eef510be52c79bac5ffcff"
+  },
+  "community_assets/marketplace/code.html": {
+    "mtime": 1789964295240.1807,
+    "hash": "f3ea84735f9d434d9a8c51c99e141be8"
+  },
+  "community_assets/marketplace_standardized/code.html": {
+    "mtime": 1789964295240.8374,
+    "hash": "02e0b41b93a7222bbf340c0f31e45cc0"
+  },
+  "community_assets/notification_permission/code.html": {
+    "mtime": 1789964295242.232,
+    "hash": "ae8aefdebd82d451b1a45d2a5b70de95"
+  },
+  "community_assets/onboarding/code.html": {
+    "mtime": 1789964295243.205,
+    "hash": "f3d52be2c5489056ebefb1f6cc6a3423"
+  },
+  "community_assets/onboarding_standardized/code.html": {
+    "mtime": 1789964295243.836,
+    "hash": "f6f32cf03187658594bb91f4c696de0a"
+  },
+  "community_assets/onboarding_step_standardized_1/code.html": {
+    "mtime": 1789964295244.257,
+    "hash": "a40142c17210b1a4c45bd3c74810eaf7"
+  },
+  "community_assets/onboarding_step_standardized_2/code.html": {
+    "mtime": 1789964295244.8232,
+    "hash": "d6b3a4d0499ca5f5af1912c665e8d57f"
+  },
+  "community_assets/onboarding_step_standardized_3/code.html": {
+    "mtime": 1789964295245.2642,
+    "hash": "dd3a081e47052ed28b29bf1f68382bfd"
+  },
+  "community_assets/order_success_modal/code.html": {
+    "mtime": 1789964295245.815,
+    "hash": "b9075b1dacbe4eea5969fb33ae713d6b"
+  },
+  "community_assets/post_a_new_job_standardized/code.html": {
+    "mtime": 1789964295246.3035,
+    "hash": "295452823e6206051657739c5ed0559d"
+  },
+  "community_assets/post_food_item_standardized/code.html": {
+    "mtime": 1789964295246.878,
+    "hash": "b5983718f646e41fcf4f47ac2f9f178e"
+  },
+  "community_assets/register_standardized/code.html": {
+    "mtime": 1789964295247.4043,
+    "hash": "53577e162ba4074b1110d4de1724af0a"
+  },
+  "community_assets/user_profile_standardized/code.html": {
+    "mtime": 1789964295253.3662,
+    "hash": "6e8bbc454be2c06f639ec40d3e68d0bf"
+  },
+  "community_assets/welcome_standardized/code.html": {
+    "mtime": 1789964295256.6995,
+    "hash": "e4055019caa67aa0b7e9142db33b0565"
+  },
+  "frontend/AGENTS.md": {
+    "mtime": 1789964295265.3127,
+    "hash": "0e1930a9bc48b2dd10e9754972232450"
+  },
+  "frontend/CLAUDE.md": {
+    "mtime": 1789964295265.3127,
+    "hash": "5c27369b226fcf2be8a6cfe52224e767"
+  },
+  "frontend/DASHBOARD_UPDATES.md": {
+    "mtime": 1789964295265.3127,
+    "hash": "240991b34cd09f777512a349d9cfb056"
+  },
+  "frontend/DESIGN.md": {
+    "mtime": 1789964295265.3127,
+    "hash": "83d22c4f13a9630a1c408d9082962956"
+  },
+  "frontend/FINAL_REPORT.md": {
+    "mtime": 1789964295265.3127,
+    "hash": "ad698e5b4e8f8c5d8694d700c80dbaaa"
+  },
+  "frontend/IMPLEMENTATION_PROGRESS.md": {
+    "mtime": 1789964295265.3127,
+    "hash": "3eea8351b105d299444f251d68ef159e"
+  },
+  "frontend/NFC_FINAL_FIX.md": {
+    "mtime": 1789964295265.3127,
+    "hash": "1fdf5eaa11d5e4f4dfd429c0d56c94ec"
+  },
+  "frontend/NFC_FIXES.md": {
+    "mtime": 1789964295265.3127,
+    "hash": "891813e28048ce69dd8e2f242b0c1ddd"
+  },
+  "frontend/UI_IMPROVEMENTS_LIST.md": {
+    "mtime": 1789964295265.3127,
+    "hash": "a88fd5f5162dbef2a6d791c66c724098"
+  },
+  "landing/index.html": {
+    "mtime": 1789964295420.0337,
+    "hash": "2abf0d6b9ae3e23925518f9ee1c8f26d"
+  },
+  "pptx_dump.txt": {
+    "mtime": 1789964295423.367,
+    "hash": "3458dc6759ad4cf7a83a88401819ca9e"
+  },
+  "promo/README.md": {
+    "mtime": 1789964295426.81,
+    "hash": "abc13029a24fa5104e6d3bf679969a02"
+  },
+  "promo/pubmat/README.md": {
+    "mtime": 1789969860756.9287,
+    "hash": "27e1697c15da05661824982fe7949b5d"
+  },
+  "promo/pubmat/editor.html": {
+    "mtime": 1789968264986.1548,
+    "hash": "f13017c5aaf05135a841c353eaa76d86"
+  },
+  "promo/pubmat/pubmat.html": {
+    "mtime": 1789967892149.3193,
+    "hash": "eb3bd8f919bcde4913534c5aafde6266"
+  },
+  "promotion/README.md": {
+    "mtime": 1789964295430.6292,
+    "hash": "c02569f8b20591e516b27a9afb47d308"
+  },
+  "assets/noir-demo-poster.jpg": {
+    "mtime": 1789964295034.7449,
+    "hash": "bd6e4c3d37395e396cc3c56381b27fdb"
+  },
+  "assets/noir-demo-preview.gif": {
+    "mtime": 1789964295036.6985,
+    "hash": "8b071faa9d477fb1930a94d6ed29339a"
+  },
+  "community_assets/a_bowl_of_colorful_halo_halo_with_ube_ice_cream_leche_flan_and_various_fruits./screen.png": {
+    "mtime": 1789964295140.0383,
+    "hash": "684452bbb89edebdaf3a6e5216768bb6"
+  },
+  "community_assets/a_bowl_of_hot_beef_pares_with_garlic_fried_rice_and_a_small_bowl_of_clear_soup./screen.png": {
+    "mtime": 1789964295143.3657,
+    "hash": "c23c368d7973628bf2b33c5aa81f7812"
+  },
+  "community_assets/a_filipino_aircon_technician_servicing_a_wall_mounted_unit_in_a_home./screen.png": {
+    "mtime": 1789964295143.3657,
+    "hash": "a029c5df8190401ca2cd400bd92ddcd3"
+  },
+  "community_assets/a_filipino_barber_in_a_modern_barbershop_expertly_cutting_hair._professional/screen.png": {
+    "mtime": 1789964295146.699,
+    "hash": "c15060b13d5330af3236b53c138b7110"
+  },
+  "community_assets/a_filipino_carpenter_working_in_a_woodshop_creating_custom_furniture._skilled/screen.png": {
+    "mtime": 1789964295153.3657,
+    "hash": "3dbb94290e1651a725095d5dccdfce47"
+  },
+  "community_assets/a_filipino_electrician_in_a_safety_uniform_working_on_a_residential_electrical/screen.png": {
+    "mtime": 1789964295156.699,
+    "hash": "798b722b755921534ad7da6a467d6b74"
+  },
+  "community_assets/a_filipino_personal_tutor_or_teacher_helping_a_student_in_a_community_center./screen.png": {
+    "mtime": 1789964295160.0325,
+    "hash": "a9a62e0038797e1ca9c858ee70fd4e4b"
+  },
+  "community_assets/a_filipino_professional_house_cook_in_a_clean_modern_kitchen_preparing_a/screen.png": {
+    "mtime": 1789964295163.3657,
+    "hash": "3c2b331ee216aa2d27aa7e40c4a82fbc"
+  },
+  "community_assets/a_filipino_seamstress_or_tailor_working_at_a_sewing_machine_in_a_local_shop./screen.png": {
+    "mtime": 1789964295166.6992,
+    "hash": "01795eb61004d4a168a75609299bb408"
+  },
+  "community_assets/a_filipino_virtual_assistant_working_from_a_home_office_with_a_laptop_and/screen.png": {
+    "mtime": 1789964295170.0325,
+    "hash": "3cd72ad09d11d2af15a7ddd8b7dcc8b9"
+  },
+  "community_assets/a_friendly_filipino_construction_worker_wearing_a_blue_hard_hat_and_safety_vest/screen.png": {
+    "mtime": 1789964295176.6992,
+    "hash": "8e208484a874ea8d116449bffffa450e"
+  },
+  "community_assets/a_friendly_filipino_dog_groomer_at_a_bright_pet_salon_holding_a_happy_small/screen.png": {
+    "mtime": 1789964295176.6992,
+    "hash": "521303dde67a837dffc6a4cd57b45437"
+  },
+  "community_assets/a_professional_filipino_delivery_rider_on_a_motorcycle_with_a_delivery_box_on_a/screen.png": {
+    "mtime": 1789964295183.3657,
+    "hash": "5fe53c22eed5ce0e24f800384d6c7199"
+  },
+  "community_assets/a_professional_filipino_house_cleaner_holding_cleaning_supplies_in_a_bright/screen.png": {
+    "mtime": 1789964295183.3657,
+    "hash": "9d3f707425e84e7e4dbcc91e109ae0eb"
+  },
+  "community_assets/a_skilled_filipino_plumber_fixing_a_kitchen_sink_wearing_a_professional_uniform/screen.png": {
+    "mtime": 1789964295186.6992,
+    "hash": "899f22badad51dbbc928e9bffdaa0de8"
+  },
+  "community_assets/a_stack_of_freshly_baked_filipino_ensaymada_topped_with_grated_cheese_and/screen.png": {
+    "mtime": 1789964295186.6992,
+    "hash": "c5cd32ba865e0e2c2240acd238073fba"
+  },
+  "community_assets/a_young_filipino_gardener_or_landscape_artist_working_on_a_lush_tropical/screen.png": {
+    "mtime": 1789964295193.366,
+    "hash": "f6f169a750a0f32ffe8fe6c0a25cd3ab"
+  },
+  "community_assets/assorted_filipino_kakanin_rice_cakes_like_kutsinta_and_biko_in_a_bilao./screen.png": {
+    "mtime": 1789964295200.0325,
+    "hash": "6125d3e7aa3e9c21256d1578bd1b92ec"
+  },
+  "community_assets/close_up_of_arroz_caldo_filipino_rice_porridge_with_ginger_scallions_and_fried/screen.png": {
+    "mtime": 1789964295203.366,
+    "hash": "40db4e08e33e21b151e2c4f4c49d504d"
+  },
+  "community_assets/close_up_of_kare_kare_filipino_peanut_stew_with_eggplant_and_beans_served_with/screen.png": {
+    "mtime": 1789964295206.6992,
+    "hash": "981101bd851832ce769bb6c630f6ba03"
+  },
+  "community_assets/crispy_lechon_kawali_deep_fried_pork_belly_slices_served_with_liver_sauce_dip./screen.png": {
+    "mtime": 1789964295210.0327,
+    "hash": "cd4c320fedbebc3440cb89a1c6d646d1"
+  },
+  "community_assets/delete_confirmation_modal/screen.png": {
+    "mtime": 1789964295212.508,
+    "hash": "929fc33df85f347e60d3d1bebd52e1c9"
+  },
+  "community_assets/explore_the_marketplace/screen.png": {
+    "mtime": 1789964295213.1335,
+    "hash": "d51532e4ab0406adb7326ceed2da2095"
+  },
+  "community_assets/explore_the_marketplace_linked/screen.png": {
+    "mtime": 1789964295213.7542,
+    "hash": "d51532e4ab0406adb7326ceed2da2095"
+  },
+  "community_assets/filipino_lumpiang_shanghai_spring_rolls_served_with_sweet_chili_sauce_on_a/screen.png": {
+    "mtime": 1789964295213.7542,
+    "hash": "66535f77217e8f36e69aa5675296fdad"
+  },
+  "community_assets/filipino_street_food_skewers_isaw_and_pork_bbq_being_grilled_over_charcoal./screen.png": {
+    "mtime": 1789964295220.0327,
+    "hash": "e5a283d43254d53506eedcb35953ef15"
+  },
+  "community_assets/food_detail_view_standardized/screen.png": {
+    "mtime": 1789964295222.8694,
+    "hash": "81ae533836b053b59b08f6ef07437708"
+  },
+  "community_assets/freshly_harvested_filipino_carabao_mangoes_in_a_woven_basket._bright_natural/screen.png": {
+    "mtime": 1789964295223.366,
+    "hash": "11401597e1b53df433540074b883fffc"
+  },
+  "community_assets/freshly_squeezed_calamansi_juice_in_a_glass_with_ice_and_a_slice_of_fruit./screen.png": {
+    "mtime": 1789964295226.6995,
+    "hash": "357798d58d29036308d7ef21703b602b"
+  },
+  "community_assets/golden_brown_puto_bumbong_served_with_shredded_coconut_and_muscovado_sugar_on_a/screen.png": {
+    "mtime": 1789964295230.0327,
+    "hash": "d1d8ee58b5b2170ce87e86bda0af0abe"
+  },
+  "community_assets/home_feed/screen.png": {
+    "mtime": 1789964295233.142,
+    "hash": "fece2a248fa166a463e76ba8e9733096"
+  },
+  "community_assets/home_feed_linked/screen.png": {
+    "mtime": 1789964295233.866,
+    "hash": "fece2a248fa166a463e76ba8e9733096"
+  },
+  "community_assets/home_feed_standardized/screen.png": {
+    "mtime": 1789964295234.5933,
+    "hash": "effe7acad9cde975a0623fa3ffac91d8"
+  },
+  "community_assets/job_detail_standardized/screen.png": {
+    "mtime": 1789964295235.3835,
+    "hash": "798a1a72a67fbcac5d209d90c537ebdf"
+  },
+  "community_assets/job_listings/screen.png": {
+    "mtime": 1789964295236.0933,
+    "hash": "0ad4481933403e991ec2a7b4f9e31da1"
+  },
+  "community_assets/job_listings_standardized/screen.png": {
+    "mtime": 1789964295237.002,
+    "hash": "5f5feb5561e25ad60297a83327dee9c7"
+  },
+  "community_assets/kabayan_logo/screen.png": {
+    "mtime": 1789964295237.002,
+    "hash": "7620593d0b47e30069380544bed2694e"
+  },
+  "community_assets/location_permission/screen.png": {
+    "mtime": 1789964295237.9834,
+    "hash": "650600e7552bf5cf6dae861539ab78d3"
+  },
+  "community_assets/login_standardized/screen.png": {
+    "mtime": 1789964295238.7422,
+    "hash": "dc5c38b004a81cc621280880d88d2964"
+  },
+  "community_assets/manage_food_post_standardized/screen.png": {
+    "mtime": 1789964295239.4795,
+    "hash": "40c04b000caef75166b06a720ae2576a"
+  },
+  "community_assets/manage_your_job_post_standardized/screen.png": {
+    "mtime": 1789964295240.1807,
+    "hash": "acab2bb0482259d4da5691f0da0735f0"
+  },
+  "community_assets/marketplace/screen.png": {
+    "mtime": 1789964295240.8374,
+    "hash": "f2eb1de7cfe71b1c7d81d20bca4acb76"
+  },
+  "community_assets/marketplace_standardized/screen.png": {
+    "mtime": 1789964295242.232,
+    "hash": "91f66d208959475b7547eff751600fab"
+  },
+  "community_assets/notification_permission/screen.png": {
+    "mtime": 1789964295243.205,
+    "hash": "aa4a62cd361de7127613b5d24f1efa6f"
+  },
+  "community_assets/onboarding/screen.png": {
+    "mtime": 1789964295243.836,
+    "hash": "9acd1bf5b3732d3e7af48ea9814942d6"
+  },
+  "community_assets/onboarding_standardized/screen.png": {
+    "mtime": 1789964295244.257,
+    "hash": "13bbf0b2f5dd3a97bcf2a17ff15743e3"
+  },
+  "community_assets/onboarding_step_standardized_1/screen.png": {
+    "mtime": 1789964295244.8232,
+    "hash": "0d22b6633a122ea975cf646364c4c643"
+  },
+  "community_assets/onboarding_step_standardized_2/screen.png": {
+    "mtime": 1789964295245.2642,
+    "hash": "ed5ffc7709b0557419f126f62d4bbca2"
+  },
+  "community_assets/onboarding_step_standardized_3/screen.png": {
+    "mtime": 1789964295245.815,
+    "hash": "defbc4580fd9f80e017f86513c9bbeac"
+  },
+  "community_assets/order_success_modal/screen.png": {
+    "mtime": 1789964295246.3035,
+    "hash": "38529e13765da28263ef816081628e8d"
+  },
+  "community_assets/post_a_new_job_standardized/screen.png": {
+    "mtime": 1789964295246.878,
+    "hash": "417ff3748e0f14f0a788bab86c6241e2"
+  },
+  "community_assets/post_food_item_standardized/screen.png": {
+    "mtime": 1789964295247.4043,
+    "hash": "0609acbb5f2ab60dce71835c706fe6ab"
+  },
+  "community_assets/professional_close_up_photography_of_fresh_filipino_bibingka_with_salted_egg/screen.png": {
+    "mtime": 1789964295247.4043,
+    "hash": "8b72c432bc4bff07e81013383952377d"
+  },
+  "community_assets/register_standardized/screen.png": {
+    "mtime": 1789964295250.2424,
+    "hash": "df6b32fbc14d666f20ec005e8f58c375"
+  },
+  "community_assets/sizzling_filipino_pork_sisig_on_a_cast_iron_plate_garnished_with_calamansi_and/screen.png": {
+    "mtime": 1789964295250.2424,
+    "hash": "c0bc16f4b66298fcb821893c91a10e04"
+  },
+  "community_assets/traditional_filipino_breakfast_sinangag_garlic_fried_rice_fried_egg_and_beef/screen.png": {
+    "mtime": 1789964295253.3662,
+    "hash": "aec982ffc73766475628335afbbb5a28"
+  },
+  "community_assets/user_profile_standardized/screen.png": {
+    "mtime": 1789964295256.4392,
+    "hash": "307fe65da05fdf6057ad199881a4a345"
+  },
+  "community_assets/vibrant_filipino_sapin_sapin_layered_sticky_rice_cake_with_latik_topping/screen.png": {
+    "mtime": 1789964295256.6995,
+    "hash": "f90208d60b09c0bc5db030d92b1a35c3"
+  },
+  "community_assets/welcome_standardized/screen.png": {
+    "mtime": 1789964295261.1265,
+    "hash": "6532fef3d4a9fa52d60e1a4f58ba52b1"
+  },
+  "contextimages/IMAGEINSPO.png": {
+    "mtime": 1789964295261.1265,
+    "hash": "9ea9a049c4b574540fcdbaaf03503eee"
+  },
+  "frontend/assets/android-icon-background.png": {
+    "mtime": 1789964295266.098,
+    "hash": "2152cb032f6724a809e614b6bc9ff8cc"
+  },
+  "frontend/assets/android-icon-foreground.png": {
+    "mtime": 1789964295266.1633,
+    "hash": "8b1f18c2f43f3c3f24c5df48a6b60568"
+  },
+  "frontend/assets/android-icon-monochrome.png": {
+    "mtime": 1789964295266.1633,
+    "hash": "4b7393fe3caf13f60fd2ab92733518b5"
+  },
+  "frontend/assets/favicon.png": {
+    "mtime": 1789964295266.1633,
+    "hash": "4350255ca8263013dbfb4d8193d4fe66"
+  },
+  "frontend/assets/icon.png": {
+    "mtime": 1789964295266.5369,
+    "hash": "3f612519c7acd3b996e75affad34c81f"
+  },
+  "frontend/assets/logo-full.jpg": {
+    "mtime": 1789964295266.5369,
+    "hash": "3e713bd6c2765858f58756decd8218e6"
+  },
+  "frontend/assets/logo.jpg": {
+    "mtime": 1789964295266.5369,
+    "hash": "1c9b661aed76d804d6f0a735910135eb"
+  },
+  "frontend/assets/noir-mark.png": {
+    "mtime": 1789964295266.6995,
+    "hash": "c8369deb272af90e2d88a5785e2d507b"
+  },
+  "frontend/assets/screenshots/agent.png": {
+    "mtime": 1789964295270.033,
+    "hash": "d9cbc596330ecaef6c0879c7476a9fd1"
+  },
+  "frontend/assets/screenshots/dashboard.png": {
+    "mtime": 1789964295273.3662,
+    "hash": "b1644f41b3089cd300b92e78b2875665"
+  },
+  "frontend/assets/screenshots/intro.png": {
+    "mtime": 1789964295273.3662,
+    "hash": "30f86f27558c33769bc673d078a72736"
+  },
+  "frontend/assets/screenshots/link.png": {
+    "mtime": 1789964295276.6997,
+    "hash": "49936372d39ee46888c6b9450dd9f308"
+  },
+  "frontend/assets/screenshots/outro.png": {
+    "mtime": 1789964295280.033,
+    "hash": "2be348c7291347694ca9aab6734a8b19"
+  },
+  "frontend/assets/screenshots/problem.png": {
+    "mtime": 1789964295283.3662,
+    "hash": "38b4dc2bfa5f062251c564a808a51484"
+  },
+  "frontend/assets/screenshots/receive.png": {
+    "mtime": 1789964295286.6997,
+    "hash": "37c57be97f295f8c7eaeaed64277cffa"
+  },
+  "frontend/assets/screenshots/send.png": {
+    "mtime": 1789964295290.033,
+    "hash": "63e4bdd9dd59485110c7cc2c4e6840b1"
+  },
+  "frontend/assets/screenshots/taptopay.png": {
+    "mtime": 1789964295293.3665,
+    "hash": "7344af5742ec378f24453f3b85ffc42a"
+  },
+  "frontend/assets/screenshots/transactions.png": {
+    "mtime": 1789964295296.6997,
+    "hash": "77850bc5ab1859100b133b24ae5ed62a"
+  },
+  "frontend/assets/screenshots/welcome.png": {
+    "mtime": 1789964295296.6997,
+    "hash": "a7929d422ab41b78e91958ad03ef3baa"
+  },
+  "frontend/assets/splash-icon.png": {
+    "mtime": 1789964295300.033,
+    "hash": "3f612519c7acd3b996e75affad34c81f"
+  },
+  "images/agent_registry.png": {
+    "mtime": 1789964295306.6997,
+    "hash": "c640f306cbaaf76141bcdca90377796e"
+  },
+  "images/device_registry.png": {
+    "mtime": 1789964295313.3665,
+    "hash": "3fd06043708d540d20fdec5b369cf864"
+  },
+  "images/escrow_payment.png": {
+    "mtime": 1789964295316.6997,
+    "hash": "f588cbae3cfc08ccd85b2b93e165ba46"
+  },
+  "landing/assets/images/favicon.png": {
+    "mtime": 1789964295320.5466,
+    "hash": "4350255ca8263013dbfb4d8193d4fe66"
+  },
+  "landing/assets/images/logo-mark.png": {
+    "mtime": 1789964295320.5999,
+    "hash": "c8369deb272af90e2d88a5785e2d507b"
+  },
+  "landing/assets/images/phones/phone-agent.png": {
+    "mtime": 1789964295320.5999,
+    "hash": "57eeba18454164fd438e0d1e33cefeab"
+  },
+  "landing/assets/images/phones/phone-dashboard.png": {
+    "mtime": 1789964295321.0842,
+    "hash": "a1767c3c88289061cefceb4bfb0e921d"
+  },
+  "landing/assets/images/phones/phone-link.png": {
+    "mtime": 1789964295321.0842,
+    "hash": "c377a054e4a86dff02132c92b8ddbc1b"
+  },
+  "landing/assets/images/phones/phone-welcome.png": {
+    "mtime": 1789964295321.0842,
+    "hash": "1a77cc6da4df054b703bed38d0e2bf26"
+  },
+  "landing/assets/images/tour/01-intro.png": {
+    "mtime": 1789964295321.0842,
+    "hash": "30f86f27558c33769bc673d078a72736"
+  },
+  "landing/assets/images/tour/03-welcome.png": {
+    "mtime": 1789964295323.5732,
+    "hash": "b1644f41b3089cd300b92e78b2875665"
+  },
+  "landing/assets/images/tour/04-dashboard.png": {
+    "mtime": 1789964295326.7,
+    "hash": "49936372d39ee46888c6b9450dd9f308"
+  },
+  "landing/assets/images/tour/05-link-device.png": {
+    "mtime": 1789964295330.0332,
+    "hash": "7344af5742ec378f24453f3b85ffc42a"
+  },
+  "landing/assets/images/tour/06-agent.png": {
+    "mtime": 1789964295333.3665,
+    "hash": "d9cbc596330ecaef6c0879c7476a9fd1"
+  },
+  "landing/assets/media/demo-poster.jpg": {
+    "mtime": 1789964295333.3665,
+    "hash": "1f2fcd3376fa85a3bde273555343e3a0"
+  },
+  "landing/assets/media/walkthrough-poster.jpg": {
+    "mtime": 1789964295350.0332,
+    "hash": "bd6e4c3d37395e396cc3c56381b27fdb"
+  },
+  "promo/public/logo.jpg": {
+    "mtime": 1789964295426.81,
+    "hash": "1c9b661aed76d804d6f0a735910135eb"
+  },
+  "promo/pubmat/logo.jpg": {
+    "mtime": 1789967791693.2407,
+    "hash": "1c9b661aed76d804d6f0a735910135eb"
+  },
+  "promo/pubmat/noir-pubmat.png": {
+    "mtime": 1789967900212.6975,
+    "hash": "b483b0cb6aaebf89c1812a616c9fdef2"
+  },
+  "promo/pubmat/noir-pubmat.svg": {
+    "mtime": 1789967548234.1858,
+    "hash": "e5a7a6c8745aa1b631599a3a18a324d5"
+  },
+  "promotion/public/logo.jpg": {
+    "mtime": 1789964295430.6292,
+    "hash": "1c9b661aed76d804d6f0a735910135eb"
+  },
+  "assets/noir-demo.mp4": {
+    "mtime": 1789964295116.699,
+    "hash": "a376bb49dd7e017cfc5452edea236a5e"
+  },
+  "assets/x-demo.mp4": {
+    "mtime": 1789964295133.3657,
+    "hash": "3072f0a95189fb33ca2d93261dc27c4b"
+  },
+  "landing/assets/media/demo.mp4": {
+    "mtime": 1789964295350.0332,
+    "hash": "3072f0a95189fb33ca2d93261dc27c4b"
+  },
+  "landing/assets/media/walkthrough.mp4": {
+    "mtime": 1789964295420.0337,
+    "hash": "a376bb49dd7e017cfc5452edea236a5e"
+  },
+  "promo/public/voiceover/noir-promo/scene-01-intro.mp3": {
+    "mtime": 1789964295427.7788,
+    "hash": "a3b3f542455928f9216f6aefa6b9b005"
+  },
+  "promo/public/voiceover/noir-promo/scene-02-problem.mp3": {
+    "mtime": 1789964295428.0195,
+    "hash": "fe9b0c4b348f533270d46c0453bb94ba"
+  },
+  "promo/public/voiceover/noir-promo/scene-03-x402.mp3": {
+    "mtime": 1789964295428.0195,
+    "hash": "351c9ef3b428cc9566392efddd0eb269"
+  },
+  "promo/public/voiceover/noir-promo/scene-04-architecture.mp3": {
+    "mtime": 1789964295428.0195,
+    "hash": "6386eee9807ba5e0946e4a9dd9ca9dde"
+  },
+  "promo/public/voiceover/noir-promo/scene-05-usecases.mp3": {
+    "mtime": 1789964295428.0195,
+    "hash": "0f4d86669ccb1ffe4ab528c9348b1b08"
+  },
+  "promo/public/voiceover/noir-promo/scene-06-outro.mp3": {
+    "mtime": 1789964295428.0195,
+    "hash": "7976de9aef46e405924350be3365efac"
+  },
+  "promotion/public/voiceover/noir-demo/scene-03-welcome.mp3": {
+    "mtime": 1789964295431.0562,
+    "hash": "de73e5dccae8e53180b1eab190abf5ae"
+  },
+  "promotion/public/voiceover/noir-demo/scene-04-dashboard.mp3": {
+    "mtime": 1789964295431.3738,
+    "hash": "13b0ea927879c3476181918c6a2705f3"
+  },
+  "promotion/public/voiceover/noir-demo/scene-05-link.mp3": {
+    "mtime": 1789964295431.3738,
+    "hash": "ee090c0cdf5bc2d84460c12f543cad6d"
+  },
+  "promotion/public/voiceover/noir-demo/scene-06-agent.mp3": {
+    "mtime": 1789964295431.3738,
+    "hash": "9f9b542165da0e7375ab4b1e67e23f2f"
+  },
+  "promotion/public/voiceover/noir-demo/scene-06b-revoke.mp3": {
+    "mtime": 1789964295431.3738,
+    "hash": "3d252dd9bbc69f8b96a6cd20e2cfceed"
+  },
+  "promotion/public/voiceover/noir-demo/scene-07-tap.mp3": {
+    "mtime": 1789964295431.3738,
+    "hash": "feb7643f67e06999c1f32c583af7dd86"
+  },
+  "promotion/public/voiceover/noir-demo/scene-07b-escrow.mp3": {
+    "mtime": 1789964295431.3738,
+    "hash": "7b7d837c3f4dd678e303ac02ed988218"
+  },
+  "promotion/public/voiceover/noir-demo/scene-08-send.mp3": {
+    "mtime": 1789964295431.3738,
+    "hash": "1b6d9c36d57f29bb384ecec5daf92401"
+  },
+  "promotion/public/voiceover/noir-demo/scene-09-receive.mp3": {
+    "mtime": 1789964295431.3738,
+    "hash": "da5c3835196892307164b98b48c01132"
+  },
+  "promotion/public/voiceover/noir-demo/scene-10-transactions.mp3": {
+    "mtime": 1789964295431.3738,
+    "hash": "8b9eb7487c6a20f94806ac80945a80c6"
+  },
+  "promotion/public/voiceover/noir-promo/scene-01-intro.mp3": {
+    "mtime": 1789964295431.3738,
+    "hash": "a3b3f542455928f9216f6aefa6b9b005"
+  },
+  "promotion/public/voiceover/noir-promo/scene-02-problem.mp3": {
+    "mtime": 1789964295434.2693,
+    "hash": "fe9b0c4b348f533270d46c0453bb94ba"
+  },
+  "promotion/public/voiceover/noir-promo/scene-03-x402.mp3": {
+    "mtime": 1789964295434.2693,
+    "hash": "351c9ef3b428cc9566392efddd0eb269"
+  },
+  "promotion/public/voiceover/noir-promo/scene-04-architecture.mp3": {
+    "mtime": 1789964295434.2693,
+    "hash": "6386eee9807ba5e0946e4a9dd9ca9dde"
+  },
+  "promotion/public/voiceover/noir-promo/scene-05-usecases.mp3": {
+    "mtime": 1789964295434.2693,
+    "hash": "0f4d86669ccb1ffe4ab528c9348b1b08"
+  },
+  "promotion/public/voiceover/noir-promo/scene-06-outro.mp3": {
+    "mtime": 1789964295434.2693,
+    "hash": "7976de9aef46e405924350be3365efac"
+  },
+  "Noir/.obsidian/plugins/karpathywiki/main.js": {
+    "mtime": 1790400336699.0913,
+    "hash": "23d9313973cc5f249e7f95c8e92fdee5"
+  },
+  "backend/contracts/agent_registry/src/lib.rs": {
+    "mtime": 1790983974817.7966,
+    "hash": "90aba2b7efe90783e78b7eef5ebde5e9"
+  },
+  "backend/contracts/agent_registry/tests/integration.rs": {
+    "mtime": 1790983973681.0605,
+    "hash": "032333938f2cf5749529cd74861c53f5"
+  },
+  "backend/contracts/device_registry/src/lib.rs": {
+    "mtime": 1790983974817.7966,
+    "hash": "0664000c5330c4406f17f78e50bd38f9"
+  },
+  "backend/contracts/device_registry/tests/integration.rs": {
+    "mtime": 1790984004922.9673,
+    "hash": "5ef7cbea12a2df1f69dd2e8bd1d6f9fe"
+  },
+  "backend/contracts/payment_escrow/src/lib.rs": {
+    "mtime": 1790983974817.7966,
+    "hash": "97d7e7c046afe84b7b1f1323cad57233"
+  },
+  "backend/contracts/payment_escrow/tests/integration.rs": {
+    "mtime": 1790984004919.634,
+    "hash": "c9f9c7b981917ff58ef95b63a486104d"
+  },
+  "frontend/app/settings/export-keys.tsx": {
+    "mtime": 1789974834352.2097,
+    "hash": "c9a1c44cd26638a1e4283ebe9604dc7b"
+  },
+  "frontend/src/screens/ExportKeysScreen.tsx": {
+    "mtime": 1789975003561.0151,
+    "hash": "66fcdb1dcc4dcf94fad9ff57aa535ed2"
+  },
+  "frontend/uitest/debug-store.js": {
+    "mtime": 1789974021679.259,
+    "hash": "71ed19fc66d9d7e5ac7bf4bd9ed0281e"
+  },
+  "frontend/uitest/harness.js": {
+    "mtime": 1789975033947.5156,
+    "hash": "35e4290c225e21dbc9137b5e2e6196ca"
+  },
+  "frontend/uitest/probe.js": {
+    "mtime": 1789973699382.684,
+    "hash": "7221a8916734dfaa7c211b2b740d0ee7"
+  },
+  "frontend/uitest/seed.js": {
+    "mtime": 1789973210057.207,
+    "hash": "4a896af9dad1100fd919857508aff877"
+  },
+  "unused/pdax-backend/examples/common/pdax_env_cache.rs": {
+    "mtime": 1789964295138.6553,
+    "hash": "d16fc4a67b756f927ba79073d33be34f"
+  },
+  "unused/pdax-backend/examples/pdax_balances.rs": {
+    "mtime": 1789964295138.6553,
+    "hash": "918c6b52a6442dc53a7441e5ed4e21bc"
+  },
+  "unused/pdax-backend/examples/pdax_crypto_deposit.rs": {
+    "mtime": 1789964295138.6553,
+    "hash": "025c807961c099fde161681f9c9b1e78"
+  },
+  "unused/pdax-backend/examples/pdax_crypto_transactions.rs": {
+    "mtime": 1789964295138.6553,
+    "hash": "992e9b7e44c676d32d8f2e56a0017040"
+  },
+  "unused/pdax-backend/examples/pdax_crypto_withdraw.rs": {
+    "mtime": 1789964295138.6553,
+    "hash": "0dd7cf23ce3dc2867a1914151bea3ccf"
+  },
+  "unused/pdax-backend/examples/pdax_fiat_deposit.rs": {
+    "mtime": 1789964295138.6553,
+    "hash": "4aa390d3985aaa28aef73e3b9c4e3632"
+  },
+  "unused/pdax-backend/examples/pdax_fiat_transactions.rs": {
+    "mtime": 1789964295138.6553,
+    "hash": "a79ea0dffbf8e93a7f3c58d128d09b43"
+  },
+  "unused/pdax-backend/examples/pdax_fiat_withdraw.rs": {
+    "mtime": 1789964295138.6553,
+    "hash": "adb3f0f20fa20b5c956912363c530a3e"
+  },
+  "unused/pdax-backend/examples/pdax_firm_quote.rs": {
+    "mtime": 1789964295138.6553,
+    "hash": "bcf29a7a9b89c36875d9e8f9b624abb9"
+  },
+  "unused/pdax-backend/examples/pdax_indicative_price.rs": {
+    "mtime": 1789964295138.6553,
+    "hash": "6e32ffe076a2e31dbd2833738933d465"
+  },
+  "unused/pdax-backend/examples/pdax_login.rs": {
+    "mtime": 1789964295138.6553,
+    "hash": "2236c44ade66dc318475b47a824bcd99"
+  },
+  "unused/pdax-backend/examples/pdax_order_details.rs": {
+    "mtime": 1789964295138.6553,
+    "hash": "83fae212d168bcc5fcdfc7018ef25614"
+  },
+  "unused/pdax-backend/examples/pdax_orders.rs": {
+    "mtime": 1789964295138.6553,
+    "hash": "507b86fb6ce661e0212896bb81079d39"
+  },
+  "unused/pdax-backend/examples/pdax_place_order.rs": {
+    "mtime": 1789964295138.6553,
+    "hash": "1d279cd88397123408a297d364ffeedd"
+  },
+  "unused/pdax-backend/examples/pdax_user_info_upload.rs": {
+    "mtime": 1789964295138.6553,
+    "hash": "1a4bfeac79bfb32c59ade5745176b874"
+  },
+  "unused/pdax-backend/migrations/20260629000001_initial_schema.sql": {
+    "mtime": 1789964295138.6553,
+    "hash": "3728736a6832c267d67d04b1c67558bf"
+  },
+  "unused/pdax-backend/migrations/20260630000001_phase_2g_idempotency_and_indexes.sql": {
+    "mtime": 1789964295139.028,
+    "hash": "17f0f4e878ca2b41cf3e410016f2a821"
+  },
+  "unused/pdax-backend/migrations/20260708000001_merchants_users_notification_cache.sql": {
+    "mtime": 1789964295139.028,
+    "hash": "ce547729b8993d6bccdc9243120cda4a"
+  },
+  "unused/pdax-backend/migrations/20260711000001_signed_envelope_xdr.sql": {
+    "mtime": 1789964295139.028,
+    "hash": "c3f9e3571a2d104d4fb0997001993295"
+  },
+  "unused/pdax-backend/migrations/20260711000002_device_custody.sql": {
+    "mtime": 1789964295139.028,
+    "hash": "ff005fbd8c4c937c8e1f655878ab8338"
+  },
+  "unused/pdax-backend/migrations/20260711000003_device_pin.sql": {
+    "mtime": 1789964295139.028,
+    "hash": "841a49798cdb77bbd175b7f25f554ac4"
+  },
+  "unused/pdax-backend/migrations/20260802000001_pdax_bridge_only.sql": {
+    "mtime": 1789964295139.028,
+    "hash": "ebb6edd19245fe4ca9decf81238fcea2"
+  },
+  "unused/pdax-backend/src/api.rs": {
+    "mtime": 1789964295139.1538,
+    "hash": "4bbbff07f87f3024874fc8fd0d89d12a"
+  },
+  "unused/pdax-backend/src/auth.rs": {
+    "mtime": 1789964295139.229,
+    "hash": "e569c5553c4b42793a7b43cfc7db2415"
+  },
+  "unused/pdax-backend/src/config.rs": {
+    "mtime": 1789964295139.229,
+    "hash": "bb37e725ddeb50b1e6af42b23750b5c2"
+  },
+  "unused/pdax-backend/src/crypto.rs": {
+    "mtime": 1789964295139.229,
+    "hash": "93f079c055944e7892628b11e8ff0ab2"
+  },
+  "unused/pdax-backend/src/db.rs": {
+    "mtime": 1789964295139.229,
+    "hash": "aaa0c15d4af3d43a95c3e4e57e6708de"
+  },
+  "unused/pdax-backend/src/errors.rs": {
+    "mtime": 1789964295139.229,
+    "hash": "ce8be14d216c45c7f9035320e9f3fe64"
+  },
+  "unused/pdax-backend/src/lib.rs": {
+    "mtime": 1789964295139.229,
+    "hash": "f46cda3098d18274db1f1f49296fda00"
+  },
+  "unused/pdax-backend/src/main.rs": {
+    "mtime": 1789964295139.229,
+    "hash": "79ee2c7a0daace02b337f9edaf4f01c8"
+  },
+  "unused/pdax-backend/src/metrics.rs": {
+    "mtime": 1789964295139.229,
+    "hash": "532c4d944f32940a088f69ad0d337f67"
+  },
+  "unused/pdax-backend/src/models.rs": {
+    "mtime": 1789964295139.229,
+    "hash": "fce09426ae1989cc7c2dea1ee506ce9e"
+  },
+  "unused/pdax-backend/src/money.rs": {
+    "mtime": 1789964295139.229,
+    "hash": "c67ffc153e103c3441559b6a3c995288"
+  },
+  "unused/pdax-backend/src/pdax.rs": {
+    "mtime": 1789964295139.229,
+    "hash": "bc05d9afd15a5173cdaa7c7467cc5c7d"
+  },
+  "unused/pdax-backend/src/rate_limiter.rs": {
+    "mtime": 1789964295139.229,
+    "hash": "5da43c0c8a8e1fa030d26e4ff2c2e318"
+  },
+  "unused/pdax-backend/src/state.rs": {
+    "mtime": 1789964295139.229,
+    "hash": "d52d616bd6c881b02943c7ffface1eab"
+  },
+  "unused/pdax-backend/tests/integration.rs": {
+    "mtime": 1789964295139.229,
+    "hash": "7290b3dbfd7d87daf1a15bb591bb164c"
+  },
+  ".github/workflows/contracts.yml": {
+    "mtime": 1790958018863.7898,
+    "hash": "01a982f9a904e7ddbcd520dd02c1bbf7"
+  },
+  "Noir/AgentRegistry.md": {
+    "mtime": 1790995576476.5862,
+    "hash": "541d897dae99eaf215914815f7973323"
+  },
+  "Noir/ApiService.md": {
+    "mtime": 1790400577037.707,
+    "hash": "cad67837b6074048c16f58982a09fce7"
+  },
+  "Noir/Backend.md": {
+    "mtime": 1790995593140.8916,
+    "hash": "3ab5d5e20eef144f300a050fbc31ff1d"
+  },
+  "Noir/Components.md": {
+    "mtime": 1790400535848.327,
+    "hash": "49b294a748c01fc7f1b0e2e81a579316"
+  },
+  "Noir/Constants.md": {
+    "mtime": 1790400535848.5557,
+    "hash": "3b3fb579d4ab40fb59e07a89aec4ea2f"
+  },
+  "Noir/DeviceRegistry.md": {
+    "mtime": 1790995576476.5862,
+    "hash": "f2711bfc1277f09a4954fb3836dd364e"
+  },
+  "Noir/Domain.md": {
+    "mtime": 1790400535848.754,
+    "hash": "917f85527dfced078e8034970b0eef44"
+  },
+  "Noir/Flow - Device Provisioning.md": {
+    "mtime": 1790400555522.8162,
+    "hash": "1153006063d429bea5b0906e97103a60"
+  },
+  "Noir/Flow - Escrow Payment.md": {
+    "mtime": 1790400555522.602,
+    "hash": "c939d4e789a808dbdba126afe2ba8a7c"
+  },
+  "Noir/Flow - Fiat Cash-out.md": {
+    "mtime": 1790400555518.2708,
+    "hash": "112050caa303ae0f1413030e3b8eb2db"
+  },
+  "Noir/Flow - Tap to Pay.md": {
+    "mtime": 1790400555522.986,
+    "hash": "b78b31d130e5e7d8a6bd502b51349a20"
+  },
+  "Noir/Frontend.md": {
+    "mtime": 1790400478190.409,
+    "hash": "0c110659d1ea1cb30eb0d12fa0554087"
+  },
+  "Noir/Hooks.md": {
+    "mtime": 1790400535848.9521,
+    "hash": "76188519de6731d69579b55cf4655019"
+  },
+  "Noir/Lib.md": {
+    "mtime": 1790400535844.805,
+    "hash": "916759a13de75915fb5f97c468762e3c"
+  },
+  "Noir/NFCService.md": {
+    "mtime": 1790400577035.406,
+    "hash": "5bfb76fae0ba45b84bc2993de8484cad"
+  },
+  "Noir/Noir Wallet.md": {
+    "mtime": 1790407474276.9478,
+    "hash": "80a5965d1cb8dc7ac3e6bf57e8e4aabd"
+  },
+  "Noir/PaymentEscrow.md": {
+    "mtime": 1790995576476.5862,
+    "hash": "0a7f34aa6114326173fab206241e2239"
+  },
+  "Noir/PdaxClient.md": {
+    "mtime": 1790995593140.8916,
+    "hash": "b4069436460221e2baaf56e02d2f5ae6"
+  },
+  "Noir/Repository.md": {
+    "mtime": 1790995593140.8916,
+    "hash": "2694b9088150a7c6a024c71bcdb8445e"
+  },
+  "Noir/Screens.md": {
+    "mtime": 1790400535847.8745,
+    "hash": "7b6bbfd9ac8c447677f03f8d85490d50"
+  },
+  "Noir/Services.md": {
+    "mtime": 1790400535848.1511,
+    "hash": "2fe52e8cf2adac99d5e819f6c025c523"
+  },
+  "Noir/Session - Instaward Week 1-2 Contracts.md": {
+    "mtime": 1790995523264.5442,
+    "hash": "2bf472a79efb1593d3bf96bc5400c9e1"
+  },
+  "Noir/Smart Contracts.md": {
+    "mtime": 1790995523264.5442,
+    "hash": "77ce30bd381c63d8819d35dec090c804"
+  },
+  "Noir/StellarService.md": {
+    "mtime": 1790400577037.3564,
+    "hash": "6dd8eee43e7c9c5dc450fcaecd7fa303"
+  },
+  "Noir/Store.md": {
+    "mtime": 1790400535847.5657,
+    "hash": "83e59c605e0437945accde545529163c"
+  },
+  "Noir/Welcome.md": {
+    "mtime": 1790400244143.2222,
+    "hash": "5dce4937496ad2d20178a7578f1a1368"
+  },
+  "Noir/_AI Build Guide - Contracts.md": {
+    "mtime": 1790995576476.5862,
+    "hash": "61c2d246de0a30c3e1e0b493f0cf633a"
+  },
+  "Noir/_Context - What We Are Building.md": {
+    "mtime": 1790405703618.1572,
+    "hash": "3daeb8f66d4b55121ef3969ab42b1dd1"
+  },
+  "Noir/_Redeploy Contracts.md": {
+    "mtime": 1790995593194.228,
+    "hash": "82399b213f1b3e340b69fa562a48e010"
+  },
+  "Noir/_SCF Instaward - Deliverables & Constraints.md": {
+    "mtime": 1790405703615.039,
+    "hash": "8845b7d97fd2549976a562d48704b36a"
+  },
+  "Noir/x402.md": {
+    "mtime": 1790400577037.168,
+    "hash": "844d2e61b30c78d9ba05e4c37cdbd36e"
+  },
+  "PROGRESS.md": {
+    "mtime": 1790986681956.231,
+    "hash": "4b889ff1e70f9d5ec39dfc0cd05d2574"
+  },
+  "deploy-evidence/WEEK1-EVIDENCE.md": {
+    "mtime": 1790958069520.3098,
+    "hash": "843f7493e802a19cfaea6e7b2282e32a"
+  },
+  "deploy-evidence/deploy-testnet-20261001T074804Z.md": {
+    "mtime": 1790840942777.0884,
+    "hash": "e535da9b314dab37db06f4a492e3cb42"
+  },
+  "deploy-evidence/test-results-20261002T132728Z.txt": {
+    "mtime": 1790947648604.5945,
+    "hash": "39ef6f894eee406750637bceb4bd9f95"
+  },
+  "docs/architecture.md": {
+    "mtime": 1790994315123.7927,
+    "hash": "2a66ff6395a4416c8fab55c21354831a"
+  },
+  "frontend/uitest/README.md": {
+    "mtime": 1789974252394.9841,
+    "hash": "e7ea9cdcf8b82c59785ef67721b2f3e4"
+  },
+  "unused/pdax-backend/.github/workflows/backend-ci.yml": {
+    "mtime": 1790958050330.7866,
+    "hash": "3ecf0fec85b5b24da04b653f9518466b"
+  },
+  "unused/pdax-backend/.github/workflows/deploy.yml": {
+    "mtime": 1790958041523.646,
+    "hash": "41b42b4775da4bdfe964a55988aeed38"
+  },
+  "unused/pdax-backend/README.md": {
+    "mtime": 1789964295138.304,
+    "hash": "cf07e73fbb0f0ef2cd10ed489741d299"
+  },
+  "unused/pdax-backend/docker-compose.yml": {
+    "mtime": 1789964295139.9177,
+    "hash": "3e74f45a4278a61448a8cb021c71eb51"
+  },
+  "deploy-evidence/deploy-testnet-20261002T160736Z.md": {
+    "mtime": 1790957307379.208,
+    "hash": "52547b8f21a5526a20da668dfb77e736"
+  },
+  "deploy-evidence/deploy-testnet-20261002T235948Z.md": {
+    "mtime": 1790985648401.5435,
+    "hash": "4ac42142ceadad37cb26e60ea8b08599"
+  },
+  "docs/Evidence/README.md": {
+    "mtime": 1790986531621.8594,
+    "hash": "efdb6cf22b5a19beb4926bdc3b9f7069"
+  },
+  "docs/Evidence/cargo_test1.png": {
+    "mtime": 1790985293366.5264,
+    "hash": "79da71f766cefd13f288ac20e12fe0c4"
+  },
+  "docs/Evidence/cargo_test2.png": {
+    "mtime": 1790985302199.8115,
+    "hash": "5bd90a318c62e5dcb44aa8e7f845b7a5"
+  },
+  "docs/Evidence/contract_address1.png": {
+    "mtime": 1790985685202.0503,
+    "hash": "15f728be059c4fc55a299c745288c787"
+  },
+  "docs/Evidence/contract_address2.png": {
+    "mtime": 1790985703905.6594,
+    "hash": "d1d09d156510bd673296e2904ef63ed7"
+  },
+  "docs/Evidence/stellar.expert-explorer-testnet-contract-CAHYPZNULA67IALHHB.png": {
+    "mtime": 1790985978930.8547,
+    "hash": "b490db34eb170240776c21f28df30e37"
+  },
+  "docs/Evidence/stellar.expert-explorer-testnet-contract-CBP6KC6IFBQQHOGKVY.png": {
+    "mtime": 1790985959963.7725,
+    "hash": "91e19d16a3f37c97b258fa8d5c95513a"
+  },
+  "docs/Evidence/stellar.expert-explorer-testnet-contract-CCSW6R7ATZJNBGNQVX.png": {
+    "mtime": 1790985936159.9277,
+    "hash": "8f4e5782073a78f19e3c0517af6c7af0"
+  }
+}

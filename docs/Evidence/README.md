@@ -4,20 +4,24 @@ Visual proof that the three Noir Wallet Soroban contracts are deployed,
 initialized, and verifiable on Stellar testnet. These screenshots back the
 contract IDs listed in the [root README](../../README.md#smart-contracts) and
 the machine-readable record in
-[`deploy-evidence/deploy-testnet-20261002T235948Z.md`](../../deploy-evidence/deploy-testnet-20261002T235948Z.md).
+[`deploy-evidence/deploy-testnet-20261007T050558Z.md`](../../deploy-evidence/deploy-testnet-20261007T050558Z.md).
 
 > **Why these IDs change:** each `./scripts/redeploy-contracts.sh` run deploys
 > **fresh contract instances**, so every redeploy mints **new contract IDs** —
 > it is a clean slate, not an in-place upgrade. The IDs below are from the
-> latest run (2026-10-03, deployer `GA33JXYP…4RDP`).
+> latest run (2026-10-07, deployer `GA33JXYP…4RDP`).
+>
+> Note: the explorer screenshot filenames below still show the 2026-10-01
+> contract IDs (`CCSW6R7A…`, `CBP6KC6I…`, `CAHYPZNU…`) — they predate this
+> redeploy and have not been retaken against the current IDs.
 
 ## Deployed contracts
 
 | Contract | ID | Explorer |
 |----------|----|----------|
-| device_registry | `CCSW6R7ATZJNBGNQVXOTQNVBGBAHOSFR2RXUG32DLRU6I2LUQHVJKION` | [view](https://stellar.expert/explorer/testnet/contract/CCSW6R7ATZJNBGNQVXOTQNVBGBAHOSFR2RXUG32DLRU6I2LUQHVJKION) |
-| agent_registry | `CBP6KC6IFBQQHOGKVYYDPHXPSHTYUKKHV5EGHSSNPRTJQ6G4M545NFUC` | [view](https://stellar.expert/explorer/testnet/contract/CBP6KC6IFBQQHOGKVYYDPHXPSHTYUKKHV5EGHSSNPRTJQ6G4M545NFUC) |
-| payment_escrow | `CAHYPZNULA67IALHHBWTHDYGXG6DIVQNQGENWLEBMCEH5QS3JVX7DIWH` | [view](https://stellar.expert/explorer/testnet/contract/CAHYPZNULA67IALHHBWTHDYGXG6DIVQNQGENWLEBMCEH5QS3JVX7DIWH) |
+| device_registry | `CB4DPMGOA374JIB2ZVD4AHW5GJKQUYNOFGRYNOJ75EFH2KCJSMHOWIRA` | [view](https://stellar.expert/explorer/testnet/contract/CB4DPMGOA374JIB2ZVD4AHW5GJKQUYNOFGRYNOJ75EFH2KCJSMHOWIRA) |
+| agent_registry | `CBTDMJVCFQDIVWZBKAKZ2FQ3UEJNAAUFYCTJ3E4ON2MYXPLPSIXQ25JZ` | [view](https://stellar.expert/explorer/testnet/contract/CBTDMJVCFQDIVWZBKAKZ2FQ3UEJNAAUFYCTJ3E4ON2MYXPLPSIXQ25JZ) |
+| payment_escrow | `CA5S4S7QGHJHJWVJBYL3CXZXZTNGKXMNZVDAEQNN7NUXFP4D7BYK7HIX` | [view](https://stellar.expert/explorer/testnet/contract/CA5S4S7QGHJHJWVJBYL3CXZXZTNGKXMNZVDAEQNN7NUXFP4D7BYK7HIX) |
 
 ### WASM SHA-256 hashes
 
@@ -30,6 +34,13 @@ this repo.
 | device_registry.wasm | `a252a4070120af7222bed4dfcb220ca51c290071f2c286a2f58f7259f367bea2` |
 | agent_registry.wasm | `b0da4885fd635a6b3d76250c9423424c84c409a2e617b76946ffd2af90c7a22b` |
 | payment_escrow.wasm | `3861809c9dfbcc4bf9d9941cc76ebeafb4a7d37453e15074826093d12a2941ed` |
+
+## Wallet create / import (Android)
+
+Screenshots of import → wallet password → wallet → password lock on a release build:
+[`wallet/README.md`](wallet/README.md). Live Testnet run of create/import, device +
+agent registration, escrow fund/withdraw and unlink, with tx links:
+`deploy-evidence/week2-testnet-flow-*.md`.
 
 ## Explorer screenshots
 

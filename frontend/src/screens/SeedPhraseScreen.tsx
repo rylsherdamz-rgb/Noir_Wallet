@@ -4,12 +4,12 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
-import { NoirLogo } from '@/components/brand/NoirLogo'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
 import { Button } from '@/components/Button'
 import { walletService, WalletKeys } from '@/services/wallet'
 import { usePreventScreenCapture } from 'expo-screen-capture'
 import { logger } from '@/lib/logger'
+import { ProcessingOverlay, afterOverlayPaints, stepsAt } from '@/components/flow/ProcessingOverlay'
 
 interface SeedPhraseScreenProps {
   onNext: (keys: WalletKeys) => void | Promise<void>
@@ -25,6 +25,7 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
   const [phrase, setPhrase] = useState<string[]>([])
   const [revealed, setRevealed] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [stage, setStage] = useState(0)
 
   useEffect(() => {
     walletService.generateMnemonic().then((m) => setPhrase(m.split(' ')))
@@ -34,15 +35,21 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
     // Guard against a double-tap firing this twice before React re-renders the
     // button into its disabled/loading state.
     if (loading) return
+    setStage(0)
     setLoading(true)
+    // Key derivation is CPU-heavy and blocks the JS thread — put the
+    // full-screen progress up first so the app never looks frozen.
+    await afterOverlayPaints()
     try {
       const keys = await walletService.deriveKeys(phrase.join(' '), 'My Wallet')
+      setStage(1)
       await walletService.saveKeys(keys)
       await walletService.addWalletToList({
         label: keys.label || 'My Wallet',
         stellarPublic: keys.stellarPublic,
         createdAt: new Date().toISOString(),
       })
+      setStage(2)
       await onNext(keys)
     } catch (e) {
       logger.error('Failed to save keys:', e)
@@ -54,21 +61,21 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <PressableScale onPress={onBack} style={styles.backBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityLabel="Go back"
         >
-          <Ionicons name="arrow-back" size={24} color={Colors.white} />
+          <Ionicons name="chevron-back" size={26} color={Colors.white} />
         </PressableScale>
 
-        <NoirLogo variant="mark" size={48} />
-        <Text style={styles.title}>Your Recovery Phrase</Text>
+        <Text style={styles.title}>Write down your recovery phrase</Text>
         <Text style={styles.subtitle}>
-          Write these 12 words down in order. Never share them with anyone. This is the only way to recover your wallet.
+          These 12 words are the only way back into your wallet. Keep them offline, in order.
         </Text>
 
         <View style={styles.warningBox}>
           <Ionicons name="shield-outline" size={20} color={Colors.warning} />
           <Text style={styles.warningText}>
-            Anyone with this phrase can access ALL your funds. Store it offline, never screenshot it.
+            Anyone with this phrase can take all your funds. Screenshots and copying are blocked here.
           </Text>
         </View>
 
@@ -85,7 +92,7 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
               {phrase.map((word, i) => (
                 <View key={i} style={styles.wordRow}>
                   <Text style={styles.wordNum}>{i + 1}.</Text>
-                  <Text style={styles.word}>{word}</Text>
+                  <Text style={styles.word} numberOfLines={1}>{word}</Text>
                 </View>
               ))}
             </View>
@@ -101,32 +108,43 @@ export function SeedPhraseScreen({ onNext, onBack }: SeedPhraseScreenProps) {
 
         <View style={styles.actions}>
           <Button
-            label={loading ? "Creating Account..." : "I've Saved My Phrase"}
+            label="I’ve written it down"
             onPress={handleConfirm}
             loading={loading}
             disabled={!revealed}
           />
         </View>
       </ScrollView>
+
+      <ProcessingOverlay
+        visible={loading}
+        title="Generating your wallet"
+        subtitle="Creating your Stellar keys from your recovery phrase."
+        steps={stepsAt(GENERATE_STEPS, stage)}
+        footnote="Keep the app open — this happens on your phone, nothing is sent anywhere."
+      />
     </SafeAreaView>
   )
 }
+
+const GENERATE_STEPS = ['Deriving your keys', 'Encrypting them on this phone', 'Getting your wallet ready']
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surfaceBg },
   scrollContent: { padding: Spacing.lg, paddingTop: Spacing.md, flexGrow: 1 },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md },
-  title: { fontSize: FontSize.xl, color: Colors.white, fontWeight: FontWeight.bold, textAlign: 'center', marginTop: Spacing.md },
-  subtitle: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', marginTop: Spacing.sm, lineHeight: 20 },
-  warningBox: { flexDirection: 'row', gap: Spacing.sm, backgroundColor: colorWithOpacity(Colors.warning, 0.08), borderRadius: BorderRadius.md, padding: Spacing.md, marginTop: Spacing.lg, borderWidth: 1, borderColor: colorWithOpacity(Colors.warning, 0.15) },
-  warningText: { flex: 1, fontSize: FontSize.xs, color: Colors.warning, lineHeight: 18 },
-  phraseBox: { backgroundColor: Colors.cardBg, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: Colors.borderGrey, padding: Spacing.md, marginTop: Spacing.lg, minHeight: 180, alignItems: 'center', justifyContent: 'center' },
+  title: { fontFamily: Fonts.display, fontSize: 24, color: Colors.cream, marginTop: Spacing.md },
+  subtitle: { fontSize: FontSize.md - 1, color: Colors.mutedWhite, marginTop: Spacing.sm, lineHeight: 22 },
+  warningBox: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.lg },
+  warningText: { flex: 1, fontSize: FontSize.sm - 1, color: Colors.silver, lineHeight: 19 },
+  phraseBox: { backgroundColor: Colors.midGrey, borderRadius: 14, padding: Spacing.md, marginTop: Spacing.lg, minHeight: 180, alignItems: 'center', justifyContent: 'center' },
   revealBtn: { alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.xl },
   revealText: { fontSize: FontSize.md, color: Colors.gold, fontWeight: FontWeight.semibold },
-  phraseGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, width: '100%' },
-  wordRow: { flexDirection: 'row', alignItems: 'center', width: '33%', paddingVertical: Spacing.xs },
+  // Two columns: room for the longest BIP39 words (8 letters) — never wraps.
+  phraseGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: Spacing.sm, width: '100%' },
+  wordRow: { flexDirection: 'row', alignItems: 'center', width: '50%', paddingVertical: 6, paddingRight: Spacing.sm },
   wordNum: { fontSize: FontSize.xs, color: Colors.mutedWhite, width: 24, textAlign: 'right', marginRight: 4 },
-  word: { fontSize: FontSize.md, color: Colors.white, fontWeight: FontWeight.medium },
+  word: { flex: 1, fontSize: FontSize.md, color: Colors.white, fontWeight: FontWeight.medium },
   copyNote: { fontSize: FontSize.xs, color: Colors.mutedWhite, textAlign: 'center', marginTop: Spacing.md, lineHeight: 18 },
   actions: { marginTop: Spacing.xl, gap: Spacing.md },
 })

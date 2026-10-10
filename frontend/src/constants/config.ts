@@ -89,7 +89,7 @@ export function hasContractsConfigured(network: StellarNetworkName = activeNetwo
 }
 
 export const AppConfig = {
-  appName: 'Noir Wallet',
+  appName: 'Noir',
   appVersion: Constants.expoConfig?.version ?? '1.0.0',
   // Getters, so every existing `AppConfig.stellar.x` read resolves against the
   // network that is live right now rather than the one present at import time.

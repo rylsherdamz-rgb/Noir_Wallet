@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
 
 export default function ScanQrRoute() {
   const router = useRouter()
@@ -18,7 +18,7 @@ export default function ScanQrRoute() {
           <Ionicons name="camera-outline" size={64} color={Colors.mutedWhite} />
           <Text style={styles.permissionTitle}>Camera Access Needed</Text>
           <Text style={styles.permissionDesc}>
-            Noir Wallet needs camera access to scan QR codes and NFC tags for recipient addresses.
+            Noir needs camera access to scan QR codes and NFC tags for recipient addresses.
           </Text>
           <TouchableOpacity style={styles.button} onPress={requestPermission}>
             <Text style={styles.buttonLabel}>Grant Permission</Text>
@@ -56,12 +56,12 @@ export default function ScanQrRoute() {
           >
             <Ionicons name="close" size={28} color={Colors.white} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Scan QR Code</Text>
+          <Text style={styles.headerTitle}>Scan QR code</Text>
           <View style={{ width: 28 }} />
         </View>
         <View style={styles.scanArea}>
           <View style={styles.scanFrame} />
-          <Text style={styles.hint}>Point camera at a Stellar address QR code</Text>
+          <Text style={styles.hint}>Point the camera at a Stellar address or payment-request QR</Text>
         </View>
       </View>
     </View>
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
   cancelLabel: { fontSize: FontSize.md, color: Colors.mutedWhite },
   overlay: { flex: 1, justifyContent: 'space-between', paddingTop: Spacing.xxl * 2 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md },
-  headerTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.white },
+  headerTitle: { fontFamily: Fonts.display, fontSize: 17, color: Colors.cream },
   scanArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scanFrame: { width: 250, height: 250, borderWidth: 2, borderColor: Colors.gold, borderRadius: BorderRadius.lg },
   hint: { fontSize: FontSize.sm, color: Colors.mutedWhite, marginTop: Spacing.lg, textAlign: 'center', paddingHorizontal: Spacing.xl },

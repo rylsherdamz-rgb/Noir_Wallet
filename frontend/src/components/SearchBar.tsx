@@ -47,13 +47,11 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.lightGrey,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
+    backgroundColor: Colors.midGrey,
+    borderRadius: 12,
+    paddingHorizontal: 14,
     height: 44,
     gap: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
   },
   input: {
     flex: 1,

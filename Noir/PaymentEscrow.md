@@ -6,7 +6,7 @@ tags: [contract, soroban]
 
 A [[Smart Contracts|Soroban contract]]. Escrow-based settlement — wallet pre-funds, agent authorizes payments instantly, merchants claim in batch.
 
-Source: `backend/asset/contracts/payment_escrow/src/lib.rs`
+Source: `backend/contracts/payment_escrow/src/lib.rs`
 
 ## Methods (real signatures — see [[_AI Build Guide - Contracts]])
 
@@ -29,8 +29,18 @@ Source: `backend/asset/contracts/payment_escrow/src/lib.rs`
 - Depends on [[DeviceRegistry]] (`get_owner`) for defund + sweep ownership
 - Drives [[Flow - Escrow Payment]] and [[Flow - Tap to Pay]]
 - On revocation: owner calls `agent_registry.revoke_agent` then `payment_escrow.sweep_on_revoke` to pull all device funds back to the main account
+- ⚠️ **Sweep BEFORE `device_registry.revoke`.** Device revoke deletes the entry, after which `get_owner` panics `DeviceNotFound` — `defund_escrow`/`sweep_on_revoke` can then never run and the balance is stranded forever. The app enforces revoke_agent → sweep_on_revoke → revoke in `x402.unlinkDevice` (aborts before the device revoke if the sweep fails). See [[Flow - Escrow Payment]].
+
+## App calls ([[x402]])
+
+| App function | Contract call | Notes |
+|---|---|---|
+| `fundEscrow` | `fund_escrow(XLM SAC, wallet, device_hash, i128)` | pre-checks spendable balance (reserve-aware); waits for finality |
+| `withdrawEscrow` | `defund_escrow(XLM SAC, device_hash, i128)` | "Withdraw all to wallet" on Agent Detail |
+| `getEscrowBalance` | `balance_of(device_hash)` | simulated from the owner wallet (agent account may not exist yet) |
+| `unlinkDevice` | revoke_agent → `sweep_on_revoke` → device revoke | read-gated, idempotent, retry-safe |
 
 ## Deployed IDs
 
-- testnet: `CAHYPZNULA67IALHHBWTHDYGXG6DIVQNQGENWLEBMCEH5QS3JVX7DIWH`
+- testnet: `CA5S4S7QGHJHJWVJBYL3CXZXZTNGKXMNZVDAEQNN7NUXFP4D7BYK7HIX`
 - mainnet: `CCEIB2BLMHK7N7OX23HJ3RCMJBP2NLBMMBGUA6SB5IWJJ6JEWH6ZZPK3`

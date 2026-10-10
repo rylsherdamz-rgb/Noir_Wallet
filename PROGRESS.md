@@ -47,19 +47,19 @@ This maps every weekly deliverable to its status. Measure every commit against t
 - [x] Reconciled Contract IDs to one evidence-backed set across README, `.env.example`, and the Obsidian notes
 - [x] Corrected README contract method tables + build guide to match the Rust source
 - [x] Week 1 evidence index — `deploy-evidence/WEEK1-EVIDENCE.md`
-- [ ] Record deploy-time transaction hashes (needs the Stellar CLI; contract explorer links already published)
-- [ ] Capture wallet create/import evidence (screenshot or recording)
+- [x] Record deploy-time transaction hashes — create + initialize tx links for the current deploy in `deploy-evidence/deploy-testnet-20261007T050558Z.md` (recovered from Horizon / RPC, 2026-10-09)
+- [x] Capture wallet create/import evidence — Android release-build screenshots in `docs/Evidence/wallet/` (import → password → wallet → lock); create path on-chain in the Week 2 Testnet run (phrase screens are FLAG_SECURE by design)
 
-### Week 2 — NFC provisioning + register + association + agent auth + escrow fund (wire app ↔ contracts)  ⬜ NOT STARTED
+### Week 2 — NFC provisioning + register + association + agent auth + escrow fund (wire app ↔ contracts)  🟡 IN PROGRESS
 **Planned:** NTAG213 provisioning; device register via DeviceRegistry; wallet-to-device association; delegated payment agent authorization (with constraints); escrow funding; connect RN app to deployed contracts.
 
 **Expected output:** Functional RN wallet demonstrating register + association + delegated auth + escrow fund on Testnet.
 
 - [ ] NTAG213 provisioning flow in app
-- [ ] Device register via DeviceRegistry (on-chain association)
-- [ ] Agent authorization UI passes constraints (limit, asset, expiry) to AgentRegistry
-- [ ] Escrow funding wired to PaymentEscrow
-- [ ] App ↔ deployed Soroban contracts integration verified on Testnet
+- [x] Device register via DeviceRegistry (on-chain association) — verified on Testnet 2026-10-03
+- [x] Agent authorization UI passes constraints (limit, asset, expiry) to AgentRegistry — per-payment cap + expiry chosen in the provisioning signature sheet (`buildAgentPolicy`), asset = native XLM SAC; policy read back via `get_policy` on Agent Detail (2026-10-06, unit-tested; Testnet run pending)
+- [x] Escrow funding wired to PaymentEscrow — `x402.fundEscrow` → `fund_escrow(token, wallet, device_hash, i128)`, amount picker + live `balance_of` on Agent Detail (2026-10-06, unit-tested; Testnet run pending)
+- [x] App ↔ deployed Soroban contracts integration verified on Testnet — the app's own `x402` code ran register + constrained agent → foreign-wallet rejection → fund → withdraw → unlink live (`npm run test:testnet`, evidence `deploy-evidence/week2-testnet-flow-20261009T044804Z.md`, 2026-10-09)
 
 ### Week 3 — Full x402 flow + tests + security paths + docs  ⬜ NOT STARTED
 **Expected output:** Complete x402 flow validated; automated tests passing; positive/negative security validation; developer docs.
@@ -76,7 +76,7 @@ Workflows live in `.github/workflows/`. Both now run on the Instaward branches (
 | Workflow | Scope | Status |
 |----------|-------|--------|
 | `contracts.yml` | Builds all three contracts to `wasm32v1-none`, runs the 41 contract tests on the host target, then prints a WASM SHA-256 reproducibility report (informational) | ✅ Passing |
-| `frontend.yml` | `tsc --noEmit` + Vitest (220 tests) on Node 22 | ✅ Passing |
+| `frontend.yml` | `tsc --noEmit` + Vitest (226 tests) on Node 22 | ✅ Passing |
 
 **Contract tests in CI: passing.** Run [`37019373910`](https://github.com/rylsherdamz-rgb/Noir_Wallet/actions/runs/37019373910) executed 17 + 8 + 16 = 41 tests, 0 failures. This satisfies the SOW metric "automated contract tests passing in CI".
 
@@ -130,14 +130,134 @@ Reject (all verified by contract tests):
 
 ## Deployed Contract IDs
 
-### Testnet (redeployed 2026-10-01 with constrained-auth + sweep-on-revoke)
-Admin / deployer: `GCDAAT6G6BUANDLY432YEAFY2MHUDP4PVEQ6ODMKWMUL6THLDY4GY2KD` (identity `noir-deployer`)
-Full evidence (tx links, init args): `deploy-evidence/deploy-testnet-20261002T235948Z.md`
+### Testnet (redeployed 2026-10-07 — clean state; WASM hashes in deploy-evidence/deploy-testnet-20261007T050558Z.md)
+Admin / deployer: `GA33JXYPD5H3KVYEFDS6DPAHPASEN7QUHSTJ5XU6BG4TUONKXIUB4RDP` (identity `deployer`)
+Full evidence (tx links, init args): `deploy-evidence/deploy-testnet-20261007T050558Z.md`
 
 | Contract | ID | WASM SHA-256 |
 |----------|----|--------------|
-| device_registry | `CCSW6R7ATZJNBGNQVXOTQNVBGBAHOSFR2RXUG32DLRU6I2LUQHVJKION` | `a252a4070120af7222bed4dfcb220ca51c290071f2c286a2f58f7259f367bea2` |
-| agent_registry | `CBP6KC6IFBQQHOGKVYYDPHXPSHTYUKKHV5EGHSSNPRTJQ6G4M545NFUC` | `b0da4885fd635a6b3d76250c9423424c84c409a2e617b76946ffd2af90c7a22b` |
-| payment_escrow | `CAHYPZNULA67IALHHBWTHDYGXG6DIVQNQGENWLEBMCEH5QS3JVX7DIWH` | `3861809c9dfbcc4bf9d9941cc76ebeafb4a7d37453e15074826093d12a2941ed` |
+| device_registry | `CB4DPMGOA374JIB2ZVD4AHW5GJKQUYNOFGRYNOJ75EFH2KCJSMHOWIRA` | `a252a4070120af7222bed4dfcb220ca51c290071f2c286a2f58f7259f367bea2` |
+| agent_registry | `CBTDMJVCFQDIVWZBKAKZ2FQ3UEJNAAUFYCTJ3E4ON2MYXPLPSIXQ25JZ` | `b0da4885fd635a6b3d76250c9423424c84c409a2e617b76946ffd2af90c7a22b` |
+| payment_escrow | `CA5S4S7QGHJHJWVJBYL3CXZXZTNGKXMNZVDAEQNN7NUXFP4D7BYK7HIX` | `3861809c9dfbcc4bf9d9941cc76ebeafb4a7d37453e15074826093d12a2941ed` |
+
+> Admin changed from `noir-deployer` (`GCDAAT6G…`) to `deployer` (`GA33JXYP…`) in this redeploy. README and `frontend/.env.example` still list the 2026-10-01 IDs.
+
+<details><summary>Previous: 2026-10-01 (superseded)</summary>
+
+Admin `GCDAAT6G6BUANDLY432YEAFY2MHUDP4PVEQ6ODMKWMUL6THLDY4GY2KD` · evidence `deploy-evidence/deploy-testnet-20261002T235948Z.md`
+
+| Contract | ID |
+|----------|----|
+| device_registry | `CCSW6R7ATZJNBGNQVXOTQNVBGBAHOSFR2RXUG32DLRU6I2LUQHVJKION` |
+| agent_registry | `CBP6KC6IFBQQHOGKVYYDPHXPSHTYUKKHV5EGHSSNPRTJQ6G4M545NFUC` |
+| payment_escrow | `CAHYPZNULA67IALHHBWTHDYGXG6DIVQNQGENWLEBMCEH5QS3JVX7DIWH` |
+
+</details>
 
 Redeploy script: `scripts/redeploy-contracts.sh` (build → hash → deploy → initialize → write evidence).
+
+---
+
+## Session Log — 2026-10-09 (Week 1–2 gaps)
+
+- **Week 2 Testnet gate run** — `frontend/testnet/week2-flow.testnet.ts` drives the
+  app's `walletService` + `x402` against the deployed contracts with a simulated
+  NTAG213 UID; all 5 steps pass. Tx links: `deploy-evidence/week2-testnet-flow-20261009T044804Z.md`.
+- **Bugs that run found (fixed):**
+  - Registration returned before `register` / `register_agent` were final, so
+    provisioning could report success early and an immediate ownership read said
+    "free". Both now wait for finality.
+  - `fund_escrow` accepted an unregistered device hash; the deposit is then
+    unrecoverable (withdraw/sweep resolve the owner via device_registry). The app
+    now refuses (`DeviceNotLinkedError`), and the contract fix
+    (`DeviceNotRegistered = 8`, 45 contract tests) is committed — **needs a
+    redeploy to take effect on Testnet**.
+  - `accountExists` cached "missing" for 30s, so a freshly Friendbot-funded wallet
+    looked absent; `fundAccount` reported failure on slow Friendbot responses even
+    when funding succeeded.
+- **Deploy tx hashes** for the current deploy recovered from Horizon/RPC and added
+  to `deploy-evidence/deploy-testnet-20261007T050558Z.md`.
+- **Wallet create/import** verified at the service level on Testnet (same keys
+  after import, account funded) in the same run.
+- **App lock:** wallet password is now the default unlock; phone unlock is an
+  opt-in toggle (Security). Landing page redesigned to the app's design system.
+
+## Session Log — 2026-10-03 (app ↔ contracts wiring)
+
+Branch `instaward-development`, 8 local commits (not pushed). `tsc` clean, Vitest 226/226.
+
+**Fixes**
+- `register_agent` failed with `MismatchingParameterLen` — app sent 3 args, contract takes 6. App now sends the policy args (`max_amount=0`, native XLM SAC, `expires_at=0` → uncapped, no expiry). Verified on-chain via `get_policy`. (`abdd5f4`)
+- Provisioning hung on "Writing to NFC tag…" — `writeTag()` had no timeout. Now 15s, optional, reports real result. (`6017c86`)
+- Tag owned by another wallet was reported as success (`AlreadyRegistered` swallowed). Now raises `DeviceOwnedByOtherWalletError`; nothing is signed. (`abdd5f4`)
+- Payment Agents showed "1 agent" and "No agents yet" at once — orphaned agent keys were counted. Now counts only device-linked agents. (`96928bc`)
+
+**Features**
+- Provisioning checks on-chain ownership before the signature prompt, with dedicated "Already linked to you" / "Linked to another wallet" screens, a 4-step progress tracker, and categorized errors. (`4c04e80`)
+- Transaction history (Transactions, Dashboard, Blockchain) loads from Horizon via `stellarService.getPaymentHistory` instead of the parked backend; date-grouped, searchable by hash. (`3fe2334`)
+- Centered NFC scan pulse (`NfcScanPulse`) on Link Device and Receive. (`ad00137`)
+- Layout fixes across 8 screens: keyboard covering forms, overflowing addresses, non-scrolling Receive, small touch targets. (`cc826b1`)
+
+**Week 2 checklist impact**
+- Device register via DeviceRegistry — working end-to-end on Testnet.
+- Agent authorization passes constraints — wired, but with fixed defaults; no UI yet for limit / asset / expiry.
+- Escrow funding — not yet wired (app never calls `fund_escrow`).
+
+**Open**
+- Push the local commits.
+- Constraint UI for agent policy; wire `fund_escrow` / `authorize`.
+- Unlink/revoke flow so a tag can move between wallets.
+- Not yet tested on device: NFC write timeout, ownership screens, scan animation.
+
+Update 2026-10-03 (later): README, `frontend/.env.example`, `docs/stellar-development-guide.md`,
+and `docs/Evidence/README.md` were still pointing at the 2026-10-01 Contract IDs
+(`CCSW6R7A…` / `CBP6KC6I…` / `CAHYPZNU…`) even though `frontend/.env` and the
+Obsidian contract notes had already moved to the 2026-10-03 redeploy
+(`CAVDDFFT…` / `CCFR7FTY…` / `CBMAP5SO…`). Propagated the current IDs to all
+four files; the WASM hashes are unchanged between the two deploys (confirmed
+byte-identical in `deploy-evidence/`), so only the IDs needed updating.
+`docs/Evidence/` explorer screenshots still show the old IDs in their
+filenames (not retaken) — flagged with a note in that file.
+
+## Session Log — 2026-10-06/07 (Week 2: policy UI, escrow, safe unlink, Play Store hardening)
+
+**Done (unit-tested; not yet exercised on Testnet or on hardware)**
+- Constrained agent policy in the provisioning Signature Request sheet: max per
+  payment (No cap / 10 / 25 / 50 / 100 XLM) + expiry (Never / 7 / 30 / 90 days),
+  asset = native XLM SAC. `x402.buildAgentPolicy` mirrors register_agent's
+  `InvalidPolicy` checks. Agent Detail reads the policy back via `get_policy`.
+- Escrow: `fundEscrow` (reserve-aware pre-check, waits for finality, user
+  confirmation), `withdrawEscrow` (`defund_escrow`), `getEscrowBalance` decoded
+  correctly (was `Number(ScVal)`) and simulated from the owner wallet.
+- **Fund-safety fix — unlink/revoke:** "Revoke Device & Agent" used to revoke the
+  agent and the device but never swept escrow. Device revoke deletes the entry,
+  so `get_owner` fails afterwards and the escrow was stranded permanently.
+  New `x402.unlinkDevice`: revoke_agent → sweep_on_revoke → device revoke,
+  read-gated, aborts before the device revoke on any failure, retry-safe.
+- **Error-code fix:** registration treated `Error(Contract, #4)` as
+  "already registered" for both registries; on agent_registry #4 is
+  `InvalidPolicy`, which would have been reported as success. Codes now handled
+  per contract; user-facing text centralised in `domain/contractErrors.ts`.
+- **Secret leak fix:** `invokeContract` logged the first 8 chars of the signer's
+  secret seed via `logger.error` (kept in release builds). Now logs the public key.
+- Balance cache no longer caches a failed Horizon load as 0 XLM; invalidated
+  after the wallet sends.
+
+**Play Store release hardening**
+- `eas.json`: shared `base` profile carries the public Testnet contract IDs —
+  `frontend/.env` is gitignored, so EAS cloud builds previously shipped with
+  empty contract IDs. Production → `app-bundle`; submit → internal track, draft.
+  Secrets (`EXPO_PUBLIC_API_KEY`) must be set with `eas env:create`, not committed.
+- `app.json`: `allowBackup: false`; blocked unused permissions (RECORD_AUDIO,
+  SYSTEM_ALERT_WINDOW, storage, FOREGROUND_SERVICE[_MEDIA_PLAYBACK],
+  MODIFY_AUDIO_SETTINGS). Removed unused `expo-audio` (its media-playback
+  foreground service would require a Play Console FGS declaration).
+
+**Tests:** `tsc --noEmit` clean · Vitest 243/243.
+
+**Open**
+- Testnet run of provision-with-policy → fund → withdraw → unlink (Week 2 gate).
+- On-device NTAG213 check, incl. the taller signature sheet on small screens.
+- Store listing prerequisites outside the code: privacy policy URL, Data safety
+  form, content rating, release signing via EAS credentials.
+- App ships pointed at **Testnet** (Instaward scope); Mainnet is out of scope.

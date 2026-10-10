@@ -1,346 +1,104 @@
 import { useState } from 'react'
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-} from 'react-native'
+import { View, Text, StyleSheet, ScrollView } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
+import * as Clipboard from 'expo-clipboard'
+import { popup } from '@/components/popup/Popup'
+import { PressableScale } from '@/components/brand/PressableScale'
+import { NetworkPicker } from '@/components/NetworkPicker'
+import { PageTitle, SectionLabel, ListRow, TextAction } from '@/components/ui/List'
 import { useAppStore } from '@/store/useAppStore'
-import { Card } from '@/components/Card'
-import { SectionHeader } from '@/components/SectionHeader'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
-import { StellarNetwork } from '@/types'
+import { useToast } from '@/components/ToastProvider'
+import { Colors, Spacing, FontSize, Fonts } from '@/constants/theme'
 import { walletService } from '@/services/wallet'
 import { x402 } from '@/domain/x402'
 
-const TIMEOUT_OPTIONS: { label: string; sec: number }[] = [
-  { label: 'Immediately', sec: 0 },
-  { label: '30s', sec: 30 },
-  { label: '1m', sec: 60 },
-  { label: '5m', sec: 300 },
-]
+function lockLabel(sec: number): string {
+  if (sec <= 0) return 'Immediately'
+  return sec < 60 ? `${sec}s` : `${Math.round(sec / 60)} min`
+}
 
 export default function SettingsScreen() {
   const router = useRouter()
-  const {
-    user,
-    network,
-    setNetwork,
-    nfcSupported,
-    security,
-    reset,
-  } = useAppStore()
-
+  const toast = useToast()
+  const { user, nfcSupported, security, reset } = useAppStore()
   const [busy, setBusy] = useState(false)
+  const name = user?.displayName?.trim() || 'My wallet'
+  const key = user?.stellarPublicKey
+
+  const copyAddress = async () => {
+    if (!key) return
+    await Clipboard.setStringAsync(key)
+    toast.success('Address copied', 'Your Stellar address is on the clipboard.')
+  }
 
   const handleReset = () => {
-    Alert.alert(
-      'Sign out & reset',
-      'This clears local wallet state on this device. Make sure your recovery details are backed up.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset',
-          style: 'destructive',
-          onPress: async () => {
-            setBusy(true)
-            await walletService.clearKeys()
-            await x402.clearAllAgents()
-            reset()
-            router.replace('/onboarding')
-          },
-        },
-      ],
-    )
+    popup.confirm({
+      title: 'Reset this phone?',
+      message: 'This removes the wallet from this phone. Make sure your recovery phrase is written down — it’s the only way back in.',
+      icon: 'log-out-outline',
+      tone: 'danger',
+      confirmLabel: 'Reset this phone',
+    }).then(async (ok) => {
+      if (!ok) return
+      setBusy(true)
+      await walletService.clearKeys()
+      await x402.clearAllAgents()
+      reset()
+      router.replace('/onboarding')
+    })
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.screenTitle}>Settings</Text>
-
-        {/* Profile */}
-        <SectionHeader title="Profile" />
-        <Card style={styles.card}>
-          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/profile')}
-            accessibilityLabel="Profile"
-          >
-            <View style={styles.rowLeft}>
-              <Ionicons name="person-outline" size={20} color={Colors.silver} />
-              <View>
-                <Text style={styles.rowLabel}>Profile</Text>
-                <Text style={styles.navHint}>{user?.displayName || 'Tap to set up'}</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
-          </TouchableOpacity>
-          <Divider />
-          <Row
-            icon="mail-outline"
-            label="Email"
-            value={user?.email ?? 'Not signed in'}
-          />
-          <Divider />
-          <Row
-            icon="key-outline"
-            label="Stellar address"
-            value={
-              user?.stellarPublicKey
-                ? `${user.stellarPublicKey.slice(0, 8)}…${user.stellarPublicKey.slice(-6)}`
-                : '—'
-            }
-            mono
-          />
-        </Card>
-
-        {/* Security */}
-        <SectionHeader title="Security" />
-        <Card style={styles.card}>
-          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/settings/security')}>
-            <View style={styles.rowLeft}>
-              <Ionicons name="shield-checkmark-outline" size={20} color={Colors.silver} />
-              <View>
-                <Text style={styles.rowLabel}>Security Settings</Text>
-                <Text style={styles.navHint}>
-                  {security.biometricLockEnabled ? 'Biometric + Auto-lock' : 'Tap to configure'}
-                </Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
-          </TouchableOpacity>
-        </Card>
-
-        {/* Notifications */}
-        <SectionHeader title="Notifications" />
-        <Card style={styles.card}>
-          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/settings/notifications')}
-            accessibilityLabel="Notifications"
-          >
-            <View style={styles.rowLeft}>
-              <Ionicons name="notifications-outline" size={20} color={Colors.silver} />
-              <View>
-                <Text style={styles.rowLabel}>Notifications</Text>
-                <Text style={styles.navHint}>View notification history and preferences</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
-          </TouchableOpacity>
-        </Card>
-
-        {/* Network */}
-        <SectionHeader title="Network" />
-        <Card style={styles.card}>
-          <View style={styles.chips}>
-            {(['testnet', 'mainnet'] as StellarNetwork[]).map((net) => {
-              const active = network === net
-              return (
-                <TouchableOpacity
-                  key={net}
-                  style={[styles.chip, styles.chipWide, active && styles.chipActive]}
-                  onPress={() => setNetwork(net)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Use ${net}`}
-                  accessibilityState={{ selected: active }}
-                >
-                  <Ionicons
-                    name={net === 'mainnet' ? 'globe-outline' : 'flask-outline'}
-                    size={16}
-                    color={active ? Colors.black : Colors.silver}
-                  />
-                  <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                    {net === 'mainnet' ? 'Mainnet' : 'Testnet'}
-                  </Text>
-                </TouchableOpacity>
-              )
-            })}
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <PageTitle title="Settings" />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Account */}
+        <PressableScale style={styles.account} onPress={() => router.push('/profile')} accessibilityRole="button" accessibilityLabel={`${name}. Open profile`}>
+          <View style={styles.avatar}><Text style={styles.avatarText}>{name.charAt(0).toUpperCase()}</Text></View>
+          <View style={styles.accountBody}>
+            <Text style={styles.accountName} numberOfLines={1}>{name}</Text>
+            <PressableScale style={styles.addr} onPress={copyAddress} disabled={!key} hitSlop={8} accessibilityRole="button" accessibilityLabel="Copy Stellar address">
+              <Text style={styles.addrText}>{key ? `${key.slice(0, 8)}…${key.slice(-4)}` : 'No wallet'}</Text>
+              {!!key && <Ionicons name="copy-outline" size={12} color={Colors.mutedWhite} />}
+            </PressableScale>
           </View>
-          <Text style={styles.hint}>
-            {network === 'testnet'
-              ? 'Test SDF Network — no real value.'
-              : 'Public network — real assets.'}
-          </Text>
-          <Divider />
-          <Row
-            icon="radio-outline"
-            label="NFC"
-            value={nfcSupported ? 'Available' : 'Unavailable'}
-            valueColor={nfcSupported ? Colors.success : Colors.danger}
-          />
-        </Card>
+          <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
+        </PressableScale>
 
-        {/* Fiat */}
-        <SectionHeader title="Banking" />
-        <Card style={styles.card}>
-          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/cards')}>
-            <View style={styles.rowLeft}>
-              <Ionicons name="card-outline" size={20} color={Colors.silver} />
-              <View>
-                <Text style={styles.rowLabel}>Cards</Text>
-                <Text style={styles.navHint}>Add a tap-to-pay card, set a PIN, or revoke</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.navRow} onPress={() => router.push('/fiat')}>
-            <View style={styles.rowLeft}>
-              <Ionicons name="wallet-outline" size={20} color={Colors.silver} />
-              <View>
-                <Text style={styles.rowLabel}>Cash In / Cash Out</Text>
-                <Text style={styles.navHint}>Deposit or withdraw PHP via PDAX</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.mutedWhite} />
-          </TouchableOpacity>
-        </Card>
+        <SectionLabel title="Security" />
+        <ListRow icon="finger-print-outline" title="Phone lock & auto-lock" value={lockLabel(security.backgroundLockTimeoutSec)} chevron onPress={() => router.push('/settings/security')} />
+        <ListRow icon="key-outline" title="Recovery phrase & keys" chevron last onPress={() => router.push('/settings/export-keys')} />
 
-        {/* About / danger */}
-        <SectionHeader title="About" />
-        <Card style={styles.card}>
-          <Row icon="information-circle-outline" label="Noir Wallet" value="v1.0.0" />
-          <Divider />
-          <Row icon="document-text-outline" label="Tagline" value="Tap into Trust" />
-        </Card>
+        <SectionLabel title="Network" />
+        <ListRow icon="git-network-outline" title="Stellar network" right={<NetworkPicker align="right" />} />
+        <ListRow icon="radio-outline" title="NFC" value={nfcSupported ? 'Available' : 'Unavailable'} valueColor={nfcSupported ? Colors.success : Colors.danger} last />
 
-        <TouchableOpacity
-          style={styles.dangerBtn}
-          onPress={handleReset}
-          disabled={busy}
-          accessibilityRole="button"
-          accessibilityLabel="Sign out and reset"
-        >
-          <Ionicons name="log-out-outline" size={18} color={Colors.danger} />
-          <Text style={styles.dangerText}>Sign out & reset</Text>
-        </TouchableOpacity>
+        <SectionLabel title="Cards & alerts" />
+        <ListRow icon="card-outline" title="Cards" subtitle="Add any NFC card or sticker, or revoke one" chevron onPress={() => router.push('/cards')} />
+        <ListRow icon="notifications-outline" title="Notifications" chevron last onPress={() => router.push('/settings/notifications')} />
+
+        <SectionLabel title="About" />
+        <ListRow icon="information-circle-outline" title="Noir" value="v1.0.0" last />
+
+        <View style={styles.reset}>
+          <TextAction label="Sign out & reset this phone" color={Colors.danger} onPress={handleReset} disabled={busy} />
+        </View>
       </ScrollView>
     </SafeAreaView>
   )
 }
 
-function Row({
-  icon,
-  label,
-  value,
-  mono,
-  valueColor,
-}: {
-  icon: keyof typeof Ionicons.glyphMap
-  label: string
-  value: string
-  mono?: boolean
-  valueColor?: string
-}) {
-  return (
-    <View style={styles.row}>
-      <View style={styles.rowLeft}>
-        <Ionicons name={icon} size={20} color={Colors.silver} />
-        <Text style={styles.rowLabel}>{label}</Text>
-      </View>
-      <Text
-        style={[
-          styles.rowValue,
-          mono && styles.mono,
-          valueColor ? { color: valueColor } : null,
-        ]}
-        numberOfLines={1}
-      >
-        {value}
-      </Text>
-    </View>
-  )
-}
-
-function Divider() {
-  return <View style={styles.divider} />
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surfaceBg },
-  scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
-  screenTitle: {
-    fontSize: FontSize.xxl,
-    color: Colors.cream,
-    fontWeight: FontWeight.heavy,
-    paddingVertical: Spacing.md,
-  },
-  card: { marginBottom: Spacing.lg },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.md,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.sm,
-  },
-  rowLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, flexShrink: 1 },
-  rowLabel: { fontSize: FontSize.md, color: Colors.white, fontWeight: FontWeight.medium },
-  rowValue: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    marginLeft: Spacing.md,
-    flexShrink: 1,
-    textAlign: 'right',
-  },
-  mono: { fontFamily: 'monospace' },
-  navRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.md,
-  },
-  navHint: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    marginTop: 2,
-  },
-  subLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    fontWeight: FontWeight.medium,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
-  },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, paddingVertical: Spacing.xs },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.midGrey,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  chipWide: { flexGrow: 1, justifyContent: 'center' },
-  chipActive: { backgroundColor: Colors.gold, borderColor: Colors.gold },
-  chipText: { fontSize: FontSize.sm, color: Colors.silver, fontWeight: FontWeight.semibold },
-  chipTextActive: { color: Colors.black },
-  hint: { fontSize: FontSize.xs, color: Colors.mutedWhite, paddingTop: Spacing.sm },
-  divider: { height: 1, backgroundColor: Colors.borderGrey, marginVertical: Spacing.xs },
-  dangerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.danger,
-    marginTop: Spacing.sm,
-  },
-  dangerText: { color: Colors.danger, fontSize: FontSize.md, fontWeight: FontWeight.semibold },
+  content: { paddingHorizontal: 20, paddingBottom: Spacing.xxl },
+  account: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: Spacing.md },
+  avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#5a4a2c', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontFamily: Fonts.display, fontSize: 18, color: Colors.cream },
+  accountBody: { flex: 1 },
+  accountName: { fontFamily: Fonts.display, fontSize: FontSize.md + 1, color: Colors.cream },
+  addr: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2, alignSelf: 'flex-start' },
+  addrText: { fontFamily: Fonts.mono, fontSize: FontSize.xs, color: Colors.mutedWhite },
+  reset: { marginTop: Spacing.xl },
 })

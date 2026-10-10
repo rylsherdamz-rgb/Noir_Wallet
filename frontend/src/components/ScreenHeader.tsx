@@ -4,7 +4,7 @@ import { PressableScale } from '@/components/brand/PressableScale'
 import * as Haptics from 'expo-haptics'
 import { useRouter } from 'expo-router'
 import { DesignTokens } from '@/constants/designTokens'
-import { Colors, Spacing, FontSize, FontWeight } from '@/constants/theme'
+import { Colors, Spacing, FontSize, Fonts } from '@/constants/theme'
 import { ReactNode } from 'react'
 
 interface ScreenHeaderProps {
@@ -62,7 +62,7 @@ export function ScreenHeader({
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Ionicons name="arrow-back" size={24} color={Colors.white} />
+            <Ionicons name="chevron-back" size={26} color={Colors.white} />
           </PressableScale>
         ) : (
           <View style={styles.backButton} />
@@ -122,18 +122,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
+    fontFamily: Fonts.display,
+    fontSize: 17,
+    color: Colors.cream,
     textAlign: 'center',
   },
   titleLarge: {
     fontSize: FontSize.xl,
-    fontWeight: FontWeight.heavy,
   },
   titleMinimal: {
+    fontFamily: Fonts.displayMd,
     fontSize: FontSize.md,
-    fontWeight: FontWeight.semibold,
   },
   subtitle: {
     fontSize: FontSize.xs,

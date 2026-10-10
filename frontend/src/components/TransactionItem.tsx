@@ -5,8 +5,8 @@ import { PressableScale } from '@/components/brand/PressableScale'
 import * as Haptics from 'expo-haptics'
 import { useRouter } from 'expo-router'
 import { Transaction } from '@/types'
-import { DesignTokens, colorWithOpacity } from '@/constants/designTokens'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { isIncomingTx, formatAmount, formatSignedAmount } from '@/lib/txFormat'
+import { Colors, Spacing, FontSize, FontWeight, Gradient } from '@/constants/theme'
 
 interface TransactionItemProps {
   transaction: Transaction
@@ -26,8 +26,8 @@ export const TransactionItem = memo(function TransactionItem({ transaction, onPr
   const FALLBACK_CONFIG = { color: Colors.mutedWhite, icon: 'help-circle-outline' as const, label: 'Unknown' }
 
   const config = statusConfig[transaction.status] ?? FALLBACK_CONFIG
-  const amountStr = `${(transaction.amountCents / 100).toFixed(2)} ${transaction.assetCode}`
-  const isIncoming = transaction.merchantName === 'NFC Receive' || transaction.merchantName === 'NFC Payment'
+  const amountStr = `${formatAmount(transaction.amountCents)} ${transaction.assetCode}`
+  const isIncoming = isIncomingTx(transaction)
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -38,45 +38,30 @@ export const TransactionItem = memo(function TransactionItem({ transaction, onPr
     }
   }
 
+  const failed = transaction.status === 'failed'
+  const time = new Date(transaction.createdAt).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })
+  const amountColor = failed ? Colors.mutedWhite : isIncoming ? Colors.success : Colors.white
+
   return (
     <PressableScale
       style={styles.container}
       onPress={handlePress}
       accessibilityRole="button"
       accessibilityLabel={`Transaction ${transaction.merchantName}, ${amountStr}, ${config.label}`}
-      accessibilityHint="Tap to view details"
+      accessibilityHint="Opens the transaction"
       testID={testID}
     >
-      <View style={[styles.iconWrap, { backgroundColor: colorWithOpacity(config.color, 0.15) }]}>
-        <Ionicons name={config.icon} size={DesignTokens.iconSize.sm} color={config.color} />
+      <View style={styles.iconWrap}>
+        <Ionicons name={failed ? 'close' : isIncoming ? 'arrow-down' : 'arrow-up'} size={20} color={failed ? Colors.danger : isIncoming ? Colors.success : Colors.mutedWhite} />
       </View>
-
       <View style={styles.info}>
-        <Text style={styles.merchant} numberOfLines={1}>
-          {transaction.merchantName}
-        </Text>
-        <Text style={styles.meta} numberOfLines={1}>
-          {new Date(transaction.createdAt).toLocaleTimeString('en-PH', {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}{' '}
-          {'\u00B7'} {config.label}
-        </Text>
+        <Text style={styles.merchant} numberOfLines={1}>{transaction.merchantName}</Text>
+        <Text style={styles.meta} numberOfLines={1}>{isIncoming ? 'Received' : 'Sent'} · {time}</Text>
       </View>
-
       <View style={styles.amountSection}>
-        <Text style={[styles.amount, !isIncoming && styles.outgoing]}>
-          {isIncoming ? '+' : '-'}
-          {amountStr}
-        </Text>
-        {transaction.stellarTxHash && (
-          <Text style={styles.txHash} numberOfLines={1}>
-            {transaction.stellarTxHash.slice(0, 8)}...
-          </Text>
-        )}
+        <Text style={[styles.amount, { color: amountColor }, failed && styles.struck]}>{formatSignedAmount(transaction)}</Text>
+        {transaction.status !== 'confirmed' && <Text style={[styles.status, { color: config.color }]}>{config.label}</Text>}
       </View>
-
-      <Ionicons name="chevron-forward" size={20} color={Colors.borderGrey} />
     </PressableScale>
   )
 })
@@ -85,60 +70,18 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    minHeight: DesignTokens.touchTarget.large,
-    ...DesignTokens.shadows.card,
+    gap: 14,
+    minHeight: 64,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Gradient.panel,
   },
-  iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  info: {
-    flex: 1,
-    marginLeft: Spacing.md,
-    marginRight: Spacing.sm,
-  },
-  merchant: {
-    fontSize: FontSize.md,
-    color: Colors.white,
-    fontWeight: FontWeight.semibold,
-    lineHeight: FontSize.md * DesignTokens.typography.lineHeight.tight,
-  },
-  meta: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    marginTop: Spacing.xs,
-    textTransform: 'capitalize',
-  },
-  amountSection: {
-    alignItems: 'flex-end',
-    marginRight: Spacing.sm,
-  },
-  amount: {
-    fontSize: FontSize.md,
-    color: Colors.success,
-    fontWeight: FontWeight.bold,
-    lineHeight: FontSize.md * DesignTokens.typography.lineHeight.tight,
-  },
-  outgoing: {
-    color: Colors.danger,
-  },
-  txHash: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    marginTop: 2,
-    maxWidth: 80,
-    fontFamily: 'monospace',
-  },
+  iconWrap: { width: 28, alignItems: 'center' },
+  info: { flex: 1, minWidth: 0 },
+  merchant: { fontSize: FontSize.md - 1, color: Colors.white, fontWeight: FontWeight.medium },
+  meta: { fontSize: FontSize.sm - 1, color: Colors.mutedWhite, marginTop: 2 },
+  amountSection: { alignItems: 'flex-end' },
+  amount: { fontSize: FontSize.md - 1, fontWeight: FontWeight.medium, fontVariant: ['tabular-nums'] },
+  struck: { textDecorationLine: 'line-through' },
+  status: { fontSize: FontSize.xs, fontWeight: FontWeight.medium, marginTop: 2 },
 })

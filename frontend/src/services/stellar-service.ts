@@ -49,15 +49,24 @@ if (xdr.FeeBumpTransactionEnvelope.prototype.toXDR !== xdr.TransactionEnvelope.p
 }
 
 const CACHE_TTL_MS = 30000
+// Short TTL for balances: long enough to collapse the back-to-back
+// syncAgentsFromDevices() -> listAgents() double-fetch and rapid re-renders,
+// short enough that pull-to-refresh still reflects a real top-up quickly.
+const BALANCE_CACHE_TTL_MS = 10000
 
 interface CacheEntry<T> {
   value: T
   expiresAt: number
 }
 
-function makeCache<T>(): (key: string, ttl: number, fetcher: () => Promise<T>) => Promise<T> {
+type Cache<T> = ((key: string, ttl: number, fetcher: () => Promise<T>) => Promise<T>) & {
+  invalidate(key: string): void
+}
+
+/** TTL cache. A rejected fetcher is NOT cached, so a transient failure can't stick. */
+function makeCache<T>(): Cache<T> {
   const store = new Map<string, CacheEntry<T>>()
-  return async (key: string, ttl: number, fetcher: () => Promise<T>): Promise<T> => {
+  const get = async (key: string, ttl: number, fetcher: () => Promise<T>): Promise<T> => {
     const existing = store.get(key)
     if (existing && Date.now() < existing.expiresAt) {
       return existing.value
@@ -66,9 +75,23 @@ function makeCache<T>(): (key: string, ttl: number, fetcher: () => Promise<T>) =
     store.set(key, { value, expiresAt: Date.now() + ttl })
     return value
   }
+  return Object.assign(get, { invalidate: (key: string) => { store.delete(key) } })
 }
 
 const DEFAULT_TIMEOUT_MS = 20000
+
+/**
+ * Horizon's error title is just "Transaction Failed"; the reason lives in
+ * extras.result_codes (op_underfunded, tx_bad_seq, …). Keep the codes so
+ * humanizeStellarError() can turn them into a sentence.
+ */
+function horizonErrorText(err: any): string {
+  const data = err?.response?.data
+  const codes = data?.extras?.result_codes
+  const list = [codes?.transaction, ...(Array.isArray(codes?.operations) ? codes.operations : [])].filter(Boolean)
+  const base = data?.detail || data?.title || err?.message || 'Transaction failed'
+  return list.length ? `${base} (${list.join(', ')})` : base
+}
 
 /**
  * Fail fast instead of hanging forever. Horizon and Soroban RPC calls on the
@@ -131,7 +154,8 @@ export class StellarService {
   private soroban: rpc.Server
   private networkPassphrase: string
   private network: 'testnet' | 'mainnet'
-  private existsCache: (key: string, ttl: number, fetcher: () => Promise<boolean>) => Promise<boolean>
+  private existsCache: Cache<boolean>
+  private balanceCache: Cache<BalanceResult>
 
   constructor(opts?: StellarServiceOptions) {
     const isTestnet = opts?.network !== 'mainnet'
@@ -144,6 +168,7 @@ export class StellarService {
     ) as rpc.Server
     this.networkPassphrase = opts?.networkPassphrase ?? (isTestnet ? Networks.TESTNET : Networks.PUBLIC)
     this.existsCache = makeCache<boolean>()
+    this.balanceCache = makeCache<BalanceResult>()
   }
 
   get networkName() { return this.network }
@@ -159,6 +184,10 @@ export class StellarService {
       isTestnet ? 'https://soroban-testnet.stellar.org' : 'https://soroban.stellar.org',
     ) as rpc.Server
     this.networkPassphrase = isTestnet ? Networks.TESTNET : Networks.PUBLIC
+    // Caches are keyed by address only; the same address has a different
+    // balance on each network, so drop them or the old network's numbers stick.
+    this.existsCache = makeCache<boolean>()
+    this.balanceCache = makeCache<BalanceResult>()
     logger.debug(`[StellarService] network switched to ${this.network}`)
   }
 
@@ -174,7 +203,7 @@ export class StellarService {
   }
 
   async accountExists(publicKey: string, retries = 2): Promise<boolean> {
-    return this.existsCache(publicKey, CACHE_TTL_MS, async () => {
+    const exists = await this.existsCache(publicKey, CACHE_TTL_MS, async () => {
       for (let attempt = 0; attempt <= retries; attempt++) {
         try {
           await withTimeout(this.horizon.loadAccount(publicKey), '[accountExists]', 12000)
@@ -193,18 +222,25 @@ export class StellarService {
       }
       return false
     })
+    // Only "exists" is cached. A missing account appears the moment Friendbot
+    // or a payment funds it — caching "no" made a freshly funded wallet look
+    // absent for 30s, so registration right after onboarding failed.
+    if (!exists) this.existsCache.invalidate(publicKey)
+    return exists
   }
 
   async getBalance(publicKey: string): Promise<BalanceResult> {
     try {
-      const account = await withTimeout(this.horizon.loadAccount(publicKey), '[getBalance]', 12000)
-      const balances = account.balances as any[]
-      const xlmBalance = balances.find((b: any) => b.asset_type === 'native')
-
-      return {
-        xlm: parseFloat(xlmBalance?.balance ?? '0'),
-        subentryCount: (account as any).subentry_count ?? 0,
-      }
+      // Only successful loads are cached; the 0-balance fallback below is not.
+      return await this.balanceCache(publicKey, BALANCE_CACHE_TTL_MS, async () => {
+        const account = await withTimeout(this.horizon.loadAccount(publicKey), '[getBalance]', 12000)
+        const balances = account.balances as any[]
+        const xlmBalance = balances.find((b: any) => b.asset_type === 'native')
+        return {
+          xlm: parseFloat(xlmBalance?.balance ?? '0'),
+          subentryCount: (account as any).subentry_count ?? 0,
+        }
+      })
     } catch (e: any) {
       const status = e?.response?.status ?? e?.response?.statusCode
       const isNotFound = status === 404 || e?.name === 'NotFoundError'
@@ -215,6 +251,107 @@ export class StellarService {
         )
       }
       return { xlm: 0, subentryCount: 0 }
+    }
+  }
+
+  /**
+   * Like getBalance, but a network failure throws instead of reading as 0 XLM.
+   * Use it where "empty" and "couldn't check" need different messages. A
+   * missing (never-funded) account is still a real 0.
+   */
+  async getBalanceStrict(publicKey: string): Promise<BalanceResult> {
+    try {
+      return await this.balanceCache(publicKey, BALANCE_CACHE_TTL_MS, async () => {
+        const account = await withTimeout(this.horizon.loadAccount(publicKey), '[getBalance]', 12000)
+        const native = (account.balances as any[]).find((b: any) => b.asset_type === 'native')
+        return { xlm: parseFloat(native?.balance ?? '0'), subentryCount: (account as any).subentry_count ?? 0 }
+      })
+    } catch (e: any) {
+      const status = e?.response?.status ?? e?.response?.statusCode
+      if (status === 404 || e?.name === 'NotFoundError') return { xlm: 0, subentryCount: 0 }
+      throw e
+    }
+  }
+
+  /** Drop the cached balance for an account after it sends or receives funds. */
+  invalidateBalance(publicKey: string): void {
+    this.balanceCache.invalidate(publicKey)
+  }
+
+  /**
+   * Recent payment history for `publicKey` straight from Horizon. Covers
+   * classic payments, account creation, path payments, and Soroban transfers
+   * (invoke_host_function with asset balance changes). Returns [] for an
+   * unfunded account.
+   */
+  async getPaymentHistory(publicKey: string, limit = 50): Promise<Transaction[]> {
+    try {
+      const page = await withTimeout(
+        this.horizon.payments().forAccount(publicKey).order('desc').limit(limit).join('transactions').call(),
+        '[getPaymentHistory]',
+        15000,
+      )
+      const out: Transaction[] = []
+      for (const r of page.records as any[]) {
+        let amount = 0
+        let assetCode = 'XLM'
+        let direction: 'in' | 'out' = 'out'
+        let counterparty = ''
+        let label = ''
+
+        switch (r.type) {
+          case 'create_account':
+            amount = parseFloat(r.starting_balance)
+            direction = r.account === publicKey ? 'in' : 'out'
+            counterparty = direction === 'in' ? r.funder : r.account
+            label = direction === 'in' ? 'Account funded' : 'Account created'
+            break
+          case 'payment':
+          case 'path_payment_strict_send':
+          case 'path_payment_strict_receive':
+            amount = parseFloat(r.amount)
+            assetCode = r.asset_type === 'native' ? 'XLM' : r.asset_code
+            direction = r.to === publicKey ? 'in' : 'out'
+            counterparty = direction === 'in' ? r.from : r.to
+            label = direction === 'in' ? 'Received' : 'Sent'
+            break
+          case 'invoke_host_function': {
+            const change = (r.asset_balance_changes ?? []).find(
+              (c: any) => c.from === publicKey || c.to === publicKey,
+            )
+            if (!change) continue // contract call with no value moved for us
+            amount = parseFloat(change.amount)
+            assetCode = change.asset_type === 'native' ? 'XLM' : change.asset_code
+            direction = change.to === publicKey ? 'in' : 'out'
+            counterparty = direction === 'in' ? change.from : change.to
+            label = direction === 'in' ? 'Contract payout' : 'Contract payment'
+            break
+          }
+          default:
+            continue
+        }
+
+        const short = counterparty ? `${counterparty.slice(0, 4)}…${counterparty.slice(-4)}` : ''
+        out.push({
+          id: String(r.id),
+          stellarTxHash: r.transaction_hash ?? null,
+          merchantId: counterparty,
+          merchantName: short ? `${label} · ${short}` : label,
+          userId: publicKey,
+          deviceId: '',
+          amountCents: Math.round(amount * 100),
+          assetCode: assetCode as AssetCode,
+          status: r.transaction_successful === false ? 'failed' : 'confirmed',
+          errorMessage: null,
+          createdAt: r.created_at,
+          direction,
+        })
+      }
+      return out
+    } catch (e: any) {
+      const status = e?.response?.status ?? e?.response?.statusCode
+      if (status === 404 || e?.name === 'NotFoundError') return []
+      throw e
     }
   }
 
@@ -273,8 +410,7 @@ export class StellarService {
       const result = await withTimeout(this.horizon.submitTransaction(tx), '[submitPayment]', 20000)
       return { hash: result.hash }
     } catch (err: any) {
-      const msg = err?.response?.data?.detail || err?.response?.data?.title || err?.message || 'Transaction failed'
-      return { error: msg }
+      return { error: horizonErrorText(err) }
     }
   }
 
@@ -318,8 +454,7 @@ export class StellarService {
       const result = await withTimeout(this.horizon.submitTransaction(tx), '[submitCreateAccount]', 20000)
       return { hash: result.hash }
     } catch (err: any) {
-      const msg = err?.response?.data?.detail || err?.response?.data?.title || err?.message || 'Transaction failed'
-      return { error: msg }
+      return { error: horizonErrorText(err) }
     }
   }
 
@@ -359,6 +494,9 @@ export class StellarService {
           const text = await response.text()
           logger.warn('Friendbot error:', text)
           if (text.includes('already') || text.includes('exist')) return true
+          // A gateway error or slow response can still have funded the
+          // account — check before retrying or reporting failure.
+          if (await this.accountExists(publicKey)) return true
           continue
         }
 
@@ -375,10 +513,16 @@ export class StellarService {
       } catch (e: any) {
         if (e.name === 'AbortError') {
           logger.warn('Friendbot timed out — account may still be funding')
+          if (await this.accountExists(publicKey).catch(() => false)) return true
           continue
         }
         logger.warn('Friendbot failed:', e.message)
       }
+    }
+    // The last request may have funded the account after we stopped waiting.
+    for (let i = 0; i < 5; i++) {
+      if (await this.accountExists(publicKey).catch(() => false)) return true
+      await new Promise(r => setTimeout(r, 2000))
     }
     return false
   }
@@ -458,7 +602,7 @@ export class StellarService {
       logger.error(`[invokeContract] simulateTransaction failed for ${params.method}`, {
         error: errMsg,
         xdrPrefix: txXdr.substring(0, 80),
-        source: params.signerSecret.slice(0, 8) + '...',
+        source: sourcePub.slice(0, 8) + '...',
       })
       throw new Error(`Transaction simulation failed: ${errMsg}`)
     }
@@ -540,7 +684,7 @@ export class StellarService {
       logger.error(`[invokeContract] auth signing failed for ${params.method}`, {
         error: errMsg,
         xdrPrefix: txXdr.substring(0, 80),
-        source: params.signerSecret.slice(0, 8) + '...',
+        source: sourcePub.slice(0, 8) + '...',
       })
       throw new Error(`Transaction auth signing failed: ${errMsg}`)
     }
@@ -554,7 +698,7 @@ export class StellarService {
       const errMsg = typeof e === 'object' ? (e?.message ?? e?.data ?? JSON.stringify(e)) : String(e)
       logger.error(`[invokeContract] sendTransaction failed for ${params.method}`, {
         error: errMsg,
-        source: params.signerSecret.slice(0, 8) + '...',
+        source: sourcePub.slice(0, 8) + '...',
       })
       throw new Error(`Failed to submit transaction: ${errMsg}`)
     }

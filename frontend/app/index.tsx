@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { View, ActivityIndicator, Animated, StyleSheet, Image } from 'react-native'
+import { View, Animated, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
-import { LinearGradient } from 'expo-linear-gradient'
 import { useAppStore } from '@/store/useAppStore'
-import { Colors, Spacing, FontSize } from '@/constants/theme'
-import { colorWithOpacity } from '@/constants/designTokens'
+import { hasPassword } from '@/services/appPassword'
+import { Colors, Spacing } from '@/constants/theme'
+import { BrandBackdrop } from '@/components/brand/BrandBackdrop'
+import { BrandMark } from '@/components/brand/BrandMark'
+import { VerifyingPulse } from '@/components/brand/VerifyingPulse'
 
-const NOIR_MARK = require('../assets/noir-mark.png')
 const MIN_SPLASH_MS = 600
 
 export default function Index() {
@@ -29,16 +30,21 @@ export default function Index() {
 
   const opacity = useRef(new Animated.Value(0)).current
   const scale = useRef(new Animated.Value(0.8)).current
-  const glow = useRef(new Animated.Value(0)).current
   const brandOpacity = useRef(new Animated.Value(0)).current
   const brandSlide = useRef(new Animated.Value(20)).current
 
-  const navigate = useCallback(() => {
+  const navigate = useCallback(async () => {
     // Read the store imperatively at navigation time. Using the subscribed
     // `isOnboarded` value risked capturing the pre-hydration default (false)
     // in this closure and bouncing an existing wallet to /onboarding.
     const onboarded = useAppStore.getState().isOnboarded
-    router.replace(onboarded ? '/(tabs)' : '/onboarding')
+    if (!onboarded) {
+      router.replace('/onboarding')
+      return
+    }
+    // Only ask for a secret the user actually set. A wallet created before
+    // the password existed is sent to create one instead of a dead prompt.
+    router.replace((await hasPassword()) ? '/lock' : '/create-password')
   }, [router])
 
   useEffect(() => {
@@ -46,14 +52,13 @@ export default function Index() {
       Animated.parallel([
         Animated.timing(opacity, { toValue: 1, duration: 400, useNativeDriver: true }),
         Animated.spring(scale, { toValue: 1, friction: 6, useNativeDriver: true }),
-        Animated.timing(glow, { toValue: 1, duration: 600, useNativeDriver: true }),
       ]),
       Animated.parallel([
         Animated.timing(brandOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
         Animated.timing(brandSlide, { toValue: 0, duration: 300, useNativeDriver: true }),
       ]),
     ]).start(() => setReadyToRoute(true))
-  }, [opacity, scale, glow, brandOpacity, brandSlide])
+  }, [opacity, scale, brandOpacity, brandSlide])
 
   // Route once the animation finishes, the minimum splash time elapses, AND
   // the persisted store has hydrated (so isOnboarded reflects real state).
@@ -63,36 +68,15 @@ export default function Index() {
     return () => clearTimeout(timer)
   }, [readyToRoute, hydrated, navigate])
 
-  const glowOpacity = glow.interpolate({ inputRange: [0, 1], outputRange: [0, 0.5] })
-
   return (
     <View style={styles.container}>
-      <LinearGradient colors={[Colors.black, Colors.surfaceBg, Colors.black]} style={StyleSheet.absoluteFill} />
-      <LinearGradient
-        colors={['transparent', colorWithOpacity(Colors.gold, 0.02), 'transparent']}
-        locations={[0, 0.5, 1]}
-        style={StyleSheet.absoluteFill}
-      />
-
+      <BrandBackdrop />
       <View style={styles.content}>
         <Animated.View style={{ opacity, transform: [{ scale }] }}>
-          <View style={styles.logoRing}>
-            <Animated.View style={[styles.glow, { opacity: glowOpacity }]} />
-            <Image
-              source={NOIR_MARK}
-              style={{ width: 88, height: 88 }}
-              resizeMode="contain"
-            />
-          </View>
+          <BrandMark />
         </Animated.View>
-
-        <Animated.View style={{ opacity: brandOpacity, transform: [{ translateY: brandSlide }], marginTop: Spacing.lg }}>
-          <Animated.Text style={styles.brandText}>NOIR</Animated.Text>
-          <Animated.Text style={styles.tagline}>TAP INTO TRUST</Animated.Text>
-        </Animated.View>
-
-        <Animated.View style={{ opacity: brandOpacity, marginTop: Spacing.xxl }}>
-          <ActivityIndicator size="small" color={colorWithOpacity(Colors.gold, 0.38)} />
+        <Animated.View style={[styles.loader, { opacity: brandOpacity, transform: [{ translateY: brandSlide }] }]}>
+          <VerifyingPulse size={18} color={Colors.gold} />
         </Animated.View>
       </View>
     </View>
@@ -102,26 +86,5 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surfaceBg },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  logoRing: { position: 'relative', alignItems: 'center', justifyContent: 'center' },
-  glow: {
-    position: 'absolute',
-    width: 140, height: 140, borderRadius: 70,
-    backgroundColor: Colors.gold,
-    top: -26, left: -26,
-  },
-  brandText: {
-    color: Colors.cream,
-    fontSize: FontSize.xxxl,
-    fontWeight: '800',
-    letterSpacing: 14,
-    textAlign: 'center',
-  },
-  tagline: {
-    color: Colors.gold,
-    fontSize: FontSize.xs,
-    letterSpacing: 6,
-    textAlign: 'center',
-    marginTop: Spacing.md,
-    textTransform: 'uppercase',
-  },
+  loader: { position: 'absolute', bottom: Spacing.xxl },
 })
