@@ -149,10 +149,6 @@ vi.mock('@/components/StatusPill', () => ({
   StatusPill: ({ status }: any) => null,
 }))
 
-vi.mock('@/components/SmartTip', () => ({
-  SmartTip: ({ title }: any) => null,
-}))
-
 vi.mock('@/components/BalanceCard', () => ({
   BalanceCard: (props: any) => null,
 }))

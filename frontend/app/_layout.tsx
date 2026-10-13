@@ -57,6 +57,7 @@ import NetInfo from '@react-native-community/netinfo'
 import { logger } from '@/lib/logger'
 import { Colors } from '@/constants/theme'
 import { checkIncomingPayments, initNotifications, registerPaymentBackgroundTask, startBackgroundPolling } from '@/services/paymentNotifier'
+import { startTxMonitor, stopTxMonitor } from '@/services/txMonitor'
 
 SplashScreen.preventAutoHideAsync()
 
@@ -207,6 +208,9 @@ export default function RootLayout() {
 
   // Received-payment alerts while the app is in the background but still running.
   useEffect(() => startBackgroundPolling(), [])
+
+  // Tap and QR payments are queued with a hash; this confirms or fails them once the ledger closes.
+  useEffect(() => { startTxMonitor(); return stopTxMonitor }, [])
 
   // Connectivity listener: flush pending payments on reconnect
   useEffect(() => {

@@ -2,11 +2,6 @@
 # yarn lockfile v1
 
 
-"@adobe/css-tools@^4.4.0":
-  version "4.5.0"
-  resolved "https://registry.npmjs.org/@adobe/css-tools/-/css-tools-4.5.0.tgz"
-  integrity sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q==
-
 "@alloc/quick-lru@^5.2.0":
   version "5.2.0"
   resolved "https://registry.npmjs.org/@alloc/quick-lru/-/quick-lru-5.2.0.tgz"
@@ -1734,18 +1729,6 @@
     smol-toml "^1.6.1"
     uint8array-extras "^1.5.0"
 
-"@testing-library/jest-dom@^6.9.1":
-  version "6.9.1"
-  resolved "https://registry.npmjs.org/@testing-library/jest-dom/-/jest-dom-6.9.1.tgz"
-  integrity sha512-zIcONa+hVtVSSep9UT3jZ5rizo2BsxgyDYU7WFD5eICBE7no3881HGeb/QkGfsJs6JTkY1aQhT7rIPC7e+0nnA==
-  dependencies:
-    "@adobe/css-tools" "^4.4.0"
-    aria-query "^5.0.0"
-    css.escape "^1.5.1"
-    dom-accessibility-api "^0.6.3"
-    picocolors "^1.1.1"
-    redent "^3.0.0"
-
 "@testing-library/react-native@^14.0.1", "@testing-library/react-native@>= 13.2.0":
   version "14.0.1"
   resolved "https://registry.npmjs.org/@testing-library/react-native/-/react-native-14.0.1.tgz"
@@ -2043,11 +2026,6 @@ aria-hidden@^1.2.4:
   integrity sha512-ik3ZgC9dY/lYVVM++OISsaYDeg1tb0VtP5uL3ouh1koGOaUMDPpbFIei4JkFimWUFPn90sbMNMXQAIVOlnYKJA==
   dependencies:
     tslib "^2.0.0"
-
-aria-query@^5.0.0:
-  version "5.3.2"
-  resolved "https://registry.npmjs.org/aria-query/-/aria-query-5.3.2.tgz"
-  integrity sha512-COROpnaoap1E2F000S62r6A60uHZnmlvomhfyT2DlTcrY1OrBKn2UhH7qn5wTC9zMvD0AY7csdPSNwKP+7WiQw==
 
 array-timsort@^1.0.3:
   version "1.0.3"
@@ -2647,11 +2625,6 @@ css-what@^6.1.0:
   resolved "https://registry.npmjs.org/css-what/-/css-what-6.2.2.tgz"
   integrity sha512-u/O3vwbptzhMs3L1fQE82ZSLHQQfto5gyZzwteVIEyeaY5Fc7R4dapF/BvRoSYFeqfBk4m0V1Vafq5Pjv25wvA==
 
-css.escape@^1.5.1:
-  version "1.5.1"
-  resolved "https://registry.npmjs.org/css.escape/-/css.escape-1.5.1.tgz"
-  integrity sha512-YUifsXXuknHlUsmlgyY0PKzgPOr7/FjCePfHNt0jxm83wHZi44VDMQ7/fGNkjY3/jV1MC+1CmZbaHzugyeRtpg==
-
 cssesc@^3.0.0:
   version "3.0.0"
   resolved "https://registry.npmjs.org/cssesc/-/cssesc-3.0.0.tgz"
@@ -2774,11 +2747,6 @@ dnssd-advertise@^1.1.4:
   version "1.1.6"
   resolved "https://registry.npmjs.org/dnssd-advertise/-/dnssd-advertise-1.1.6.tgz"
   integrity sha512-Ndrrf6BMPalkQPd/zubL+4YghH2J9NspapQ09uDXwYbvOPkP0oaqf5CkcwJ0b50kS2O3ul6yVu+jz+RY62Cejg==
-
-dom-accessibility-api@^0.6.3:
-  version "0.6.3"
-  resolved "https://registry.npmjs.org/dom-accessibility-api/-/dom-accessibility-api-0.6.3.tgz"
-  integrity sha512-7ZgogeTnjuHbo+ct10G9Ffp0mif17idi0IyWNVA/wcwcm7NPOD/WEHVP3n7n3MhXqxoIYm8d6MuZohYWIZ4T3w==
 
 dom-serializer@^2.0.0:
   version "2.0.0"
@@ -3232,11 +3200,6 @@ expo-sharing@~57.0.21:
     "@expo/config-plugins" "^57.0.9"
     "@expo/config-types" "^57.0.2"
     "@expo/plist" "^0.8.1"
-
-expo-speech@~57.0.0:
-  version "57.0.0"
-  resolved "https://registry.npmjs.org/expo-speech/-/expo-speech-57.0.0.tgz"
-  integrity sha512-AOTdEkrFEq6t7ilQLOOZbrLkQrLYDSBC8aqcbhQMHgxe89yKqAAJ+r1hE0HqkNeK9YyV0mQ1+XizEmIX/djh5Q==
 
 expo-splash-screen@~57.0.2:
   version "57.0.9"

@@ -43,7 +43,7 @@ Network: `STELLAR_NETWORK=mainnet` for mainnet (default: testnet).
 
 **2. XDR serialization bug**: `@stellar/stellar-sdk` v16's `TransactionBase.toXDR()` calls `this.toEnvelope().toXDR().toString('base64')`. In React Native, js-xdr v4's `.toXDR()` returns a native `Uint8Array` whose `.toString('base64')` is ignored — it produces comma-separated byte values instead of base64. The RPC then fails with "Could not unmarshal transaction."
 
-**Fix**: Both `stellar-service.ts` and `lib/soroban.ts` monkey-patch `TransactionBase.prototype.toXDR` to wrap the bytes in `Buffer.from()` before encoding:
+**Fix**: `stellar-service.ts` monkey-patches `TransactionBase.prototype.toXDR` to wrap the bytes in `Buffer.from()` before encoding:
 
 ```ts
 TransactionBase.prototype.toXDR = function () {
@@ -58,4 +58,3 @@ TransactionBase.prototype.toXDR = function () {
 import { Keypair, TransactionBuilder, Contract, rpc, xdr, ... } from '@stellar/stellar-sdk/axios'
 ```
 
-The old `services/stellar.ts` and `lib/soroban.ts` are kept for backward compatibility with `x402.ts` and `SendScreen` which use `submitPayment`.
