@@ -25,16 +25,10 @@ Tap any NFC tag, RFID sticker, or wearable to pay — no app opens, no confirmat
 ## Screenshots
 
 <div align="center">
-
-<img src="frontend/assets/screenshots/dashboard.png" width="80%" alt="Dashboard">
-<img src="frontend/assets/screenshots/welcome.png" width="80%" alt="Welcome">
-<img src="frontend/assets/screenshots/link.png" width="80%" alt="Device Linking">
-<img src="frontend/assets/screenshots/agent.png" width="80%" alt="x402 Agent">
-<img src="frontend/assets/screenshots/taptopay.png" width="80%" alt="Tap to Pay">
-<img src="frontend/assets/screenshots/send.png" width="80%" alt="Send">
-<img src="frontend/assets/screenshots/receive.png" width="80%" alt="Receive">
-<img src="frontend/assets/screenshots/transactions.png" width="80%" alt="Transactions">
-
+<table>
+<tr><td align="center"><img src="frontend/assets/screenshots/01-wallet.png" width="160" alt="Wallet"><br><sub>Wallet</sub></td><td align="center"><img src="frontend/assets/screenshots/02-link-card.png" width="160" alt="Link a card"><br><sub>Link a card</sub></td><td align="center"><img src="frontend/assets/screenshots/03-agents.png" width="160" alt="Agents"><br><sub>Agents</sub></td><td align="center"><img src="frontend/assets/screenshots/04-card-detail.png" width="160" alt="Card policy"><br><sub>Card policy</sub></td><td align="center"><img src="frontend/assets/screenshots/05-tap-to-pay.png" width="160" alt="Tap to pay"><br><sub>Tap to pay</sub></td></tr>
+<tr><td align="center"><img src="frontend/assets/screenshots/06-receive-nfc.png" width="160" alt="Receive by NFC"><br><sub>Receive by NFC</sub></td><td align="center"><img src="frontend/assets/screenshots/07-send-review.png" width="160" alt="Send"><br><sub>Send</sub></td><td align="center"><img src="frontend/assets/screenshots/08-activity.png" width="160" alt="Activity"><br><sub>Activity</sub></td><td align="center"><img src="frontend/assets/screenshots/09-browse.png" width="160" alt="Browse"><br><sub>Browse</sub></td><td align="center"><img src="frontend/assets/screenshots/10-unlock.png" width="160" alt="Unlock"><br><sub>Unlock</sub></td></tr>
+</table>
 </div>
 
 ## Demo
