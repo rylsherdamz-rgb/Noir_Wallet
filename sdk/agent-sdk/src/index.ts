@@ -1,5 +1,7 @@
-export { NoirAgentClient, refusalReason, cursorLedger } from './client.js'
-export type { NoirAgentPolicy, PaymentCheck, PaymentRefusal, NoirAgentClientOptions, WatchOptions } from './client.js'
+export { NoirAgentClient, refusalReason, cursorLedger, toCall } from './client.js'
+export type {
+  NoirAgentPolicy, PaymentCheck, PaymentRefusal, NoirAgentClientOptions, WatchOptions, NoirOperation, NoirOperationKind,
+} from './client.js'
 export { TESTNET } from './networks.js'
 export type { NoirContracts, NoirNetworkConfig } from './networks.js'
 export { keypairSigner } from './signer.js'
@@ -10,3 +12,4 @@ export { NoirContractError, parseContractError } from './errors.js'
 export { normalizeDeviceHash, deviceHashScVal } from './hash.js'
 export { startWebhookRelay, verifyWebhookSignature, signWebhookBody, SIGNATURE_HEADER, DEFAULT_TOLERANCE_SEC } from './webhook.js'
 export type { WebhookRelayOptions } from './webhook.js'
+export { toHex, fromHex } from './bytes.js'

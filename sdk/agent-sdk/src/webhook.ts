@@ -1,5 +1,6 @@
 import { NoirAgentClient, type WatchOptions } from './client.js'
 import { eventToJSON, type NoirEvent } from './events.js'
+import { toHex } from './bytes.js'
 
 /** Header carrying `t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.<body>">`. */
 export const SIGNATURE_HEADER = 'X-Noir-Signature'
@@ -11,7 +12,7 @@ const enc = new TextEncoder()
 async function hmacHex(secret: string, message: string): Promise<string> {
   const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
   const sig = await crypto.subtle.sign('HMAC', key, enc.encode(message))
-  return Buffer.from(sig).toString('hex')
+  return toHex(sig)
 }
 
 function timingSafeEqualHex(a: string, b: string): boolean {

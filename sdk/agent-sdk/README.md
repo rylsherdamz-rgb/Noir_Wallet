@@ -7,8 +7,10 @@ those policies, check a payment before trying it, run the tap-to-pay
 `authorize` → `claim` flow, and react to every change through events or
 signed webhooks.
 
-Everything lives in Noir's three Soroban contracts, so there is no Noir server
-or API key involved. Works in Node 20+ and the browser.
+Everything lives in Noir's three Soroban contracts, so the SDK needs no Noir
+server or API key. Works in Node 20+, the browser and React Native (no `Buffer`).
+Apps that can't run JavaScript, or want API keys and rate limits in front of
+Noir, can use the REST gateway in [`sdk/noir-api`](../noir-api).
 
 ```bash
 npm install @noir-wallet/agent-sdk @stellar/stellar-sdk
@@ -36,6 +38,7 @@ disagree with what `authorize` will enforce.
 |---|---|
 | `getPolicy(deviceHash)` | the agent policy, or `null` |
 | `getDeviceOwner(deviceHash)` | owner wallet address, or `null` |
+| `listDevices(wallet)` | device hashes registered to a wallet |
 | `getEscrowBalance(deviceHash)` | escrowed amount (`bigint`, smallest unit) |
 | `getPendingBalance(merchant)` | what the merchant can claim |
 | `checkPayment({...})` | `{ ok }` or `{ ok: false, reason }` |
@@ -64,6 +67,28 @@ await noir.claim({ merchant: walletKitSigner, token: asset })
 
 Refusals throw `NoirContractError` with the contract's own error name
 (`AgentNotAuthorized`, `InsufficientBalance`, `DuplicateAuth`, `NothingToClaim`, …).
+
+## Every other operation
+
+`execute(signer, op)` runs any Noir write; the signer is the acting account
+(the agent for `authorize`, the merchant for `claim`, the device owner for the rest).
+
+```ts
+await noir.execute(ownerWallet, {
+  kind: 'registerAgent', deviceHash, agent, asset,
+  maxAmount: 50_000_000n, expiresAt: new Date('2027-01-01'),
+})
+await noir.execute(ownerWallet, { kind: 'fundEscrow', deviceHash, token: asset, amount: 100_000_000n })
+await noir.execute(ownerWallet, { kind: 'defundEscrow', deviceHash, token: asset, amount: 20_000_000n })
+await noir.execute(ownerWallet, { kind: 'revokeAgent', deviceHash })
+```
+
+To sign somewhere else (a hardware key, another service), split it in two:
+
+```ts
+const unsignedXdr = await noir.prepare(ownerAddress, op) // simulated, fees set
+const hash = await noir.submit(signedXdr)                 // waits for confirmation
+```
 
 ## Events
 

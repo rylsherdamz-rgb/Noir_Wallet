@@ -1,5 +1,6 @@
 import { scValToNative, xdr, type rpc } from '@stellar/stellar-sdk'
 import type { NoirContracts } from './networks.js'
+import { toHex } from './bytes.js'
 
 /**
  * Every state change the three Noir contracts publish, decoded. These are the
@@ -49,7 +50,7 @@ const TOPICS: Record<keyof NoirContracts, Record<string, NoirEventType>> = {
   },
 }
 
-const hex = (v: xdr.ScVal) => Buffer.from(scValToNative(v) as Uint8Array).toString('hex')
+const hex = (v: xdr.ScVal) => toHex(scValToNative(v) as Uint8Array)
 const addr = (v: xdr.ScVal) => String(scValToNative(v))
 const amount = (v: xdr.ScVal) => BigInt(scValToNative(v) as bigint | number)
 

@@ -1,4 +1,5 @@
-import { xdr } from '@stellar/stellar-sdk'
+import { nativeToScVal, type xdr } from '@stellar/stellar-sdk'
+import { fromHex } from './bytes.js'
 
 const HEX_32 = /^[0-9a-f]{64}$/
 
@@ -10,5 +11,5 @@ export function normalizeDeviceHash(deviceHash: string): string {
 }
 
 export function deviceHashScVal(deviceHash: string): xdr.ScVal {
-  return xdr.ScVal.scvBytes(Buffer.from(normalizeDeviceHash(deviceHash), 'hex'))
+  return nativeToScVal(fromHex(normalizeDeviceHash(deviceHash)), { type: 'bytes' })
 }

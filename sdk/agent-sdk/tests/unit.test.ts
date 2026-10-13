@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { Address, Contract, Keypair, nativeToScVal, xdr, type rpc } from '@stellar/stellar-sdk'
+import { Address, Contract, Keypair, nativeToScVal, scValToNative, xdr, type rpc } from '@stellar/stellar-sdk'
 import {
   TESTNET, cursorLedger, decodeEvent, eventToJSON, refusalReason, normalizeDeviceHash, parseContractError,
   signWebhookBody, verifyWebhookSignature, startWebhookRelay, SIGNATURE_HEADER, keypairSigner,
+  toCall, toHex, fromHex,
   type NoirAgentPolicy, type NoirEvent, type NoirAgentClient,
 } from '../src/index.js'
 
@@ -130,5 +131,44 @@ describe('webhooks', () => {
     await onEvent(event)
     expect(results[1]).toMatchObject({ ok: false, status: 400, attempts: 1 })
     expect(calls).toHaveLength(3) // no retry after the 400
+  })
+})
+
+describe('toCall', () => {
+  const owner = Keypair.random().publicKey()
+  const native = (v: xdr.ScVal) => scValToNative(v)
+
+  it('puts the acting account where each contract expects it', () => {
+    const auth = toCall(agent, { kind: 'authorize', deviceHash: HASH, merchant, asset, amount: 5n, nonce: 7n })
+    expect(auth.contract).toBe('paymentEscrow')
+    expect(auth.method).toBe('authorize')
+    const [who, device, ...rest] = auth.args.map(native)
+    expect(who).toBe(agent)
+    expect(toHex(device as Uint8Array)).toBe(HASH)
+    expect(rest).toEqual([merchant, asset, 5n, 7n])
+
+    const claim = toCall(merchant, { kind: 'claim', token: asset })
+    expect(claim.args.map(native)).toEqual([asset, merchant])
+
+    const fund = toCall(owner, { kind: 'fundEscrow', deviceHash: HASH, token: asset, amount: 9n })
+    expect(fund.method).toBe('fund_escrow')
+    expect(fund.args.map(native)[1]).toBe(owner)
+  })
+
+  it('encodes a policy expiry as unix seconds, or 0 for none', () => {
+    const at = new Date('2030-01-01T00:00:00Z')
+    const reg = toCall(owner, { kind: 'registerAgent', deviceHash: HASH, agent, asset, maxAmount: 10n, expiresAt: at })
+    expect(reg.contract).toBe('agentRegistry')
+    expect(native(reg.args[5])).toBe(BigInt(at.getTime() / 1000))
+    const forever = toCall(owner, { kind: 'registerAgent', deviceHash: HASH, agent, asset, maxAmount: 0n })
+    expect(native(forever.args[5])).toBe(0n)
+  })
+})
+
+describe('hex helpers', () => {
+  it('round-trips bytes without Buffer', () => {
+    const bytes = Uint8Array.from([0, 1, 15, 16, 255])
+    expect(toHex(bytes)).toBe('00010f10ff')
+    expect(fromHex('00010f10ff')).toEqual(bytes)
   })
 })
