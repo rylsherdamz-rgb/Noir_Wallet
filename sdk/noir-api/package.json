@@ -1,0 +1,25 @@
+{
+  "name": "@noir-wallet/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-hostable REST gateway for Noir: API keys, scopes, rate limits and webhooks in front of the Noir Soroban contracts.",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "setup": "npm --prefix ../agent-sdk ci && npm --prefix ../agent-sdk run build && npm ci",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "keygen": "node dist/keygen.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@noir-wallet/agent-sdk": "file:../agent-sdk"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.9"
+  }
+}
