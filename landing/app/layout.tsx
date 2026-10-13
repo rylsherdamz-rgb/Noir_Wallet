@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   description: DESCRIPTION,
   applicationName: SITE_NAME,
   keywords: KEYWORDS,
-  authors: [{ name: 'Richie Christian De Guzman' }, { name: 'Johnrick Rabara' }, { name: 'Jefferson Tuparan' }],
+  authors: [{ name: 'Richie Christian De Guzman' }],
   creator: 'Noir',
   publisher: 'Noir',
   category: 'finance',
