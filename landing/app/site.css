@@ -1,0 +1,105 @@
+/* ==========================================================================
+   Noir — additions for the Next.js site: developers section, FAQ, code
+   blocks and the docs. Same tokens as globals.css.
+   ========================================================================== */
+
+.site-nav a[aria-current='page'] { color: var(--cream); }
+
+/* Developers */
+.developers, .faq { padding: 120px 0; }
+.dev-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.dev-card {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 28px; border: 1px solid var(--line); border-radius: 20px; background: var(--card);
+  color: var(--silver); transition: border-color .2s var(--ease), transform .2s var(--ease);
+}
+.dev-card:hover { color: var(--silver); border-color: var(--border); transform: translateY(-2px); }
+.dev-card h3 { font-size: 20px; }
+.dev-card p { color: var(--muted); font-size: 15px; flex: 1; }
+.dev-card .text-link { color: var(--gold); font-size: 15px; }
+.dev-code { margin-top: 32px; }
+.dev-code .note { margin-top: 16px; }
+
+/* FAQ */
+.faq-list details { border-top: 1px solid var(--line); }
+.faq-list details:last-child { border-bottom: 1px solid var(--line); }
+.faq-list summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 22px 0; cursor: pointer; list-style: none;
+  font-family: var(--font-display); font-weight: 500; font-size: 18px; color: var(--cream);
+}
+.faq-list summary::-webkit-details-marker { display: none; }
+.faq-list summary .icon { color: var(--gold); transition: transform .2s var(--ease); }
+.faq-list details[open] summary .icon { transform: rotate(180deg); }
+.faq-list details p { padding: 0 0 24px; color: var(--muted); max-width: 60ch; }
+
+/* Code blocks */
+.code { margin: 20px 0; border: 1px solid var(--line); border-radius: 14px; background: #0F0F0F; overflow: hidden; }
+.code-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 8px 8px 16px; border-bottom: 1px solid var(--line);
+  font-family: var(--font-mono); font-size: 12px; color: var(--muted);
+}
+.code-copy {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 10px;
+  border: 0; border-radius: 8px; background: transparent; color: var(--muted); font: inherit; cursor: pointer;
+}
+.code-copy:hover { background: var(--mid); color: var(--cream); }
+.code pre { margin: 0; padding: 16px; overflow-x: auto; font-family: var(--font-mono); font-size: 13.5px; line-height: 1.65; color: var(--cream); }
+.code pre code { background: none; padding: 0; font-size: inherit; }
+
+/* Docs */
+.docs-shell { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 64px; padding-top: 56px; padding-bottom: 120px; }
+.docs-nav { position: sticky; top: 104px; align-self: start; }
+.docs-nav-title { margin-bottom: 12px; font-family: var(--font-display); font-size: 12px; letter-spacing: .24em; text-transform: uppercase; color: var(--gold); }
+.docs-nav a { display: block; padding: 8px 12px; margin-left: -12px; border-radius: 10px; color: var(--muted); font-size: 15px; }
+.docs-nav a:hover { color: var(--cream); background: var(--card); }
+.docs-nav a[aria-current='page'] { color: var(--cream); background: var(--mid); }
+
+.doc { max-width: 760px; }
+.doc h1 { font-size: clamp(36px, 5vw, 52px); line-height: 1.05; letter-spacing: -.02em; }
+.doc-lede { margin-top: 16px; font-size: 18px; color: var(--muted); }
+.doc-body { margin-top: 40px; }
+.doc-body > p, .doc-body section > p { margin: 16px 0; }
+.doc-body h2 { margin: 56px 0 8px; font-size: 26px; letter-spacing: -.01em; scroll-margin-top: 96px; }
+.doc-body h3 { margin: 32px 0 4px; scroll-margin-top: 96px; }
+.doc-body h2 code { font-size: .8em; }
+.doc-list { margin: 16px 0; display: grid; gap: 10px; }
+.doc-list li { position: relative; padding-left: 20px; }
+.doc-list li::before { content: ''; position: absolute; left: 2px; top: .7em; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); }
+.doc-steps { counter-reset: s; }
+.doc-steps li { padding-left: 32px; counter-increment: s; }
+.doc-steps li::before { content: counter(s); top: 0; width: auto; height: auto; background: none; font-family: var(--font-mono); font-size: 13px; color: var(--gold); line-height: 1.85; }
+.doc-callout { margin-top: 40px !important; padding: 16px 20px; border-left: 2px solid var(--gold); background: var(--card); border-radius: 0 12px 12px 0; color: var(--muted); }
+.doc-errors { font-size: 14px; color: var(--muted); }
+.doc-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
+.doc-card { display: flex; flex-direction: column; gap: 6px; padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); color: var(--silver); }
+.doc-card:hover { border-color: var(--gold); color: var(--silver); }
+.doc-card b { font-family: var(--font-display); font-weight: 600; color: var(--cream); }
+.doc-card span { font-size: 14px; color: var(--muted); }
+
+.doc-table { width: 100%; min-width: 520px; margin: 16px 0; border-collapse: collapse; font-size: 14.5px; }
+.doc-table th, .doc-table td { padding: 12px 12px 12px 0; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+.doc-table thead th { font-family: var(--font-display); font-weight: 500; font-size: 13px; color: var(--muted); }
+.doc-table td { color: var(--silver); }
+.verb { display: inline-block; min-width: 56px; font-family: var(--font-mono); font-size: 12px; font-weight: 600; }
+.verb-get { color: var(--success); }
+.verb-post { color: var(--gold); }
+.verb-delete { color: #F06C6C; }
+.break { word-break: break-all; }
+
+.doc-pager { display: flex; justify-content: space-between; gap: 16px; margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line); }
+.doc-pager a { display: flex; flex-direction: column; gap: 2px; font-family: var(--font-display); font-weight: 500; color: var(--cream); }
+.doc-pager a.next { align-items: flex-end; text-align: right; flex-direction: column; }
+.doc-pager small { font-family: var(--font-body); font-size: 13px; color: var(--muted); }
+.doc-pager .icon { display: inline; vertical-align: middle; }
+
+@media (max-width: 900px) {
+  .developers, .faq { padding: 88px 0; }
+  .dev-grid { grid-template-columns: 1fr; }
+  .docs-shell { grid-template-columns: 1fr; gap: 24px; padding-top: 32px; }
+  .docs-nav { position: static; }
+  .docs-nav ul { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
+  .docs-nav a { margin-left: 0; white-space: nowrap; }
+  .doc-cards { grid-template-columns: 1fr; }
+}

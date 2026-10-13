@@ -66,6 +66,7 @@ Build order matters: `agent_registry` + `device_registry` WASM before `payment_e
     redeploy, grep the repo for the old IDs and propagate the new ones everywhere
     (README, `frontend/.env` + `.env.example`, `docs/stellar-development-guide.md`,
     `docs/Evidence/README.md`, `Noir/DeviceRegistry.md`/`AgentRegistry.md`/`PaymentEscrow.md`,
+    `landing/lib/site.ts`, `sdk/agent-sdk/src/networks.ts`,
     PROGRESS.md). `scripts/redeploy-contracts.sh UPDATE_ENV=1` auto-patches `frontend/.env`
     only — the docs above are manual.
 - Contract tests: 45 passing, 0 failed (`cargo test` from `backend/`). `payment_escrow.fund_escrow`
