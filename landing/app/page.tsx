@@ -4,7 +4,7 @@ import { Icon } from '@/components/Icons'
 import { CodeBlock } from '@/components/CodeBlock'
 import { JsonLd } from '@/components/JsonLd'
 import {
-  APK_URL, CONTRACTS, DEMO_ON_X, DESCRIPTION, RELEASE_URL, REPO, REPO_BLOB, SITE_NAME, SITE_URL, asset,
+  APK_URL, CONTRACTS, DEMO_ON_X, DESCRIPTION, RELEASE_LABEL, RELEASE_URL, REPO, REPO_BLOB, SITE_NAME, SITE_URL, asset,
 } from '@/lib/site'
 
 export const metadata: Metadata = { alternates: { canonical: `${SITE_URL}/` } }
@@ -47,7 +47,7 @@ export default function Home() {
     operatingSystem: 'Android',
     applicationCategory: 'FinanceApplication',
     downloadUrl: APK_URL,
-    softwareVersion: '1.0.0-testnet',
+    softwareVersion: '1.0.0-beta',
     license: `${REPO_BLOB}/LICENSE`,
     image: `${SITE_URL}/og.png`,
     screenshot: `${SITE_URL}/assets/images/tour/04-dashboard.png`,
@@ -79,7 +79,7 @@ export default function Home() {
               <Link className="btn btn-ghost" href="/docs/">Build with Noir</Link>
             </div>
             <p className="dl-note">
-              v1.0.0 · Stellar Testnet · Android APK · <a href={RELEASE_URL} target="_blank" rel="noopener">Release notes</a> · Google Play coming soon
+              {RELEASE_LABEL} · Stellar Testnet · Android APK · <a href={RELEASE_URL} target="_blank" rel="noopener">Release notes</a> · Google Play coming soon
             </p>
             <dl className="hero-facts">
               <div><dt>Settlement</dt><dd>~5s ledgers</dd></div>
@@ -427,7 +427,7 @@ export default function Home() {
             <span className="btn btn-soon" role="note" aria-label="Google Play: coming soon"><Icon name="play" size="xs" />Google Play · Coming soon</span>
             <a className="btn btn-ghost" href={REPO} target="_blank" rel="noopener">Explore the repo</a>
           </div>
-          <p className="dl-note">v1.0.0 · Stellar Testnet · Android APK · <a href={RELEASE_URL} target="_blank" rel="noopener">Release notes</a></p>
+          <p className="dl-note">{RELEASE_LABEL} · Stellar Testnet · Android APK · <a href={RELEASE_URL} target="_blank" rel="noopener">Release notes</a></p>
           <a className="text-link" href={`${REPO}/raw/main/ppt/Noir-Wallet-Pitch.pptx`} target="_blank" rel="noopener">View the pitch deck <Icon name="arrow" size="xs" /></a>
         </div>
       </section>

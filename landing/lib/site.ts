@@ -15,9 +15,11 @@ export const DESCRIPTION =
 export const REPO = 'https://github.com/rylsherdamz-rgb/Noir_Wallet'
 export const REPO_TREE = `${REPO}/tree/main`
 export const REPO_BLOB = `${REPO}/blob/main`
-export const RELEASE_TAG = 'v1.0.0-testnet'
+/** Latest GitHub release ("Beta Testing"). On a new release, update the tag, asset name and label together. */
+export const RELEASE_TAG = 'Beta-Testing'
+export const RELEASE_LABEL = 'Beta 1.0.0'
 export const RELEASE_URL = `${REPO}/releases/tag/${RELEASE_TAG}`
-export const APK_URL = `${REPO}/releases/download/${RELEASE_TAG}/Noir-1.0.0-testnet.apk`
+export const APK_URL = `${REPO}/releases/download/${RELEASE_TAG}/app-release.apk`
 export const DEMO_ON_X = 'https://x.com/ChichiCode0/status/2083815952635093215'
 
 /** Live Stellar Testnet deployment (see deploy-evidence/ in the repo). */
