@@ -395,21 +395,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* STACK + TEAM */}
+      {/* STACK */}
       <section className="about">
-        <div className="container about-grid">
+        <div className="container">
           <div className="reveal">
             <p className="kicker">Stack</p>
             <ul className="stack">
               {['Stellar', 'Soroban · Rust', 'React Native', 'Expo', 'TypeScript', 'NativeWind', 'Zustand', '@stellar/stellar-sdk', 'react-native-nfc-manager', 'Vitest', 'Next.js'].map((s) => <li key={s}>{s}</li>)}
-            </ul>
-          </div>
-          <div className="reveal" id="team">
-            <p className="kicker">Team</p>
-            <ul className="team">
-              <li><span className="initials" aria-hidden="true">RD</span><div><b>Richie Christian De Guzman</b><small>Fullstack developer</small></div></li>
-              <li><span className="initials" aria-hidden="true">JR</span><div><b>Johnrick Rabara</b><small>Backend developer</small></div></li>
-              <li><span className="initials" aria-hidden="true">JT</span><div><b>Jefferson Tuparan</b><small>UI/UX designer</small></div></li>
             </ul>
           </div>
         </div>
