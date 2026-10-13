@@ -9,9 +9,6 @@ type IoniconName = keyof typeof Ionicons.glyphMap
 function TabIcon({ name, color, focused }: { name: IoniconName; color: ColorValue; focused: boolean }) {
   return (
     <View style={styles.tabIcon}>
-      <View style={styles.signalSlot}>
-        {focused && <View style={styles.signalDot} />}
-      </View>
       <Ionicons name={name} size={22} color={color} />
     </View>
   )
@@ -35,10 +32,8 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors.gold,
         tabBarInactiveTintColor: Colors.mutedWhite,
         tabBarLabelStyle: {
-          fontFamily: Fonts.displayMd,
-          fontSize: FontSize.xs,
-          letterSpacing: 0.8,
-          textTransform: 'uppercase',
+          fontSize: 11,
+          fontWeight: '500',
           marginBottom: 4,
         },
       }}
@@ -58,10 +53,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="devices"
+        name="browse"
         options={{
-          title: 'Devices',
-          tabBarIcon: ({ color, focused }) => <TabIcon name="hardware-chip-outline" color={color} focused={focused} />,
+          title: 'Browse',
+          tabBarIcon: ({ color, focused }) => <TabIcon name="compass-outline" color={color} focused={focused} />,
         }}
       />
       <Tabs.Screen

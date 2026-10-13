@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Noir Wallet — Announcement Pubmat Editor</title>
+<link href="fonts-inline.css" rel="stylesheet">
+<style>
+  :root {
+    --black: #050505;
+    --panel: #121212;
+    --panel-2: #1A1A1A;
+    --border: #2E2E2E;
+    --border-2: #3A3A3A;
+    --gold: #C6A15B;
+    --gold-hi: #E9C482;
+    --cream: #EDE4D0;
+    --white: #FFFFFF;
+    --muted: #A9A9A9;
+    --dim: #666666;
+    --green: #3ED598;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Jost', system-ui, sans-serif;
+    background: #0A0A0A;
+    color: var(--cream);
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ---------- Control panel ---------- */
+  .panel {
+    width: 380px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 22px;
+    overflow-y: auto;
+    height: 100vh;
+  }
+  .panel h1 { font-size: 20px; font-weight: 600; color: var(--cream); letter-spacing: 0.3px; }
+  .panel h1 .g { color: var(--gold); }
+  .panel .sub { font-size: 13px; color: var(--dim); margin-top: 4px; margin-bottom: 20px; }
+
+  .group { margin-bottom: 20px; }
+  .group > label { display: block; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+
+  input[type="text"], textarea {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--border-2);
+    border-radius: 8px;
+    color: var(--cream);
+    font-family: inherit;
+    font-size: 14px;
+    padding: 10px 12px;
+    resize: vertical;
+  }
+  input[type="text"]:focus, textarea:focus { outline: none; border-color: var(--gold); }
+  textarea { min-height: 70px; line-height: 1.4; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  .hint { font-size: 11px; color: var(--dim); margin-top: 5px; }
+
+  /* segmented controls */
+  .seg { display: flex; gap: 6px; }
+  .seg button {
+    flex: 1;
+    background: var(--panel-2);
+    border: 1px solid var(--border-2);
+    color: var(--muted);
+    border-radius: 8px;
+    padding: 9px 6px;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .seg button:hover { border-color: var(--gold); color: var(--cream); }
+  .seg button.active { background: var(--gold); color: #1a1509; border-color: var(--gold); font-weight: 600; }
+
+  /* accent swatches */
+  .swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+  .swatch { width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform .1s; }
+  .swatch:hover { transform: scale(1.1); }
+  .swatch.active { border-color: var(--white); }
+
+  .upload-btn, .export-btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border-2);
+    background: var(--panel-2);
+    color: var(--cream);
+    transition: all .15s;
+  }
+  .upload-btn:hover { border-color: var(--gold); }
+  .export-btn {
+    background: var(--gold);
+    color: #1a1509;
+    border-color: var(--gold);
+    font-weight: 600;
+    margin-top: 6px;
+  }
+  .export-btn:hover { background: var(--gold-hi); }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: var(--muted); }
+  .toggle-row input { width: 16px; height: 16px; accent-color: var(--gold); }
+
+  /* ---------- Preview stage ---------- */
+  .canvas-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    overflow: auto;
+    background:
+      radial-gradient(60% 60% at 50% 30%, #131313 0%, #0A0A0A 70%);
+  }
+  .stage-scaler { transform-origin: center center; }
+
+  /* Clean minimalist: near-flat black, no grid/rings/glows, generous margins */
+  .stage {
+    position: relative;
+    overflow: hidden;
+    font-family: 'Jost', sans-serif;
+    background: #0A0908;
+    color: var(--cream);
+  }
+  /* one subtle directional wash — barely there, not a spotlight */
+  .stage::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(198,161,91,0.06) 0%, rgba(198,161,91,0) 42%);
+    pointer-events: none;
+  }
+
+  /* thin top hairline instead of a full rounded frame */
+  .topbar {
+    position: absolute; left: var(--pad); right: var(--pad); top: var(--pad);
+    display: flex; align-items: center; justify-content: space-between;
+    color: var(--dim);
+  }
+  .topbar .brandmini { display: flex; align-items: center; gap: 12px; font-weight: 500; font-size: 22px; letter-spacing: 0.4px; }
+  .topbar .brandmini .noir { color: var(--cream); }
+  .topbar .brandmini .wallet { color: var(--acc, #C6A15B); }
+  .topbar .brandmini img { width: 34px; height: 34px; object-fit: contain; }
+  .topbar .brandmini img.knockout { mix-blend-mode: screen; }
+  .topbar .site { font-weight: 400; font-size: 19px; letter-spacing: 0.6px; }
+
+  /* left-aligned content block, vertically centered, lots of air */
+  .wrap {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: flex-start; justify-content: center;
+    text-align: left;
+    padding: 0 var(--pad);
+  }
+  .badge {
+    display: inline-flex; align-items: center; gap: 12px;
+    font-weight: 500; font-size: 20px;
+    letter-spacing: 4px; text-transform: uppercase;
+    color: var(--acc, #C6A15B);
+  }
+  .badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--acc, #C6A15B); }
+  .headline {
+    margin-top: 28px;
+    font-weight: 600; font-size: 104px; line-height: 1.0; letter-spacing: -3px;
+    color: var(--white);
+    max-width: 15ch;
+  }
+  .headline .accent { color: var(--acc, #C6A15B); }
+  .program { margin-top: 26px; font-weight: 500; font-size: 34px; letter-spacing: 0.2px; color: var(--cream); }
+  .subhead { margin-top: 22px; font-weight: 400; font-size: 25px; line-height: 1.55; color: var(--muted); max-width: 60ch; }
+
+  /* footer: single quiet line, left-aligned */
+  .footer {
+    position: absolute; left: var(--pad); bottom: var(--pad);
+    display: flex; align-items: center; gap: 16px;
+    color: var(--dim);
+  }
+  .footer .handle { font-weight: 500; font-size: 21px; letter-spacing: 0.8px; color: var(--muted); }
+  .footer .sep { width: 1px; height: 18px; background: var(--border-2); }
+  .footer .tag { font-weight: 400; font-size: 19px; letter-spacing: 0.4px; }
+
+  /* legacy hooks kept so JS bindings don't break (hidden) */
+  .lockup, .rule, .grid, .frame { display: none; }
+
+  [contenteditable]:focus { outline: 1px dashed rgba(198,161,91,0.5); outline-offset: 4px; }
+
+  /* ---------- drag system ---------- */
+  /* draggable wrappers get a movable handle in move mode */
+  .draggable { position: relative; }
+  /* MOVE MODE: show grab affordances, disable text editing selection */
+  .stage.move-mode .draggable {
+    cursor: grab;
+    outline: 1px dashed rgba(198,161,91,0.28);
+    outline-offset: 8px;
+    border-radius: 6px;
+    transition: outline-color .12s;
+  }
+  .stage.move-mode .draggable:hover { outline-color: rgba(198,161,91,0.7); }
+  .stage.move-mode .draggable.dragging { cursor: grabbing; outline-color: var(--gold); }
+  /* in move mode, text is not editable/selectable so drags never select text */
+  .stage.move-mode [contenteditable] { pointer-events: none; }
+  .stage.move-mode .draggable { pointer-events: auto; }
+
+  /* alignment guides shown while dragging */
+  .guide { position: absolute; background: var(--gold); opacity: 0; pointer-events: none; z-index: 50; }
+  .guide.v { width: 1px; top: 0; bottom: 0; }
+  .guide.h { height: 1px; left: 0; right: 0; }
+  .guide.show { opacity: 0.6; }
+</style>
+</head>
+<body>
+  <!-- ================= CONTROL PANEL ================= -->
+  <aside class="panel">
+    <h1>Noir <span class="g">Announcement</span></h1>
+    <div class="sub">Edit the text, tweak the design, export a PNG. Click text in the preview to edit it directly too.</div>
+
+    <div class="group">
+      <label>Badge</label>
+      <input type="text" id="i-badge" value="Award Winner">
+    </div>
+
+    <div class="group">
+      <label>Headline</label>
+      <input type="text" id="i-h1" value="Winner of the" placeholder="line 1">
+      <div style="height:8px"></div>
+      <input type="text" id="i-h2" value="Stellar i³ Award" placeholder="line 2 (accent color)">
+    </div>
+
+    <div class="group">
+      <label>Program / Subline</label>
+      <input type="text" id="i-program" value="by the Stellar Development Foundation">
+    </div>
+
+    <div class="group">
+      <label>Subhead</label>
+      <textarea id="i-subhead">Noir Wallet has been awarded a Stellar i³ Award by the Stellar Development Foundation. We're building x402 contactless payments on Stellar and Soroban: tap and go, no app, no confirm.</textarea>
+    </div>
+
+    <div class="group">
+      <label>Wordmark</label>
+      <div class="row">
+        <input type="text" id="i-wm1" value="NOIR">
+        <input type="text" id="i-wm2" value="WALLET">
+      </div>
+    </div>
+
+    <div class="group">
+      <label>Footer</label>
+      <div class="row">
+        <input type="text" id="i-handle" value="@ChichiCode0">
+        <input type="text" id="i-tag" value="noirwallet.app">
+      </div>
+    </div>
+
+    <div class="group">
+      <label>Logo / Image</label>
+      <button class="upload-btn" id="upload-btn">⬆ Upload logo</button>
+      <input type="file" id="i-logo" accept="image/*" style="display:none">
+      <div style="height:10px"></div>
+      <div class="toggle-row">
+        <span>Knock out black background</span>
+        <input type="checkbox" id="i-knockout" checked>
+      </div>
+      <div class="hint">Turn on for logos on a solid black backdrop (like the default cat logo).</div>
+    </div>
+
+    <div class="group">
+      <label>Accent Color</label>
+      <div class="swatches" id="swatches"></div>
+      <div style="height:10px"></div>
+      <input type="text" id="i-accent" value="#C6A15B" placeholder="#RRGGBB">
+    </div>
+
+    <div class="group">
+      <label>Platform Preset</label>
+      <div class="seg" id="platform-seg">
+        <button data-w="1600" data-h="900" data-p="x">𝕏</button>
+        <button data-w="1200" data-h="1200" data-p="fb">Facebook</button>
+        <button data-w="1200" data-h="627" data-p="li">LinkedIn</button>
+      </div>
+      <div class="hint" id="platform-hint">𝕏 1600×900 · Facebook 1200×1200 · LinkedIn 1200×627 — each platform's recommended feed size.</div>
+    </div>
+
+    <div class="group">
+      <label>Aspect Ratio</label>
+      <div class="seg" id="ratio-seg">
+        <button data-w="1200" data-h="1200">1:1</button>
+        <button data-w="1080" data-h="1350">4:5</button>
+        <button data-w="1600" data-h="900">16:9</button>
+        <button data-w="1200" data-h="627">1.91:1</button>
+      </div>
+      <div class="hint">1:1 & 4:5 fill the most feed space on FB/IG. 16:9 for 𝕏. 1.91:1 for LinkedIn / link cards.</div>
+    </div>
+
+    <div class="group">
+      <label>Canvas Mode</label>
+      <div class="seg" id="mode-seg">
+        <button data-mode="edit" class="active">✎ Edit text</button>
+        <button data-mode="move">✥ Move elements</button>
+      </div>
+      <div class="hint">Switch to <b>Move</b> to drag any element (badge, headline, subhead, brand bar, footer). Hold <b>Shift</b> while dragging to lock to one axis. Positions are saved into the export.</div>
+      <div style="height:10px"></div>
+      <button class="upload-btn" id="reset-layout">↺ Reset layout</button>
+    </div>
+
+    <div class="group">
+      <label>Export Scale</label>
+      <div class="seg" id="scale-seg">
+        <button data-scale="1">1×</button>
+        <button data-scale="2" class="active">2×</button>
+        <button data-scale="3">3×</button>
+      </div>
+    </div>
+
+    <button class="export-btn" id="export">⬇ Download PNG</button>
+  </aside>
+
+  <!-- ================= PREVIEW ================= -->
+  <div class="canvas-area">
+    <div class="stage-scaler" id="scaler">
+      <div class="stage" id="stage">
+        <div class="grid"></div>
+        <div class="frame"></div>
+
+        <div class="guide v" id="guide-v"></div>
+        <div class="guide h" id="guide-h"></div>
+
+        <div class="topbar draggable" data-drag="topbar">
+          <div class="brandmini">
+            <img id="p-logo" class="knockout" src="logo.jpg" alt="Noir Wallet">
+            <span><span class="noir" id="p-wm1">NOIR</span> <span class="wallet" id="p-wm2">WALLET</span></span>
+          </div>
+          <div class="site" id="p-tag">noirwallet.app</div>
+        </div>
+
+        <div class="wrap">
+          <div class="badge draggable" data-drag="badge"><span class="dot"></span><span id="p-badge" contenteditable="true">Award Winner</span></div>
+          <div class="headline draggable" data-drag="headline"><span id="p-h1" contenteditable="true">Winner of the</span> <span class="accent" id="p-h2" contenteditable="true">Stellar i³ Award</span></div>
+          <div class="program draggable" data-drag="program" id="p-program" contenteditable="true">by the Stellar Development Foundation</div>
+          <div class="subhead draggable" data-drag="subhead" id="p-subhead" contenteditable="true">Noir Wallet has been awarded a Stellar i³ Award by the Stellar Development Foundation. We're building x402 contactless payments on Stellar and Soroban: tap and go, no app, no confirm.</div>
+        </div>
+
+        <div class="footer draggable" data-drag="footer">
+          <span class="handle" id="p-handle">@ChichiCode0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    const stage = $('stage');
+    const scaler = $('scaler');
+    let baseW = 1200, baseH = 1200;
+
+    // ---------- two-way bind: input <-> preview ----------
+    function bind(inputId, previewId) {
+      const inp = $(inputId), prev = $(previewId);
+      inp.addEventListener('input', () => { prev.textContent = inp.value; });
+      prev.addEventListener('input', () => { inp.value = prev.textContent; });
+    }
+    bind('i-badge', 'p-badge');
+    bind('i-h1', 'p-h1');
+    bind('i-h2', 'p-h2');
+    bind('i-program', 'p-program');
+    bind('i-subhead', 'p-subhead');
+    bind('i-wm1', 'p-wm1');
+    bind('i-wm2', 'p-wm2');
+    bind('i-handle', 'p-handle');
+    bind('i-tag', 'p-tag');
+
+    // ---------- logo upload ----------
+    $('upload-btn').addEventListener('click', () => $('i-logo').click());
+    $('i-logo').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => { $('p-logo').src = ev.target.result; };
+      reader.readAsDataURL(file);
+    });
+    $('i-knockout').addEventListener('change', e => {
+      $('p-logo').classList.toggle('knockout', e.target.checked);
+    });
+
+    // ---------- accent color ----------
+    const presets = ['#C6A15B', '#E9C482', '#3ED598', '#5AA9E6', '#B47CFF', '#FF7A7A', '#F5A623', '#FFFFFF'];
+    function hiOf(hex) {
+      // lighten ~18% for the badge text highlight
+      const n = hex.replace('#',''); if (n.length !== 6) return hex;
+      const r = Math.min(255, parseInt(n.slice(0,2),16) + 40);
+      const g = Math.min(255, parseInt(n.slice(2,4),16) + 40);
+      const b = Math.min(255, parseInt(n.slice(4,6),16) + 40);
+      return '#' + [r,g,b].map(v => v.toString(16).padStart(2,'0')).join('');
+    }
+    function applyAccent(hex) {
+      stage.style.setProperty('--acc', hex);
+      stage.style.setProperty('--acc-hi', hiOf(hex));
+      $('i-accent').value = hex;
+      document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('active', s.dataset.c.toLowerCase() === hex.toLowerCase()));
+    }
+    const sw = $('swatches');
+    presets.forEach(c => {
+      const d = document.createElement('div');
+      d.className = 'swatch'; d.dataset.c = c; d.style.background = c;
+      d.addEventListener('click', () => applyAccent(c));
+      sw.appendChild(d);
+    });
+    $('i-accent').addEventListener('input', e => {
+      const v = e.target.value.trim();
+      if (/^#[0-9a-fA-F]{6}$/.test(v)) applyAccent(v);
+    });
+
+    // ---------- aspect ratio ----------
+    function fitScale() {
+      const area = document.querySelector('.canvas-area');
+      const avail = Math.min(area.clientWidth - 80, area.clientHeight - 80);
+      const s = Math.min(1, avail / Math.max(baseW, baseH));
+      scaler.style.transform = `scale(${s})`;
+    }
+    function applyRatio(w, h) {
+      baseW = w; baseH = h;
+      stage.style.width = w + 'px';
+      stage.style.height = h + 'px';
+
+      // responsive padding — generous margins that scale with the smaller side
+      const pad = Math.round(Math.min(w, h) * 0.075);
+      stage.style.setProperty('--pad', pad + 'px');
+
+      // per-format type scale so landscape/short formats don't crowd or overflow
+      const ar = w / h;
+      let hl, sub, prog, bad;
+      if (ar >= 1.7) {            // 16:9 — wide
+        hl = 92; sub = 26; prog = 32; bad = 20;
+      } else if (ar >= 1.4) {     // 1.91:1 LinkedIn — wide & short
+        hl = 76; sub = 24; prog = 28; bad = 18;
+      } else if (ar <= 0.85) {    // 4:5 — tall
+        hl = 100; sub = 26; prog = 34; bad = 20;
+      } else {                    // 1:1 — square
+        hl = 104; sub = 25; prog = 34; bad = 20;
+      }
+      const H = stage.querySelector('.headline');
+      const S = stage.querySelector('.subhead');
+      const P = stage.querySelector('.program');
+      const B = stage.querySelector('.badge');
+      if (H) H.style.fontSize = hl + 'px';
+      if (S) S.style.fontSize = sub + 'px';
+      if (P) P.style.fontSize = prog + 'px';
+      if (B) B.style.fontSize = bad + 'px';
+
+      // sync platform preset highlight
+      document.querySelectorAll('#platform-seg button').forEach(b =>
+        b.classList.toggle('active', +b.dataset.w === w && +b.dataset.h === h));
+      document.querySelectorAll('#ratio-seg button').forEach(b =>
+        b.classList.toggle('active', +b.dataset.w === w && +b.dataset.h === h));
+
+      // re-apply any dragged offsets (stored as % of stage)
+      if (typeof applyAllOffsets === 'function') applyAllOffsets();
+
+      fitScale();
+    }
+    $('platform-seg').querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => applyRatio(+btn.dataset.w, +btn.dataset.h));
+    });
+    $('ratio-seg').querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => applyRatio(+btn.dataset.w, +btn.dataset.h));
+    });
+    window.addEventListener('resize', fitScale);
+
+    // ---------- export ----------
+    let exportScale = 2;
+    $('scale-seg').querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        $('scale-seg').querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        exportScale = +btn.dataset.scale;
+      });
+    });
+    $('export').addEventListener('click', async () => {
+      const btn = $('export');
+      const prev = btn.textContent;
+      btn.textContent = 'Rendering…';
+      const saved = scaler.style.transform;
+      scaler.style.transform = 'scale(1)';
+      // clear editing outlines + move-mode affordances during capture
+      document.querySelectorAll('[contenteditable]').forEach(el => el.blur());
+      const wasMoveMode = stage.classList.contains('move-mode');
+      stage.classList.remove('move-mode');
+      guideV.classList.remove('show');
+      guideH.classList.remove('show');
+      try {
+        const dataUrl = await htmlToImage.toPng(stage, {
+          width: baseW, height: baseH,
+          pixelRatio: exportScale,
+          cacheBust: true,
+        });
+        const a = document.createElement('a');
+        a.download = `noir-announcement-${baseW}x${baseH}@${exportScale}x.png`;
+        a.href = dataUrl;
+        a.click();
+      } catch (err) {
+        alert('Export failed: ' + err.message);
+      } finally {
+        scaler.style.transform = saved;
+        if (wasMoveMode) stage.classList.add('move-mode');
+        btn.textContent = prev;
+      }
+    });
+
+    // ---------- drag system ----------
+    // offsets stored as PERCENT of stage width/height so they survive ratio changes
+    const offsets = {}; // key -> {x: %, y: %}
+    const guideV = $('guide-v'), guideH = $('guide-h');
+
+    function applyOffset(el, key) {
+      const o = offsets[key];
+      if (o) el.style.transform = `translate(${o.x / 100 * baseW}px, ${o.y / 100 * baseH}px)`;
+      else el.style.transform = '';
+    }
+    function applyAllOffsets() {
+      document.querySelectorAll('.draggable').forEach(el => applyOffset(el, el.dataset.drag));
+    }
+
+    let mode = 'edit';
+    function setMode(m) {
+      mode = m;
+      stage.classList.toggle('move-mode', m === 'move');
+      document.querySelectorAll('#mode-seg button').forEach(b =>
+        b.classList.toggle('active', b.dataset.mode === m));
+    }
+    $('mode-seg').querySelectorAll('button').forEach(btn =>
+      btn.addEventListener('click', () => setMode(btn.dataset.mode)));
+
+    // current preview scale (from scaler transform)
+    function currentScale() {
+      const m = /scale\(([\d.]+)\)/.exec(scaler.style.transform);
+      return m ? parseFloat(m[1]) : 1;
+    }
+
+    let drag = null;
+    stage.addEventListener('pointerdown', e => {
+      if (mode !== 'move') return;
+      const el = e.target.closest('.draggable');
+      if (!el) return;
+      e.preventDefault();
+      const key = el.dataset.drag;
+      const o = offsets[key] || { x: 0, y: 0 };
+      drag = {
+        el, key,
+        startX: e.clientX, startY: e.clientY,
+        baseXpct: o.x, baseYpct: o.y,
+        scale: currentScale(),
+      };
+      el.classList.add('dragging');
+      el.setPointerCapture(e.pointerId);
+    });
+    stage.addEventListener('pointermove', e => {
+      if (!drag) return;
+      let dxpx = (e.clientX - drag.startX) / drag.scale;
+      let dypx = (e.clientY - drag.startY) / drag.scale;
+      if (e.shiftKey) { // lock to dominant axis
+        if (Math.abs(dxpx) > Math.abs(dypx)) dypx = 0; else dxpx = 0;
+      }
+      let xpct = drag.baseXpct + (dxpx / baseW) * 100;
+      let ypct = drag.baseYpct + (dypx / baseH) * 100;
+
+      // center-snap guides: element's own box center vs stage center
+      const rect = drag.el.getBoundingClientRect();
+      const sRect = stage.getBoundingClientRect();
+      const elCx = (rect.left + rect.width / 2 - sRect.left) / drag.scale;
+      const elCy = (rect.top + rect.height / 2 - sRect.top) / drag.scale;
+      const snap = 14; // px
+      let showV = false, showH = false;
+      if (Math.abs(elCx - baseW / 2) < snap) {
+        xpct += ((baseW / 2 - elCx) / baseW) * 100; showV = true;
+      }
+      if (Math.abs(elCy - baseH / 2) < snap) {
+        ypct += ((baseH / 2 - elCy) / baseH) * 100; showH = true;
+      }
+      guideV.style.left = (baseW / 2) + 'px'; guideV.classList.toggle('show', showV);
+      guideH.style.top = (baseH / 2) + 'px'; guideH.classList.toggle('show', showH);
+
+      offsets[drag.key] = { x: xpct, y: ypct };
+      applyOffset(drag.el, drag.key);
+    });
+    function endDrag() {
+      if (!drag) return;
+      drag.el.classList.remove('dragging');
+      drag = null;
+      guideV.classList.remove('show');
+      guideH.classList.remove('show');
+    }
+    stage.addEventListener('pointerup', endDrag);
+    stage.addEventListener('pointercancel', endDrag);
+
+    $('reset-layout').addEventListener('click', () => {
+      for (const k in offsets) delete offsets[k];
+      applyAllOffsets();
+    });
+
+    // ---------- init ----------
+    setMode('edit');
+    applyAccent('#C6A15B');
+    applyRatio(1200, 1200); // default: Facebook / IG square
+  </script>
+</body>
+</html>

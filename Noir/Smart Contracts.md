@@ -8,7 +8,7 @@ Part of [[Noir Wallet]]. Three Soroban (Rust) contracts deployed on Stellar test
 
 > 📖 Full source-accurate function reference: [[_AI Build Guide - Contracts]]
 
-Location: `backend/asset/contracts/`
+Location: `backend/contracts/`
 
 ## Contracts
 

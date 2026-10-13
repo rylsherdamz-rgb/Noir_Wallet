@@ -53,26 +53,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.sm,
     paddingVertical: 8,
+    // Inside the scroll content (not on the ScrollView) so chips line up with
+    // the 20px screen gutter yet still scroll edge-to-edge, and the last chip
+    // keeps its right padding when scrolled to the end.
+    paddingHorizontal: 20,
   },
   chip: {
     paddingHorizontal: Spacing.md,
     paddingVertical: 6,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.lightGrey,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
+    backgroundColor: Colors.midGrey,
   },
   chipActive: {
-    backgroundColor: colorWithOpacity(Colors.gold, 0.12),
-    borderColor: Colors.gold,
+    backgroundColor: Colors.cream,
   },
   label: {
     fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
+    color: Colors.white,
     fontWeight: FontWeight.medium,
   },
   labelActive: {
-    color: Colors.gold,
-    fontWeight: FontWeight.semibold,
+    color: Colors.surfaceBg,
   },
 })

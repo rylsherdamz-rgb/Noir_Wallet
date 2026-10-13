@@ -2,7 +2,7 @@ import { View, Text, StyleSheet } from 'react-native'
 import { AssetCode } from '@/types'
 import { Colors, Fonts } from '@/constants/theme'
 import { colorWithOpacity } from '@/constants/designTokens'
-import { SparkGlyph } from './BrandGlyph'
+import { StellarMark } from './BrandGlyph'
 
 interface CurrencyTokenProps {
   asset: AssetCode
@@ -15,7 +15,7 @@ const CONFIG: Record<AssetCode, { color: string; glyph?: string }> = {
 
 /**
  * A small faceted "coin" token for an asset — a tinted disc carrying the
- * currency's own mark (₱ / $ typographic, a spark for XLM). Replaces the
+ * currency's own mark (₱ / $ typographic, the Stellar mark for XLM). Replaces the
  * mismatched line icons so the asset marks share the app's type system.
  */
 export function CurrencyToken({ asset, size = 38 }: CurrencyTokenProps) {
@@ -35,7 +35,7 @@ export function CurrencyToken({ asset, size = 38 }: CurrencyTokenProps) {
       {cfg.glyph ? (
         <Text style={[styles.glyph, { color: cfg.color, fontSize: size * 0.45 }]}>{cfg.glyph}</Text>
       ) : (
-        <SparkGlyph size={size * 0.5} color={cfg.color} />
+        <StellarMark size={size * 0.55} color={cfg.color} />
       )}
     </View>
   )

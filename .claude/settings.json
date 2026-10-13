@@ -9,5 +9,8 @@
       "Bash(pkill -f \"http.server 5173\")",
       "Bash(curl -s -o /dev/null -w \"still up: %{http_code}\\\\n\" http://localhost:5173/index.html)"
     ]
+  },
+  "enabledPlugins": {
+    "obsidian-sync@anthropic-plugin-directory": true
   }
 }

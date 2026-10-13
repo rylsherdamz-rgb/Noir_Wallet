@@ -58,6 +58,8 @@ interface AppState {
   removeDevice: (id: string) => void
   setTransactions: (transactions: Transaction[]) => void
   addTransaction: (transaction: Transaction) => void
+  updateTransaction: (id: string, updates: Partial<Transaction>) => void
+  removeTransaction: (id: string) => void
   setBalance: (balance: Balance) => void
   updateBalance: (updates: Partial<Balance>) => void
   setBalanceStale: (val: boolean) => void
@@ -67,8 +69,8 @@ interface AppState {
   setIsScanning: (val: boolean) => void
   setNfcSupported: (val: boolean) => void
   setNetwork: (network: StellarNetwork) => void
-  setBiometricLockEnabled: (val: boolean) => void
   setBackgroundLockTimeoutSec: (sec: number) => void
+  setDeviceUnlockEnabled: (enabled: boolean) => void
   addPendingPayment: (payment: QueuedPayment) => void
   removePendingPayment: (id: string) => void
   clearPendingPayments: () => void
@@ -92,8 +94,8 @@ const initialState = {
   nfcSupported: false,
   network: stellarNetwork as StellarNetwork,
   security: {
-    biometricLockEnabled: false,
     backgroundLockTimeoutSec: 60,
+    deviceUnlockEnabled: true,
   } as SecuritySettings,
   balanceStale: false,
   storeVersion: STORE_VERSION_HASH,
@@ -125,6 +127,10 @@ export const useAppStore = create<AppState>()(
       setTransactions: (transactions) => set({ transactions }),
       addTransaction: (transaction) =>
         set((s) => ({ transactions: [transaction, ...s.transactions] })),
+      updateTransaction: (id, updates) =>
+        set((s) => ({ transactions: s.transactions.map((t) => (t.id === id ? { ...t, ...updates } : t)) })),
+      removeTransaction: (id) =>
+        set((s) => ({ transactions: s.transactions.filter((t) => t.id !== id) })),
       setBalance: (balance) => set({ balance }),
       updateBalance: (updates) =>
         set((s) => ({ balance: { ...s.balance, ...updates } })),
@@ -141,12 +147,14 @@ export const useAppStore = create<AppState>()(
         // Contract IDs have to move with the RPC. Re-pointing only the RPC left
         // mainnet calling testnet contract addresses, which do not exist there.
         setActiveContractNetwork(network)
-        set({ network })
+        // Balance and history belong to the old network — clear them so the
+        // UI refetches instead of showing testnet data under a mainnet badge.
+        set((s) => (s.network === network ? { network } : { network, balance: { ...s.balance, xlm: 0 }, transactions: [] }))
       },
-      setBiometricLockEnabled: (val) =>
-        set((s) => ({ security: { ...s.security, biometricLockEnabled: val } })),
       setBackgroundLockTimeoutSec: (sec) =>
         set((s) => ({ security: { ...s.security, backgroundLockTimeoutSec: sec } })),
+      setDeviceUnlockEnabled: (enabled) =>
+        set((s) => ({ security: { ...s.security, deviceUnlockEnabled: enabled } })),
       addPendingPayment: (payment) =>
         set((s) => ({ pendingPayments: [...s.pendingPayments, payment] })),
       removePendingPayment: (id) =>
@@ -171,6 +179,9 @@ export const useAppStore = create<AppState>()(
         devices: state.devices,
         pendingPayments: state.pendingPayments,
         pendingTxHashes: state.pendingTxHashes,
+        // In-flight payments survive an app restart so Activity still shows
+        // them; everything else is re-read from Horizon.
+        transactions: state.transactions.filter((t) => t.status === 'pending'),
         isOnboarded: state.isOnboarded,
         isWalletCreated: state.isWalletCreated,
         network: state.network,
@@ -179,6 +190,11 @@ export const useAppStore = create<AppState>()(
       }) as unknown as AppState,
       onRehydrateStorage: () => (state) => {
         if (state?.network) stellarService.setNetwork(state.network)
+        // Installs persisted before the phone-unlock toggle existed unlocked with
+        // the phone by default — keep that on rather than silently dropping it.
+        if (state?.security && typeof state.security.deviceUnlockEnabled !== 'boolean') {
+          useAppStore.setState({ security: { ...state.security, deviceUnlockEnabled: true } })
+        }
         if (state && state.storeVersion !== STORE_VERSION_HASH) {
           useAppStore.setState({
             devices: [],

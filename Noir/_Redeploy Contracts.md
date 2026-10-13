@@ -8,7 +8,7 @@ aliases: [Redeploy, Redeploy Contracts, Deploy Runbook]
 > Reference commands for redeploying the Soroban contracts after code changes. **Do not run automatically** — this is a manual runbook. Linked from [[_Context - What We Are Building]] and [[Smart Contracts]].
 
 Contracts: [[DeviceRegistry]] · [[AgentRegistry]] · [[PaymentEscrow]]
-Location: `backend/asset/` · WASM target: `wasm32v1-none` · CLI: `stellar` v28 (soroban merged in)
+Location: `backend/` · WASM target: `wasm32v1-none` · CLI: `stellar` v28 (soroban merged in)
 Cargo package names: `device-registry`, `agent-registry`, `payment-escrow`
 
 ## 0. Prereqs (one-time)
@@ -25,7 +25,7 @@ export ADMIN_ADDR=$(stellar keys address $DEPLOYER)
 ## 1. Build all WASM (release)
 
 ```bash
-cd backend/asset
+cd backend
 cargo build --release --target wasm32v1-none \
   -p device-registry -p agent-registry -p payment-escrow
 ```

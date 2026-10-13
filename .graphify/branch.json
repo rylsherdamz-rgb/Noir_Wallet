@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "branchName": "instaward-development",
+  "worktreePath": "/home/richie/Projects/Noir_Wallet",
+  "upstream": "origin/instaward-development",
+  "mergeBase": "c9a894c92951a6f3d9773cbd4c856fb646fba6f1",
+  "firstSeenHead": "f6a15abbd90afb7ebaec94e1c5a204e5416b860f",
+  "lastSeenHead": "c9a894c92951a6f3d9773cbd4c856fb646fba6f1",
+  "lastAnalyzedHead": "c9a894c92951a6f3d9773cbd4c856fb646fba6f1",
+  "stale": false,
+  "staleReason": null,
+  "staleSince": null,
+  "lifecycleEvent": null,
+  "createdAt": "2026-10-02T16:25:31.758Z",
+  "updatedAt": "2026-10-03T05:08:08.716Z"
+}

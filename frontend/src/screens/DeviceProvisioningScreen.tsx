@@ -7,42 +7,121 @@ import {
   TextInput,
   Animated,
   Easing,
-  Modal,
   Linking,
-  ActivityIndicator,
+  ScrollView,
 } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
+import { NfcScanPulse } from '@/components/brand/NfcScanPulse'
+import { VerifyingPulse } from '@/components/brand/VerifyingPulse'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { Buffer } from 'buffer'
 import { useNfc } from '@/hooks/useNfc'
 import { useAppStore } from '@/store/useAppStore'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts, Gradient } from '@/constants/theme'
+import { Sheet } from '@/components/popup/Popup'
+import { Button } from '@/components/Button'
 import { NoirLogo } from '@/components/brand/NoirLogo'
-import { x402 } from '@/domain/x402'
+import { x402, buildAgentPolicy, DEFAULT_AGENT_CAP_XLM, DeviceOwnedByOtherWalletError, type DeviceOwnership } from '@/domain/x402'
 import { walletService } from '@/services/wallet'
 import { stellarService } from '@/services/stellar-service'
 import { AppConfig } from '@/constants/config'
 import { Device } from '@/types'
 import { useRouter } from 'expo-router'
 import { logger } from '@/lib/logger'
+import * as ClipboardX from 'expo-clipboard'
+import { ErrorState, NetworkTag } from '@/components/ui/ErrorState'
+import { KeyValueRow, TextAction } from '@/components/ui/List'
+import { TapGlyph } from '@/components/brand/BrandGlyph'
 
-type Step = 'intro' | 'scanning' | 'confirm' | 'registering' | 'success' | 'error'
+type Step =
+  | 'intro'
+  | 'scanning'
+  | 'checking'
+  | 'confirm'
+  | 'registering'
+  | 'success'
+  | 'owned_other'
+  | 'already_linked'
+  | 'error'
 
 const LABELS = ['My Wallet Card', 'Daily Carry', 'Home Key']
+
+// Agent policy presets passed to agent_registry.register_agent.
+// Per-payment cap in XLM (0 = no cap) and authorization lifetime in days (0 = never expires).
+const SPEND_LIMITS = [
+  { label: 'No cap', value: 0 },
+  { label: '10 XLM', value: 10 },
+  { label: '25 XLM', value: 25 },
+  { label: '50 XLM', value: 50 },
+  { label: '100 XLM', value: 100 },
+]
+const EXPIRY_OPTIONS = [
+  { label: 'Never', value: 0 },
+  { label: '7 days', value: 7 },
+  { label: '30 days', value: 30 },
+  { label: '90 days', value: 90 },
+]
 const OTHER = 'Other'
+
+// Ordered provisioning phases shown in the progress tracker.
+type Phase = 'keys' | 'agent' | 'chain'
+const PHASES: { key: Phase; label: string }[] = [
+  { key: 'keys', label: 'Unlock wallet keys' },
+  { key: 'agent', label: 'Create payment agent' },
+  { key: 'chain', label: 'Register on Stellar' },
+]
+
+const hashTagUid = (uid: string) => {
+  const hash = sha256(new TextEncoder().encode(uid))
+  return Buffer.from(hash.buffer, hash.byteOffset, hash.byteLength).toString('hex')
+}
+
+/** Map raw scan / RPC / contract errors to something a person can act on. */
+function describeError(registerError: string, scanError: string | null) {
+  const msg = registerError || scanError || ''
+  if (!registerError) {
+    return {
+      kind: 'tagRead' as const,
+      icon: 'radio-outline' as const,
+      title: 'Couldn’t read the card',
+      body: 'Hold it flat on the back of the phone, near the camera, until it vibrates.',
+      raw: scanError ?? '',
+    }
+  }
+  if (msg.includes('does not exist on-chain') || msg.includes('Account not found')) {
+    return { kind: 'unfunded' as const, icon: 'wallet-outline' as const, title: 'Wallet not funded yet', body: 'New Stellar wallets need a little XLM before they can sign.', raw: msg }
+  }
+  if (/insufficient|underfunded|INSUFFICIENT/i.test(msg)) {
+    return { kind: 'lowBalance' as const, icon: 'wallet-outline' as const, title: 'Not enough XLM', body: 'Add a little XLM to cover the network fee and the card’s reserve, then try again.', raw: msg }
+  }
+  if (/timed out|network|fetch|unreachable/i.test(msg)) {
+    return { kind: 'offline' as const, icon: 'cloud-offline-outline' as const, title: 'Stellar didn’t respond', body: 'Check your connection and try again. Nothing was sent and nothing was charged.', raw: msg }
+  }
+  // registerDeviceAndAgentOnChain already absorbs AlreadyRegistered, so a #4
+  // reaching here is agent_registry InvalidPolicy (e.g. expiry in the past).
+  if (msg.includes('Error(Contract, #4)') || msg.includes('InvalidPolicy')) {
+    return { kind: 'generic' as const, icon: 'options-outline' as const, title: 'Stellar rejected the card’s settings', body: 'The agent’s spending settings weren’t accepted. Try linking again.', raw: msg }
+  }
+  if (msg.includes('not configured')) {
+    return { kind: 'notConfigured' as const, icon: 'construct-outline' as const, title: 'Cards aren’t available on this network yet', body: 'The card contracts aren’t deployed here in this version. Sending and receiving still work.', raw: msg }
+  }
+  if (msg.includes('No wallet loaded') || msg.includes('No agent public key')) {
+    return { kind: 'generic' as const, icon: 'key-outline' as const, title: 'Wallet locked', body: 'Unlock or set up your wallet, then try linking again.', raw: msg }
+  }
+  return { kind: 'generic' as const, icon: 'alert-circle-outline' as const, title: 'Couldn’t link the card', body: 'Something went wrong while registering. Nothing was charged — you can safely try again.', raw: msg }
+}
 
 export function DeviceProvisioningScreen() {
   const router = useRouter()
-  const { isSupported, isEnabled, lastTag, error, scanTag, writeToTag, goToNfcSettings, clearTag } = useNfc()
-  const { user, addDevice } = useAppStore()
+  const { isSupported, isEnabled, lastTag, error, scanTag, goToNfcSettings, clearTag } = useNfc()
+  const { user, addDevice, network } = useAppStore()
   const [step, setStep] = useState<Step>('intro')
   const [label, setLabel] = useState('')
   const [customName, setCustomName] = useState('')
   const [agentCreated, setAgentCreated] = useState(false)
 
-  const [nfcWritten, setNfcWritten] = useState<boolean | null>(null)
   const [displayLabel, setDisplayLabel] = useState('')
   const [agentPubKey, setAgentPubKey] = useState('')
   const [tagUid, setTagUid] = useState('')
@@ -50,6 +129,10 @@ export function DeviceProvisioningScreen() {
   const [registerError, setRegisterError] = useState('')
   const [balanceXlm, setBalanceXlm] = useState<string | null>(null)
   const [funding, setFunding] = useState(false)
+  const [tagHash, setTagHash] = useState('')
+  const [ownership, setOwnership] = useState<DeviceOwnership | null>(null)
+  const [phase, setPhase] = useState<Phase>('keys')
+  const [showErrorDetail, setShowErrorDetail] = useState(false)
   const inputRef = useRef<TextInput>(null)
   const pulse = useState(new Animated.Value(1))[0]
   const spin = useState(new Animated.Value(0))[0]
@@ -63,6 +146,8 @@ export function DeviceProvisioningScreen() {
     : null
 
   useEffect(() => {
+    // 'checking' used to drive this too, but it no longer renders anything
+    // tied to pulse/spin — both spots now use the reanimated VerifyingPulse.
     if (step === 'scanning' || step === 'registering') {
       const anim = Animated.loop(
         Animated.sequence([
@@ -116,6 +201,24 @@ export function DeviceProvisioningScreen() {
 
       setDisplayLabel(_displayLabel)
       setTagUid(tag.uid)
+
+      // Check on-chain ownership BEFORE asking for a signature, so the user
+      // never signs a transaction that is guaranteed to fail.
+      const hashHex = hashTagUid(tag.uid)
+      setTagHash(hashHex)
+      const walletPub = user?.stellarPublicKey
+      if (walletPub) {
+        setStep('checking')
+        try {
+          const owned = await x402.getDeviceOwnership(hashHex, walletPub)
+          setOwnership(owned)
+          if (owned.status === 'other') { setStep('owned_other'); return }
+          if (owned.status === 'mine') { setStep('already_linked'); return }
+        } catch (e: any) {
+          // Lookup failure is non-fatal: registerDeviceAndAgentOnChain re-checks.
+          logger.warn('[provision] ownership check failed, continuing:', e?.message)
+        }
+      }
       setStep('confirm')
     } catch {
       setStep('error')
@@ -125,6 +228,8 @@ export function DeviceProvisioningScreen() {
   const handleRegister = async () => {
     setStep('registering')
     setRegisterError('')
+    setShowErrorDetail(false)
+    setPhase('keys')
 
     try {
       setStatusMessage('Loading wallet keys...')
@@ -136,12 +241,12 @@ export function DeviceProvisioningScreen() {
       }
 
       setStatusMessage('Hashing device UID...')
-      const hash = sha256(new TextEncoder().encode(tagUid))
-      const hashHex = Buffer.from(hash.buffer, hash.byteOffset, hash.byteLength).toString('hex')
+      const hashHex = tagHash || hashTagUid(tagUid)
 
       // Each NFC card gets its OWN agent (independent balance + budget).
       // If this device hash already has an agent (re-provisioning), reuse it;
       // otherwise allocate a fresh HD-derived agent index.
+      setPhase('agent')
       setStatusMessage('Creating agent for this card...')
       let _agentPubKey: string
       try {
@@ -167,31 +272,24 @@ export function DeviceProvisioningScreen() {
       }
 
       // ── Register device + agent sharing one Horizon account load ──
+      setPhase('chain')
       setStatusMessage('Registering device and agent on Stellar...')
       try {
+        // Already-registered is handled inside; anything else (incl.
+        // agent_registry InvalidPolicy) must surface as an error.
         await x402.registerDeviceAndAgentOnChain({
           walletSecret: keys.stellarSecret,
           deviceHashHex: hashHex,
           agentPublicKey: _agentPubKey,
+          policy: buildAgentPolicy({ maxAmountXlm: DEFAULT_AGENT_CAP_XLM, expiryDays: 0 }),
         })
       } catch (e: any) {
-        const msg = (e as any)?.message ?? ''
-        if (!msg.includes('Error(Contract, #4)') && !msg.includes('Error(Contract, #3)') && !msg.includes('AlreadyRegistered')) {
-          throw e
+        if (e instanceof DeviceOwnedByOtherWalletError) {
+          setOwnership({ status: 'other', owner: e.owner, agent: '', createdAt: e.createdAt, active: true })
+          setStep('owned_other')
+          return
         }
-      }
-
-      setStatusMessage('Writing to NFC tag...')
-      try {
-        await writeToTag({
-          walletAddress: keys.stellarPublic,
-          deviceLabel: displayLabel,
-          activationUrl: `noirwallet://device/${hashHex}`,
-        })
-        setNfcWritten(true)
-      } catch (e: any) {
-        setNfcWritten(false)
-        logger.warn('NFC write failure (non-blocking):', e?.message)
+        throw e
       }
 
       setStatusMessage('Confirmed on-chain!')
@@ -246,739 +344,223 @@ export function DeviceProvisioningScreen() {
     setTagUid('')
     setStatusMessage('')
     setRegisterError('')
+    setTagHash('')
+    setOwnership(null)
+    setPhase('keys')
+    setShowErrorDetail(false)
     clearTag()
   }
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.top}>
-          <NoirLogo variant="mark" size={48} />
-          <Text style={styles.title}>Link Your Device</Text>
-          <Text style={styles.subtitle}>
-            Tap your {user?.displayName ? `${user.displayName}'s ` : ''}NFC tag against the back of your phone to link it
-          </Text>
-        </View>
+  const errorInfo = describeError(registerError, error)
+  const onMainnet = network === 'mainnet'
+  const close = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/pos'))
+  const copyMyAddress = async () => {
+    if (!user?.stellarPublicKey) return
+    await ClipboardX.setStringAsync(user.stellarPublicKey)
+    setStatusMessage('Address copied')
+  }
+  const formatSecs = (s: number | null) => (s ? new Date(s * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—')
+  const short = (k?: string) => (k ? `${k.slice(0, 4)}…${k.slice(-4)}` : '—')
+  const PHASE_LABELS = ['Card read', ...PHASES.map((p) => p.label)]
+  const phaseIndex = PHASES.findIndex((x) => x.key === phase) + 1
 
+  let content: React.ReactNode = null
+  if (step === 'intro' && !isSupported) {
+    content = <ErrorState icon="phone-portrait-outline" tone="neutral" title="This phone can’t read cards" message="It has no NFC reader. You can still send and receive XLM — just not tap to pay." primary={{ label: 'Back to wallet', onPress: close }} />
+  } else if (step === 'intro' && !isEnabled) {
+    content = <ErrorState icon="radio-outline" tone="neutral" title="NFC is off" message="Turn on NFC in your phone’s settings to link a card." primary={{ label: 'Open NFC settings', icon: 'settings-outline', onPress: goToNfcSettings }} secondary={{ label: 'Not now', onPress: close }} />
+  } else if (step === 'intro') {
+    content = (
+      <>
         <View style={styles.center}>
-          {step === 'intro' && !isEnabled && (
-            <View style={styles.nfcOffWrap}>
-              <Ionicons name="radio-outline" size={64} color={Colors.warning} />
-              <Text style={styles.nfcOffTitle}>NFC is Off</Text>
-              <Text style={styles.nfcOffSub}>
-                Enable NFC in your phone's settings to link a device
-              </Text>
-            </View>
-          )}
-          {step === 'intro' && isEnabled && (
-            <View style={styles.illustration}>
-              <View style={styles.phoneBody}>
-                <View style={styles.phoneScreen}>
-                  <View style={styles.phoneNotch} />
-                </View>
-                <View style={styles.antenna}>
-                  <Ionicons name="radio" size={20} color={Colors.gold} />
-                </View>
-              </View>
-              <Ionicons name="arrow-forward" size={18} color={Colors.mutedWhite} />
-              <View style={styles.cardImg}>
-                <Ionicons name="card-outline" size={24} color={Colors.white} />
-              </View>
-            </View>
-          )}
-
-          {step === 'scanning' && (
-            <View style={styles.scanWrap}>
-              <Animated.View style={[styles.scanRing, { transform: [{ scale: pulse }] }]} />
-              <View style={styles.scanCenter}>
-                <Ionicons name="radio" size={40} color={Colors.gold} />
-              </View>
-              <Text style={styles.scanText}>Tap your NFC tag against the phone</Text>
-            </View>
-          )}
-
-          {step === 'confirm' && (
-            <View style={styles.resultWrap}>
-              <Ionicons name="checkmark-circle" size={72} color={Colors.success} />
-              <Text style={styles.successTitle}>Tag Read</Text>
-              <Text style={styles.successSub}>Ready to register {displayLabel} on Stellar</Text>
-            </View>
-          )}
-
-          {step === 'registering' && (
-            <View style={styles.registerWrap}>
-              <Animated.View style={{ transform: [{ rotate: spinner }] }}>
-                <Ionicons name="sync" size={48} color={Colors.gold} />
-              </Animated.View>
-              <Text style={styles.resultText}>{statusMessage || 'Registering on-chain...'}</Text>
-              <View style={styles.stepsWrap}>
-                <StepRow done={true} active={false} label="NFC tag read" />
-                <StepRow done={false} active={true} label={statusMessage || 'Working...'} />
-              </View>
-            </View>
-          )}
-
-          {step === 'success' && (
-            <View style={styles.resultWrap}>
-              <Ionicons name="checkmark-circle" size={72} color={Colors.success} />
-              <Text style={styles.successTitle}>Linked!</Text>
-              <Text style={styles.successSub}>{displayLabel} is now paired and registered on-chain</Text>
-              <View style={styles.successDetail}>
-                {nfcWritten === true
-                  ? <Ionicons name="checkmark" size={14} color={Colors.success} />
-                  : nfcWritten === false
-                    ? <Ionicons name="close-circle" size={14} color={Colors.danger} />
-                    : <Ionicons name="remove-circle-outline" size={14} color={Colors.mutedWhite} />}
-                <Text style={[styles.successDetailText, nfcWritten === false && { color: Colors.danger }]}>
-                  {nfcWritten === true
-                    ? 'NFC tag written'
-                    : nfcWritten === false
-                      ? 'NFC tag write FAILED — retry from settings'
-                      : 'NFC tag write skipped'}
-                </Text>
-              </View>
-              <View style={styles.successDetail}>
-                <Ionicons name="checkmark" size={14} color={Colors.success} />
-                <Text style={styles.successDetailText}>Device registered on Stellar</Text>
-              </View>
-              {agentCreated && (
-                <View style={styles.successDetail}>
-                  <Ionicons name="checkmark" size={14} color={Colors.success} />
-                  <Text style={styles.successDetailText}>Payment agent enrolled</Text>
-                </View>
-              )}
-
-              {agentCreated && (
-                <View style={styles.agentBadge}>
-                  <Ionicons name="flash-outline" size={14} color={Colors.gold} />
-                  <Text style={styles.agentBadgeText}>x402 agent ready — tap to pay without signing</Text>
-                </View>
-              )}
-            </View>
-          )}
-
-          {step === 'error' && (
-            <View style={styles.resultWrap}>
-              <Ionicons name="close-circle" size={72} color={Colors.danger} />
-              <Text style={[styles.successTitle, { color: Colors.danger }]}>{registerError || error || 'Failed'}</Text>
-              <Text style={styles.successSub}>{registerError ? 'Tap Try Again to retry registration' : 'Hold the tag steady against the back of your phone'}</Text>
-            </View>
-          )}
+          <TapGlyph size={56} color={Colors.gold} />
+          <Text style={styles.title}>Link a card</Text>
+          <Text style={styles.body}>Any NFC card or sticker works. Give it a name, then tap it on your phone.</Text>
         </View>
-
-        {step === 'intro' && isEnabled && (
-          <View style={styles.labelSection}>
-            <Text style={styles.labelTitle}>Name this device</Text>
-            <View style={styles.labelRow}>
-              {LABELS.map((l) => (
-                <PressableScale
-                  key={l}
-                  style={[styles.chip, label === l && styles.chipActive]}
-                  onPress={() => { setLabel(l); setCustomName('') }}
-                >
-                  <Text style={[styles.chipText, label === l && styles.chipTextActive]}>{l}</Text>
-                </PressableScale>
-              ))}
-              <PressableScale
-                style={[styles.chip, label === OTHER && styles.chipActive]}
-                onPress={() => { setLabel(OTHER); setCustomName(''); inputRef.current?.focus() }}
-              >
-                <Ionicons name="pencil-outline" size={13} color={label === OTHER ? Colors.gold : Colors.mutedWhite} />
-                <Text style={[styles.chipText, label === OTHER && styles.chipTextActive, { marginLeft: 4 }]}>Other</Text>
-              </PressableScale>
-            </View>
-            {label === OTHER && (
-              <TextInput
-                ref={inputRef}
-                style={styles.customInput}
-                placeholder="Enter custom name..."
-                placeholderTextColor={Colors.mutedWhite}
-                value={customName}
-                onChangeText={setCustomName}
-                maxLength={32}
-              />
-            )}
-          </View>
-        )}
-        {!isSupported && (
-          <Text style={styles.unsupported}>NFC unavailable on this device</Text>
-        )}
-
-        <View style={styles.actions}>
-          {step === 'intro' && !isEnabled && (
-            <PressableScale
-              style={[styles.primaryBtn, !isSupported && styles.btnDisabled]}
-              onPress={goToNfcSettings}
-              disabled={!isSupported}
-              accessibilityLabel="Open NFC Settings"
-              accessibilityRole="button"
-            >
-              <Ionicons name="settings-outline" size={20} color={Colors.black} />
-              <Text style={styles.primaryBtnText}>Open NFC Settings</Text>
+        <Text style={styles.nameLabel}>Name</Text>
+        <View style={styles.chips}>
+          {[...LABELS, OTHER].map((l) => (
+            <PressableScale key={l} style={[styles.chip, label === l && styles.chipOn]} onPress={() => { setLabel(l); setCustomName(''); if (l === OTHER) inputRef.current?.focus() }} accessibilityRole="button" accessibilityState={{ selected: label === l }}>
+              <Text style={[styles.chipText, label === l && styles.chipTextOn]}>{l === OTHER ? 'Other' : l}</Text>
             </PressableScale>
-          )}
-          {step === 'intro' && isEnabled && (
-            <PressableScale
-              style={styles.primaryBtn}
-              onPress={handleScan}
-             
-            >
-              <Ionicons name="radio" size={20} color={Colors.black} />
-              <Text style={styles.primaryBtnText}>Scan My Tag</Text>
-            </PressableScale>
-          )}
-          {step === 'registering' && (
-            <PressableScale
-              style={[styles.primaryBtn, styles.btnDisabled]}
-              disabled
-             
-            >
-              <Ionicons name="sync" size={20} color={Colors.gold} />
-              <Text style={[styles.primaryBtnText, { color: Colors.gold }]}>Registering...</Text>
-            </PressableScale>
-          )}
-          {step === 'success' && (
-            <>
-              <PressableScale style={styles.secondaryBtn} onPress={() => router.push('/fiat')}>
-                <Ionicons name="cash-outline" size={20} color={Colors.white} />
-                <Text style={styles.secondaryBtnText}>Cash In via PDAX</Text>
-              </PressableScale>
-              <PressableScale style={styles.primaryBtn} onPress={reset}>
-                <Text style={styles.primaryBtnText}>Done</Text>
-              </PressableScale>
-            </>
-          )}
-          {step === 'error' && registerError?.includes('does not exist on-chain') && (
-            <>
-              <PressableScale style={styles.secondaryBtn} onPress={fundWallet}>
-                <Ionicons name="water-outline" size={20} color={Colors.white} />
-                <Text style={styles.secondaryBtnText}>Fund Wallet (Friendbot)</Text>
-              </PressableScale>
-              <PressableScale style={styles.primaryBtn} onPress={reset}>
-                <Text style={styles.primaryBtnText}>Try Again</Text>
-              </PressableScale>
-            </>
-          )}
-          {step === 'error' && !registerError?.includes('does not exist on-chain') && (
-            <PressableScale style={styles.primaryBtn} onPress={reset}>
-              <Text style={styles.primaryBtnText}>Try Again</Text>
-            </PressableScale>
-          )}
+          ))}
         </View>
+        {label === OTHER && (
+          <TextInput ref={inputRef} style={styles.customInput} placeholder="Card name" placeholderTextColor={Colors.mutedWhite} value={customName} onChangeText={setCustomName} maxLength={32} accessibilityLabel="Card name" />
+        )}
+        <View style={styles.footer}><Button label="Scan card" icon="radio" onPress={handleScan} fullWidth /></View>
+      </>
+    )
+  } else if (step === 'scanning' || step === 'checking') {
+    content = (
+      <>
+        <View style={styles.center}>
+          {step === 'scanning' ? <NfcScanPulse size={200} /> : <VerifyingPulse size={160} />}
+          <Text style={styles.title}>{step === 'scanning' ? 'Hold your card to the phone' : 'Checking the card'}</Text>
+          <Text style={styles.body}>{step === 'scanning' ? 'Back of the phone, near the camera' : 'Making sure it isn’t linked to another wallet'}</Text>
+        </View>
+        <View style={styles.footer}><Button label="Cancel" variant="secondary" onPress={reset} fullWidth /></View>
+      </>
+    )
+  } else if (step === 'confirm') {
+    content = (
+      <View style={styles.center}>
+        <Ionicons name="checkmark-circle" size={56} color={Colors.success} />
+        <Text style={styles.title}>Card read</Text>
       </View>
-
-      <Modal
-        visible={step === 'confirm'}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setStep('error')}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHandle} />
-            <View style={styles.modalIconWrap}>
-              <Ionicons name="shield-checkmark-outline" size={48} color={Colors.gold} />
-            </View>
-            <Text style={styles.modalTitle}>Signature Request</Text>
-            <Text style={styles.modalSub}>
-              Register <Text style={styles.modalBold}>{displayLabel}</Text> on Stellar
-            </Text>
-
-            <View style={styles.modalDetail}>
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Contract</Text>
-                <Text style={styles.modalValue} numberOfLines={1}>
-                  DeviceRegistry
-                </Text>
-              </View>
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Action</Text>
-                <Text style={styles.modalValue}>register_device</Text>
-              </View>
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Device</Text>
-                <Text style={styles.modalValue}>{displayLabel}</Text>
-              </View>
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Network</Text>
-                <Text style={styles.modalValue}>Stellar {stellarService.networkName === 'testnet' ? 'Testnet' : 'Mainnet'}</Text>
-              </View>
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Wallet</Text>
-                <Text style={styles.modalValue} numberOfLines={1}>
-                  {user?.stellarPublicKey?.slice(0, 12)}…
-                </Text>
-              </View>
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Balance</Text>
-                <Text style={[styles.modalValue, balanceXlm === '0' && { color: Colors.danger }]}>
-                  {balanceXlm ? `${balanceXlm} XLM` : 'Checking...'}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.modalFeeRow}>
-              <Ionicons name="information-circle-outline" size={14} color={Colors.mutedWhite} />
-              <Text style={styles.modalFeeText}>
-                {balanceXlm === '0' || balanceXlm === 'Funding...'
-                  ? 'Funding wallet via Friendbot...'
-                  : balanceXlm
-                    ? 'Network fee: ~0.001 XLM'
-                    : 'Checking balance...'
-                }
-              </Text>
-            </View>
-
-            <View style={styles.modalActions}>
-              <PressableScale
-                style={styles.modalCancelBtn}
-                onPress={() => setStep('error')}
-               
-              >
-                <Text style={styles.modalCancelText}>Reject</Text>
-              </PressableScale>
-              <PressableScale
-                style={[styles.modalSignBtn, (balanceXlm === '0' || funding) && styles.btnDisabled]}
-                onPress={handleRegister}
-                disabled={balanceXlm === '0' || funding}
-               
-              >
-                <Ionicons name="pencil-outline" size={18} color={balanceXlm === '0' || funding ? Colors.mutedWhite : Colors.black} />
-                <Text style={[styles.modalSignText, (balanceXlm === '0' || funding) && { color: Colors.mutedWhite }]}>
-                  {funding ? 'Funding...' : balanceXlm === '0' ? 'No XLM' : 'Sign'}
-                </Text>
-              </PressableScale>
-            </View>
-          </View>
+    )
+  } else if (step === 'registering') {
+    content = (
+      <>
+        <View style={styles.center}>
+          <VerifyingPulse size={150} />
+          <Text style={styles.title}>Linking {displayLabel || 'your card'}</Text>
+          {!!statusMessage && <Text style={styles.body}>{statusMessage}</Text>}
         </View>
-      </Modal>
+        <View style={styles.steps}>
+          {PHASE_LABELS.map((l, i) => <StepRow key={l} done={i < phaseIndex} active={i === phaseIndex} label={l} />)}
+        </View>
+      </>
+    )
+  } else if (step === 'success') {
+    content = (
+      <>
+        <View style={styles.center}>
+          <Ionicons name="checkmark-circle" size={64} color={Colors.success} />
+          <Text style={styles.title}>Card linked</Text>
+          <Text style={styles.body}>{displayLabel} is registered on Stellar{agentCreated ? ' and its agent is ready' : ''}. Top it up to start tapping.</Text>
+        </View>
+        <View style={styles.footer}>
+          <Button label="Top up card" onPress={() => { const id = tagHash; reset(); router.replace(id ? `/agent-fund/${id}` : '/(tabs)/pos') }} fullWidth />
+          <TextAction label="Done" color={Colors.cream} onPress={() => { reset(); router.replace('/(tabs)/pos') }} />
+        </View>
+      </>
+    )
+  } else if (step === 'owned_other' && ownership && ownership.status !== 'free') {
+    content = (
+      <ErrorState
+        icon="lock-closed-outline" tone="danger"
+        title="This card belongs to another wallet"
+        message="It’s already registered on Stellar to a different owner, so it can’t be linked here."
+        primary={{ label: 'Scan a different card', icon: 'radio', onPress: reset }}
+        secondary={{ label: 'View owner on explorer', color: Colors.gold, onPress: () => Linking.openURL(`https://stellar.expert/explorer/${onMainnet ? 'public' : 'testnet'}/account/${ownership.owner}`) }}
+      >
+        <View style={styles.kvWrap}>
+          <KeyValueRow label="Owner" value={short(ownership.owner)} mono />
+          <KeyValueRow label="Linked" value={formatSecs(ownership.createdAt)} last />
+        </View>
+      </ErrorState>
+    )
+  } else if (step === 'already_linked') {
+    content = (
+      <ErrorState icon="checkmark-circle-outline" tone="success" title="Already linked to you" message={`${displayLabel || 'This card'} is already one of your cards. Nothing to do.`}
+        primary={{ label: 'View my cards', onPress: () => { reset(); router.push('/cards') } }}
+        secondary={{ label: 'Scan another card', onPress: reset }} />
+    )
+  } else if (step === 'error') {
+    const k = errorInfo.kind
+    if (k === 'unfunded' && !onMainnet) {
+      content = (
+        <ErrorState icon={errorInfo.icon} tone="brand" title={errorInfo.title} message={`${errorInfo.body} On Testnet it’s free.`} details={errorInfo.raw}
+          primary={{ label: funding ? 'Funding…' : 'Get free test XLM', loading: funding, onPress: async () => { setFunding(true); await fundWallet(); setFunding(false) } }}
+          secondary={{ label: 'Try again', onPress: reset }}>
+          <NetworkTag network="testnet" />
+          {!!statusMessage && <Text style={styles.status}>{statusMessage}</Text>}
+        </ErrorState>
+      )
+    } else if (k === 'unfunded') {
+      content = (
+        <ErrorState icon={errorInfo.icon} tone="brand" title="Add XLM to get started" message="Stellar needs at least 2 XLM in a new wallet before it can sign. Send XLM here from an exchange or another wallet." details={errorInfo.raw}
+          primary={{ label: 'Copy address', icon: 'copy-outline', onPress: copyMyAddress }}
+          secondary={{ label: 'Show QR code', color: Colors.cream, onPress: () => router.push('/receive') }}>
+          <NetworkTag network="mainnet" />
+          <View style={styles.addrBox}>
+            <Text style={styles.addrLabel}>Your address</Text>
+            <Text style={styles.addr} selectable>{user?.stellarPublicKey}</Text>
+          </View>
+          {!!statusMessage && <Text style={styles.status}>{statusMessage}</Text>}
+        </ErrorState>
+      )
+    } else if (k === 'lowBalance') {
+      content = <ErrorState icon={errorInfo.icon} tone="warning" title={errorInfo.title} message={errorInfo.body} details={errorInfo.raw} primary={{ label: 'Add XLM', onPress: () => router.push('/receive') }} secondary={{ label: 'Try again', onPress: reset }} />
+    } else if (k === 'notConfigured') {
+      content = <ErrorState icon={errorInfo.icon} tone="neutral" title={errorInfo.title} message={errorInfo.body} details={errorInfo.raw} primary={{ label: onMainnet ? 'Switch to Testnet' : 'Back to wallet', onPress: () => { if (onMainnet) useAppStore.getState().setNetwork('testnet'); close() } }} />
+    } else {
+      content = <ErrorState icon={errorInfo.icon} tone={k === 'offline' ? 'neutral' : k === 'tagRead' ? 'warning' : 'danger'} title={errorInfo.title} message={errorInfo.body} details={errorInfo.raw}
+        primary={{ label: k === 'tagRead' ? 'Scan again' : 'Try again', icon: k === 'tagRead' ? 'radio' : 'refresh', onPress: reset }}
+        secondary={k === 'tagRead' ? { label: 'Cancel', onPress: close, color: Colors.white } : undefined} />
+    }
+  }
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <View style={styles.header}>
+        {step !== 'registering' && (
+          <PressableScale onPress={close} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
+            <Ionicons name="close" size={26} color={Colors.white} />
+          </PressableScale>
+        )}
+      </View>
+      <View style={styles.flex}>{content}</View>
+
+      <Sheet visible={step === 'confirm'} onClose={reset} title={`Link ${displayLabel}`} subtitle="Sign once to link it. It works until you revoke it.">
+        <View style={styles.sheetPanel}>
+          <KeyValueRow label="Card" value={displayLabel} />
+          <KeyValueRow label="Network fee" value={`~0.001 XLM · ${onMainnet ? 'Mainnet' : 'Testnet'}`} last />
+        </View>
+        {balanceXlm === '0' && <Text style={styles.sheetWarn}>Your wallet has no XLM yet — add some before linking.</Text>}
+        <View style={styles.sheetFooter}>
+          <Button
+            label={funding ? 'Funding…' : balanceXlm === '0' ? 'No XLM to sign with' : 'Sign & link'}
+            icon="finger-print-outline"
+            onPress={handleRegister}
+            disabled={balanceXlm === '0' || funding}
+            fullWidth
+          />
+        </View>
+      </Sheet>
     </SafeAreaView>
   )
 }
 
 function StepRow({ done, active, label }: { done: boolean; active: boolean; label: string }) {
   return (
-    <View style={stepRow}>
-      <View style={[stepDot, done && stepDotDone, active && stepDotActive]}>
-        {done ? (
-          <Ionicons name="checkmark" size={10} color={Colors.black} />
-        ) : active ? (
-          <View style={stepDotInner} />
-        ) : null}
+    <View style={styles.stepRow} accessibilityLabel={`${label}${done ? ', done' : active ? ', in progress' : ''}`}>
+      <View style={styles.stepMark}>
+        {done ? <Ionicons name="checkmark" size={16} color={Colors.gold} /> : active ? <VerifyingPulse size={14} /> : <View style={styles.stepDot} />}
       </View>
-      <Text style={[stepLabel, active && stepLabelActive]}>{label}</Text>
+      <Text style={[styles.stepLabel, !done && !active && styles.stepLabelTodo]}>{label}</Text>
     </View>
   )
 }
 
-const stepRow: any = { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 }
-const stepDot: any = { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: Colors.midGrey, alignItems: 'center', justifyContent: 'center' }
-const stepDotDone: any = { backgroundColor: Colors.success, borderColor: Colors.success }
-const stepDotActive: any = { borderColor: Colors.gold }
-const stepDotInner: any = { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.gold }
-const stepLabel: any = { fontSize: FontSize.sm, color: Colors.mutedWhite }
-const stepLabelActive: any = { color: Colors.gold, fontWeight: FontWeight.medium }
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.surfaceBg,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: Spacing.lg,
-    justifyContent: 'space-between',
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.xl,
-  },
-  top: {
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: FontSize.xl,
-    color: Colors.white,
-    fontWeight: FontWeight.bold,
-    marginTop: Spacing.md,
-  },
-  subtitle: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    textAlign: 'center',
-    marginTop: Spacing.sm,
-    lineHeight: 20,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  illustration: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    flexShrink: 1,
-  },
-  phoneBody: {
-    width: 56,
-    height: 84,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: Colors.mutedWhite,
-    backgroundColor: Colors.surfaceBg,
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'visible',
-  },
-  phoneScreen: {
-    width: 44,
-    height: 62,
-    borderRadius: 6,
-    backgroundColor: Colors.darkGrey,
-    alignItems: 'center',
-    paddingTop: 8,
-    position: 'relative',
-  },
-  phoneNotch: {
-    width: 16,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.midGrey,
-  },
-  antenna: {
-    position: 'absolute',
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colorWithOpacity(Colors.gold, 0.12),
-    borderWidth: 1.5,
-    borderColor: colorWithOpacity(Colors.gold, 0.2),
-    alignItems: 'center',
-    justifyContent: 'center',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -19 }, { translateY: -19 }],
-  },
-  cardImg: {
-    width: 56,
-    height: 84,
-    borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.lightGrey,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  scanWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 180,
-    height: 180,
-  },
-  scanRing: {
-    position: 'absolute',
-    left: '50%',
-    top: '50%',
-    width: 140,
-    height: 140,
-    marginLeft: -70,
-    marginTop: -70,
-    borderRadius: 70,
-    borderWidth: 2,
-    borderColor: Colors.gold,
-  },
-  scanCenter: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colorWithOpacity(Colors.gold, 0.1),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scanText: {
-    fontSize: FontSize.sm,
-    color: Colors.gold,
-    marginTop: Spacing.md,
-    fontWeight: FontWeight.medium,
-  },
-  resultWrap: {
-    alignItems: 'center',
-  },
-  resultText: {
-    fontSize: FontSize.md,
-    color: Colors.gold,
-    marginTop: Spacing.md,
-    fontWeight: FontWeight.medium,
-  },
-  registerWrap: {
-    alignItems: 'center',
-  },
-  stepsWrap: {
-    marginTop: Spacing.lg,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.xl,
-  },
-  successTitle: {
-    fontSize: FontSize.xl,
-    color: Colors.success,
-    fontWeight: FontWeight.bold,
-    marginTop: Spacing.md,
-  },
-  successSub: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    textAlign: 'center',
-    marginTop: Spacing.xs,
-  },
-  labelSection: {
-    marginBottom: Spacing.lg,
-  },
-  labelTitle: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    marginBottom: Spacing.sm,
-    textAlign: 'center',
-  },
-  labelRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.lightGrey,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  chipActive: {
-    backgroundColor: colorWithOpacity(Colors.gold, 0.12),
-    borderColor: Colors.gold,
-  },
-  chipText: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-  },
-  chipTextActive: {
-    color: Colors.gold,
-    fontWeight: FontWeight.semibold,
-  },
-  agentBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    marginTop: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    backgroundColor: colorWithOpacity(Colors.gold, 0.1),
-    borderWidth: 1,
-    borderColor: colorWithOpacity(Colors.gold, 0.15),
-  },
-  agentBadgeText: {
-    fontSize: FontSize.xs,
-    color: Colors.gold,
-    fontWeight: FontWeight.medium,
-  },
-  customInput: {
-    marginTop: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.lightGrey,
-    borderWidth: 1,
-    borderColor: colorWithOpacity(Colors.gold, 0.31),
-    color: Colors.white,
-    fontSize: FontSize.md,
-    textAlign: 'center',
-  },
-  nfcOffWrap: {
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  nfcOffTitle: {
-    fontSize: FontSize.lg,
-    color: Colors.warning,
-    fontWeight: FontWeight.bold,
-  },
-  nfcOffSub: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: Spacing.xl,
-  },
-  unsupported: {
-    fontSize: FontSize.xs,
-    color: Colors.warning,
-    textAlign: 'center',
-    marginTop: Spacing.sm,
-  },
-  actions: {
-    gap: Spacing.md,
-  },
-  primaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.gold,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    gap: Spacing.sm,
-    minHeight: 52,
-  },
-  primaryBtnText: {
-    color: Colors.black,
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-  },
-  btnDisabled: {
-    backgroundColor: Colors.lightGrey,
-  },
-  secondaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: Colors.gold,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    gap: Spacing.sm,
-    minHeight: 52,
-  },
-  secondaryBtnText: {
-    color: Colors.gold,
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'flex-end',
-  },
-  modalCard: {
-    backgroundColor: Colors.surfaceBg,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.xl + Spacing.lg,
-    alignItems: 'center',
-  },
-  modalHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.midGrey,
-    marginBottom: Spacing.lg,
-  },
-  modalIconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colorWithOpacity(Colors.gold, 0.1),
-    borderWidth: 1.5,
-    borderColor: colorWithOpacity(Colors.gold, 0.2),
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.md,
-  },
-  modalTitle: {
-    fontSize: FontSize.xl,
-    color: Colors.white,
-    fontWeight: FontWeight.bold,
-    marginBottom: Spacing.xs,
-  },
-  modalSub: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    textAlign: 'center',
-    marginBottom: Spacing.lg,
-  },
-  modalBold: {
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-  },
-  modalDetail: {
-    width: '100%',
-    backgroundColor: Colors.lightGrey,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  modalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  modalLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-  },
-  modalValue: {
-    fontSize: FontSize.sm,
-    color: Colors.white,
-    fontWeight: FontWeight.medium,
-    maxWidth: '60%',
-  },
-  modalFeeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    marginBottom: Spacing.lg,
-  },
-  modalFeeText: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    width: '100%',
-  },
-  modalCancelBtn: {
-    flex: 1,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalCancelText: {
-    fontSize: FontSize.lg,
-    color: Colors.mutedWhite,
-    fontWeight: FontWeight.semibold,
-  },
-  modalSignBtn: {
-    flex: 2,
-    flexDirection: 'row',
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.gold,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-  },
-  modalSignText: {
-    fontSize: FontSize.lg,
-    color: Colors.black,
-    fontWeight: FontWeight.bold,
-  },
-  successDetail: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    marginTop: Spacing.sm,
-  },
-  successDetailText: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-  },
+  container: { flex: 1, backgroundColor: Colors.surfaceBg },
+  flex: { flex: 1 },
+  header: { height: 56, paddingHorizontal: Spacing.md, justifyContent: 'center' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20, gap: 10 },
+  title: { fontFamily: Fonts.display, fontSize: 22, color: Colors.cream, textAlign: 'center', marginTop: 12 },
+  body: { fontSize: FontSize.md - 1, color: Colors.mutedWhite, textAlign: 'center', lineHeight: 22, maxWidth: 300 },
+  nameLabel: { fontSize: FontSize.sm - 1, color: Colors.mutedWhite, fontWeight: FontWeight.medium, textAlign: 'center', marginBottom: 10 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, paddingHorizontal: 20 },
+  chip: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: 999, backgroundColor: Colors.midGrey },
+  chipOn: { backgroundColor: Colors.cream },
+  chipText: { fontSize: FontSize.sm, color: Colors.white, fontWeight: FontWeight.medium },
+  chipTextOn: { color: Colors.surfaceBg },
+  customInput: { marginTop: Spacing.md, marginHorizontal: 20, height: 52, paddingHorizontal: Spacing.md, borderRadius: 14, backgroundColor: Colors.midGrey, color: Colors.white, fontSize: FontSize.md, textAlign: 'center' },
+  footer: { paddingHorizontal: 20, paddingTop: Spacing.md, paddingBottom: Spacing.lg, gap: 4 },
+  steps: { paddingHorizontal: 28, paddingBottom: Spacing.xl, gap: 18 },
+  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  stepMark: { width: 18, alignItems: 'center' },
+  stepDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.borderGrey },
+  stepLabel: { fontSize: FontSize.md - 1, color: Colors.white, fontWeight: FontWeight.medium },
+  stepLabelTodo: { color: Colors.mutedWhite },
+  kvWrap: { alignSelf: 'stretch', marginTop: Spacing.sm },
+  addrBox: { alignSelf: 'stretch', marginTop: Spacing.md, padding: 14, borderRadius: 14, backgroundColor: Colors.midGrey },
+  addrLabel: { fontSize: FontSize.xs, color: Colors.mutedWhite },
+  addr: { fontFamily: Fonts.mono, fontSize: FontSize.sm - 1, lineHeight: 20, color: Colors.white, marginTop: 4 },
+  status: { fontSize: FontSize.sm - 1, color: Colors.gold, marginTop: 6 },
+  sheetPanel: { marginTop: Spacing.sm },
+  sheetWarn: { fontSize: FontSize.sm - 1, color: Colors.warning, textAlign: 'center', marginTop: Spacing.sm },
+  sheetFooter: { marginTop: Spacing.lg },
 })

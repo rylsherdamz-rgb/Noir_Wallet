@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "preferences": {
+    "destination": {
+      "value": "youtube",
+      "confirmed_in": [
+        "noir-wallet-promo"
+      ],
+      "updated_at": "2026-10-07T10:14:58.158Z"
+    },
+    "aspect": {
+      "value": "1920x1080",
+      "confirmed_in": [
+        "noir-wallet-promo"
+      ],
+      "updated_at": "2026-10-07T10:14:58.195Z"
+    },
+    "language": {
+      "value": "en",
+      "confirmed_in": [
+        "noir-wallet-promo"
+      ],
+      "updated_at": "2026-10-07T10:14:58.240Z"
+    },
+    "flow": {
+      "value": "automation",
+      "confirmed_in": [
+        "noir-wallet-promo"
+      ],
+      "updated_at": "2026-10-07T10:14:58.273Z"
+    },
+    "storyboard": {
+      "value": "yes",
+      "confirmed_in": [
+        "noir-wallet-promo"
+      ],
+      "updated_at": "2026-10-07T10:14:58.314Z"
+    },
+    "style_preset.product-launch-video": {
+      "value": "broadside",
+      "confirmed_in": [
+        "noir-wallet-promo"
+      ],
+      "updated_at": "2026-10-07T10:16:47.816Z"
+    }
+  },
+  "sightings": {}
+}

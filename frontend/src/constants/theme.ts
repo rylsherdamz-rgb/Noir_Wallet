@@ -39,6 +39,10 @@ export const Colors = {
   danger: DesignTokens.colors.semantic.danger,
   error: DesignTokens.colors.semantic.error,
 
+  // Network chip colours (never brand gold)
+  testnet: DesignTokens.colors.network.testnet,
+  mainnet: DesignTokens.colors.network.mainnet,
+
   // Text/glyphs on a gold fill
   onGold: DesignTokens.colors.special.onGold,
 

@@ -1,0 +1,1 @@
+{"nodes":[{"id":"frontend_index","label":"index.ts","file_type":"code","source_file":"frontend/index.ts","source_location":"L1"}],"edges":[{"source":"frontend_index","target":"ref_expo_router_entry","relation":"imports_from","confidence":"EXTRACTED","source_file":"frontend/index.ts","source_location":"L1","weight":1}]}

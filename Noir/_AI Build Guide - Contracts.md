@@ -5,7 +5,7 @@ aliases: [Contract Guide, AI Build Guide, Contract Functions]
 
 # 🤖 AI Build Guide — Soroban Contracts (Complete)
 
-> Source-accurate reference for an AI (or human) building/extending Noir Wallet's on-chain layer. Derived directly from the Rust in `backend/asset/contracts/`. The README's contract tables were realigned to this source as of 2026-10-02, so the two now agree — but this note stays the canonical one: if they ever diverge, trust the Rust, then this note. Linked from [[_Context - What We Are Building]], [[Smart Contracts]], and [[_SCF Instaward - Deliverables & Constraints]].
+> Source-accurate reference for an AI (or human) building/extending Noir Wallet's on-chain layer. Derived directly from the Rust in `backend/contracts/`. The README's contract tables were realigned to this source as of 2026-10-02, so the two now agree — but this note stays the canonical one: if they ever diverge, trust the Rust, then this note. Linked from [[_Context - What We Are Building]], [[Smart Contracts]], and [[_SCF Instaward - Deliverables & Constraints]].
 
 ## Ground rules for the AI
 
@@ -26,7 +26,7 @@ mod device_registry { contractimport!(file = "../../target/wasm32v1-none/release
 ```
 So you MUST build `agent_registry` and `device_registry` **before** `payment_escrow`:
 ```bash
-cd backend/asset
+cd backend
 cargo build --release --target wasm32v1-none -p agent-registry -p device-registry
 cargo build --release --target wasm32v1-none -p payment-escrow
 ```
@@ -161,7 +161,7 @@ See flows: [[Flow - Device Provisioning]] · [[Flow - Escrow Payment]] · [[Flow
 - defund by non-owner → owner `require_auth` fails
 - invalid policy at registration (negative cap / past expiry) → `InvalidPolicy`
 
-Integration tests live at `backend/asset/contracts/*/tests/integration.rs` — extend these when adding behavior; do not weaken existing assertions.
+Integration tests live at `backend/contracts/*/tests/integration.rs` — extend these when adding behavior; do not weaken existing assertions.
 
 ## When extending: checklist for the AI
 

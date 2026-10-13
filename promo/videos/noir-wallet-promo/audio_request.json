@@ -1,0 +1,53 @@
+{
+  "provider": "elevenlabs",
+  "speed": 1,
+  "lines": [
+    {
+      "id": "01",
+      "text": "What if your whole wallet… fit on a card?"
+    },
+    {
+      "id": "02",
+      "text": "Tap. Paid. Settled on Stellar."
+    },
+    {
+      "id": "03",
+      "text": "This is Noir. Tap into trust."
+    },
+    {
+      "id": "04",
+      "text": "Any NFC card or sticker. Hold it to your phone — and it's registered on Stellar."
+    },
+    {
+      "id": "05",
+      "text": "Every card pays through its own on-chain agent — with its own balance."
+    },
+    {
+      "id": "06",
+      "text": "Top it up with exactly what it should spend. Nothing more."
+    },
+    {
+      "id": "07",
+      "text": "Lost it? Revoke it in one tap — and every last XLM sweeps back to you."
+    },
+    {
+      "id": "08",
+      "text": "And it's a full Stellar wallet. Send, receive, track — locked behind your keys."
+    },
+    {
+      "id": "09",
+      "text": "Built on Soroban smart contracts. Open source. Live on Stellar Testnet."
+    },
+    {
+      "id": "10",
+      "text": "Noir Wallet. Tap into trust."
+    }
+  ],
+  "bgm": {
+    "mode": "retrieve",
+    "query": "dark premium minimal electronic, deep pulse, confident luxury tech, builds to a lift",
+    "blob": "Tap a card to pay on Stellar — it spends only what you load, and works until you revoke it.",
+    "arc": "Future Pacing — imagine → tap proof → name product → mechanism (link, load) → control (revoke) → trust → CTA"
+  },
+  "voice": "nPczCjzI2devNBz1zQrb"
+}

@@ -1,10 +1,10 @@
-import { Text, StyleSheet, ActivityIndicator, View, StyleProp, ViewStyle, Animated } from 'react-native'
+import { Text, StyleSheet, View, StyleProp, ViewStyle } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { PressableScale } from '@/components/brand/PressableScale'
 import * as Haptics from 'expo-haptics'
-import { useRef } from 'react'
 import { DesignTokens } from '@/constants/designTokens'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '@/constants/theme'
+import { VerifyingPulse } from '@/components/brand/VerifyingPulse'
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success'
 type ButtonSize = 'small' | 'medium' | 'large'
@@ -43,25 +43,7 @@ export function Button({
   testID,
 }: ButtonProps) {
   const isDisabled = disabled || loading
-  const scaleAnim = useRef(new Animated.Value(1)).current
 
-  const handlePressIn = () => {
-    if (isDisabled) return
-    Animated.spring(scaleAnim, {
-      toValue: 0.98,
-      useNativeDriver: true,
-      speed: 50,
-    }).start()
-  }
-
-  const handlePressOut = () => {
-    if (isDisabled) return
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 50,
-    }).start()
-  }
 
   const handlePress = () => {
     if (isDisabled || !onPress) return
@@ -83,11 +65,11 @@ export function Button({
     
     switch (variant) {
       case 'primary':
-        return Colors.black
+        return Colors.onGold
       case 'secondary':
         return Colors.white
       case 'ghost':
-        return Colors.gold
+        return Colors.cream
       case 'danger':
         return Colors.white
       case 'success':
@@ -100,7 +82,7 @@ export function Button({
   const iconSize = size === 'small' ? 16 : size === 'large' ? 24 : 20
 
   return (
-    <Animated.View style={[{ transform: [{ scale: scaleAnim }] }, fullWidth && { width: '100%' }]}>
+    <View style={fullWidth ? styles.fullWidth : undefined}>
       <PressableScale
         style={[
           styles.base,
@@ -111,8 +93,6 @@ export function Button({
           style,
         ]}
         onPress={handlePress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
         disabled={isDisabled}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel ?? label}
@@ -121,10 +101,7 @@ export function Button({
         testID={testID}
       >
         {loading ? (
-          <ActivityIndicator
-            color={variant === 'primary' ? Colors.black : variant === 'ghost' ? Colors.gold : Colors.white}
-            size={size === 'small' ? 'small' : 'large'}
-          />
+          <VerifyingPulse size={size === 'small' ? 16 : 20} color={variant === 'primary' ? Colors.onGold : variant === 'ghost' ? Colors.cream : Colors.white} />
         ) : (
           <View style={styles.inner}>
             {icon && iconPosition === 'left' && (
@@ -139,13 +116,13 @@ export function Button({
           </View>
         )}
       </PressableScale>
-    </Animated.View>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -157,12 +134,8 @@ const styles = StyleSheet.create({
   },
   secondary: {
     backgroundColor: Colors.midGrey,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
   },
   ghost: {
-    borderWidth: 1,
-    borderColor: Colors.gold,
     backgroundColor: 'transparent',
   },
   danger: {
@@ -204,8 +177,10 @@ const styles = StyleSheet.create({
   },
   
   // Label styles
+  // Jost, sentence case — solid pill (DESIGN.md → Buttons)
   label: {
-    fontWeight: FontWeight.bold,
+    fontFamily: Fonts.display,
+    letterSpacing: 0.3,
   },
   smallLabel: {
     fontSize: FontSize.sm,
@@ -217,13 +192,13 @@ const styles = StyleSheet.create({
     fontSize: FontSize.lg,
   },
   primaryLabel: {
-    color: Colors.black,
+    color: Colors.onGold,
   },
   secondaryLabel: {
     color: Colors.white,
   },
   ghostLabel: {
-    color: Colors.gold,
+    color: Colors.cream,
   },
   dangerLabel: {
     color: Colors.white,

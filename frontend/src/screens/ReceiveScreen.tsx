@@ -1,6 +1,6 @@
 import { colorWithOpacity } from '@/constants/designTokens'
-import { useState, useCallback, useRef, useEffect } from 'react'
-import { View, Text, StyleSheet, Share, TextInput, Animated, Easing, Platform } from 'react-native'
+import { useState, useCallback } from 'react'
+import { View, Text, StyleSheet, ScrollView, Share, Platform } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -10,7 +10,7 @@ import * as Clipboard from 'expo-clipboard'
 import * as Haptics from 'expo-haptics'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { Buffer } from 'buffer'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts, Gradient } from '@/constants/theme'
 import { Toast } from '@/components/Toast'
 import { useAppStore } from '@/store/useAppStore'
 import { nfcService } from '@/services/nfc'
@@ -18,21 +18,33 @@ import { x402 } from '@/domain/x402'
 import { stellarService } from '@/services/stellar-service'
 import { AppConfig } from '@/constants/config'
 import { logger } from '@/lib/logger'
+import { humanizeStellarError } from '@/lib/stellarErrors'
+import { AmountEntry } from '@/components/flow/AmountEntry'
+import { ProcessingOverlay } from '@/components/flow/ProcessingOverlay'
+import { keypadValueToNumber } from '@/lib/keypadInput'
+import { openReceipt } from '@/lib/receipt'
+import { startLocalTx, settleLocalTx } from '@/lib/localTx'
+import { formatAmount } from '@/lib/txFormat'
+import { ScreenHeader } from '@/components/ScreenHeader'
+import { TextAction } from '@/components/ui/List'
+import { Button } from '@/components/Button'
+import { Segmented } from '@/components/ui/Segmented'
+import { PaymentRequestQr } from '@/components/flow/PaymentRequestQr'
 
-type ReceiveMode = 'address' | 'nfc'
+type ReceiveMode = 'address' | 'nfc' | 'qr'
 
 export function ReceiveScreen() {
   const router = useRouter()
-  const { user, balance, devices, addTransaction, setBalance } = useAppStore()
+  const { user, balance, devices, setBalance } = useAppStore()
   const [mode, setMode] = useState<ReceiveMode>('address')
+  const [showQr, setShowQr] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState<'XLM'>('XLM')
   const [amount, setAmount] = useState('')
-  const [nfcState, setNfcState] = useState<'idle' | 'scanning' | 'processing' | 'success' | 'error'>('idle')
+  const [nfcState, setNfcState] = useState<'idle' | 'scanning' | 'processing'>('idle')
   const [nfcError, setNfcError] = useState('')
-  const [receivedAmount, setReceivedAmount] = useState('')
-  const pulse = useState(new Animated.Value(1))[0]
-  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const rotateAnim = useRef(new Animated.Value(0)).current
+  const [notLinked, setNotLinked] = useState(false)
+  // Set when the tap failed because the card is short — offers "Top up".
+  const [fundCardId, setFundCardId] = useState<string | null>(null)
   const [toast, setToast] = useState<{ visible: boolean; type: 'success' | 'info'; title: string; message?: string }>({
     visible: false,
     type: 'success',
@@ -42,7 +54,7 @@ export function ReceiveScreen() {
   const address = user?.stellarPublicKey || 'GABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'
   const balanceAmount = balance.xlm
 
-  const amountUnits = amount ? parseFloat(amount) : 0
+  const amountUnits = keypadValueToNumber(amount)
 
   const copyAddress = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
@@ -52,35 +64,31 @@ export function ReceiveScreen() {
 
   const shareAddress = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    await Share.share({ message: `Send ${selectedAsset} to my Noir Wallet: ${address}` })
+    await Share.share({ message: `Send ${selectedAsset} to my Noir wallet: ${address}` })
   }
 
   const handleNfcReceive = useCallback(async () => {
-    if (amountUnits <= 0) {
-      setNfcState('error')
-      setNfcError('Enter an amount above first')
-      return
+    if (amountUnits <= 0) return
+    const fail = (msg: string, linkHint = false, fundCardId: string | null = null) => {
+      setNfcState('idle')
+      setNfcError(msg)
+      setNotLinked(linkHint)
+      setFundCardId(fundCardId)
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
     }
 
     setNfcState('scanning')
     setNfcError('')
+    setNotLinked(false)
+    setFundCardId(null)
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
 
-    const anim = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 0.6, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ]),
-    )
-    anim.start()
-
+    let localId: string | null = null
     try {
       const tag = await nfcService.readTag(10000)
-      anim.stop()
 
       if (!tag?.uid) {
-        setNfcState('error')
-        setNfcError('No NFC tag detected — hold the card steady against the phone')
+        fail('No card detected — hold the card flat against the back of the phone and try again.')
         return
       }
 
@@ -90,15 +98,17 @@ export function ReceiveScreen() {
       const hashBytes = sha256(new TextEncoder().encode(tag.uid))
       const scannedHash = Buffer.from(hashBytes).toString('hex')
 
-      // Look up the device in our list — if it has an agent, we use it
+      // Look up the card, then its agent key on this phone. Never fall back to
+      // agent 1: on a phone with several cards that paid from the wrong (often
+      // empty) agent wallet and failed.
       const linkedDevice = devices.find((d) => d.deviceUidHash === scannedHash)
-      const hasAgent = await x402.hasAgent()
-      const agentIndex = await x402.getAgentIndexForDevice(scannedHash)
-      const agentSecret = await x402.getAgentSecret(agentIndex ?? undefined)
-
-      if (!hasAgent || !agentSecret || !linkedDevice?.agentPublicKey) {
-        setNfcState('error')
-        setNfcError('This card is not linked to your agent. Link it first in Settings → Devices.')
+      if (!linkedDevice?.agentPublicKey) {
+        fail('This card isn’t linked to an agent on this phone yet.', true)
+        return
+      }
+      const agentIndex = await x402.resolveAgentIndex(scannedHash, linkedDevice.agentPublicKey)
+      if (agentIndex == null) {
+        fail(`${linkedDevice.label}’s agent key isn’t on this phone, so it can’t pay from here.`)
         return
       }
 
@@ -108,253 +118,180 @@ export function ReceiveScreen() {
 
       const amountXLM = amountUnits.toFixed(7)
       if (__DEV__) logger.debug('[Receive NFC] paying', amountXLM, 'XLM from agent to', merchantAddr.slice(0, 8))
+      // Pending in Activity (wallet and the card) while the agent pays.
+      localId = startLocalTx({
+        merchantName: `Tap · ${linkedDevice.label}`,
+        merchantId: linkedDevice.agentPublicKey,
+        amountCents: Math.round(amountUnits * 100),
+        direction: 'in',
+        deviceId: scannedHash,
+      })
       const payResult = await x402.payWithAgent({
-        agentIndex: agentIndex ?? undefined,
+        agentIndex,
         destination: merchantAddr,
         amount: amountXLM,
       })
-      if ('error' in payResult) throw new Error(payResult.error)
+      if ('error' in payResult) {
+        settleLocalTx(localId, { status: 'failed', errorMessage: humanizeStellarError(payResult.error) })
+        const short = /balance|not enough|underfunded|budget/i.test(payResult.error)
+        fail(humanizeStellarError(payResult.error), false, short ? linkedDevice.id : null)
+        return
+      }
       const txHash = payResult.hash
 
       if (__DEV__) logger.debug('[Receive NFC] queued:', txHash)
-      setNfcState('success')
-      setReceivedAmount(amount)
-      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
 
-      const txId = Math.random().toString(36).slice(2)
-      const { addPendingTxHash } = useAppStore.getState()
-      addTransaction({
-        id: txId,
-        stellarTxHash: txHash,
-        merchantId: 'me',
-        merchantName: 'NFC Receive',
-        userId: user?.id || 'local',
-        deviceId: scannedHash,
-        amountCents: Math.round(amountUnits * 100),
-        assetCode: 'XLM',
-        status: 'pending',
-        errorMessage: null,
-        createdAt: new Date().toISOString(),
-      })
-      addPendingTxHash(txHash)
+      // Hash attached; txMonitor flips it to confirmed when the ledger closes.
+      settleLocalTx(localId, { stellarTxHash: txHash })
+      useAppStore.getState().addPendingTxHash(txHash)
 
-      // Refresh on-chain wallet balance so the Dashboard shows latest
+      // Refresh the wallet balance in the background — the receipt shouldn't wait on it.
       if (user?.stellarPublicKey) {
-        try {
-          const onChain = await stellarService.getBalance(user.stellarPublicKey)
-          setBalance({ xlm: onChain.xlm, subentryCount: onChain.subentryCount })
-        } catch { /* non-critical */ }
+        const pub = user.stellarPublicKey
+        stellarService.invalidateBalance(pub)
+        stellarService.getBalance(pub)
+          .then((onChain) => setBalance({ xlm: onChain.xlm, subentryCount: onChain.subentryCount }))
+          .catch(() => { /* non-critical */ })
       }
 
-      resetTimerRef.current = setTimeout(() => { setNfcState('idle') }, 5000)
+      setNfcState('idle')
+      setAmount('')
+      openReceipt(router, {
+        title: 'NFC payment received',
+        amountCents: Math.round(amountUnits * 100),
+        assetCode: 'XLM',
+        direction: 'in',
+        // Submitted, not yet final — the receipt says so honestly.
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        counterpartyLabel: 'From',
+        counterparty: linkedDevice.agentPublicKey,
+        hash: txHash,
+        note: `Paid by ${linkedDevice.label}`,
+      }, 'push')
     } catch (e: any) {
-      anim.stop()
       logger.error('[Receive NFC] error:', e?.message)
-      setNfcState('error')
-      setNfcError(e?.message ?? 'NFC receive failed')
-      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      if (localId) settleLocalTx(localId, { status: 'failed', errorMessage: humanizeStellarError(e) })
+      fail(humanizeStellarError(e) || 'NFC receive failed')
     }
-  }, [amountUnits, devices, user, addTransaction, selectedAsset, pulse])
+  }, [amountUnits, devices, user, router])
 
   const resetNfc = () => {
-    if (resetTimerRef.current) {
-      clearTimeout(resetTimerRef.current)
-      resetTimerRef.current = null
-    }
     setNfcState('idle')
     setNfcError('')
+    setNotLinked(false)
+    setFundCardId(null)
   }
 
-  useEffect(() => {
-    if (nfcState === 'scanning' || nfcState === 'processing') {
-      const loop = Animated.loop(
-        Animated.timing(rotateAnim, {
-          toValue: 1,
-          duration: 1000,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        }),
-      )
-      loop.start()
-      return () => loop.stop()
-    }
-  }, [nfcState])
+  const network = useAppStore.getState().network
+  const name = user?.displayName?.trim() || 'My wallet'
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <PressableScale onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityLabel="Close"
-        >
-          <Ionicons name="close" size={24} color={Colors.white} />
-        </PressableScale>
-        <Text style={styles.headerTitle}>Receive</Text>
-        <View style={styles.spacer24} />
-      </View>
+      <ScreenHeader title="Receive" onBackPress={() => router.back()} />
+      <Segmented
+        value={mode}
+        onChange={(m) => { resetNfc(); setShowQr(false); setMode(m) }}
+        options={[{ value: 'address', label: 'Address' }, { value: 'nfc', label: 'NFC tap' }, { value: 'qr', label: 'QR' }]}
+        style={styles.segment}
+      />
 
-      {/* Mode toggle */}
-      <View style={styles.modeRow}>
-        <PressableScale
-          style={[styles.modeChip, mode === 'address' && styles.modeChipActive]}
-          onPress={() => { setMode('address'); resetNfc() }}
-        
-          accessibilityLabel="Scan QR code"
-          accessibilityHint="Opens the camera to read an address"
-        >
-          <Ionicons name="qr-code-outline" size={16} color={mode === 'address' ? Colors.black : Colors.mutedWhite} />
-          <Text style={[styles.modeChipLabel, mode === 'address' && styles.modeChipLabelActive]}>Address</Text>
-        </PressableScale>
-        <PressableScale
-          style={[styles.modeChip, mode === 'nfc' && styles.modeChipActive]}
-           onPress={() => { setMode('nfc'); setSelectedAsset('XLM') }}
-        >
-          <Ionicons name="radio-outline" size={16} color={mode === 'nfc' ? Colors.black : Colors.mutedWhite} />
-          <Text style={[styles.modeChipLabel, mode === 'nfc' && styles.modeChipLabelActive]}>NFC Tap</Text>
-        </PressableScale>
-      </View>
+      {mode === 'address' && (
+        <>
+          <ScrollView contentContainerStyle={styles.addressArea} showsVerticalScrollIndicator={false}>
+            <Text style={styles.walletName}>{name}</Text>
+            <View style={styles.qrCard}>
+              <QRCode value={address} size={196} backgroundColor={Colors.white} color={Colors.black} />
+            </View>
+            <Text style={styles.fullAddress} selectable>{address}</Text>
+            <View style={styles.netNote}>
+              <Ionicons name="information-circle-outline" size={16} color={network === 'mainnet' ? Colors.mainnet : Colors.testnet} />
+              <Text style={styles.netNoteText}>Only send Stellar assets on {network === 'mainnet' ? 'Mainnet' : 'Testnet'}</Text>
+            </View>
+            <Text style={styles.balanceLine}>Balance {balanceAmount.toLocaleString()} XLM</Text>
+          </ScrollView>
+          <View style={styles.footerRow}>
+            <View style={styles.flex1}><Button label="Copy" icon="copy-outline" onPress={copyAddress} fullWidth /></View>
+            <View style={styles.flex1}><Button label="Share" icon="share-outline" variant="secondary" onPress={shareAddress} fullWidth /></View>
+          </View>
+        </>
+      )}
 
-      <View style={styles.content}>
-        {/* Address QR mode */}
-        {mode === 'address' && (
+      {mode === 'qr' && (
+        showQr ? (
+          <ScrollView contentContainerStyle={styles.addressArea}>
+            <PaymentRequestQr
+              address={address}
+              amountXlm={amountUnits}
+              onPaid={(p) => {
+                if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+                setShowQr(false)
+                setAmount('')
+                openReceipt(router, {
+                  title: 'QR payment received',
+                  amountCents: Math.round(p.amountXlm * 100),
+                  assetCode: 'XLM',
+                  direction: 'in',
+                  status: 'confirmed',
+                  createdAt: new Date().toISOString(),
+                  counterpartyLabel: 'From',
+                  counterparty: p.from,
+                  hash: p.hash,
+                  note: 'Paid by QR',
+                }, 'push')
+              }}
+            />
+            <TextAction label="Change amount" icon="create-outline" onPress={() => setShowQr(false)} />
+          </ScrollView>
+        ) : (
           <>
-              <View style={styles.qrWrap}>
-              <View style={styles.qrBorder}>
-                <QRCode
-                  value={`${address}?asset=${selectedAsset}`}
-                  size={200}
-                  backgroundColor={Colors.white}
-                  color={Colors.black}
-                />
-              </View>
-            </View>
-
-            <View style={styles.addressSection}>
-              <Text style={styles.addressLabel}>Your Stellar Address</Text>
-              <View style={styles.addressRow}>
-                <Text style={styles.addressText} numberOfLines={1}>
-                  {address.slice(0, 12)}...{address.slice(-8)}
-                </Text>
-                <PressableScale style={styles.copyBtn} onPress={copyAddress}
-                  accessibilityLabel="Copy"
-                  accessibilityHint="Copies the value to the clipboard"
-                >
-                  <Ionicons name="copy-outline" size={18} color={Colors.gold} />
-                </PressableScale>
-                <PressableScale style={styles.shareBtn} onPress={shareAddress}
-                  accessibilityLabel="Share"
-                >
-                  <Ionicons name="share-outline" size={18} color={Colors.gold} />
-                </PressableScale>
-              </View>
-            </View>
-
-            <View style={styles.balanceCard}>
-              <Text style={styles.balanceLabel}>Your {selectedAsset} Balance</Text>
-              <Text style={styles.balanceValue}>
-                {balanceAmount.toLocaleString()} {selectedAsset}
-              </Text>
-            </View>
+            <Text style={styles.nfcPrompt}>Enter the amount, then show the QR. The payer scans it with Noir or any Stellar wallet.</Text>
+            <AmountEntry
+              value={amount}
+              onChangeValue={setAmount}
+              caption="Request a set amount"
+              quickAmounts={[5, 10, 25, 50]}
+              ctaLabel="Show QR"
+              onSubmit={() => setShowQr(true)}
+              ctaDisabled={amountUnits <= 0}
+            />
           </>
-        )}
+        )
+      )}
 
-        {/* NFC Receive mode */}
-        {mode === 'nfc' && (
-          <>
-            <View style={styles.nfcSection}>
-              <Text style={styles.nfcPrompt}>Have a friend tap their NFC card to send you payment</Text>
-            </View>
+      {mode === 'nfc' && (
+        <>
+          <Text style={styles.nfcPrompt}>Enter the amount, then have the payer tap their card on your phone.</Text>
+          <AmountEntry
+            value={amount}
+            onChangeValue={(v) => { setNfcError(''); setNotLinked(false); setFundCardId(null); setAmount(v) }}
+            caption="Paid from the card’s balance"
+            error={nfcError || null}
+            quickAmounts={[5, 10, 25, 50]}
+            ctaLabel="Tap card to receive"
+            onSubmit={handleNfcReceive}
+            ctaDisabled={amountUnits <= 0 || nfcState !== 'idle'}
+          />
+          {notLinked && (
+            <TextAction label="Link this card" icon="link-outline" onPress={() => router.push('/link-device')} />
+          )}
+          {fundCardId && (
+            <TextAction label="Top up this card" icon="add" onPress={() => router.push({ pathname: '/agent-fund/[id]', params: { id: fundCardId } })} />
+          )}
+        </>
+      )}
 
-            <View style={styles.amountSection}>
-              <Text style={styles.amountLabel}>Amount to receive</Text>
-              <TextInput
-                style={styles.amountInput}
-                value={amount}
-                onChangeText={setAmount}
-                placeholder="Enter amount in XLM"
-                placeholderTextColor={Colors.mutedWhite}
-                keyboardType="numeric"
-                maxLength={10}
-              />
-              {amount ? <Text style={styles.amountPreview}>{amount} XLM</Text> : null}
-            </View>
-
-            <View style={styles.nfcTapArea}>
-              {nfcState === 'idle' && (
-                <>
-                  <PressableScale
-                     style={[styles.nfcBtn, (amountUnits <= 0) && styles.nfcBtnDisabled]}
-                    onPress={handleNfcReceive}
-                    disabled={amountUnits <= 0}
-                  >
-                    <Ionicons name="radio" size={28} color={amountUnits > 0 ? Colors.black : Colors.mutedWhite} />
-                    <Text style={[styles.nfcBtnText, (amountUnits <= 0) && { color: Colors.mutedWhite }]}>
-                      Tap to Start NFC
-                    </Text>
-                  </PressableScale>
-                  {amountUnits <= 0 && (
-                    <Text style={styles.nfcBtnHelper}>Enter an amount above to enable NFC</Text>
-                  )}
-                </>
-              )}
-
-              {nfcState === 'scanning' && (
-                <View style={styles.nfcScanWrap}>
-                  <Animated.View style={[styles.nfcScanRing, { transform: [{ scale: pulse }] }]} />
-                  <View style={styles.nfcScanCenter}>
-                    <Ionicons name="radio" size={36} color={Colors.gold} />
-                  </View>
-                  <Text style={styles.nfcScanText}>Hold card to phone...</Text>
-                </View>
-              )}
-
-              {nfcState === 'processing' && (
-                <View style={styles.nfcProcessing}>
-                  <Animated.View style={{ transform: [{ rotate: rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] }}>
-                    <Ionicons name="sync" size={32} color={Colors.gold} />
-                  </Animated.View>
-                  <Text style={styles.nfcProcessingText}>Authorizing payment...</Text>
-                </View>
-              )}
-
-              {nfcState === 'success' && (
-                <View style={styles.nfcSuccess}>
-                  <Ionicons name="checkmark-circle" size={64} color={Colors.success} />
-                  <Text style={styles.nfcSuccessText}>{receivedAmount} XLM queued</Text>
-                  <Text style={styles.nfcSuccessSub}>Payment submitted — you'll be notified when confirmed</Text>
-                  <PressableScale style={styles.nfcResetBtn} onPress={resetNfc}>
-                    <Text style={styles.nfcResetBtnText}>Receive Another</Text>
-                  </PressableScale>
-                </View>
-              )}
-
-              {nfcState === 'error' && (
-                <View style={styles.nfcError}>
-                  <Ionicons name="close-circle" size={48} color={Colors.danger} />
-                  <Text style={styles.nfcErrorText}>{nfcError}</Text>
-                  <PressableScale style={styles.nfcResetBtn} onPress={resetNfc}>
-                    <Text style={styles.nfcResetBtnText}>Try Again</Text>
-                  </PressableScale>
-                  {nfcError.includes('not linked') && (
-                    <PressableScale style={[styles.nfcResetBtn, { backgroundColor: Colors.gold, marginTop: Spacing.sm }]} onPress={() => router.push('/(tabs)/devices')}>
-                      <Ionicons name="link-outline" size={18} color={Colors.black} />
-                      <Text style={[styles.nfcResetBtnText, { color: Colors.black }]}>Link in Settings</Text>
-                    </PressableScale>
-                  )}
-                </View>
-              )}
-            </View>
-
-            {nfcState === 'idle' && (
-              <View style={styles.nfcInfo}>
-                <Ionicons name="information-circle-outline" size={14} color={Colors.mutedWhite} />
-                <Text style={styles.nfcInfoText}>
-                  Agent wallet pays from its XLM balance
-                </Text>
-              </View>
-            )}
-          </>
-        )}
-      </View>
+      <ProcessingOverlay
+        visible={nfcState !== 'idle'}
+        variant={nfcState === 'scanning' ? 'nfc' : 'verify'}
+        title={nfcState === 'scanning' ? 'Hold the card to your phone' : 'Authorizing payment'}
+        subtitle={`Receiving ${formatAmount(Math.round(amountUnits * 100))} XLM`}
+        steps={[
+          { label: nfcState === 'scanning' ? 'Waiting for card' : 'Card detected', state: nfcState === 'scanning' ? 'active' : 'done' },
+          { label: 'Agent signs the payment', state: nfcState === 'processing' ? 'active' : 'pending' },
+          { label: 'Submitted to Stellar', state: 'pending' },
+        ]}
+      />
 
       <Toast
         visible={toast.visible}
@@ -368,316 +305,16 @@ export function ReceiveScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.surfaceBg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-  },
-  headerTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-  },
-  spacer24: { width: 24 },
-  content: {
-    flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-  },
-
-  // Mode toggle
-  modeRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  modeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.lightGrey,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  modeChipActive: {
-    backgroundColor: Colors.gold,
-    borderColor: Colors.gold,
-  },
-  modeChipLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    fontWeight: FontWeight.semibold,
-  },
-  modeChipLabelActive: {
-    color: Colors.black,
-  },
-
-  // Address QR mode
-  assetRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.xl,
-  },
-  assetChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.lightGrey,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-  },
-  assetChipActive: {
-    backgroundColor: colorWithOpacity(Colors.gold, 0.12),
-    borderColor: Colors.gold,
-  },
-  assetChipLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    fontWeight: FontWeight.semibold,
-  },
-  assetChipLabelActive: {
-    color: Colors.gold,
-  },
-  qrWrap: {
-    marginBottom: Spacing.xl,
-  },
-  qrBorder: {
-    padding: Spacing.md,
-    backgroundColor: Colors.white,
-    borderRadius: BorderRadius.lg,
-  },
-  addressSection: {
-    width: '100%',
-    backgroundColor: Colors.cardBg,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.borderGrey,
-    marginBottom: Spacing.md,
-  },
-  addressLabel: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    marginBottom: Spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  addressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  addressText: {
-    flex: 1,
-    fontSize: FontSize.sm,
-    color: Colors.white,
-    fontFamily: 'monospace',
-  },
-  copyBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: BorderRadius.full,
-    backgroundColor: colorWithOpacity(Colors.gold, 0.1),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shareBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: BorderRadius.full,
-    backgroundColor: colorWithOpacity(Colors.gold, 0.1),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  balanceCard: {
-    width: '100%',
-    backgroundColor: colorWithOpacity(Colors.gold, 0.08),
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: colorWithOpacity(Colors.gold, 0.15),
-    alignItems: 'center',
-  },
-  balanceLabel: {
-    fontSize: FontSize.xs,
-    color: Colors.gold,
-    marginBottom: Spacing.xs,
-  },
-  balanceValue: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
-    color: Colors.gold,
-  },
-
-  // NFC receive mode
-  nfcSection: {
-    width: '100%',
-    marginBottom: Spacing.lg,
-  },
-  nfcPrompt: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  amountSection: {
-    width: '100%',
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
-  },
-  amountLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.mutedWhite,
-    marginBottom: Spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  amountInput: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.heavy,
-    color: Colors.white,
-    textAlign: 'center',
-    minWidth: 200,
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderGrey,
-  },
-  amountPreview: {
-    fontSize: FontSize.xl,
-    color: Colors.gold,
-    marginTop: Spacing.sm,
-    fontWeight: FontWeight.bold,
-  },
-  nfcTapArea: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 200,
-    marginBottom: Spacing.md,
-  },
-  nfcBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.gold,
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.xl,
-    borderRadius: BorderRadius.full,
-  },
-  nfcBtnDisabled: {
-    backgroundColor: Colors.lightGrey,
-  },
-  nfcBtnText: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.black,
-  },
-  nfcScanWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 160,
-    height: 160,
-  },
-  nfcScanRing: {
-    position: 'absolute',
-    left: '50%',
-    top: '50%',
-    width: 120,
-    height: 120,
-    marginLeft: -60,
-    marginTop: -60,
-    borderRadius: 60,
-    borderWidth: 2,
-    borderColor: Colors.gold,
-  },
-  nfcScanCenter: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: colorWithOpacity(Colors.gold, 0.1),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nfcScanText: {
-    fontSize: FontSize.sm,
-    color: Colors.gold,
-    marginTop: Spacing.md,
-    fontWeight: FontWeight.medium,
-  },
-  nfcProcessing: {
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  nfcProcessingText: {
-    fontSize: FontSize.md,
-    color: Colors.gold,
-  },
-  nfcSuccess: {
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  nfcSuccessText: {
-    fontSize: FontSize.lg,
-    color: Colors.success,
-    fontWeight: FontWeight.bold,
-    textAlign: 'center',
-  },
-  nfcSuccessSub: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    textAlign: 'center',
-    marginTop: Spacing.xs,
-    paddingHorizontal: Spacing.lg,
-  },
-  nfcError: {
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  nfcErrorText: {
-    fontSize: FontSize.sm,
-    color: Colors.danger,
-    textAlign: 'center',
-    paddingHorizontal: Spacing.lg,
-  },
-  nfcResetBtn: {
-    marginTop: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    borderColor: Colors.gold,
-  },
-  nfcResetBtnText: {
-    fontSize: FontSize.sm,
-    color: Colors.gold,
-    fontWeight: FontWeight.semibold,
-  },
-  nfcInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    paddingHorizontal: Spacing.lg,
-  },
-  nfcInfoText: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    flex: 1,
-  },
-  nfcBtnHelper: {
-    fontSize: FontSize.xs,
-    color: Colors.mutedWhite,
-    marginTop: Spacing.sm,
-    textAlign: 'center',
-  },
+  container: { flex: 1, backgroundColor: Colors.surfaceBg },
+  flex1: { flex: 1 },
+  segment: { marginHorizontal: 20 },
+  addressArea: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: 18, paddingHorizontal: 20, paddingVertical: Spacing.lg },
+  walletName: { fontFamily: Fonts.display, fontSize: FontSize.md + 1, color: Colors.cream },
+  qrCard: { padding: Spacing.md, backgroundColor: Colors.white, borderRadius: 20 },
+  fullAddress: { fontFamily: Fonts.mono, fontSize: FontSize.sm - 1, lineHeight: 20, color: Colors.silver, textAlign: 'center', maxWidth: 280 },
+  netNote: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: Colors.midGrey },
+  netNoteText: { fontSize: FontSize.sm - 1, color: Colors.silver },
+  balanceLine: { fontSize: FontSize.xs, color: Colors.mutedWhite },
+  footerRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, paddingTop: Spacing.sm, paddingBottom: Spacing.lg },
+  nfcPrompt: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', lineHeight: 20, paddingHorizontal: Spacing.xl, paddingTop: Spacing.md },
 })

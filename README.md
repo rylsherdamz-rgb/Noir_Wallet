@@ -15,7 +15,7 @@ Tap any NFC tag, RFID sticker, or wearable to pay — no app opens, no confirmat
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](frontend/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-[View Pitch Deck](ppt/Noir-Wallet-Pitch.pptx) · [Architecture](docs/architecture.md) · [Deployment Evidence](docs/Evidence/README.md) · [PR #10 — Week 1](https://github.com/rylsherdamz-rgb/Noir_Wallet/pull/10) · [Run Locally](#getting-started)
+[View Pitch Deck](ppt/Noir-Wallet-Pitch.pptx) · [Architecture](docs/architecture.md) · [Stellar Dev Guide](docs/stellar-development-guide.md) · [Deployment Evidence](docs/Evidence/README.md) · [PR #10 — Week 1](https://github.com/rylsherdamz-rgb/Noir_Wallet/pull/10) · [Run Locally](#getting-started)
 
 </div>
 
@@ -79,6 +79,7 @@ A world where:
 - **PDAX Fiat Bridge**: Optional PHP cash-out via PDAX integration
 - **Custom Agents**: Per-device agent wallets with independent balances
 - **NFC Provisioning**: Link new devices directly from the app
+- **Payment Notifications**: Get notified when your wallet or a card receives money, even with the app closed
 - **Dark Theme**: Premium noir aesthetic with gold accents
 - **Cross-Platform**: React Native Expo app for iOS and Android
 
@@ -131,15 +132,15 @@ Mobile App / POS Terminal
 | **agent_registry** | On-chain agent authorization per device — allows wallet owner to authorize a signing key for tap-to-pay | `wallet.require_auth()` | `backend/contracts/agent_registry/` |
 | **payment_escrow** | Escrow-based settlement — wallet pre-funds, agent authorizes payments instantly, merchants claim in batch | agent auth (via `agent_registry`) | `backend/contracts/payment_escrow/` |
 
-**Testnet Contract IDs** (redeployed 2026-10-03 — constrained delegated auth + sweep-on-revoke, `#[contractevent]` migration):
+**Testnet Contract IDs** (redeployed 2026-10-07 — constrained delegated auth + sweep-on-revoke, `#[contractevent]` migration):
 
 | Contract | ID | WASM SHA-256 | Explorer |
 |----------|----|--------------|----------|
-| device_registry | `CCSW6R7ATZJNBGNQVXOTQNVBGBAHOSFR2RXUG32DLRU6I2LUQHVJKION` | `a252a407…67bea2` | [view](https://stellar.expert/explorer/testnet/contract/CCSW6R7ATZJNBGNQVXOTQNVBGBAHOSFR2RXUG32DLRU6I2LUQHVJKION) |
-| agent_registry | `CBP6KC6IFBQQHOGKVYYDPHXPSHTYUKKHV5EGHSSNPRTJQ6G4M545NFUC` | `b0da4885…c7a22b` | [view](https://stellar.expert/explorer/testnet/contract/CBP6KC6IFBQQHOGKVYYDPHXPSHTYUKKHV5EGHSSNPRTJQ6G4M545NFUC) |
-| payment_escrow | `CAHYPZNULA67IALHHBWTHDYGXG6DIVQNQGENWLEBMCEH5QS3JVX7DIWH` | `3861809c…2941ed` | [view](https://stellar.expert/explorer/testnet/contract/CAHYPZNULA67IALHHBWTHDYGXG6DIVQNQGENWLEBMCEH5QS3JVX7DIWH) |
+| device_registry | `CB4DPMGOA374JIB2ZVD4AHW5GJKQUYNOFGRYNOJ75EFH2KCJSMHOWIRA` | `a252a407…67bea2` | [view](https://stellar.expert/explorer/testnet/contract/CB4DPMGOA374JIB2ZVD4AHW5GJKQUYNOFGRYNOJ75EFH2KCJSMHOWIRA) |
+| agent_registry | `CBTDMJVCFQDIVWZBKAKZ2FQ3UEJNAAUFYCTJ3E4ON2MYXPLPSIXQ25JZ` | `b0da4885…c7a22b` | [view](https://stellar.expert/explorer/testnet/contract/CBTDMJVCFQDIVWZBKAKZ2FQ3UEJNAAUFYCTJ3E4ON2MYXPLPSIXQ25JZ) |
+| payment_escrow | `CA5S4S7QGHJHJWVJBYL3CXZXZTNGKXMNZVDAEQNN7NUXFP4D7BYK7HIX` | `3861809c…2941ed` | [view](https://stellar.expert/explorer/testnet/contract/CA5S4S7QGHJHJWVJBYL3CXZXZTNGKXMNZVDAEQNN7NUXFP4D7BYK7HIX) |
 
-> **About redeployment:** each `./scripts/redeploy-contracts.sh` run deploys **fresh contract instances**, so every deploy produces **new contract IDs** — a redeploy is a clean slate, not an in-place upgrade (prior on-chain state on the old instances is abandoned). The script writes the authoritative IDs, WASM hashes, and init args to a timestamped evidence file in [`deploy-evidence/`](deploy-evidence/), and when run with `UPDATE_ENV=1` it also patches `frontend/.env`. The IDs above are from the latest run ([`deploy-evidence/deploy-testnet-20261002T235948Z.md`](deploy-evidence/deploy-testnet-20261002T235948Z.md)); on-chain evidence screenshots are in [`docs/Evidence/`](docs/Evidence/README.md).
+> **About redeployment:** each `./scripts/redeploy-contracts.sh` run deploys **fresh contract instances**, so every deploy produces **new contract IDs** — a redeploy is a clean slate, not an in-place upgrade (prior on-chain state on the old instances is abandoned). The script writes the authoritative IDs, WASM hashes, and init args to a timestamped evidence file in [`deploy-evidence/`](deploy-evidence/), and when run with `UPDATE_ENV=1` it also patches `frontend/.env`. The IDs above are from the latest run ([`deploy-evidence/deploy-testnet-20261007T050558Z.md`](deploy-evidence/deploy-testnet-20261007T050558Z.md)); on-chain evidence screenshots are in [`docs/Evidence/`](docs/Evidence/README.md).
 
 > Full deployment evidence (admin, init args, WASM hashes): [`deploy-evidence/`](deploy-evidence/).
 
@@ -210,6 +211,7 @@ Noir_Wallet/
 │       ├── hooks/           # useNfc, useProfile, custom hooks
 │       ├── lib/             # soroban.ts helpers, x402 auth
 │       ├── domain/          # x402 agent logic
+│       ├── tasks/           # Background tasks (received-payment alerts)
 │       ├── constants/       # Theme (black/gold), network config
 │       └── types/           # TypeScript type definitions
 ├── backend/                 # Soroban smart contracts (Rust)
@@ -246,6 +248,34 @@ Noir_Wallet/
 4. **Settle:** Merchant calls `payment_escrow.claim()` in batch — one transaction claims all pending payments
 5. **Reclaim:** Wallet owner can `defund_escrow()` unused balance at any time
 
+## Payment Notifications
+
+Noir Wallet notifies you when money **arrives** at your main wallet or at any card's agent wallet, including when you are not in the app. The app needs no server for this: it reads your accounts' payments from Horizon directly.
+
+| App state | How it checks | Delay |
+|-----------|---------------|-------|
+| Open | Balances update live on screen; on opening, anything that arrived while you were away is notified | — |
+| In the background (still running) | Polls Horizon every 30 seconds | ≤ 30 s |
+| Closed or swiped away | `expo-background-task` job (Android WorkManager) | ~15 min or more; Android decides when it runs |
+
+**What notifies:** incoming XLM or asset payments, and `create_account` funding (e.g. Friendbot), from someone else. Each notification reads like *"Received 50.00 XLM — From GSTR…XXX3 to Black card"*.
+
+**What doesn't:** payments you send, failed transactions, and moves between your own accounts (topping up a card from your main wallet, or a card's balance returning to it). Old payments never flood in: the first check for an account only records where it is, and each payment notifies once.
+
+**How it works**
+
+1. `index.ts` (the app entry) imports `src/tasks/paymentTask.ts` before the router, which defines the background task so Android can run it while the app is closed.
+2. On launch, `app/_layout.tsx` creates the Android **Payments** notification channel, asks for notification permission, takes a first snapshot of each account, and registers the background task.
+3. Every check (`checkIncomingPayments` in `src/services/paymentNotifier.ts`) fetches the latest Horizon payments for the main wallet and each card agent, keeps the ones newer than the last seen `paging_token` (stored per network and account in AsyncStorage), and shows one notification per payment. The filtering and wording live in `src/lib/incomingPayments.ts` and are unit-tested in `tests/17-incoming-payments.test.ts`.
+
+**Limits to know**
+
+- **Closed-app alerts are not real-time.** Android batches background work to save battery; on a phone in Doze it can be longer than 15 minutes. Instant alerts with the app closed need a server that watches Horizon and sends push notifications. The app already registers an Expo push token with the API for that, but no such server is part of this release.
+- **Force stop disables it.** If the app is force-stopped in Android settings, background work stops until you open the app again. Some manufacturers (Xiaomi, Huawei, Oppo…) also restrict background apps; allow Noir Wallet to run in the background in battery settings.
+- **Native change.** The background task is a native module: rebuild the app (`npx expo prebuild --platform android`, then `npx expo run:android`) after pulling this; a JS reload is not enough.
+
+**Test it:** open the app once so it snapshots your accounts and asks for permission. Leave it in the background and send XLM to your wallet address from another account (e.g. Stellar Laboratory on Testnet); a notification appears within about 30 seconds. To test the closed-app path without waiting, call `BackgroundTask.triggerTaskWorkerForTestingAsync()` from a dev build.
+
 ## Getting Started
 
 ### Prerequisites
@@ -270,9 +300,9 @@ Copy `.env.example` to `.env` and configure:
 
 | Variable | Description | Current Value |
 |----------|-------------|---------------|
-| `EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT` | Soroban device registry contract ID | `CCSW6R7ATZJNBGNQVXOTQNVBGBAHOSFR2RXUG32DLRU6I2LUQHVJKION` |
-| `EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT` | Soroban agent registry contract ID | `CBP6KC6IFBQQHOGKVYYDPHXPSHTYUKKHV5EGHSSNPRTJQ6G4M545NFUC` |
-| `EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT` | Soroban payment escrow contract ID | `CAHYPZNULA67IALHHBWTHDYGXG6DIVQNQGENWLEBMCEH5QS3JVX7DIWH` |
+| `EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT` | Soroban device registry contract ID | `CB4DPMGOA374JIB2ZVD4AHW5GJKQUYNOFGRYNOJ75EFH2KCJSMHOWIRA` |
+| `EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT` | Soroban agent registry contract ID | `CBTDMJVCFQDIVWZBKAKZ2FQ3UEJNAAUFYCTJ3E4ON2MYXPLPSIXQ25JZ` |
+| `EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT` | Soroban payment escrow contract ID | `CA5S4S7QGHJHJWVJBYL3CXZXZTNGKXMNZVDAEQNN7NUXFP4D7BYK7HIX` |
 | `EXPO_PUBLIC_STELLAR_MASTER_KEY_ID` | Stellar master key ID | (configure per deployment) |
 | `EXPO_PUBLIC_CHANNEL_SECRET_KEY` | Fee channel secret | (configure per deployment) |
 | `EXPO_PUBLIC_ISSUER_ADDRESS` | Asset issuer address | (configure per deployment) |

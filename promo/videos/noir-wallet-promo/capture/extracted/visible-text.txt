@@ -1,0 +1,9 @@
+NOIR — TAP INTO TRUST
+Noir Wallet: open-source Stellar wallet (Android, Testnet). Link an NFC card (NTAG213) to your wallet;
+each card pays through its own on-chain agent with a constrained policy (max amount, asset, expiry).
+Fund the card's tap balance (escrow). Tap the card on a merchant phone (x402 tap-to-pay) — payment
+authorized and settled on Stellar Soroban. Revoke a card anytime: its tap balance and agent XLM sweep
+back to your main wallet. Flow: register device -> register agent (policy) -> fund escrow -> tap ->
+authorize -> claim. MIT licensed, Stellar Community Fund Instaward.
+Screen copy: "Hold your card to the phone" · "Card linked — registered on Stellar and its agent is ready"
+· "Authorized on Stellar" · "Works until: You revoke it" · "Revoke Black card?" · "Ready to tap" · "Sent 25.00 XLM".

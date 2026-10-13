@@ -2,6 +2,14 @@
 
 Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before writing any code.
 
+# Design system
+
+All UI follows `DESIGN.md` (wallet-app conventions, logo rules, tokens, shared
+components in `components/ui`, `components/popup`, `components/brand`). The
+"Noir Wallet Screens" design canvas is the visual reference — update it with
+every UI change. Never hand-roll buttons, headers, lists, popups or loaders,
+and never use `Alert.alert`.
+
 # Stellar Service (`src/services/stellar-service.ts`)
 
 Unified Stellar/Soroban service used by both the app and the CLI.
@@ -35,7 +43,7 @@ Network: `STELLAR_NETWORK=mainnet` for mainnet (default: testnet).
 
 **2. XDR serialization bug**: `@stellar/stellar-sdk` v16's `TransactionBase.toXDR()` calls `this.toEnvelope().toXDR().toString('base64')`. In React Native, js-xdr v4's `.toXDR()` returns a native `Uint8Array` whose `.toString('base64')` is ignored — it produces comma-separated byte values instead of base64. The RPC then fails with "Could not unmarshal transaction."
 
-**Fix**: Both `stellar-service.ts` and `lib/soroban.ts` monkey-patch `TransactionBase.prototype.toXDR` to wrap the bytes in `Buffer.from()` before encoding:
+**Fix**: `stellar-service.ts` monkey-patches `TransactionBase.prototype.toXDR` to wrap the bytes in `Buffer.from()` before encoding:
 
 ```ts
 TransactionBase.prototype.toXDR = function () {
@@ -50,4 +58,3 @@ TransactionBase.prototype.toXDR = function () {
 import { Keypair, TransactionBuilder, Contract, rpc, xdr, ... } from '@stellar/stellar-sdk/axios'
 ```
 
-The old `services/stellar.ts` and `lib/soroban.ts` are kept for backward compatibility with `x402.ts` and `SendScreen` which use `submitPayment`.

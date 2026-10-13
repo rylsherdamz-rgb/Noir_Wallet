@@ -1,13 +1,13 @@
 import { useState } from 'react'
-import { View, Text, StyleSheet, TextInput, ScrollView } from 'react-native'
+import { View, Text, StyleSheet, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native'
 import { PressableScale } from '@/components/brand/PressableScale'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '@/constants/theme'
-import { NoirLogo } from '@/components/brand/NoirLogo'
+import { Colors, Spacing, FontSize, FontWeight, BorderRadius, Fonts } from '@/constants/theme'
 import { Button } from '@/components/Button'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { walletService, WalletKeys } from '@/services/wallet'
+import { ProcessingOverlay, afterOverlayPaints, stepsAt } from '@/components/flow/ProcessingOverlay'
 
 interface ImportWalletScreenProps {
   onComplete: (keys: WalletKeys) => void | Promise<void>
@@ -18,6 +18,7 @@ export function ImportWalletScreen({ onComplete, onBack }: ImportWalletScreenPro
   const [input, setInput] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [stage, setStage] = useState(0)
 
   const handleImport = async () => {
     setError(null)
@@ -28,16 +29,21 @@ export function ImportWalletScreen({ onComplete, onBack }: ImportWalletScreenPro
       return
     }
 
+    setStage(0)
     setLoading(true)
+    // Put the full-screen progress up before CPU-heavy key derivation blocks the JS thread.
+    await afterOverlayPaints()
     try {
       const label = `Wallet ${1 + (await walletService.getWalletList()).length}`
       const keys = await walletService.deriveKeys(phrase, label)
+      setStage(1)
       await walletService.saveKeys(keys)
       await walletService.addWalletToList({
         label: keys.label || 'Imported Wallet',
         stellarPublic: keys.stellarPublic,
         createdAt: new Date().toISOString(),
       })
+      setStage(2)
       await onComplete(keys)
     } catch (e: any) {
       setError(e.message || 'Failed to import wallet')
@@ -47,16 +53,20 @@ export function ImportWalletScreen({ onComplete, onBack }: ImportWalletScreenPro
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <PressableScale onPress={onBack} style={styles.backBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityLabel="Go back"
         >
-          <Ionicons name="arrow-back" size={24} color={Colors.white} />
+          <Ionicons name="chevron-back" size={26} color={Colors.white} />
         </PressableScale>
 
-        <NoirLogo variant="mark" size={48} />
-        <Text style={styles.title}>Import Wallet</Text>
-        <Text style={styles.subtitle}>Enter your 12 or 24-word recovery phrase</Text>
+        <Text style={styles.title}>Import a wallet</Text>
+        <Text style={styles.subtitle}>Enter your 12 or 24-word recovery phrase.</Text>
 
         <View style={styles.inputBox}>
           <TextInput
@@ -78,22 +88,33 @@ export function ImportWalletScreen({ onComplete, onBack }: ImportWalletScreenPro
         <Button
 
           style={{ marginTop: 20 }}
-          label={loading ? 'Importing...' : 'Import Wallet'}
+          label={loading ? 'Importing…' : 'Import'}
+          loading={loading}
           onPress={handleImport}
           disabled={input.trim().split(/\s+/).filter(Boolean).length < 12 || loading}
         />
       </ScrollView>
+      </KeyboardAvoidingView>
+
+      <ProcessingOverlay
+        visible={loading}
+        title="Importing your wallet"
+        subtitle="Restoring your Stellar keys from your recovery phrase."
+        steps={stepsAt(['Deriving your keys', 'Encrypting them on this phone', 'Getting your wallet ready'], stage)}
+        footnote="Keep the app open — this happens on your phone, nothing is sent anywhere."
+      />
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surfaceBg },
+  flex: { flex: 1 },
   scrollContent: { padding: Spacing.lg, paddingTop: Spacing.md, flexGrow: 1 },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md },
-  title: { fontSize: FontSize.xl, color: Colors.white, fontWeight: FontWeight.bold, textAlign: 'center', marginTop: Spacing.md },
-  subtitle: { fontSize: FontSize.sm, color: Colors.mutedWhite, textAlign: 'center', marginTop: Spacing.sm },
-  inputBox: { backgroundColor: Colors.cardBg, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: Colors.borderGrey, marginTop: Spacing.xl, overflow: 'hidden' },
+  title: { fontFamily: Fonts.display, fontSize: 24, color: Colors.cream, marginTop: Spacing.md },
+  subtitle: { fontSize: FontSize.md - 1, color: Colors.mutedWhite, marginTop: Spacing.sm, lineHeight: 22 },
+  inputBox: { backgroundColor: Colors.midGrey, borderRadius: 14, marginTop: Spacing.xl, overflow: 'hidden' },
   input: { padding: Spacing.md, fontSize: FontSize.md, color: Colors.white, minHeight: 120, fontFamily: 'monospace', lineHeight: 24 },
   wordCount: { fontSize: FontSize.xs, color: Colors.mutedWhite, textAlign: 'right', paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm },
 })

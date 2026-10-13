@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { View, ActivityIndicator } from 'react-native'
+import { View } from 'react-native'
+import { VerifyingPulse } from '@/components/brand/VerifyingPulse'
 import { useRouter } from 'expo-router'
 import { SeedVerifyScreen } from '@/screens/SeedVerifyScreen'
 import { useAppStore } from '@/store/useAppStore'
@@ -23,7 +24,7 @@ export default function SeedVerifyRoute() {
 
   if (!phrase) {
     return <View style={{ flex: 1, backgroundColor: Colors.surfaceBg, alignItems: 'center', justifyContent: 'center' }}>
-      <ActivityIndicator color={Colors.gold} />
+      <VerifyingPulse size={120} />
     </View>
   }
 
@@ -32,7 +33,8 @@ export default function SeedVerifyRoute() {
       phrase={phrase}
       onComplete={() => {
         setIsOnboarded(true)
-        router.replace('/(tabs)')
+        // Name + backup password before the wallet is reachable.
+        router.replace('/setup-profile')
       }}
       onBack={() => router.back()}
     />

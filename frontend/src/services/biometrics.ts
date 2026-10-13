@@ -1,79 +1,72 @@
 /**
- * Biometric unlock.
+ * Phone unlock: the phone's own fingerprint, face, PIN or pattern.
  *
- * Every caller has to distinguish "the user said no" from "this device cannot
- * do biometrics at all" — the first should keep the PIN keypad in front of the
- * user, the second should stop advertising a capability that does not exist.
- * So the outcome is a tagged union rather than a boolean.
+ * Optional, and offered only when the user turned it on in Security settings
+ * and the phone actually has a lock. The wallet password (appPassword.ts) is
+ * always the alternative — cancelling the system prompt hands control back to
+ * it. The app never sees or stores the phone's own secret.
  */
 import { Platform } from 'react-native'
 import * as LocalAuthentication from 'expo-local-authentication'
 
-export type UnavailableReason = 'unsupported-platform' | 'no-hardware' | 'not-enrolled'
-
-export type BiometricAvailability =
-  | { available: true; types: LocalAuthentication.AuthenticationType[] }
-  | { available: false; reason: UnavailableReason }
-
-export type BiometricResult =
-  | { ok: true }
-  | { ok: false; reason: 'cancelled' | 'failed' | 'lockout' | 'unavailable'; message: string }
-
-/** Human sentence for an unavailable device, suitable for a settings row. */
-export function unavailableMessage(reason: UnavailableReason): string {
-  switch (reason) {
-    case 'no-hardware':
-      return 'This device has no biometric sensor.'
-    case 'not-enrolled':
-      return 'No fingerprint or face is enrolled. Add one in system settings first.'
-    case 'unsupported-platform':
-      return 'Biometric unlock is not available in the web preview.'
-  }
-}
-
-export async function checkAvailability(): Promise<BiometricAvailability> {
-  if (Platform.OS === 'web') return { available: false, reason: 'unsupported-platform' }
-
-  const hasHardware = await LocalAuthentication.hasHardwareAsync()
-  if (!hasHardware) return { available: false, reason: 'no-hardware' }
-
-  const enrolled = await LocalAuthentication.isEnrolledAsync()
-  if (!enrolled) return { available: false, reason: 'not-enrolled' }
-
-  const types = await LocalAuthentication.supportedAuthenticationTypesAsync()
-  return { available: true, types }
-}
+let deviceAuthInProgress = false
 
 /**
- * Prompt for biometric confirmation.
- *
- * `disableDeviceFallback` is on because this app already owns a PIN screen —
- * falling back to the *device* passcode would unlock the wallet with a secret
- * the wallet never verified.
+ * True while the system unlock sheet is up. On Android the device-credential
+ * screen is a separate activity, so the app briefly goes to the background;
+ * the auto-lock listener must ignore that or it would re-lock in a loop.
  */
-export async function authenticate(promptMessage = 'Unlock Noir Wallet'): Promise<BiometricResult> {
-  const availability = await checkAvailability()
-  if (!availability.available) {
-    return { ok: false, reason: 'unavailable', message: unavailableMessage(availability.reason) }
-  }
+export function isDeviceAuthInProgress(): boolean {
+  return deviceAuthInProgress
+}
 
-  const result = await LocalAuthentication.authenticateAsync({
-    promptMessage,
-    cancelLabel: 'Use PIN',
-    disableDeviceFallback: true,
-  })
+/** Whether the phone has any screen lock (PIN, pattern, password or biometrics). */
+export async function hasDeviceSecurity(): Promise<boolean> {
+  if (Platform.OS === 'web') return false
+  const level = await LocalAuthentication.getEnrolledLevelAsync()
+  return level !== LocalAuthentication.SecurityLevel.NONE
+}
 
-  if (result.success) return { ok: true }
+/** True when a fingerprint or face is enrolled, not just a PIN / pattern. */
+export async function hasDeviceBiometrics(): Promise<boolean> {
+  if (Platform.OS === 'web') return false
+  const level = await LocalAuthentication.getEnrolledLevelAsync()
+  return level >= LocalAuthentication.SecurityLevel.BIOMETRIC_WEAK
+}
 
-  const error = 'error' in result ? result.error : 'unknown'
-  if (error === 'user_cancel' || error === 'system_cancel' || error === 'app_cancel' || error === 'user_fallback') {
-    return { ok: false, reason: 'cancelled', message: 'Biometric unlock cancelled.' }
+export type DeviceAuthResult =
+  | { ok: true }
+  | { ok: false; reason: 'cancelled' | 'failed' | 'lockout' | 'no-device-lock'; message: string }
+
+const NO_DEVICE_LOCK = 'Set a screen lock on your phone to protect your wallet.'
+
+/** Unlock with the phone's own screen lock (biometrics with PIN/pattern fallback). */
+export async function authenticateWithDevice(promptMessage = 'Unlock Noir'): Promise<DeviceAuthResult> {
+  if (!(await hasDeviceSecurity())) {
+    return { ok: false, reason: 'no-device-lock', message: NO_DEVICE_LOCK }
   }
-  if (error === 'lockout') {
-    return { ok: false, reason: 'lockout', message: 'Too many biometric attempts. Use your PIN.' }
+  deviceAuthInProgress = true
+  try {
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage,
+      cancelLabel: 'Use password',
+      disableDeviceFallback: false,
+    })
+    if (result.success) return { ok: true }
+    const error = 'error' in result ? result.error : 'unknown'
+    if (error === 'user_cancel' || error === 'system_cancel' || error === 'app_cancel' || error === 'user_fallback') {
+      return { ok: false, reason: 'cancelled', message: 'Unlock cancelled.' }
+    }
+    if (error === 'lockout') {
+      return { ok: false, reason: 'lockout', message: 'Too many attempts. Use your wallet password.' }
+    }
+    if (error === 'passcode_not_set' || error === 'not_enrolled') {
+      return { ok: false, reason: 'no-device-lock', message: NO_DEVICE_LOCK }
+    }
+    return { ok: false, reason: 'failed', message: 'Could not unlock. Use your wallet password.' }
+  } finally {
+    // Clear after the activity transition settles so the returning
+    // background→active AppState event is still recognised as ours.
+    setTimeout(() => { deviceAuthInProgress = false }, 1000)
   }
-  if (error === 'not_available' || error === 'not_enrolled') {
-    return { ok: false, reason: 'unavailable', message: unavailableMessage('not-enrolled') }
-  }
-  return { ok: false, reason: 'failed', message: 'Biometric unlock failed. Use your PIN.' }
 }

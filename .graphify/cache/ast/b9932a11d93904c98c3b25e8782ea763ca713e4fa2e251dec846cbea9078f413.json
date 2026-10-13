@@ -1,0 +1,1 @@
+{"nodes":[{"id":"promo_eslint_config","label":"eslint.config.mjs","file_type":"code","source_file":"promo/eslint.config.mjs","source_location":"L1"}],"edges":[{"source":"promo_eslint_config","target":"ref_remotion_eslint_config_flat","relation":"imports_from","confidence":"EXTRACTED","source_file":"promo/eslint.config.mjs","source_location":"L1","weight":1}]}

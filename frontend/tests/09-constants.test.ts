@@ -56,7 +56,7 @@ describe('Config Constants', () => {
 
   it('AppConfig has app name', async () => {
     const { AppConfig } = await import('@/constants/config')
-    expect(AppConfig.appName).toBe('Noir Wallet')
+    expect(AppConfig.appName).toBe('Noir')
     expect(AppConfig.appVersion).toBe('1.0.0')
   })
 
