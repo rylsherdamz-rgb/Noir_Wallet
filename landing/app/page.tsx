@@ -365,15 +365,15 @@ export default function Home() {
         <div className="container">
           <div className="section-head section-head-row reveal">
             <div><p className="kicker">Demo</p><h2>Watch it tap and go.</h2></div>
-            <p className="section-lede">Two minutes on the ground: the x402 tap-to-pay flow, per-device agents and the full app.</p>
+            <p className="section-lede">One minute with Noir: link a card, give it an agent, and tap to pay on Stellar.</p>
           </div>
           <div className="video reveal">
-            <video controls preload="none" playsInline poster={asset('/assets/media/demo-poster.jpg')}>
-              <source src={asset('/assets/media/demo.mp4')} type="video/mp4" />
+            <video controls preload="none" playsInline poster={asset('/assets/media/noir-promo-poster.jpg')}>
+              <source src={asset('/assets/media/noir-promo.mp4')} type="video/mp4" />
               Your browser doesn’t support embedded video.
             </video>
           </div>
-          <p className="note reveal"><a href={DEMO_ON_X} target="_blank" rel="noopener">Watch the original demo on X</a></p>
+          <p className="note reveal"><a href={DEMO_ON_X} target="_blank" rel="noopener">Watch it on X</a></p>
         </div>
       </section>
 
