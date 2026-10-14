@@ -5,10 +5,28 @@
   "version": "0.1.0",
   "description": "Stellar wallet by Noir. Connect to Stellar dApps, sign transactions, and see your Noir tap-to-pay cards.",
   "minimum_chrome_version": "111",
-  "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
-  "action": { "default_popup": "popup.html", "default_title": "Noir Wallet", "default_icon": { "16": "icons/16.png", "32": "icons/32.png" } },
-  "background": { "service_worker": "background.js", "type": "module" },
-  "permissions": ["storage", "alarms"],
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Noir Wallet",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": [
+    "storage",
+    "alarms"
+  ],
   "host_permissions": [
     "https://horizon-testnet.stellar.org/*",
     "https://horizon.stellar.org/*",
@@ -16,8 +34,34 @@
     "https://friendbot.stellar.org/*"
   ],
   "content_scripts": [
-    { "matches": ["https://*/*", "http://localhost/*", "http://127.0.0.1/*"], "js": ["inpage.js"], "run_at": "document_start", "world": "MAIN", "all_frames": false },
-    { "matches": ["https://*/*", "http://localhost/*", "http://127.0.0.1/*"], "js": ["content.js"], "run_at": "document_start", "all_frames": false }
+    {
+      "matches": [
+        "https://*/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": [
+        "inpage.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "https://*/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false
+    }
   ],
-  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'self'" }
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "homepage_url": "https://rylsherdamz-rgb.github.io/Noir_Wallet/docs/extension/"
 }
