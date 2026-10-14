@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { DocPage } from '@/components/DocPage'
 import { CodeBlock } from '@/components/CodeBlock'
 import { docMetadata } from '@/lib/docs'
-import { REPO } from '@/lib/site'
+import { EXTENSION_RELEASE, EXTENSION_ZIP, REPO } from '@/lib/site'
 
 export const metadata = docMetadata('extension')
 
@@ -32,7 +32,13 @@ export default function Extension() {
         exactly what is being signed.
       </p>
 
-      <h2 id="install">Install (developer build)</h2>
+      <h2 id="install">Install</h2>
+      <ol className="doc-list doc-steps">
+        <li><a href={EXTENSION_ZIP}>Download noir-wallet-extension-0.1.0.zip</a> and unzip it (<a href={EXTENSION_RELEASE} target="_blank" rel="noopener">release notes</a>).</li>
+        <li>Open <code>chrome://extensions</code> and turn on <b>Developer mode</b>.</li>
+        <li>Click <b>Load unpacked</b> and choose the unzipped folder. A Chrome Web Store listing is coming soon.</li>
+      </ol>
+      <p>Or build it from source:</p>
       <CodeBlock lang="bash" code={`
 cd extension
 npm ci && npm run build
