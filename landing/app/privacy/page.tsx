@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import { REPO, SITE_URL } from '@/lib/site'
 
 export const metadata: Metadata = {
-  title: 'Privacy policy — Noir Wallet extension',
-  description: 'What the Noir Wallet browser extension stores, what it sends over the network, and what it never collects.',
+  title: 'Privacy policy — Noir extension',
+  description: 'What the Noir browser extension stores, what it sends over the network, and what it never collects.',
   alternates: { canonical: `${SITE_URL}/privacy/` },
 }
 
@@ -12,11 +12,11 @@ export default function Privacy() {
     <div className="container docs-shell" style={{ gridTemplateColumns: 'minmax(0, 1fr)' }}>
       <article className="doc">
         <p className="kicker">Privacy</p>
-        <h1>Noir Wallet extension privacy policy</h1>
-        <p className="doc-lede">Effective 15 October 2026. Noir Wallet is open source (MIT); everything below can be checked in the code.</p>
+        <h1>Noir extension privacy policy</h1>
+        <p className="doc-lede">Effective 15 October 2026. Noir is open source (MIT); everything below can be checked in the code.</p>
         <div className="doc-body">
           <h2 id="summary">In short</h2>
-          <p>Noir Wallet does not collect, sell or share personal data. There is no Noir account, no analytics and no tracking. Noir has no server that receives your data.</p>
+          <p>Noir does not collect, sell or share personal data. There is no Noir account, no analytics and no tracking. Noir has no server that receives your data.</p>
 
           <h2 id="stored">What is stored on your device</h2>
           <ul className="doc-list">
@@ -40,7 +40,7 @@ export default function Privacy() {
           <p>The extension makes a <code>window.noir.stellar</code> interface available to web pages so Stellar apps can request your address and signatures. A site learns your address only after you approve the connection, and every signature requires your approval in a Noir window. What a website does with that data is governed by that website’s own policy.</p>
 
           <h2 id="children">Children</h2>
-          <p>Noir Wallet is not directed to children under 13.</p>
+          <p>Noir is not directed to children under 13.</p>
 
           <h2 id="changes">Changes and contact</h2>
           <p>Changes to this policy are published on this page and in the <a href={REPO} target="_blank" rel="noopener">GitHub repository</a>. Questions: open an issue on GitHub.</p>

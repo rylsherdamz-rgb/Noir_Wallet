@@ -1,7 +1,7 @@
 /**
- * Noir Wallet module for the Stellar Wallets Kit.
+ * Noir module for the Stellar Wallets Kit.
  *
- * Noir Wallet (https://rylsherdamz-rgb.github.io/Noir_Wallet/) is a browser
+ * Noir (https://rylsherdamz-rgb.github.io/Noir_Wallet/) is a browser
  * extension that injects a SEP-43 provider at `window.noir.stellar`. Every
  * provider method resolves (it never rejects) with the SEP-43 result or with
  * `{ error: { code, message } }`; this module turns that error into a throw.
@@ -53,7 +53,7 @@ export class NoirModule implements ModuleInterface {
   moduleType: ModuleType = ModuleType.HOT_WALLET;
 
   productId: string = NOIR_ID;
-  productName: string = "Noir Wallet";
+  productName: string = "Noir";
   productUrl: string = "https://rylsherdamz-rgb.github.io/Noir_Wallet/";
   productIcon: string = NOIR_ICON;
 
@@ -104,7 +104,7 @@ export class NoirModule implements ModuleInterface {
 
   private async provider(): Promise<NoirProvider> {
     if (!(await this.isAvailable())) {
-      throw { code: -1, message: "Noir Wallet is not installed" };
+      throw { code: -1, message: "Noir is not installed" };
     }
     return window!.noir!.stellar!;
   }

@@ -64,7 +64,7 @@ const merchant = walletKitSigner                         // a connected browser 
       <CodeBlock lang="ts" code={`
 import { noirExtensionSigner, walletSigner } from '@noir-wallet/agent-sdk'
 
-const signer = await noirExtensionSigner()            // the Noir Wallet extension
+const signer = await noirExtensionSigner()            // the Noir extension
 const { address } = await StellarWalletsKit.getAddress()
 const kitSigner = walletSigner(StellarWalletsKit, address) // any Stellar Wallets Kit wallet
 `} />

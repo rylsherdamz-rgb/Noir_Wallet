@@ -66,7 +66,7 @@ async function main() {
       ...d.warnings.map((w) => h('p', { class: 'warning' }, w)),
       d.rows.length ? h('dl', { class: 'kv card' }, ...d.rows.flatMap((r) => [h('dt', {}, r.label), h('dd', { class: r.mono ? 'mono' : '' }, r.value)])) : null,
       p.kind !== 'connect' ? h('p', { class: 'small muted' }, `Signing as ${short(p.address)}`) : null,
-      state.unlocked ? null : h('div', { class: 'field' }, h('label', {}, 'Noir Wallet is locked'), pw),
+      state.unlocked ? null : h('div', { class: 'field' }, h('label', {}, 'Noir is locked'), pw),
       err,
     ),
     h('footer', { class: 'foot row' }, reject, approve)))

@@ -1,11 +1,11 @@
-# Chrome Web Store listing — Noir Wallet
+# Chrome Web Store listing — Noir
 
 Copy these into the Developer Dashboard (https://chrome.google.com/webstore/devconsole).
 Upload `noir-wallet-extension-0.1.0.zip` (from `npm run zip` or the GitHub release).
 
 ## Store listing
 
-**Name:** Noir Wallet
+**Name:** Noir
 
 **Summary** (≤132 chars):
 > Stellar wallet for dApps. Connect sites, approve every signature in plain words, and see your Noir tap-to-pay cards.
@@ -14,7 +14,7 @@ Upload `noir-wallet-extension-0.1.0.zip` (from `npm run zip` or the GitHub relea
 
 **Description:**
 ```
-Noir Wallet brings your Stellar wallet to the browser.
+Noir brings your Stellar wallet to the browser.
 
 • Same wallet as the Noir app — import your 12-word recovery phrase (SEP-5) and get the same address, or create a new wallet.
 • Connect to Stellar dApps — sites ask once; you can disconnect any of them from the wallet.

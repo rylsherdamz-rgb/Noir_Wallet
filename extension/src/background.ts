@@ -1,5 +1,5 @@
 /**
- * Noir Wallet service worker. Owns the vault, the unlocked key, site
+ * Noir service worker. Owns the vault, the unlocked key, site
  * permissions and the approval queue. Pages never see a key: they get
  * addresses and signatures, and only after the user approves in a Noir
  * window.
@@ -102,17 +102,17 @@ async function connected(origin: string): Promise<boolean> {
 }
 
 async function requireConnected(origin: string) {
-  if (!(await connected(origin))) throw new Fail(ERR.internal('This site is not connected to Noir Wallet. Call requestAccess() first.'))
+  if (!(await connected(origin))) throw new Fail(ERR.internal('This site is not connected to Noir. Call requestAccess() first.'))
 }
 
 async function requireNetworkAndSigner(opts: { networkPassphrase?: string; address?: string } | undefined) {
   const net = await networkInfo()
   const { address } = await local.get()
   if (opts?.networkPassphrase && opts.networkPassphrase !== net.passphrase) {
-    throw new Fail(ERR.unsupported(`Noir Wallet is on ${net.name}. Switch networks in the wallet, or request ${net.name}.`))
+    throw new Fail(ERR.unsupported(`Noir is on ${net.name}. Switch networks in the wallet, or request ${net.name}.`))
   }
   if (opts?.address && opts.address !== address) {
-    throw new Fail(ERR.invalid(`Noir Wallet does not hold ${opts.address}.`))
+    throw new Fail(ERR.invalid(`Noir does not hold ${opts.address}.`))
   }
   return net
 }
@@ -120,7 +120,7 @@ async function requireNetworkAndSigner(opts: { networkPassphrase?: string; addre
 /** After approval: the key, which the approval window made sure is unlocked. */
 async function keyAfterApproval(): Promise<Keypair> {
   const kp = await secretKey()
-  if (!kp) throw new Fail(ERR.internal('Noir Wallet is locked.'))
+  if (!kp) throw new Fail(ERR.internal('Noir is locked.'))
   return kp
 }
 
@@ -138,7 +138,7 @@ async function handleDapp(origin: string, req: DappRequest): Promise<unknown> {
     case 'requestAccess': {
       if (!s.vault || !s.address) {
         chrome.tabs.create({ url: chrome.runtime.getURL('popup.html#onboarding') })
-        throw new Fail(ERR.internal('Set up Noir Wallet first, then try again.'))
+        throw new Fail(ERR.internal('Set up Noir first, then try again.'))
       }
       if (!(await connected(origin))) {
         if (!(await askUser('connect', origin))) throw new Fail(ERR.rejected())

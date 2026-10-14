@@ -3,7 +3,7 @@ import type { UiMessage } from './protocol'
 /** Ask the service worker; throws its error message on failure. */
 export async function send<T = unknown>(msg: UiMessage): Promise<T> {
   const res = (await chrome.runtime.sendMessage(msg)) as { ok: boolean; result?: T; error?: string }
-  if (!res?.ok) throw new Error(res?.error ?? 'Noir Wallet did not answer.')
+  if (!res?.ok) throw new Error(res?.error ?? 'Noir did not answer.')
   return res.result as T
 }
 

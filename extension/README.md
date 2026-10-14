@@ -1,4 +1,4 @@
-# Noir Wallet — browser extension
+# Noir — browser extension
 
 A Chrome (Manifest V3) Stellar wallet that lets any dApp connect to Noir and
 ask for signatures, through a [SEP-43](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0043.md)

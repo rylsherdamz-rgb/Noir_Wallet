@@ -2,7 +2,7 @@
   "name": "noir-wallet-extension",
   "version": "0.1.0",
   "private": true,
-  "description": "Noir Wallet browser extension: a Stellar wallet with a SEP-43 provider (window.noir.stellar) for dApps and Stellar Wallets Kit.",
+  "description": "Noir browser extension: a Stellar wallet with a SEP-43 provider (window.noir.stellar) for dApps and Stellar Wallets Kit.",
   "license": "MIT",
   "type": "module",
   "scripts": {

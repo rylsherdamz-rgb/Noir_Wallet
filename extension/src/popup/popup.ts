@@ -45,7 +45,7 @@ function passwordStep(mnemonic: string, back: () => void) {
   mount(h('div', { class: 'app' }, topBar(btn('Back', 'sm', back)),
     h('main', { class: 'main' },
       h('h1', {}, 'Set a password'),
-      h('p', { class: 'muted' }, 'It unlocks Noir Wallet on this browser. Your phrase is encrypted with it and never leaves this device.'),
+      h('p', { class: 'muted' }, 'It unlocks Noir on this browser. Your phrase is encrypted with it and never leaves this device.'),
       h('div', { class: 'field' }, h('label', {}, 'Password'), pw),
       h('div', { class: 'field' }, h('label', {}, 'Confirm password'), pw2),
       err, h('div', { style: 'flex:1' }), go,
@@ -198,7 +198,7 @@ function settings(s: State) {
     out.replaceChildren(h('div', { class: 'words' }, ...mnemonic.split(' ').map((w, i) => h('span', {}, h('i', {}, `${i + 1}`), w))))
   }))
   const reset = btn('Remove wallet from this browser', 'danger block', async () => {
-    if (!confirm('Remove Noir Wallet from this browser? You will need your recovery phrase to restore it.')) return
+    if (!confirm('Remove Noir from this browser? You will need your recovery phrase to restore it.')) return
     await send({ type: 'reset' })
     await render()
   })
@@ -207,7 +207,7 @@ function settings(s: State) {
       h('h1', {}, 'Settings'),
       h('div', { class: 'field' }, h('label', {}, 'Recovery phrase'), pw), reveal, err, out,
       h('div', { style: 'flex:1' }),
-      h('p', { class: 'small muted' }, 'Noir Wallet locks itself after 15 minutes without use.'),
+      h('p', { class: 'small muted' }, 'Noir locks itself after 15 minutes without use.'),
       reset,
     )))
 }

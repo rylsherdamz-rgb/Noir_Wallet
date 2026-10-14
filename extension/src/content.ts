@@ -22,7 +22,7 @@ function connect(): chrome.runtime.Port {
   p.onDisconnect.addListener(() => {
     port = null
     // The worker restarted or the extension was updated: fail what was in flight.
-    for (const id of [...open]) reply(id, { ok: false, error: ERR.internal('Noir Wallet was restarted. Please try again.') })
+    for (const id of [...open]) reply(id, { ok: false, error: ERR.internal('Noir was restarted. Please try again.') })
   })
   port = p
   return p
@@ -34,7 +34,7 @@ window.addEventListener('message', (e: MessageEvent) => {
   try {
     connect().postMessage({ id: e.data.id, request: e.data.request })
   } catch {
-    reply(e.data.id, { ok: false, error: ERR.internal('Noir Wallet is unavailable. Reload the page.') })
+    reply(e.data.id, { ok: false, error: ERR.internal('Noir is unavailable. Reload the page.') })
     return
   }
   // Waiting on the user can take a while; pinging keeps the service worker awake.

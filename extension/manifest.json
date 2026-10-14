@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Noir Wallet",
+  "name": "Noir",
   "short_name": "Noir",
   "version": "0.1.0",
   "description": "Stellar wallet by Noir. Connect to Stellar dApps, sign transactions, and see your Noir tap-to-pay cards.",
@@ -13,7 +13,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Noir Wallet",
+    "default_title": "Noir",
     "default_icon": {
       "16": "icons/16.png",
       "32": "icons/32.png"

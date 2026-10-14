@@ -23,7 +23,7 @@ import { NoirAgentClient, noirExtensionSigner, walletSigner, toStroops, fromStro
 
 const noir = new NoirAgentClient()
 
-// Who signs: the Noir Wallet extension…
+// Who signs: the Noir extension…
 const merchant = await noirExtensionSigner()
 // …or any wallet from the Stellar Wallets Kit (Freighter, xBull, Lobstr, Noir, …)
 // const { address } = await StellarWalletsKit.getAddress()
@@ -38,7 +38,7 @@ await noir.claim({ merchant, token: asset })
 
 | Helper | Does |
 |---|---|
-| `noirExtensionSigner()` | connects to the Noir Wallet browser extension (one approval per site) and returns a signer |
+| `noirExtensionSigner()` | connects to the Noir browser extension (one approval per site) and returns a signer |
 | `walletSigner(wallet, address)` | wraps any SEP-43 wallet — the Stellar Wallets Kit, Freighter's API, `window.noir.stellar` |
 | `toStroops('1.5')` / `fromStroops(15000000n)` | exact conversion between XLM strings and stroops (7 decimals, no floats) |
 

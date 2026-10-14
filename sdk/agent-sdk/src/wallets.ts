@@ -31,19 +31,19 @@ interface NoirProvider extends Sep43Wallet {
   requestAccess(): Promise<{ address: string; error?: unknown }>
 }
 
-/** The Noir Wallet extension's provider, if the extension is installed in this browser. */
+/** The Noir extension's provider, if the extension is installed in this browser. */
 export function noirExtension(): NoirProvider | null {
   const w = (globalThis as { window?: { noir?: { stellar?: NoirProvider } } }).window
   return w?.noir?.stellar?.isNoir ? w.noir.stellar : null
 }
 
 /**
- * Connects to the Noir Wallet extension (the user approves the site once)
+ * Connects to the Noir extension (the user approves the site once)
  * and returns a signer for its account.
  */
 export async function noirExtensionSigner(): Promise<NoirSigner> {
   const provider = noirExtension()
-  if (!provider) throw new Error('Noir Wallet extension is not installed')
+  if (!provider) throw new Error('Noir extension is not installed')
   const res = await provider.requestAccess()
   if (res.error) throw walletError(res.error)
   return walletSigner(provider, res.address)

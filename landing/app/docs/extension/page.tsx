@@ -27,7 +27,7 @@ export default function Extension() {
   return (
     <DocPage slug="extension">
       <p>
-        Noir Wallet for Chrome is a Stellar wallet that any dApp can connect to. Users can import the same recovery
+        Noir for Chrome is a Stellar wallet that any dApp can connect to. Users can import the same recovery
         phrase as the Noir app (SEP-5), and every connection and signature is approved in a Noir window that shows
         exactly what is being signed.
       </p>

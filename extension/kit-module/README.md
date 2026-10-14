@@ -1,6 +1,6 @@
 # Stellar Wallets Kit module
 
-`noir.module.ts` adds Noir Wallet to the
+`noir.module.ts` adds Noir to the
 [Stellar Wallets Kit](https://github.com/Creit-Tech/Stellar-Wallets-Kit). It is
 written in the kit's conventions (Deno, `deno fmt`, no dependencies, no
 polyfills) and was verified inside a clone of the kit at `6f317cf` (v2.7.1):
