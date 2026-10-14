@@ -3,7 +3,7 @@ import { Address, Contract, Keypair, nativeToScVal, scValToNative, xdr, type rpc
 import {
   TESTNET, cursorLedger, decodeEvent, eventToJSON, refusalReason, normalizeDeviceHash, parseContractError,
   signWebhookBody, verifyWebhookSignature, startWebhookRelay, SIGNATURE_HEADER, keypairSigner,
-  toCall, toHex, fromHex,
+  toCall, toHex, fromHex, toStroops, fromStroops, walletSigner, noirExtension, noirExtensionSigner,
   type NoirAgentPolicy, type NoirEvent, type NoirAgentClient,
 } from '../src/index.js'
 
@@ -170,5 +170,46 @@ describe('hex helpers', () => {
     const bytes = Uint8Array.from([0, 1, 15, 16, 255])
     expect(toHex(bytes)).toBe('00010f10ff')
     expect(fromHex('00010f10ff')).toEqual(bytes)
+  })
+})
+
+describe('amounts', () => {
+  it('converts exactly both ways', () => {
+    expect(toStroops('1.5')).toBe(15_000_000n)
+    expect(toStroops('0.0000001')).toBe(1n)
+    expect(toStroops(12)).toBe(120_000_000n)
+    expect(toStroops('100')).toBe(1_000_000_000n)
+    expect(fromStroops(15_000_000n)).toBe('1.5')
+    expect(fromStroops(1n)).toBe('0.0000001')
+    expect(fromStroops(-25_000_000n)).toBe('-2.5')
+    expect(fromStroops(toStroops('922337203685.4775807'))).toBe('922337203685.4775807')
+  })
+  it('rejects junk and too many decimals', () => {
+    expect(() => toStroops('1.00000001')).toThrow(/7 decimals/)
+    expect(() => toStroops('abc')).toThrow()
+  })
+})
+
+describe('walletSigner', () => {
+  it('adapts SEP-43 wallets (object or string results) and surfaces their errors', async () => {
+    const seen: unknown[] = []
+    const kit = { signTransaction: async (xdr: string, o?: object) => { seen.push([xdr, o]); return { signedTxXdr: 'SIGNED' } } }
+    const s = walletSigner(kit, agent)
+    expect(s.publicKey).toBe(agent)
+    expect(await s.signTransaction('X', { networkPassphrase: 'P' })).toBe('SIGNED')
+    expect(seen[0]).toEqual(['X', { networkPassphrase: 'P', address: agent }])
+    expect(await walletSigner({ signTransaction: async () => 'RAW' }, agent).signTransaction('X', { networkPassphrase: 'P' })).toBe('RAW')
+    const rejecting = walletSigner({ signTransaction: async () => ({ signedTxXdr: '', error: { code: -4, message: 'rejected' } }) }, agent)
+    await expect(rejecting.signTransaction('X', { networkPassphrase: 'P' })).rejects.toMatchObject({ message: 'rejected', code: -4 })
+  })
+  it('finds the Noir extension only when installed', async () => {
+    expect(noirExtension()).toBeNull()
+    await expect(noirExtensionSigner()).rejects.toThrow(/not installed/)
+    const g = globalThis as { window?: unknown }
+    g.window = { noir: { stellar: { isNoir: true, requestAccess: async () => ({ address: agent }), signTransaction: async () => ({ signedTxXdr: 'S' }) } } }
+    try {
+      const signer = await noirExtensionSigner()
+      expect(signer.publicKey).toBe(agent)
+    } finally { delete g.window }
   })
 })

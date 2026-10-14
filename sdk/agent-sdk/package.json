@@ -1,6 +1,6 @@
 {
   "name": "@noir-wallet/agent-sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Read and use Noir agent policies (device registry, agent registry, payment escrow) on Stellar from any app.",
   "license": "MIT",
   "type": "module",
