@@ -1,0 +1,339 @@
+diff --git a/docs/files/wallets/supported-wallets.md b/docs/files/wallets/supported-wallets.md
+index 37bc61e..fee42cf 100644
+--- a/docs/files/wallets/supported-wallets.md
++++ b/docs/files/wallets/supported-wallets.md
+@@ -18,6 +18,7 @@ These are the current supported wallets/modules:
+ | OneKey         | OneKeyModule        | /onekey         | Yes          |
+ | Bitget         | BitgetModule        | /bitget         | Yes          |
+ | GHOSTSIG       | GhostsigModule      | /ghostsig       | Yes          |
++| Noir Wallet    | NoirModule          | /noir           | Yes          |
+ 
+ ## How to import a wallet's module?
+ 
+diff --git a/src/build_npm.ts b/src/build_npm.ts
+index ffb9441..87adf0c 100644
+--- a/src/build_npm.ts
++++ b/src/build_npm.ts
+@@ -80,6 +80,10 @@ await build({
+       name: "./modules/metamask",
+       path: "./sdk/modules/metamask.module.ts",
+     },
++    {
++      name: "./modules/noir",
++      path: "./sdk/modules/noir.module.ts",
++    },
+     {
+       name: "./modules/onekey",
+       path: "./sdk/modules/onekey.module.ts",
+diff --git a/src/deno.json b/src/deno.json
+index 9ef0a32..d5fc484 100644
+--- a/src/deno.json
++++ b/src/deno.json
+@@ -49,6 +49,7 @@
+     "./modules/klever": "./sdk/modules/klever.module.ts",
+     "./modules/ledger": "./sdk/modules/ledger.module.ts",
+     "./modules/lobstr": "./sdk/modules/lobstr.module.ts",
++    "./modules/noir": "./sdk/modules/noir.module.ts",
+     "./modules/onekey": "./sdk/modules/onekey.module.ts",
+     "./modules/rabet": "./sdk/modules/rabet.module.ts",
+     "./modules/scopuly": "./sdk/modules/scopuly.module.ts",
+diff --git a/src/deno.lock b/src/deno.lock
+index 3ae944c..0c1a06c 100644
+--- a/src/deno.lock
++++ b/src/deno.lock
+@@ -3,10 +3,12 @@
+   "specifiers": {
+     "jsr:@david/code-block-writer@^13.0.3": "13.0.3",
+     "jsr:@deno/dnt@0.43.2": "0.43.2",
++    "jsr:@std/assert@1": "1.0.19",
+     "jsr:@std/bytes@1.0.6": "1.0.6",
+     "jsr:@std/encoding@1.0.11": "1.0.11",
+     "jsr:@std/fmt@1": "1.0.10",
+     "jsr:@std/fs@1": "1.0.24",
++    "jsr:@std/internal@^1.0.12": "1.0.14",
+     "jsr:@std/internal@^1.0.14": "1.0.14",
+     "jsr:@std/path@1": "1.1.6",
+     "jsr:@std/path@^1.1.5": "1.1.6",
+@@ -48,6 +50,12 @@
+         "jsr:@ts-morph/bootstrap"
+       ]
+     },
++    "@std/assert@1.0.19": {
++      "integrity": "eaada96ee120cb980bc47e040f82814d786fe8162ecc53c91d8df60b8755991e",
++      "dependencies": [
++        "jsr:@std/internal@^1.0.12"
++      ]
++    },
+     "@std/bytes@1.0.6": {
+       "integrity": "f6ac6adbd8ccd99314045f5703e23af0a68d7f7e58364b47d2c7f408aeb5820a"
+     },
+@@ -60,7 +68,7 @@
+     "@std/fs@1.0.24": {
+       "integrity": "f3061b45b81673a2bece689da041df32d174be064c89eb6397fb5718d3fb7877",
+       "dependencies": [
+-        "jsr:@std/internal",
++        "jsr:@std/internal@^1.0.14",
+         "jsr:@std/path@^1.1.5"
+       ]
+     },
+@@ -70,7 +78,7 @@
+     "@std/path@1.1.6": {
+       "integrity": "c68485c2a4dfbb5ae3cc74fae4e8c4e5d874cf8a8ed12927917235c758b46cbe",
+       "dependencies": [
+-        "jsr:@std/internal"
++        "jsr:@std/internal@^1.0.14"
+       ]
+     },
+     "@ts-morph/bootstrap@0.29.0": {
+diff --git a/src/sdk/modules/noir.module.test.ts b/src/sdk/modules/noir.module.test.ts
+new file mode 100644
+index 0000000..46eff19
+--- /dev/null
++++ b/src/sdk/modules/noir.module.test.ts
+@@ -0,0 +1,84 @@
++/// <reference lib="deno.ns" />
++import { assertEquals, assertRejects } from "jsr:@std/assert@1";
++import { Networks } from "../../types/mod.ts";
++import { NOIR_ID, NoirModule } from "./noir.module.ts";
++
++// deno-lint-ignore no-explicit-any
++const g = globalThis as any;
++
++function makeProvider() {
++  const calls: string[] = [];
++  return {
++    calls,
++    isNoir: true as const,
++    isConnected: () => Promise.resolve({ isConnected: true }),
++    isAllowed: () => Promise.resolve({ isAllowed: true }),
++    requestAccess: () => {
++      calls.push("requestAccess");
++      return Promise.resolve({ address: "GACCESS" });
++    },
++    getAddress: () => {
++      calls.push("getAddress");
++      return Promise.resolve({ address: "GADDRESS" });
++    },
++    getNetwork: () => Promise.resolve({ network: "TESTNET", networkPassphrase: Networks.TESTNET }),
++    signTransaction: (xdr: string, opts?: { networkPassphrase?: string; address?: string }) => {
++      calls.push(`signTransaction:${xdr}:${opts?.networkPassphrase}:${opts?.address}`);
++      return Promise.resolve({ signedTxXdr: "SIGNED", signerAddress: "GSIGNER" });
++    },
++    signAuthEntry: () => Promise.resolve({ signedAuthEntry: "AUTH_SIG", signerAddress: "GSIGNER" }),
++    signMessage: () => Promise.resolve({ signedMessage: "MSG_SIG", signerAddress: "GSIGNER" }),
++  };
++}
++
++function install(provider?: ReturnType<typeof makeProvider>): void {
++  g.window = provider ? { noir: { stellar: provider } } : {};
++}
++
++Deno.test("NoirModule exposes its id and is unavailable without the extension", async () => {
++  install();
++  const module = new NoirModule();
++  assertEquals(module.productId, NOIR_ID);
++  assertEquals(await module.isAvailable(), false);
++  await assertRejects(() => module.getAddress());
++  delete g.window;
++});
++
++Deno.test("NoirModule requests access unless told to skip it", async () => {
++  const provider = makeProvider();
++  install(provider);
++  const module = new NoirModule();
++  assertEquals(await module.isAvailable(), true);
++  assertEquals(await module.getAddress(), { address: "GACCESS" });
++  assertEquals(await module.getAddress({ skipRequestAccess: true }), { address: "GADDRESS" });
++  assertEquals(provider.calls, ["requestAccess", "getAddress"]);
++  delete g.window;
++});
++
++Deno.test("NoirModule passes SEP-43 options through and maps results", async () => {
++  const provider = makeProvider();
++  install(provider);
++  const module = new NoirModule();
++  const tx = await module.signTransaction("XDR", {
++    networkPassphrase: Networks.TESTNET,
++    address: "GSIGNER",
++    path: "x",
++  });
++  assertEquals(tx, { signedTxXdr: "SIGNED", signerAddress: "GSIGNER" });
++  assertEquals(provider.calls.at(-1), `signTransaction:XDR:${Networks.TESTNET}:GSIGNER`);
++  assertEquals(await module.signAuthEntry("ENTRY"), { signedAuthEntry: "AUTH_SIG", signerAddress: "GSIGNER" });
++  assertEquals(await module.signMessage("hi"), { signedMessage: "MSG_SIG", signerAddress: "GSIGNER" });
++  assertEquals(await module.getNetwork(), { network: "TESTNET", networkPassphrase: Networks.TESTNET });
++  delete g.window;
++});
++
++Deno.test("NoirModule throws the provider's error object", async () => {
++  const provider = makeProvider();
++  provider.signMessage = () =>
++    Promise.resolve({ error: { code: -4, message: "The user rejected this request." } }) as never;
++  install(provider);
++  const module = new NoirModule();
++  const err = await module.signMessage("hi").catch((e) => e);
++  assertEquals(err, { code: -4, message: "The user rejected this request.", ext: undefined });
++  delete g.window;
++});
+diff --git a/src/sdk/modules/noir.module.ts b/src/sdk/modules/noir.module.ts
+new file mode 100644
+index 0000000..bd01c12
+--- /dev/null
++++ b/src/sdk/modules/noir.module.ts
+@@ -0,0 +1,128 @@
++/**
++ * Noir Wallet module for the Stellar Wallets Kit.
++ *
++ * Noir Wallet (https://rylsherdamz-rgb.github.io/Noir_Wallet/) is a browser
++ * extension that injects a SEP-43 provider at `window.noir.stellar`. Every
++ * provider method resolves (it never rejects) with the SEP-43 result or with
++ * `{ error: { code, message } }`; this module turns that error into a throw.
++ * Requests are approved by the user in the extension; the module needs no
++ * dependency and no polyfill.
++ */
++
++import { type ModuleInterface, ModuleType } from "../../types/mod.ts";
++
++export const NOIR_ID: string = "noir";
++
++interface NoirError {
++  code: number;
++  message: string;
++  ext?: string[];
++}
++
++type NoirResult<T> = T & { error?: NoirError };
++
++interface NoirSignOpts {
++  networkPassphrase?: string;
++  address?: string;
++}
++
++interface NoirProvider {
++  isNoir: true;
++  isConnected(): Promise<NoirResult<{ isConnected: boolean }>>;
++  isAllowed(): Promise<NoirResult<{ isAllowed: boolean }>>;
++  requestAccess(): Promise<NoirResult<{ address: string }>>;
++  getAddress(): Promise<NoirResult<{ address: string }>>;
++  getNetwork(): Promise<NoirResult<{ network: string; networkPassphrase: string }>>;
++  signTransaction(
++    xdr: string,
++    opts?: NoirSignOpts,
++  ): Promise<NoirResult<{ signedTxXdr: string; signerAddress: string }>>;
++  signAuthEntry(
++    authEntry: string,
++    opts?: NoirSignOpts,
++  ): Promise<NoirResult<{ signedAuthEntry: string; signerAddress: string }>>;
++  signMessage(
++    message: string,
++    opts?: NoirSignOpts,
++  ): Promise<NoirResult<{ signedMessage: string; signerAddress: string }>>;
++}
++
++declare const window: { noir?: { stellar?: NoirProvider } } | undefined;
++
++export class NoirModule implements ModuleInterface {
++  moduleType: ModuleType = ModuleType.HOT_WALLET;
++
++  productId: string = NOIR_ID;
++  productName: string = "Noir Wallet";
++  productUrl: string = "https://rylsherdamz-rgb.github.io/Noir_Wallet/";
++  productIcon: string = NOIR_ICON;
++
++  async isAvailable(): Promise<boolean> {
++    return typeof window !== "undefined" && window.noir?.stellar?.isNoir === true;
++  }
++
++  async getAddress(params?: { path?: string; skipRequestAccess?: boolean }): Promise<{ address: string }> {
++    const provider = await this.provider();
++    const { address } = unwrap(
++      params?.skipRequestAccess ? await provider.getAddress() : await provider.requestAccess(),
++    );
++    return { address };
++  }
++
++  async signTransaction(
++    xdr: string,
++    opts?: { networkPassphrase?: string; address?: string; path?: string },
++  ): Promise<{ signedTxXdr: string; signerAddress?: string }> {
++    const provider = await this.provider();
++    const { signedTxXdr, signerAddress } = unwrap(await provider.signTransaction(xdr, signOpts(opts)));
++    return { signedTxXdr, signerAddress };
++  }
++
++  async signAuthEntry(
++    authEntry: string,
++    opts?: { networkPassphrase?: string; address?: string; path?: string },
++  ): Promise<{ signedAuthEntry: string; signerAddress?: string }> {
++    const provider = await this.provider();
++    const { signedAuthEntry, signerAddress } = unwrap(await provider.signAuthEntry(authEntry, signOpts(opts)));
++    return { signedAuthEntry, signerAddress };
++  }
++
++  async signMessage(
++    message: string,
++    opts?: { networkPassphrase?: string; address?: string; path?: string },
++  ): Promise<{ signedMessage: string; signerAddress?: string }> {
++    const provider = await this.provider();
++    const { signedMessage, signerAddress } = unwrap(await provider.signMessage(message, signOpts(opts)));
++    return { signedMessage, signerAddress };
++  }
++
++  async getNetwork(): Promise<{ network: string; networkPassphrase: string }> {
++    const provider = await this.provider();
++    const { network, networkPassphrase } = unwrap(await provider.getNetwork());
++    return { network, networkPassphrase };
++  }
++
++  private async provider(): Promise<NoirProvider> {
++    if (!(await this.isAvailable())) {
++      throw { code: -1, message: "Noir Wallet is not installed" };
++    }
++    return window!.noir!.stellar!;
++  }
++}
++
++/** Only the SEP-43 options Noir reads; `path` is for hardware wallets. */
++function signOpts(opts?: { networkPassphrase?: string; address?: string }): NoirSignOpts | undefined {
++  if (!opts) return undefined;
++  const { networkPassphrase, address } = opts;
++  return { networkPassphrase, address };
++}
++
++function unwrap<T>(result: NoirResult<T>): T {
++  if (result?.error) {
++    throw { code: result.error.code, message: result.error.message, ext: result.error.ext?.join(", ") };
++  }
++  return result;
++}
++
++const NOIR_ICON =
++  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAD0AAABACAMAAACeAI/EAAAAeFBMVEVqY1d0ZlBcUT+CbEqpmHfIxLO1j0vMwarFoWTazK/f1sPAuqe8tKC8s5+Xe06soo2ZekSliFaxmm2bdjWOcD/CvK26rpaenJNxcGlPUlAvNj3OuJDXw5rSqmfCm1Tl2sXt49Dj07Tix5f07+Spgj2jfDoxOEHRp16jjzznAAAAG3RSTlMBLrxa9Lr++vn+/raw4KOa2OL8/Mf2+fT5+fyJotllAAAEQ0lEQVRIx52XDZeiIBSGUwuFtqZy0wwUqaz//w/3foAybbbT3nPmNAqP73v5ZrFYJGmy+DyylH+T5Sr7HF4tWTMTOk8/hFPTikAXUq0/cZ/9UqbzdCq61vabn7vPNr1rO5EFutO2l9ufsclW9rbtRrrruuLS9+or+VFz9X1vCqDTke5aBy9/4D41UM8ViDC9w3/Rew/u38sna9X3V/Qd6IRpgR/t7duuJ9fgu4voG8GicFSUZ+9dg0EhBCI7ogWyEK2lQjXjnlxT0lQb6CSmhe45XrqHTubQwtP7hIaah4WQvoL5a94k6VgmAi2YHsOnDu43z2F9iTvcxursPMTtprnS9VVQiS1uI03Ok31gh4G9X6+zuB6GEec23zGLdHlwszDiUpQTzmPt9wgPZXmYh69XeyhLwD3vxznTBA//pkn9FtOeLYU29g3tYEWZcB4V2W2CpXRv8nZSahHMl35lKoNrbaRzdh52Thp9GBjfMZ2ULNwag/SsONPGFIwHeudTNhJh5+ayRhpxdD8MYRlO2fVIvxa3LuCa3E+0aHVEuznfo7guxER7eKT7WWmgSRzwMI1TeGJpT7tZ6aANEbRXRn8z/krcuidcfvlVI6eOiGn5l7T8Rhvj3MbvRJL7UY7OjX4Wt3rC/bCQnPiaiYmWWj9nLrWJxLkar8gbLzgaB9o8GYdMI+/8u6K05dNbiS36fbQ7bNaR9r8GrW/d+PpY1fVyf1pikz4Z13p5Wi7ruspHD2g9GIfJJZvz+Xw/nxvATdxuPcJQgHFSY+etwTg7sria1gDfPR5bVx6GsnuFKyvT0GdbJP1qrU4gjfx9+a3VpV6efUnNNQGhPtsElDa4hhXOTWy911XDwuB7qmzVerFxEY3eKZo6GjDO+4bXx6guJp4W7WXibX1qmgZk9tXU6rKCjO5NczpVkfKlPWSwsjza9uIiPxJ6DirGdHOCnpJqUnGXtn2ktAs+Hg/g4wR6dZRumpz5UcWF1ukWJPnAlrYP5HVsAEfUNL9k/GmUBYKlcRNFuKUErIdxxvQTPfKWLLcYfk1dpPToDUAtRXBM49hQKKupGooVYWVKdvQ9/1o6hkfa0syFP+PrUL3pZJkVj0A/OjhAfHeONLY3nDk65AgW0dkkZbobjx8W3E+0o76CnX8QwvPxkTwRgYXTTDjfyJojPCMN+xd8YGqyxbSHM9xdokEPo+4U6MPgQwiRPV8zSg932o85BXPjfm5yxWPMHoYb02Wavbim7AnuWoadUjXOZ6UYd4LZ3cwlKElvgg/blmAlT+caf6nVpHjHMr+DXoHlQnEcl5JowK0WQ/k7+8cJPNsJ7WEnq6oiHB8Or9J9cZ7dMeDyCiPnJ/nTO1+yoqSB1Dl+QeKnvj64MpEwsFLmmtyvPrivZUeA85y2thz4fJN9dkdd41pEYap1+ulFNcm2G5iV0tTb7H/uyND7tVy9beo/BoQYdudAjWoAAAAASUVORK5CYII=";
+diff --git a/src/sdk/modules/utils.ts b/src/sdk/modules/utils.ts
+index 0bdd736..a66a16e 100644
+--- a/src/sdk/modules/utils.ts
++++ b/src/sdk/modules/utils.ts
+@@ -14,6 +14,7 @@ import { CactusLinkModule } from "./cactuslink.module.ts";
+ import { DcentModule } from "./dcent.module.ts";
+ import { ScopulyModule } from "./scopuly.module.ts";
+ import { GhostsigModule } from "./ghostsig.module.ts";
++import { NoirModule } from "./noir.module.ts";
+ 
+ /**
+  * This method returns all modules that don't require extra configuration before they can be loaded
+@@ -41,6 +42,7 @@ export function defaultModules(opts?: {
+     new ScopulyModule(),
+     new MetaMaskModule(),
+     new GhostsigModule(),
++    new NoirModule(),
+   ];
+   return opts?.filterBy ? modules.filter(opts.filterBy) : modules;
+ }
+@@ -58,6 +60,7 @@ export function sep43Modules(opts?: { filterBy: (module: ModuleInterface) => boo
+     new DcentModule(),
+     new MetaMaskModule(),
+     new GhostsigModule(),
++    new NoirModule(),
+   ];
+   return opts?.filterBy ? modules.filter(opts.filterBy) : modules;
+ }
