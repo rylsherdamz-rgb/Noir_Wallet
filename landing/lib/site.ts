@@ -20,6 +20,16 @@ export const RELEASE_TAG = 'Beta-Testing'
 export const RELEASE_LABEL = 'Beta 1.0.0'
 export const RELEASE_URL = `${REPO}/releases/tag/${RELEASE_TAG}`
 export const APK_URL = `${REPO}/releases/download/${RELEASE_TAG}/app-release.apk`
+/**
+ * Beta tester sign-up (Google Form): set NEXT_PUBLIC_BETA_FORM_URL, or put the link in the '' fallback.
+ * Use the form's full share link (Send → link, e.g. https://docs.google.com/forms/d/e/<id>/viewform).
+ * Empty → /beta/ shows a "sign-ups opening soon" note instead of the form.
+ */
+export const BETA_FORM_URL = (process.env.NEXT_PUBLIC_BETA_FORM_URL ?? '').trim()
+/** Same form in embed mode for the iframe on /beta/. Short forms.gle links can't be embedded → ''. */
+export const BETA_FORM_EMBED_URL = /^https:\/\/docs\.google\.com\/forms\//.test(BETA_FORM_URL)
+  ? `${BETA_FORM_URL.split('?')[0].replace(/\/(edit|viewform)?\/?$/, '')}/viewform?embedded=true`
+  : ''
 export const DEMO_ON_X = 'https://x.com/ChichiCode0/status/2083815952635093215'
 
 /** Live Stellar Testnet deployment (see deploy-evidence/ in the repo). */

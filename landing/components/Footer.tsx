@@ -12,6 +12,7 @@ export function Footer() {
         </Link>
         <nav className="footer-links" aria-label="Footer">
           <Link href="/docs/">Docs</Link>
+          <Link href="/beta/">Beta testing</Link>
           <Link href="/docs/api/">REST API</Link>
           <a href={REPO} target="_blank" rel="noopener">GitHub</a>
           <a href={`${REPO_BLOB}/LICENSE`} target="_blank" rel="noopener">MIT license</a>

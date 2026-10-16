@@ -76,7 +76,7 @@ export default function Home() {
             </p>
             <div className="hero-actions">
               <a className="btn btn-gold" href={APK_URL} download>Download for Android</a>
-              <Link className="btn btn-ghost" href="/docs/">Build with Noir</Link>
+              <Link className="btn btn-ghost" href="/beta/">Become a beta tester</Link>
             </div>
             <p className="dl-note">
               {RELEASE_LABEL} · Stellar Testnet · Android APK · <a href={RELEASE_URL} target="_blank" rel="noopener">Release notes</a> · Google Play coming soon
@@ -425,9 +425,10 @@ export default function Home() {
           <div className="hero-actions">
             <a className="btn btn-gold" href={APK_URL} download>Download for Android</a>
             <span className="btn btn-soon" role="note" aria-label="Google Play: coming soon"><Icon name="play" size="xs" />Google Play · Coming soon</span>
-            <a className="btn btn-ghost" href={REPO} target="_blank" rel="noopener">Explore the repo</a>
+            <Link className="btn btn-ghost" href="/beta/">Become a beta tester</Link>
           </div>
           <p className="dl-note">{RELEASE_LABEL} · Stellar Testnet · Android APK · <a href={RELEASE_URL} target="_blank" rel="noopener">Release notes</a></p>
+          <a className="text-link" href={REPO} target="_blank" rel="noopener">Explore the repo <Icon name="arrow" size="xs" /></a>
           <a className="text-link" href={`${REPO}/raw/main/ppt/Noir-Wallet-Pitch.pptx`} target="_blank" rel="noopener">View the pitch deck <Icon name="arrow" size="xs" /></a>
         </div>
       </section>

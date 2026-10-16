@@ -8,6 +8,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const lastModified = new Date('2026-10-13')
   return [
     { url: `${SITE_URL}/`, lastModified, changeFrequency: 'weekly', priority: 1 },
+    { url: `${SITE_URL}/beta/`, lastModified, changeFrequency: 'weekly', priority: 0.8 },
     ...DOCS.map((d) => ({
       url: `${SITE_URL}${docPath(d.slug)}`,
       lastModified,

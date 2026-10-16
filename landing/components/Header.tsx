@@ -12,6 +12,7 @@ const NAV = [
   { href: '/#security', label: 'Security' },
   { href: '/#developers', label: 'Developers' },
   { href: '/docs/', label: 'Docs' },
+  { href: '/beta/', label: 'Beta' },
 ]
 
 export function Header() {
@@ -56,7 +57,7 @@ export function Header() {
         <nav className={`site-nav${open ? ' is-open' : ''}`} id="site-nav" aria-label="Primary">
           {NAV.map((n) => (
             <Link key={n.href} href={n.href} onClick={() => setOpen(false)}
-              aria-current={n.href === '/docs/' && pathname.startsWith('/docs') ? 'page' : undefined}>
+              aria-current={n.href.startsWith('/') && !n.href.includes('#') && pathname.startsWith(n.href.slice(0, -1)) ? 'page' : undefined}>
               {n.label}
             </Link>
           ))}
