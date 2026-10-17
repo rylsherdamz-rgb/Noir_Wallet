@@ -1,0 +1,28 @@
+{
+  "name": "@noir-wallet/agent-sdk",
+  "version": "0.2.0",
+  "description": "Read and use Noir agent policies (device registry, agent registry, payment escrow) on Stellar from any app.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+  },
+  "files": ["dist", "README.md"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:testnet": "NOIR_TESTNET=1 vitest run tests/testnet.test.ts"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^16.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.9"
+  }
+}

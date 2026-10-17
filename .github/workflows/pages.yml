@@ -1,4 +1,4 @@
-name: Deploy Landing Page to GitHub Pages
+name: Deploy site to GitHub Pages
 
 on:
   push:
@@ -25,12 +25,28 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Configure Pages
+        id: pages
         uses: actions/configure-pages@v5
 
-      - name: Upload landing page
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: landing/package-lock.json
+
+      - name: Build site (Next.js static export)
+        working-directory: landing
+        env:
+          NEXT_PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          NEXT_PUBLIC_SITE_URL: ${{ steps.pages.outputs.base_url }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: landing
+          path: landing/out
 
       - name: Deploy to GitHub Pages
         id: deployment

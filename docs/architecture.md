@@ -4,7 +4,7 @@ Reference architecture for NFC-enabled **constrained delegated payments** on Ste
 
 Diagrams below are [Mermaid](https://mermaid.js.org/) and render directly on GitHub — no tooling needed to review them.
 
-Contract interfaces are documented in [`Noir/_AI Build Guide - Contracts.md`](../Noir/_AI%20Build%20Guide%20-%20Contracts.md). A full developer walkthrough (SDKs, contracts, deployment, wallet integration, testing) is in [`stellar-development-guide.md`](stellar-development-guide.md). Deployed IDs and WASM hashes are in [`deploy-evidence/`](../deploy-evidence/), with on-chain explorer screenshots in [`docs/Evidence/`](Evidence/README.md).
+Contract interfaces are documented in the [smart contract reference](contracts.md); all docs are indexed in [`docs/README.md`](README.md). A full developer walkthrough (SDKs, contracts, deployment, wallet integration, testing) is in [`stellar-development-guide.md`](stellar-development-guide.md). Deployed IDs and WASM hashes are in [`deploy-evidence/`](../deploy-evidence/), with on-chain explorer screenshots in [`docs/Evidence/`](Evidence/README.md).
 
 ---
 
@@ -82,6 +82,9 @@ sequenceDiagram
 ## 4. x402 tap-to-pay
 
 Escrow is pre-funded once per device. A tap then authorizes an instant in-policy deduction — no per-tap Horizon submission by the payer.
+
+> [!NOTE]
+> This is the target flow. `authorize` and `claim` are implemented and tested in the contracts and the SDK, but the app's tap screens still pay straight from the per-device agent wallet. Wiring the app to `authorize` → `claim` is on the [to-do list](README.md#still-to-do).
 
 ```mermaid
 sequenceDiagram
@@ -165,7 +168,7 @@ A payment is accepted only when all of the following hold:
 | NFC tag | Untrusted. Clonable by design, so it holds no secret. A cloned UID is useless without a funded escrow and an in-policy agent, and the owner can revoke. |
 | Agent key | Semi-trusted, constrained. It can spend only the approved asset, up to the cap, before expiry, and only from that device's escrow. |
 | Owner wallet | Fully trusted. Sole authority for register, policy, funding, defund, and revocation. |
-| Contracts | Trusted after review. Validated by 41 automated tests covering the positive and negative paths; unaudited by a third party (out of sprint scope). |
+| Contracts | Trusted after review. Validated by 45 automated tests covering the positive and negative paths; unaudited by a third party (out of sprint scope). |
 
 ---
 

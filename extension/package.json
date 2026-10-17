@@ -1,0 +1,29 @@
+{
+  "name": "noir-wallet-extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Noir browser extension: a Stellar wallet with a SEP-43 provider (window.noir.stellar) for dApps and Stellar Wallets Kit.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "zip": "node build.mjs && cd dist && zip -qr ../noir-wallet-extension-$npm_package_version.zip .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "npm run build && node tests/e2e.mjs"
+  },
+  "dependencies": {
+    "@scure/bip39": "2.4.0",
+    "@stellar/stellar-sdk": "^16.0.1",
+    "buffer": "^6.0.3"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.3.5",
+    "@types/node": "^22.10.0",
+    "esbuild": "0.28.2",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.9",
+    "playwright": "1.63.0"
+  }
+}
