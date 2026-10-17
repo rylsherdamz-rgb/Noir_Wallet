@@ -23,7 +23,7 @@ This maps every weekly deliverable to its status. Measure every commit against t
 |---|-------------|--------|
 | 1 | Soroban Smart Contract Infrastructure (DeviceRegistry, AgentRegistry, PaymentEscrow) | 🟡 In progress |
 | 2 | React Native Reference Wallet (Android) | 🟡 Partially built (pre-existing) |
-| 3 | Documentation & Open-Source Release (MIT) | ⬜ Not started |
+| 3 | Documentation & Open-Source Release (MIT) | 🟡 Reproducibility docs complete (`docs/README.md`, 2026-10-17); final demo video + live `authorize`/`claim` evidence pending |
 
 ---
 
@@ -61,8 +61,18 @@ This maps every weekly deliverable to its status. Measure every commit against t
 - [x] Escrow funding wired to PaymentEscrow — `x402.fundEscrow` → `fund_escrow(token, wallet, device_hash, i128)`, amount picker + live `balance_of` on Agent Detail (2026-10-06, unit-tested; Testnet run pending)
 - [x] App ↔ deployed Soroban contracts integration verified on Testnet — the app's own `x402` code ran register + constrained agent → foreign-wallet rejection → fund → withdraw → unlink live (`npm run test:testnet`, evidence `deploy-evidence/week2-testnet-flow-20261009T044804Z.md`, 2026-10-09)
 
-### Week 3 — Full x402 flow + tests + security paths + docs  ⬜ NOT STARTED
+### Week 3 — Full x402 flow + tests + security paths + docs  🟡 IN PROGRESS
 **Expected output:** Complete x402 flow validated; automated tests passing; positive/negative security validation; developer docs.
+
+- [x] Developer docs (2026-10-17), indexed in `docs/README.md`: installation, deployment, NFC hardware, smart contract reference, API reference, automated test documentation, walkthrough
+- [x] Automated tests passing: 45 contract, 306 app, 18 SDK, 18 REST gateway (2026-10-17)
+- [x] Positive/negative security matrix covered by contract tests (mapped in `docs/testing.md`)
+- [ ] **To do:** wire the tap screens to `payment_escrow.authorize` (today taps pay from the agent wallet via `x402.payWithAgent`)
+- [ ] **To do:** merchant `claim` in the app (`pending_balance` + claim action)
+- [ ] **To do:** button for the escrow deposit screen (`/agent-fund/<id>?mode=escrow`)
+- [ ] **To do:** live Testnet run of `authorize` + `claim` and of the reject cases, with tx evidence
+- [ ] **To do:** redeploy so the `fund_escrow` `DeviceNotRegistered` check is live; propagate new IDs
+- [ ] **To do:** physical NTAG213 on-device test
 
 ### Week 4 — Final testing + MIT release + evidence package  ⬜ NOT STARTED
 **Expected output:** Public MIT repo; published Contract IDs + WASM hashes + Stellar Expert tx links; install/deploy guides; demo video; evidence package.
