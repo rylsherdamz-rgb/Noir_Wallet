@@ -25,6 +25,9 @@ export const EXTENSION_TAG = 'extension-v0.1.0'
 export const EXTENSION_ZIP = `${REPO}/releases/download/${EXTENSION_TAG}/noir-wallet-extension-0.1.0.zip`
 export const EXTENSION_RELEASE = `${REPO}/releases/tag/${EXTENSION_TAG}`
 export const DEMO_ON_X = 'https://x.com/Noirx402/status/2109282993588334632'
+/** Google Play closed-beta sign-up (Google Form) and its announcement post. */
+export const BETA_FORM_URL = 'https://forms.gle/8tA3qwUVwnKEKikY6'
+export const BETA_POST_ON_X = 'https://x.com/Noirx402/status/2109813001289380199'
 
 /** Live Stellar Testnet deployment (see deploy-evidence/ in the repo). */
 export const CONTRACTS = [
