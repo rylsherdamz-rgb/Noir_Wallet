@@ -9,13 +9,13 @@ Tap any NFC tag, RFID sticker, or wearable to pay — no app opens, no confirmat
 
 [![Stellar](https://img.shields.io/badge/Stellar-testnet-blue?logo=stellar&logoColor=white)](https://stellar.expert/explorer/testnet)
 [![Soroban](https://img.shields.io/badge/Soroban-3%20contracts-blueviolet)](backend/contracts/)
-[![Tests](https://img.shields.io/badge/tests-44%20passing-brightgreen)](#run-tests)
+[![Tests](https://img.shields.io/badge/tests-45%20passing-brightgreen)](#run-tests)
 [![React Native](https://img.shields.io/badge/React%20Native-Expo%2057-61DAFB?logo=expo&logoColor=white)](frontend/)
 [![Rust](https://img.shields.io/badge/Rust-nightly-orange?logo=rust&logoColor=white)](backend/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](frontend/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-[View Pitch Deck](ppt/Noir-Wallet-Pitch.pptx) · [Architecture](docs/architecture.md) · [Stellar Dev Guide](docs/stellar-development-guide.md) · [Deployment Evidence](docs/Evidence/README.md) · [PR #10 — Week 1](https://github.com/rylsherdamz-rgb/Noir_Wallet/pull/10) · [Run Locally](#getting-started)
+[Docs](docs/README.md) · [View Pitch Deck](ppt/Noir-Wallet-Pitch.pptx) · [Architecture](docs/architecture.md) · [Stellar Dev Guide](docs/stellar-development-guide.md) · [Deployment Evidence](docs/Evidence/README.md) · [PR #10 — Week 1](https://github.com/rylsherdamz-rgb/Noir_Wallet/pull/10) · [Run Locally](#getting-started)
 
 </div>
 
@@ -25,16 +25,10 @@ Tap any NFC tag, RFID sticker, or wearable to pay — no app opens, no confirmat
 ## Screenshots
 
 <div align="center">
-
-<img src="frontend/assets/screenshots/dashboard.png" width="80%" alt="Dashboard">
-<img src="frontend/assets/screenshots/welcome.png" width="80%" alt="Welcome">
-<img src="frontend/assets/screenshots/link.png" width="80%" alt="Device Linking">
-<img src="frontend/assets/screenshots/agent.png" width="80%" alt="x402 Agent">
-<img src="frontend/assets/screenshots/taptopay.png" width="80%" alt="Tap to Pay">
-<img src="frontend/assets/screenshots/send.png" width="80%" alt="Send">
-<img src="frontend/assets/screenshots/receive.png" width="80%" alt="Receive">
-<img src="frontend/assets/screenshots/transactions.png" width="80%" alt="Transactions">
-
+<table>
+<tr><td align="center"><img src="frontend/assets/screenshots/01-wallet.png" width="160" alt="Wallet"><br><sub>Wallet</sub></td><td align="center"><img src="frontend/assets/screenshots/02-link-card.png" width="160" alt="Link a card"><br><sub>Link a card</sub></td><td align="center"><img src="frontend/assets/screenshots/03-agents.png" width="160" alt="Agents"><br><sub>Agents</sub></td><td align="center"><img src="frontend/assets/screenshots/04-card-detail.png" width="160" alt="Card policy"><br><sub>Card policy</sub></td><td align="center"><img src="frontend/assets/screenshots/05-tap-to-pay.png" width="160" alt="Tap to pay"><br><sub>Tap to pay</sub></td></tr>
+<tr><td align="center"><img src="frontend/assets/screenshots/06-receive-nfc.png" width="160" alt="Receive by NFC"><br><sub>Receive by NFC</sub></td><td align="center"><img src="frontend/assets/screenshots/07-send-review.png" width="160" alt="Send"><br><sub>Send</sub></td><td align="center"><img src="frontend/assets/screenshots/08-activity.png" width="160" alt="Activity"><br><sub>Activity</sub></td><td align="center"><img src="frontend/assets/screenshots/09-browse.png" width="160" alt="Browse"><br><sub>Browse</sub></td><td align="center"><img src="frontend/assets/screenshots/10-unlock.png" width="160" alt="Unlock"><br><sub>Unlock</sub></td></tr>
+</table>
 </div>
 
 ## Demo
@@ -278,6 +272,9 @@ Noir Wallet notifies you when money **arrives** at your main wallet or at any ca
 
 ## Getting Started
 
+> [!TIP]
+> Full guides: **[Installation](docs/installation.md)** · **[Deployment](docs/deployment.md)** · **[Walkthrough](docs/walkthrough.md)** · **[Contract reference](docs/contracts.md)** · **[API reference](docs/api-reference.md)** · **[NFC hardware](docs/nfc-hardware.md)** · **[Testing](docs/testing.md)**. The summary below is the short version.
+
 ### Prerequisites
 - Node.js 26+
 - Expo CLI (`npm install -g expo-cli`)
@@ -316,7 +313,7 @@ cd frontend
 npx expo start
 ```
 
-Scan the QR code with Expo Go, or press `a` for Android / `i` for iOS simulator.
+NFC needs native code, so Expo Go and emulators can't link or tap cards. On an NFC Android phone, build a development client with `npx expo run:android` (see [Installation](docs/installation.md#4-run-the-app-on-an-android-phone)).
 
 ### Smart Contract Development
 
@@ -350,8 +347,10 @@ soroban contract invoke --id <AGENT_REGISTRY_ID> --network testnet -- \
   initialize --admin <ADMIN_ADDR>
 
 soroban contract invoke --id <ESCROW_ID> --network testnet -- \
-  initialize --admin <ADMIN_ADDR> --agent_registry_id <AGENT_REGISTRY_ID>
+  initialize --admin <ADMIN_ADDR> --agent_registry_id <AGENT_REGISTRY_ID> --device_registry_id <DEVICE_REGISTRY_ID>
 ```
+
+Build `agent-registry` and `device-registry` before `payment-escrow` (it imports their WASM). Or run all of this with `./scripts/redeploy-contracts.sh`; see the [Deployment guide](docs/deployment.md).
 
 ### Run Tests
 
@@ -359,6 +358,8 @@ soroban contract invoke --id <ESCROW_ID> --network testnet -- \
 cd frontend
 npm test
 ```
+
+Contract, SDK and live Testnet tests: see [Testing](docs/testing.md).
 
 ## User Feedback
 

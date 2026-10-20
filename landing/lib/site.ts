@@ -20,7 +20,11 @@ export const RELEASE_TAG = 'Beta-Testing'
 export const RELEASE_LABEL = 'Beta 1.0.0'
 export const RELEASE_URL = `${REPO}/releases/tag/${RELEASE_TAG}`
 export const APK_URL = `${REPO}/releases/download/${RELEASE_TAG}/app-release.apk`
-export const DEMO_ON_X = 'https://x.com/ChichiCode0/status/2083815952635093215'
+/** Noir browser extension (GitHub release until the Chrome Web Store listing is live). */
+export const EXTENSION_TAG = 'extension-v0.1.0'
+export const EXTENSION_ZIP = `${REPO}/releases/download/${EXTENSION_TAG}/noir-wallet-extension-0.1.0.zip`
+export const EXTENSION_RELEASE = `${REPO}/releases/tag/${EXTENSION_TAG}`
+export const DEMO_ON_X = 'https://x.com/Noirx402/status/2109282993588334632'
 
 /** Live Stellar Testnet deployment (see deploy-evidence/ in the repo). */
 export const CONTRACTS = [

@@ -14,5 +14,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'weekly' as const,
       priority: d.slug ? 0.7 : 0.8,
     })),
+    { url: `${SITE_URL}/privacy/`, lastModified, changeFrequency: 'yearly', priority: 0.3 },
   ]
 }

@@ -363,13 +363,13 @@ cargo test                                   # all contracts
 cargo test -p agent-registry                 # one contract
 ```
 
-Current coverage — **44 tests, 0 failures, 0 warnings**:
+Current coverage — **45 tests, 0 failures, 0 warnings** (full per-test list in [Testing](testing.md)):
 
 | Contract | Tests | Focus |
 |----------|-------|-------|
 | device_registry | 10 | register/revoke/re-register, index compaction, `is_authorized` true & false paths, owner guards |
 | agent_registry | 17 | policy roundtrip, `check_payment` predicate (cap, asset, expiry, non-positive), `is_auth`, invalid-policy guards |
-| payment_escrow | 17 | fund/authorize/claim/defund, nonce replay, over-limit/wrong-asset/expired/unauthorized rejects, sweep-on-revoke + guard |
+| payment_escrow | 18 | fund/authorize/claim/defund, nonce replay, over-limit/wrong-asset/expired/unauthorized rejects, sweep-on-revoke + guard |
 
 Test utilities: `Env::default()`, `env.register(...)`, `env.mock_all_auths()`,
 `register_stellar_asset_contract_v2` (SAC token for escrow tests),

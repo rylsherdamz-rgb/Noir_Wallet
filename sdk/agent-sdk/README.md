@@ -16,6 +16,32 @@ Noir, can use the REST gateway in [`sdk/noir-api`](../noir-api).
 npm install @noir-wallet/agent-sdk @stellar/stellar-sdk
 ```
 
+## Quick start: accept a Noir tap in a dApp
+
+```ts
+import { NoirAgentClient, noirExtensionSigner, walletSigner, toStroops, fromStroops } from '@noir-wallet/agent-sdk'
+
+const noir = new NoirAgentClient()
+
+// Who signs: the Noir extension…
+const merchant = await noirExtensionSigner()
+// …or any wallet from the Stellar Wallets Kit (Freighter, xBull, Lobstr, Noir, …)
+// const { address } = await StellarWalletsKit.getAddress()
+// const merchant = walletSigner(StellarWalletsKit, address)
+
+const check = await noir.checkPayment({ deviceHash, agent, asset, amount: toStroops('2.5') })
+if (!check.ok) throw new Error(`Card refused: ${check.reason}`)
+
+console.log(fromStroops(await noir.getPendingBalance(merchant.publicKey)), 'XLM to claim')
+await noir.claim({ merchant, token: asset })
+```
+
+| Helper | Does |
+|---|---|
+| `noirExtensionSigner()` | connects to the Noir browser extension (one approval per site) and returns a signer |
+| `walletSigner(wallet, address)` | wraps any SEP-43 wallet — the Stellar Wallets Kit, Freighter's API, `window.noir.stellar` |
+| `toStroops('1.5')` / `fromStroops(15000000n)` | exact conversion between XLM strings and stroops (7 decimals, no floats) |
+
 ## Read a policy and check a payment
 
 ```ts

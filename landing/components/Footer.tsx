@@ -16,6 +16,7 @@ export function Footer() {
           <a href={REPO} target="_blank" rel="noopener">GitHub</a>
           <a href={`${REPO_BLOB}/LICENSE`} target="_blank" rel="noopener">MIT license</a>
           <a href={`${REPO_BLOB}/SECURITY.md`} target="_blank" rel="noopener">Security policy</a>
+          <Link href="/privacy/">Privacy</Link>
         </nav>
         <p className="footer-copy">© 2026 Noir · Built on Stellar</p>
       </div>

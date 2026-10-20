@@ -60,6 +60,24 @@ const agent = keypairSigner(process.env.AGENT_SECRET!)   // server-side agent
 const merchant = walletKitSigner                         // a connected browser wallet
 `} />
 
+      <h3 id="wallet-signers">From a connected wallet</h3>
+      <CodeBlock lang="ts" code={`
+import { noirExtensionSigner, walletSigner } from '@noir-wallet/agent-sdk'
+
+const signer = await noirExtensionSigner()            // the Noir extension
+const { address } = await StellarWalletsKit.getAddress()
+const kitSigner = walletSigner(StellarWalletsKit, address) // any Stellar Wallets Kit wallet
+`} />
+
+      <h2 id="amounts">Amounts</h2>
+      <p>Contracts work in stroops (1 XLM = 10,000,000). Convert exactly, without floats:</p>
+      <CodeBlock lang="ts" code={`
+import { toStroops, fromStroops } from '@noir-wallet/agent-sdk'
+
+toStroops('2.5')          // 25000000n
+fromStroops(25000000n)    // '2.5'
+`} />
+
       <h2 id="pay">Tap-to-pay and claim</h2>
       <CodeBlock lang="ts" code={`
 const { hash, nonce } = await noir.authorizePayment({
