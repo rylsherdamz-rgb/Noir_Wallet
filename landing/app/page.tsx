@@ -4,7 +4,7 @@ import { Icon } from '@/components/Icons'
 import { CodeBlock } from '@/components/CodeBlock'
 import { JsonLd } from '@/components/JsonLd'
 import {
-  APK_URL, CONTRACTS, DEMO_ON_X, DESCRIPTION, RELEASE_LABEL, RELEASE_URL, REPO, REPO_BLOB, SITE_NAME, SITE_URL, asset,
+  APK_URL, BETA_FORM_URL, BETA_POST_ON_X, CONTRACTS, DEMO_ON_X, DESCRIPTION, RELEASE_LABEL, RELEASE_URL, REPO, REPO_BLOB, SITE_NAME, SITE_URL, asset,
 } from '@/lib/site'
 
 export const metadata: Metadata = { alternates: { canonical: `${SITE_URL}/` } }
@@ -79,7 +79,8 @@ export default function Home() {
               <Link className="btn btn-ghost" href="/docs/">Build with Noir</Link>
             </div>
             <p className="dl-note">
-              {RELEASE_LABEL} · Stellar Testnet · Android APK · <a href={RELEASE_URL} target="_blank" rel="noopener">Release notes</a> · Google Play coming soon
+              {RELEASE_LABEL} · Stellar Testnet · Android APK · <a href={RELEASE_URL} target="_blank" rel="noopener">Release notes</a> · Google Play coming soon ·{' '}
+              <a href={BETA_FORM_URL} target="_blank" rel="noopener">Become a beta tester</a>
             </p>
             <dl className="hero-facts">
               <div><dt>Settlement</dt><dd>~5s ledgers</dd></div>
@@ -124,6 +125,32 @@ export default function Home() {
             <div className="toast" aria-hidden="true">
               <Icon name="nfc" className="gold" />
               <div><b>Paid · Coffee Stand</b><small>12.50 XLM · confirmed on Stellar</small></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* BETA TESTERS */}
+      <section className="beta" id="beta">
+        <div className="container">
+          <div className="beta-card reveal">
+            <div className="beta-copy">
+              <p className="kicker">Beta testers wanted</p>
+              <h2>Help us launch on Google Play.</h2>
+              <p>
+                Noir is building a new way to experience blockchain payments through tap-to-pay,
+                powered by Stellar and x402. We’re preparing for our Google Play Store launch and
+                need Android users willing to test the app, share feedback and help make Noir better.
+              </p>
+              <p className="beta-sub">Every tester brings us one step closer to launch.</p>
+            </div>
+            <div className="beta-actions">
+              <a className="btn btn-gold" href={BETA_FORM_URL} target="_blank" rel="noopener">
+                <Icon name="play" size="xs" />Sign up to test
+              </a>
+              <a className="text-link" href={BETA_POST_ON_X} target="_blank" rel="noopener">
+                Read the announcement on X <Icon name="arrow" size="xs" />
+              </a>
             </div>
           </div>
         </div>
@@ -416,7 +443,7 @@ export default function Home() {
           <p>Your wallet is your identity. Payments happen without friction. Settlement is instant.</p>
           <div className="hero-actions">
             <a className="btn btn-gold" href={APK_URL} download>Download for Android</a>
-            <span className="btn btn-soon" role="note" aria-label="Google Play: coming soon"><Icon name="play" size="xs" />Google Play · Coming soon</span>
+            <a className="btn btn-ghost" href={BETA_FORM_URL} target="_blank" rel="noopener"><Icon name="play" size="xs" />Join the Google Play beta</a>
             <a className="btn btn-ghost" href={REPO} target="_blank" rel="noopener">Explore the repo</a>
           </div>
           <p className="dl-note">{RELEASE_LABEL} · Stellar Testnet · Android APK · <a href={RELEASE_URL} target="_blank" rel="noopener">Release notes</a></p>
