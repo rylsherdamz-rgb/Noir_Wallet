@@ -3,6 +3,7 @@ import { Jost } from 'next/font/google'
 import './globals.css'
 import './site.css'
 import { Header } from '@/components/Header'
+import { BetaBanner } from '@/components/BetaBanner'
 import { Footer } from '@/components/Footer'
 import { IconSprite } from '@/components/Icons'
 import { RevealObserver } from '@/components/Reveal'
@@ -65,6 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <a className="skip-link" href="#main">Skip to content</a>
         <IconSprite />
+        <BetaBanner />
         <Header />
         <main id="main">{children}</main>
         <Footer />
