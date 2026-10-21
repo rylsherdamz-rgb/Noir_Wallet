@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Noir feature graphic</title>
+<style>
+  @font-face { font-family: Jost; font-weight: 400; src: url(../../../frontend/assets/fonts/Jost-Regular.ttf); }
+  @font-face { font-family: Jost; font-weight: 500; src: url(../../../frontend/assets/fonts/Jost-Medium.ttf); }
+  @font-face { font-family: Jost; font-weight: 600; src: url(../../../frontend/assets/fonts/Jost-SemiBold.ttf); }
+  :root { --bg: #0a0a0a; --ink: #f1e9d8; --gold: #c6a05e; --muted: #a39d93; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1024px; height: 500px; overflow: hidden; background: var(--bg); }
+  body {
+    font-family: Jost, sans-serif; color: var(--ink); position: relative;
+    background: radial-gradient(ellipse 60% 90% at 82% 50%, #241c10 0%, var(--bg) 70%);
+  }
+  .copy { position: absolute; left: 64px; top: 72px; width: 560px; }
+  .brand { display: flex; align-items: center; gap: 18px; margin-bottom: 40px; }
+  .brand img { width: 62px; height: auto; }
+  .brand span { font-weight: 500; font-size: 26px; letter-spacing: 10px; }
+  h1 { font-weight: 600; font-size: 64px; line-height: 1.05; letter-spacing: -0.5px; }
+  h1 em { font-style: normal; color: var(--gold); display: block; }
+  p { margin-top: 26px; font-size: 21px; line-height: 1.45; color: var(--muted); }
+  .phone {
+    position: absolute; right: 70px; top: 46px; width: 248px; height: 520px;
+    border-radius: 34px; border: 2px solid #2b2925; overflow: hidden; background: #0a0a0a;
+    box-shadow: 0 30px 80px rgba(0,0,0,.6);
+  }
+  .phone img { width: 100%; display: block; }
+</style>
+</head>
+<body>
+  <div class="copy">
+    <div class="brand"><img src="../../../frontend/assets/noir-mark.png" alt=""><span>NOIR</span></div>
+    <h1>Tap. Pay. Done.<em>On Stellar.</em></h1>
+    <p>Link an NFC card, set its spending limit,<br>and pay with a tap.</p>
+  </div>
+  <div class="phone"><img src="../../../frontend/assets/screenshots/05-tap-to-pay.png" alt=""></div>
+</body>
+</html>
