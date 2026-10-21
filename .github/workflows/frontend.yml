@@ -6,10 +6,10 @@ on:
     paths:
       - 'frontend/**'
       - '.github/workflows/frontend.yml'
+  # No path filter on pull requests: `test` is a required status check on the
+  # protected branches, and a path-filtered required check never reports on a
+  # PR outside frontend/ (e.g. landing-only), which blocks the merge forever.
   pull_request:
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/frontend.yml'
 
 defaults:
   run:
