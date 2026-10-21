@@ -7,7 +7,7 @@
 # Contracts (deploy order matters — escrow is initialized last because it
 # needs the agent_registry + device_registry IDs):
 #   1. device_registry   initialize(admin)
-#   2. agent_registry     initialize(admin)
+#   2. agent_registry     initialize(admin, device_registry_id)
 #   3. payment_escrow     initialize(admin, agent_registry_id, device_registry_id)
 #
 # Usage:
@@ -65,8 +65,10 @@ echo
 info "Building release WASM for all three contracts…"
 (
   cd "$ASSET_DIR"
-  cargo build --release --target wasm32v1-none \
-    -p device-registry -p agent-registry -p payment-escrow
+  # payment_escrow contractimport!s the other two WASMs, so they must exist
+  # before it compiles — one combined cargo build fails on a clean checkout.
+  cargo build --release --target wasm32v1-none -p device-registry -p agent-registry
+  cargo build --release --target wasm32v1-none -p payment-escrow
 )
 ok "Build complete."
 
@@ -109,9 +111,9 @@ info "Initializing device_registry…"
 stellar contract invoke --id "$DEVICE_REGISTRY_ID" --source "$DEPLOYER" --network "$NETWORK" -- \
   initialize --admin "$ADMIN_ADDR"
 
-info "Initializing agent_registry…"
+info "Initializing agent_registry (admin + device_registry_id)…"
 stellar contract invoke --id "$AGENT_REGISTRY_ID" --source "$DEPLOYER" --network "$NETWORK" -- \
-  initialize --admin "$ADMIN_ADDR"
+  initialize --admin "$ADMIN_ADDR" --device_registry_id "$DEVICE_REGISTRY_ID"
 
 info "Initializing payment_escrow (admin + agent_registry_id + device_registry_id)…"
 stellar contract invoke --id "$ESCROW_ID" --source "$DEPLOYER" --network "$NETWORK" -- \
@@ -158,7 +160,7 @@ cat > "$EVIDENCE_FILE" <<EOF
 ## Initialization
 
 - device_registry: \`initialize(admin=$ADMIN_ADDR)\`
-- agent_registry: \`initialize(admin=$ADMIN_ADDR)\`
+- agent_registry: \`initialize(admin=$ADMIN_ADDR, device_registry_id=$DEVICE_REGISTRY_ID)\`
 - payment_escrow: \`initialize(admin=$ADMIN_ADDR, agent_registry_id=$AGENT_REGISTRY_ID, device_registry_id=$DEVICE_REGISTRY_ID)\`
 
 ## Env (paste into frontend/.env)
