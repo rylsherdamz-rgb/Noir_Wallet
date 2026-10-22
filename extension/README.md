@@ -17,8 +17,20 @@ provider at `window.noir.stellar`. It ships with a
   warnings for risky operations.
 - **Network-safe.** Requests for another network are refused; auth entries
   for another network are refused before signing.
-- **Noir cards.** The popup lists NFC cards linked to the wallet, with their
-  escrow and per-tap cap, read from Noir's Soroban contracts.
+- **Everything the app does with money.** Send XLM (with memo, reserve check,
+  and opening new accounts), receive with a SEP-7 QR and payment link,
+  Activity with sent/received filters and transaction details.
+- **Noir cards, linked from the browser.** Link an NTAG213 card (scan it with
+  Web NFC where the browser has a reader, or type its UID: it is hashed
+  exactly as the app does, `sha256(UID)`), set its agent policy, add funds to
+  and withdraw from its escrow, rename it, and unlink it without stranding
+  funds (revoke agent → sweep escrow → revoke device → sweep agent wallet).
+- **Agents.** Each card's agent is derived from your phrase at
+  `m/44'/148'/0'/n'`, the same keys the app uses, so cards linked on either
+  side work on both. See its balance and policy, top it up, edit its policy.
+- **Settings like the app.** Auto-lock time, change password, show the
+  recovery phrase, export the secret key, connected sites, and a directory of
+  Stellar apps.
 
 ## Build and load
 
@@ -52,7 +64,8 @@ With the Stellar Wallets Kit, use `NoirModule` (see `kit-module/README.md`).
 ## Tests
 
 ```bash
-npm test               # unit: SEP-5 vectors, vault, signing, descriptions
+npm test               # unit: SEP-5 + agent vectors, vault, signing, UIDs, SEP-7, activity
+npm run test:testnet   # live Testnet: link → fund → withdraw → top up → policy → pay → unlink
 npm run test:e2e       # builds, loads dist/ in Chromium and drives onboarding,
                        # connect, every signing method and the kit module
 npm run typecheck
@@ -65,11 +78,14 @@ npm run typecheck
 | `src/background.ts` | Service worker: vault, auto-lock, site permissions, approval queue, signing |
 | `src/inpage.ts` | `window.noir.stellar` provider (page world) |
 | `src/content.ts` | Relay between the page and the service worker |
-| `src/popup/` | Onboarding, unlock, balance, Noir cards, connected sites, settings |
+| `src/popup/` | Onboarding (with phrase check), Wallet, Send, Receive, Cards, Agents, Activity, Settings |
+| `src/shared/noir.ts` | Card, agent, escrow and payment logic the service worker runs |
 | `src/approve/` | Approval window |
 | `src/shared/` | SEP-5 derivation, vault crypto, signing, transaction descriptions |
 | `kit-module/` | Stellar Wallets Kit module, its Deno test and a ready-to-apply patch |
 
-Not in this version: sending payments from the popup, multiple accounts,
-hardware keys, and Firefox. The Noir contracts run on Testnet; Mainnet signing
-works for any dApp but cards only show on Testnet.
+Not in this version: multiple wallets, paying by tapping a card (that needs
+the phone's NFC radio; desktop browsers can't reach NFC readers), the
+merchant POS, fiat cash-out, hardware keys, and Firefox. The Noir contracts
+run on Testnet; payments and dApp signing work on Mainnet too, but cards and
+agents are Testnet-only.

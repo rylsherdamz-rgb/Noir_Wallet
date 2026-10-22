@@ -12,5 +12,5 @@
     "resolveJsonModule": true,
     "paths": { "@noirx402/agent-sdk": ["../sdk/agent-sdk/src/index.ts"] }
   },
-  "include": ["src", "tests", "build.mjs"]
+  "include": ["src", "tests", "build.mjs", "vitest.config.ts"]
 }
