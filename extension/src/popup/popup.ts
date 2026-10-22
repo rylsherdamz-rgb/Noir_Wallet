@@ -1,6 +1,6 @@
 import { generateMnemonic } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english.js'
-import { NoirAgentClient } from '@noir-wallet/agent-sdk'
+import { NoirAgentClient } from '@noirx402/agent-sdk'
 import { NETWORKS, type NetworkId } from '../shared/networks'
 import { busy, h, send, short, topBar } from '../shared/ui'
 

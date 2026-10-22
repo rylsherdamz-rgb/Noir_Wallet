@@ -35,7 +35,7 @@ cd Noir_Wallet
 |------|------------|
 | `backend/contracts/` | The three Soroban contracts (Rust) |
 | `frontend/` | React Native / Expo Android app |
-| `sdk/agent-sdk/` | TypeScript SDK for other apps (`@noir-wallet/agent-sdk`) |
+| `sdk/agent-sdk/` | TypeScript SDK for other apps (`@noirx402/agent-sdk`) |
 | `sdk/noir-api/` | Self-hosted REST gateway |
 | `scripts/` | `redeploy-contracts.sh` and helpers |
 | `deploy-evidence/` | Deploy records: contract IDs, WASM hashes, transactions |
