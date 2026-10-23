@@ -9,6 +9,7 @@ import { IconSprite } from '@/components/Icons'
 import { RevealObserver } from '@/components/Reveal'
 import { JsonLd } from '@/components/JsonLd'
 import { DESCRIPTION, KEYWORDS, OG_IMAGE, REPO, SITE_NAME, SITE_URL, TAGLINE, asset } from '@/lib/site'
+import { Analytics } from '@vercel/analytics/next'
 
 const jost = Jost({ subsets: ['latin'], weight: ['400', '500', '600'], variable: '--font-jost', display: 'swap' })
 
@@ -72,6 +73,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Footer />
         <RevealObserver />
         <JsonLd data={organization} />
+        <Analytics />
       </body>
     </html>
   )
