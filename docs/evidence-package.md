@@ -1,6 +1,6 @@
 # Instaward Evidence Package — Week 4
 
-The final evidence index for the Stellar Community Fund Instaward: every Week 4 expected output, where its proof lives, and what is still open. Status is as of **2026-10-21**. The rule for this page: an item is ✅ only if the linked artifact exists and can be checked by a reviewer today.
+The final evidence index for the Stellar Community Fund Instaward: every Week 4 expected output, where its proof lives, and what is still open. Status is as of **2026-10-23**. The rule for this page: an item is ✅ only if the linked artifact exists and can be checked by a reviewer today.
 
 **Repository:** [github.com/rylsherdamz-rgb/Noir_Wallet](https://github.com/rylsherdamz-rgb/Noir_Wallet) — public, [MIT](../LICENSE) (GitHub detects the license as `MIT`).
 
@@ -17,7 +17,7 @@ The final evidence index for the Stellar Community Fund Instaward: every Week 4 
 | Positive- and negative-path validation | ✅ contract tests · ⏳ live Testnet | [Security matrix](#2-positive-and-negative-path-validation) |
 | Transaction evidence | 🟡 | Week 1 deploy + Week 2 flow live; `authorize`/`claim` + reject cases live run pending ([runner ready](testing.md#live-security-matrix)) |
 | Screenshots | ✅ | [`docs/Evidence/wallet/`](Evidence/wallet/), [`docs/Evidence/`](Evidence/README.md) |
-| Demo video | 🟡 | Promo cuts exist ([`assets/noir-demo.mp4`](../assets/noir-demo.mp4)); final walkthrough recording pending — [shot list](demo-video-script.md) |
+| Demo video | ✅ published · 🟡 re-shoot | [Demo on X](https://x.com/Noirx402/status/2109282993588334632) (posted 2026-10-11) · [`assets/x-demo.mp4`](../assets/x-demo.mp4) · [`assets/noir-demo.mp4`](../assets/noir-demo.mp4). It predates the Week 4 contract fixes; a re-shoot on the redeployed contracts follows the [shot list](demo-video-script.md) |
 
 ## 1. Final testing and bug fixes
 
@@ -73,6 +73,7 @@ Local run, all suites, 2026-10-21: [`deploy-evidence/test-results-20261021T03401
 | [`deploy-testnet-20261007T050558Z.md`](../deploy-evidence/deploy-testnet-20261007T050558Z.md) | Current Testnet IDs, WASM SHA-256, create + initialize tx links (pre-fix code) |
 | [`week2-testnet-flow-20261009T044804Z.md`](../deploy-evidence/week2-testnet-flow-20261009T044804Z.md) | Live register → agent → fund → withdraw → unlink, through the app's code |
 | [`WEEK1-EVIDENCE.md`](../deploy-evidence/WEEK1-EVIDENCE.md) | Week 1 index |
+| [`docs/Evidence/week2-evidence/`](Evidence/week2-evidence/) | Week 2 captures: beta release, PR #13, the three contracts and the agent top-up tx on Stellar Expert |
 | `week4-security-matrix-<ts>.md` | ⏳ written by `npm run test:security-matrix` after the redeploy |
 
 ## 5. Remaining steps (maintainer, needs Testnet access and a phone)
@@ -83,5 +84,5 @@ These could not be done from the build environment used for Week 4 (no route to 
 2. **Run the live matrix against the new IDs**, before propagating them:
    `cd sdk/agent-sdk && NOIR_DEVICE_REGISTRY=… NOIR_AGENT_REGISTRY=… NOIR_PAYMENT_ESCROW=… npm run test:security-matrix` — every row must be ✅.
 3. **Propagate the IDs** everywhere listed in [deployment.md](deployment.md#propagate-new-ids-through-the-docs) (README, `frontend/.env*`, `frontend/eas.json`, `sdk/agent-sdk/src/networks.ts`, `landing/lib/site.ts`, docs, Obsidian notes), then re-run `cd frontend && npm run test:testnet`.
-4. **Record the demo video** on a real Android phone with an NTAG213 — [shot list](demo-video-script.md).
+4. **Re-shoot the demo video** on a real Android phone with an NTAG213 against the redeployed contracts — [shot list](demo-video-script.md). The published [demo on X](https://x.com/Noirx402/status/2109282993588334632) (2026-10-11) stays linked until then.
 5. Fill the ⏳ rows above with the new evidence files, tag a release, and submit.

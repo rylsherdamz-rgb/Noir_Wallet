@@ -86,8 +86,10 @@ Evidence index: [`docs/evidence-package.md`](docs/evidence-package.md).
 - [x] Live security-matrix runner — `sdk/agent-sdk` `npm run test:security-matrix` (approved workflow + 12 reject cases, writes tx evidence)
 - [x] Public repo under MIT (GitHub detects `MIT`), community docs, install + deploy guides, architecture diagrams
 - [x] Demo video shot list — `docs/demo-video-script.md`
+- [x] Demo video published — [https://x.com/Noirx402/status/2109282993588334632](https://x.com/Noirx402/status/2109282993588334632) (2026-10-11), linked from the README and the evidence package
+- [x] Week 2 evidence captures merged — `docs/Evidence/week2-evidence/` (from `docs/week2-screens`)
 - [ ] **To do (needs Testnet):** redeploy the fixed contracts, run the security matrix against the new IDs, propagate IDs, re-run `npm run test:testnet`
-- [ ] **To do (needs a phone):** record the demo video; physical NTAG213 test
+- [ ] **To do (needs a phone):** re-shoot the demo video on the redeployed contracts; physical NTAG213 test
 - [ ] Tag the final release and submit the evidence package
 
 ---

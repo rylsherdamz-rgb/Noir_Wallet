@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Live Testnet security matrix: `npm run test:security-matrix` in `sdk/agent-sdk`.
 - `sdk.yml` CI for the agent SDK and REST gateway.
 - Week 4 evidence package (`docs/evidence-package.md`) and demo video shot list (`docs/demo-video-script.md`).
+- Demo video on X (https://x.com/Noirx402/status/2109282993588334632), linked from the README and the evidence docs.
+- Week 2 evidence captures (`docs/Evidence/week2-evidence/`).
+- Vercel Web Analytics on the landing site (synced from `main`, #21).
 - Open-source community docs: `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`.
 - GitHub issue templates (bug report, feature request) and a pull request template.
 - Web-based pubmat editor (`promo/pubmat/editor.html`) — live text editing, logo upload, accent-color and aspect-ratio controls, and PNG export.

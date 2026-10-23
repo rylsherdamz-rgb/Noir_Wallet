@@ -39,7 +39,7 @@ Tap any NFC tag, RFID sticker, or wearable to pay — no app opens, no confirmat
   Your browser does not support the video tag.
 </video>
 
-<em>▶ Demo — tap-to-pay with the x402 protocol, per-device agent wallets, and the full mobile app. [Original X post](https://x.com/ChichiCode0/status/2083815952635093215)</em>
+<em>▶ Demo — tap-to-pay with the x402 protocol, per-device agent wallets, and the full mobile app. [Watch on X](https://x.com/Noirx402/status/2109282993588334632)</em>
 
 <video src="assets/noir-demo.mp4" width="100%" controls style="max-width:960px;border-radius:16px;border:1px solid #3A3A3A;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
   Your browser does not support the video tag.

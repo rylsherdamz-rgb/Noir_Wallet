@@ -2,6 +2,8 @@
 
 The Week 4 demo video: one take of the reference workflow on Stellar Testnet, on a real Android phone with one NTAG213 tag. Target length: 5–7 minutes. Every on-chain step ends on its Stellar Expert page, so the video doubles as transaction evidence.
 
+Published so far: the [demo on X](https://x.com/Noirx402/status/2109282993588334632) (2026-10-11, mirrored in [`assets/x-demo.mp4`](../assets/x-demo.mp4)). It was shot before the Week 4 contract fixes; this shot list is for the re-shoot on the redeployed contracts.
+
 ## Before recording
 
 - Contracts redeployed with the Week 4 fixes and the new IDs propagated ([evidence-package.md → Remaining steps](evidence-package.md#5-remaining-steps-maintainer-needs-testnet-access-and-a-phone)). A video against the 2026-10-07 contracts would show code with known bugs.
