@@ -26,7 +26,9 @@ ROWS="$(grep -cE '^\| (deviceRegistry|agentRegistry|paymentEscrow) \|' "$REPORT"
 [ "$ROWS" = 3 ] || die "$REPORT: expected 3 contract rows, found $ROWS"
 for pair in "deviceRegistry:$DEVICE" "agentRegistry:$AGENT" "paymentEscrow:$ESCROW"; do
   name="${pair%%:*}" id="${pair#*:}"
-  grep -qF "| $name | [\`$id\`]" "$REPORT" || die "$REPORT: not run against $name $id"
+  # The row itself must start with this name and ID, not just contain it.
+  awk -v p="| $name | [\`$id\`]" 'index($0, p) == 1 { f = 1 } END { exit !f }' "$REPORT" \
+    || die "$REPORT: not run against $name $id"
 done
 
 echo "ok: $REPORT is a PASS run against $DEVICE $AGENT $ESCROW"
