@@ -7,6 +7,7 @@ Recorded 2026-10-24. This record covers local source checks and the guarded secu
 - Development base and contract source tested: `12db11f0c37e21a53a4e2b2ddd7f7611ce660ffb` (includes merged #22 and #25).
 - Runner code tested: `7f82ec81e725debcf339f34db6a1c4e0d7ee0167` (target guard commit `07832f6`, evidence-status commit `7f82ec8`). Later documentation-only commits record these results; they do not change the contract artifacts below.
 - Final readiness code revision: `8abec32b5824dd14f874c83199e7944d18726399`, including a narrow propagation compatibility fix after integrating development `e786b41` (merged #27). Rust and app source remain unchanged; the new deployment workflow was not run or modified by this readiness work.
+- Final reviewed CI configuration revision: `4cee397a5ff05ce1f997328d0424c3b0e574e061`; SDK CI now uses the same patched Node `22.23.4` as `.nvmrc` and frontend CI.
 - Node: `v22.23.4`, from an official portable archive previously verified against its SHA-256 manifest. The machine's older default Node was not used for these checks.
 - SDK/gateway: Vitest `4.1.11`, existing lockfile dependencies; no dependency was added.
 - Frontend: Yarn `1.22.22`, `yarn install --frozen-lockfile`; no lockfile changed.
@@ -54,6 +55,18 @@ The newly merged #27 propagator initially rewrote both test-only historical ID a
 For the local shell check, portable jq `1.8.1` was obtained from the official jqlang release and verified against its published SHA-256 `23cb60a1354eed6bcc8d9b9735e8c7b388cd1fdcb75726b93bc299ef22dd9334`. It is a temporary verification tool, not a new project dependency.
 
 The runner requires all 20 P/N outcome rows exactly once, successful setup/final verification, no failed tests, matching expected results, and valid hashes for accepted steps before reporting `PASS`. Live acceptance additionally requires Vitest exit 0 and verification that the supplied contracts contain the reviewed WASM. An address checksum and a green row list cannot establish that identity.
+
+## CI and review
+
+The following runs passed for source head `4cee397a5ff05ce1f997328d0424c3b0e574e061` on 2026-10-24:
+
+- [SDK CI](https://github.com/rylsherdamz-rgb/Noir_Wallet/actions/runs/40077053960): synthetic propagation self-check, SDK typecheck/build, 70 SDK tests passed with 19 live tests skipped, gateway typecheck and 18 tests passed. Logs confirm Node `22.23.4` was acquired.
+- [Frontend CI](https://github.com/rylsherdamz-rgb/Noir_Wallet/actions/runs/40077053982): frozen dependency installation, typecheck, and all 306 tests passed on Node `22.23.4`.
+- Vercel and Vercel Preview Comments also reported success. The landing preview is not evidence of a contract or native app deployment.
+
+An earlier successful SDK run selected cached Node `22.23.3` via `node-version: 22` and emitted engine warnings. Its green result was not accepted as patched-runtime verification; the workflow was pinned and the successful run above replaced it.
+
+Independent focused SDK review and fresh full-branch review found no blocking code issues. The final Node pin was reviewed separately. This documentation-only evidence update records those source-equivalent runs; check the [current PR head checks](https://github.com/rylsherdamz-rgb/Noir_Wallet/pull/28/checks) for subsequent verification. Contract CI was not triggered by these paths; the local locked build and 60 contract tests above provide the source check.
 
 ## Built artifacts, not deployed artifacts
 
