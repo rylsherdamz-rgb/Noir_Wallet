@@ -10,12 +10,13 @@
     ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
   },
   "files": ["dist", "README.md"],
-  "engines": { "node": ">=20" },
+  "engines": { "node": "^22.23.4 || ^24.22.1 || >=26.12.1" },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:testnet": "NOIR_TESTNET=1 vitest run tests/testnet.test.ts"
+    "test:testnet": "NOIR_TESTNET=1 vitest run tests/testnet.test.ts",
+    "test:security-matrix": "vitest run tests/security-matrix.testnet.test.ts --testTimeout=180000 --hookTimeout=120000"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "^16.0.1"

@@ -18,7 +18,7 @@ For anything larger than a small fix, open an issue first so we can align on app
 
 ### Prerequisites
 
-- Node.js 20+ and Expo CLI (`npm install -g expo-cli`)
+- Node.js 22.23.4+ and Expo CLI (`npm install -g expo-cli`)
 - iOS Simulator (macOS) or Android Emulator / device
 - A Stellar testnet wallet (Freighter or custom)
 - Rust toolchain + `soroban-cli` for contract work
