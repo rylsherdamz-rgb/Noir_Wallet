@@ -250,7 +250,7 @@ The script runs these real on-chain transactions, in order:
 
 1. `stellar contract deploy` × 3 → **create-from-WASM** (new contract IDs)
 2. `device_registry.initialize(admin)`
-3. `agent_registry.initialize(admin)`
+3. `agent_registry.initialize(admin, device_registry_id)` — ownership checks go to device_registry
 4. `payment_escrow.initialize(admin, agent_registry_id, device_registry_id)` — links all three on-chain
 
 > **Each redeploy is a clean slate**, not an in-place upgrade: every run mints

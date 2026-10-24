@@ -42,6 +42,12 @@ Screenshots of import → wallet password → wallet → password lock on a rele
 agent registration, escrow fund/withdraw and unlink, with tx links:
 `deploy-evidence/week2-testnet-flow-*.md`.
 
+## Week 2 captures
+
+[`week2-evidence/`](week2-evidence/): the Google Play beta release page, PR #13
+(summary, testing checklist, commits), the three contracts on Stellar Expert, the
+owner and agent wallets, and the agent top-up transaction.
+
 ## Explorer screenshots
 
 ### device_registry — `CCSW6R7A…`

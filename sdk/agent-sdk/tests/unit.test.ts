@@ -87,6 +87,8 @@ describe('helpers', () => {
   it('names contract errors', () => {
     const e = parseContractError('paymentEscrow', 'authorize', 'HostError: Error(Contract, #3)')
     expect(e?.errorName).toBe('AgentNotAuthorized')
+    expect(parseContractError('paymentEscrow', 'defund_escrow', 'Error(Contract, #9)')?.errorName).toBe('InvalidAsset')
+    expect(parseContractError('agentRegistry', 'revoke_agent', 'Error(Contract, #5)')?.errorName).toBe('NotOwner')
     expect(parseContractError('paymentEscrow', 'claim', 'network down')).toBeNull()
   })
   it('keypairSigner signs without exposing the secret', async () => {

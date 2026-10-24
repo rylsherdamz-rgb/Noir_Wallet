@@ -8,7 +8,7 @@ those policies, check a payment before trying it, run the tap-to-pay
 signed webhooks.
 
 Everything lives in Noir's three Soroban contracts, so the SDK needs no Noir
-server or API key. Works in Node 20+, the browser and React Native (no `Buffer`).
+server or API key. Works in Node 22.23.4+ (or 24.22.1+), the browser and React Native (no `Buffer`).
 Apps that can't run JavaScript, or want API keys and rate limits in front of
 Noir, can use the REST gateway in [`sdk/noir-api`](https://github.com/rylsherdamz-rgb/Noir_Wallet/tree/main/sdk/noir-api).
 
