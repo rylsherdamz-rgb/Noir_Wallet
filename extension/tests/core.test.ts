@@ -4,7 +4,7 @@ import {
 } from '@stellar/stellar-sdk'
 import { deriveAgent, deriveKeypair, seedOf } from '../src/shared/hd'
 import {
-  buildPolicy, deviceHashOf, normalizeUid, parsePaymentRequest, parseXlm, paymentUri, spendable, toActivity, toAmount,
+  buildPolicy, deviceHashOf, matchIncoming, normalizeUid, parsePaymentRequest, uidFromReader, parseXlm, paymentUri, spendable, toActivity, toAmount,
 } from '../src/shared/noir'
 import { open, seal } from '../src/shared/vault'
 import { messageHash, signAuthEntry, signMessage, signTransaction, SigningError } from '../src/shared/signing'
@@ -173,5 +173,45 @@ describe('activity', () => {
     expect(toActivity({ ...base, type: 'invoke_host_function', asset_balance_changes: [{ from: me, to: 'CESCROW', amount: '3', asset_type: 'native' }] }, me))
       .toMatchObject({ direction: 'out', title: 'Contract deposit', amount: 3, counterparty: 'CESCROW' })
     expect(toActivity({ ...base, type: 'invoke_host_function' }, me)).toMatchObject({ title: 'Contract call', amount: null })
+  })
+})
+
+describe('USB reader formats', () => {
+  it('reads hex as typed, with or without separators', () => {
+    expect(uidFromReader('04a2b3c4d5e680')).toBe('04A2B3C4D5E680')
+    expect(uidFromReader('04:A2:B3:C4:D5:E6:80', 'hex')).toBe('04A2B3C4D5E680')
+  })
+  it('turns a decimal 7-byte UID back into hex, keeping the leading zero byte', () => {
+    expect(uidFromReader(String(0x04a2b3c4d5e680n), 'dec')).toBe('04A2B3C4D5E680')
+  })
+  it('handles readers that reverse the bytes before printing decimal', () => {
+    expect(uidFromReader(String(0x80e6d5c4b3a204n), 'dec-rev')).toBe('04A2B3C4D5E680')
+    // 4-byte (classic MIFARE) UIDs pad to 4 bytes, not 7.
+    expect(uidFromReader(String(0x0d0c0b0an), 'dec-rev')).toBe('0A0B0C0D')
+  })
+  it('gives the same device hash as the UID typed in hex', async () => {
+    expect(await deviceHashOf(uidFromReader(String(0x04a2b3c4d5e680n), 'dec'))).toBe(await deviceHashOf('04:a2:b3:c4:d5:e6:80'))
+  })
+  it('refuses non-decimal input in a decimal format', () => {
+    expect(() => uidFromReader('04A2B3', 'dec')).toThrow(/decimal/)
+  })
+})
+
+describe('QR payment request matching', () => {
+  const me = Keypair.random().publicKey()
+  const them = Keypair.random().publicKey()
+  const pay = (amount: string, extra: Record<string, string> = {}) => ({ id: '1', type: 'payment', transaction_hash: 'h1', to: me, from: them, amount, asset_type: 'native', ...extra })
+  it('settles on an XLM payment that covers the amount', () => {
+    expect(matchIncoming([pay('5.0000000')], me, 5)).toEqual({ hash: 'h1', from: them, amount: 5 })
+    expect(matchIncoming([pay('4.9')], me, 5)).toBeNull()
+  })
+  it('takes any amount when none was requested, and counts account creation', () => {
+    expect(matchIncoming([pay('0.1')], me, 0)?.amount).toBe(0.1)
+    expect(matchIncoming([{ id: '2', type: 'create_account', transaction_hash: 'h2', account: me, funder: them, starting_balance: '10' }], me, 5)?.hash).toBe('h2')
+  })
+  it('ignores outgoing payments, other assets and self-payments', () => {
+    expect(matchIncoming([pay('9', { to: them, from: me })], me, 1)).toBeNull()
+    expect(matchIncoming([pay('9', { asset_type: 'credit_alphanum4' })], me, 1)).toBeNull()
+    expect(matchIncoming([pay('9', { from: me })], me, 1)).toBeNull()
   })
 })

@@ -5,13 +5,14 @@
  */
 import { NETWORKS } from '../shared/networks'
 import {
-  DEFAULT_CAP_XLM, Noir, deviceHashOf, fromStroops, normalizeUid, parseXlm, spendable, type CardSummary,
+  AGENT_TOPUP_XLM, DEFAULT_CAP_XLM, Noir, fromStroops, parseXlm, spendable, type CardSummary,
 } from '../shared/noir'
 import type { UiMessage } from '../shared/protocol'
 import { busy, h, send, short } from '../shared/ui'
 import {
   back, btn, chips, confirmStep, copyBtn, ctx, explorerLink, field, input, kv, page, pill, refresh, run, screen, spacer, when, xlm,
 } from './kit'
+import { readCard } from './reader'
 import { balanceOf } from './wallet'
 
 const TESTNET = NETWORKS.TESTNET
@@ -22,8 +23,8 @@ const CAPS = [
 ]
 const EXPIRY = [{ label: 'Never', value: 0 }, { label: '7 days', value: 7 }, { label: '30 days', value: 30 }, { label: '90 days', value: 90 }]
 
-const noir = () => new Noir('TESTNET')
-const nameOf = (hash: string) => ctx.s.cardLabels[hash] ?? `Card ${hash.slice(0, 6).toUpperCase()}`
+export const noir = () => new Noir('TESTNET')
+export const nameOf = (hash: string) => ctx.s.cardLabels[hash] ?? `Card ${hash.slice(0, 6).toUpperCase()}`
 const agentKeys = () => send<Record<string, number>>({ type: 'agentKeys' }).catch(() => ({} as Record<string, number>))
 
 function statusOf(c: CardSummary): { text: string; tone: '' | 'ok' | 'warn' | 'bad' } {
@@ -162,7 +163,7 @@ function rename(deviceHash: string) {
 }
 
 /** Asks for an amount and runs `msg`. `from: 'wallet'` caps it at the spendable balance. */
-function amountStep(o: { title: string; caption: string; confirm: string; max?: number; from?: 'wallet'; msg: (n: number) => UiMessage; onBack: () => void }) {
+export function amountStep(o: { title: string; caption: string; confirm: string; max?: number; from?: 'wallet'; msg: (n: number) => UiMessage; onBack: () => void }) {
   const amount = input({ inputmode: 'decimal', placeholder: '0.00', 'aria-label': 'Amount in XLM' })
   const avail = h('p', { class: 'small muted' }, o.max != null ? `${xlm(o.max)} available` : 'Checking your balance…')
   const err = h('p', { class: 'err', role: 'alert' })
@@ -193,29 +194,7 @@ function amountStep(o: { title: string; caption: string; confirm: string; max?: 
 
 // ── Link a card ─────────────────────────────────────────────────────
 
-interface NdefReader {
-  scan(o?: { signal?: AbortSignal }): Promise<void>
-  onreading: ((e: { serialNumber: string }) => void) | null
-  onreadingerror: (() => void) | null
-}
-const NDEFReaderCtor = (globalThis as { NDEFReader?: new () => NdefReader }).NDEFReader
-
-/** Web NFC exists only where the browser has an NFC radio (Chrome on Android); desktops type the UID. */
-export const canScanNfc = () => !!NDEFReaderCtor
-
-function scanUid(timeoutMs = 20_000): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const ctl = new AbortController()
-    const stop = () => { clearTimeout(timer); ctl.abort() }
-    const timer = setTimeout(() => { ctl.abort(); reject(new Error('No card was read. Hold it against the NFC reader and try again.')) }, timeoutMs)
-    const r = new NDEFReaderCtor!()
-    r.onreading = (e) => { stop(); resolve(e.serialNumber) }
-    r.onreadingerror = () => { stop(); reject(new Error('The card couldn’t be read. Try again.')) }
-    r.scan({ signal: ctl.signal }).catch((e) => { stop(); reject(e) })
-  })
-}
-
-function linkName() {
+export function linkName() {
   const custom = input({ placeholder: 'Or type a name', maxlength: '32', 'aria-label': 'Custom card name' })
   const pick = chips(LABELS.map((l) => ({ label: l, value: l })), LABELS[0], () => { custom.value = '' })
   const next = btn('Next', 'gold', () => linkUid(custom.value.trim() || pick.get()))
@@ -233,58 +212,25 @@ function linkName() {
 }
 
 function linkUid(label: string) {
-  const uid = input({ placeholder: '04:A2:B3:C4:D5:E6:80', 'aria-label': 'Card UID' })
-  const status = h('div', { 'aria-live': 'polite' })
-  const err = h('p', { class: 'err', role: 'alert' })
-  let ready: string | null = null
-
-  const check = async () => {
-    ready = null
-    status.replaceChildren()
-    const deviceHash = await deviceHashOf(uid.value)
-    status.replaceChildren(h('p', { class: 'small muted' }, 'Checking the card on Stellar…'))
-    const own = await noir().ownership(deviceHash, ctx.s.address!)
-    if (own.status === 'other') {
-      status.replaceChildren(h('p', { class: 'warning' }, `This card is already linked to another wallet (${short(own.owner)}). Only that wallet can unlink it.`))
-    } else if (own.status === 'mine' && !own.active) {
-      status.replaceChildren(h('p', { class: 'warning' }, 'This card was revoked. Unlink it from its card page before linking it again.'))
-    } else if (own.status === 'mine' && (await noir().policy(deviceHash))) {
-      status.replaceChildren(h('p', { class: 'warning' }, 'This card is already linked to this wallet.'), btn('Open card', 'sm', () => cardDetail(deviceHash)))
-    } else {
-      status.replaceChildren(
-        h('p', { class: 'small good' }, own.status === 'mine' ? 'Registered, but its agent isn’t authorized yet. Continue to finish linking.' : 'Free to link.'),
-        h('p', { class: 'mono small muted' }, `Device hash ${deviceHash}`))
-      ready = deviceHash
-    }
-  }
-  const next = btn('Next', 'gold', () => busy(next, err, async () => {
-    if (!ready) await check()
-    if (ready) linkPolicy(label, ready)
-  }))
-  uid.addEventListener('input', () => { ready = null; status.replaceChildren() })
-  uid.addEventListener('keydown', (e) => { if (e.key === 'Enter') next.click() })
-
-  let scan: HTMLButtonElement | null = null
-  if (canScanNfc()) {
-    scan = btn('Scan card', 'gold block', () => busy(scan!, err, async () => {
-      scan!.textContent = 'Hold the card to the reader…'
-      try { uid.value = normalizeUid(await scanUid()) } finally { scan!.textContent = 'Scan card' }
-      await check()
-    }))
-  }
-
-  page({
-    left: back(linkName),
-    body: [
-      h('p', { class: 'kicker' }, 'Link a card · 2 of 3'),
-      h('h1', {}, scan ? 'Scan the card' : 'Enter the card’s UID'),
-      scan ?? h('p', { class: 'muted' }, 'This computer has no NFC reader the browser can use. Read the card’s UID (its serial number) with any NFC reader app on your phone, then type it here. Noir hashes it exactly as the app does.'),
-      field(scan ? 'Or type the UID' : 'Card UID', uid, 'An NTAG213 UID is 7 bytes. Colons are optional.'),
-      status, err,
-    ],
-    foot: [btn('Cancel', '', cards), next],
+  readCard({
+    kicker: 'Link a card · 2 of 3',
+    title: 'Tap the card',
+    hint: 'Hold the NTAG213 card to your reader.',
+    onCancel: linkName,
+    accept: async (_uid, deviceHash) => {
+      const own = await noir().ownership(deviceHash, ctx.s.address!)
+      if (own.status === 'other') throw new Error(`This card is already linked to another wallet (${short(own.owner)}). Only that wallet can unlink it.`)
+      if (own.status === 'mine' && !own.active) throw new Error('This card was revoked. Unlink it from its card page before linking it again.')
+      if (own.status === 'mine' && (await noir().policy(deviceHash))) {
+        confirmStep({
+          title: 'Already linked', body: [`This card is already linked to this wallet as ${nameOf(deviceHash)}.`],
+          confirm: 'Open card', onConfirm: () => cardDetail(deviceHash), onCancel: () => linkUid(label),
+        })
+        return
+      }
+      linkPolicy(label, deviceHash)
+    },
   })
-  if (!scan) uid.focus()
 }
 
 function linkPolicy(label: string, deviceHash: string) {
@@ -355,8 +301,8 @@ export async function agentDetail(deviceHash: string) {
       h('p', { class: 'kicker' }, `Agent for ${nameOf(deviceHash)}`),
       h('div', { class: 'balance' }, acct?.exists ? acct.xlm.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '0', h('small', {}, 'XLM')),
       h('p', { class: 'small muted' }, acct?.exists
-        ? 'In the agent’s own account. It pays the network fee each time the card taps.'
-        : 'The agent’s account isn’t on the network yet. The first top-up opens it (at least 1 XLM).'),
+        ? 'In the agent’s own account. It pays the network fee each time the card taps (about 1–2.5 XLM on Testnet).'
+        : `The agent’s account isn’t on the network yet. The first top-up opens it: ${AGENT_TOPUP_XLM} XLM covers the first taps’ network fees.`),
       h('div', {}, pill(st.text, st.tone)),
       kv([
         ['Address', c.agent || '—', true],

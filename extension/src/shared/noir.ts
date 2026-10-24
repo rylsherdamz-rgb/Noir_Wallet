@@ -27,6 +27,8 @@ export const MIN_CREATE_XLM = 1
 export const MEMO_MAX_BYTES = 28
 /** The app's default policy at link time: 100,000 XLM per tap, never expires. */
 export const DEFAULT_CAP_XLM = 100_000
+/** What to suggest putting on a card's agent: it pays each tap's Soroban fee (~2.3 XLM for the first). */
+export const AGENT_TOPUP_XLM = 5
 
 export const minimumBalance = (subentries = 0) => (2 + Math.max(0, subentries)) * BASE_RESERVE_XLM
 export const spendable = (xlm: number, subentries = 0, fee = FEE_XLM) => Math.max(0, xlm - minimumBalance(subentries) - fee)
@@ -60,6 +62,25 @@ export function normalizeUid(raw: string): string {
     throw new Error('A card UID is 4 to 10 bytes of hex, like 04:A2:B3:C4:D5:E6:80.')
   }
   return hex
+}
+
+/**
+ * How a USB card reader in keyboard mode types a UID. Most type hex; some
+ * type it as one decimal number, and some of those reverse the bytes first.
+ */
+export type ReaderFormat = 'hex' | 'dec' | 'dec-rev'
+
+/** The UID a reader typed, as normalizeUid would give it. */
+export function uidFromReader(raw: string, format: ReaderFormat = 'hex'): string {
+  if (format === 'hex') return normalizeUid(raw)
+  const s = raw.trim()
+  if (!/^\d{1,25}$/.test(s)) throw new Error('This reader is set to decimal, but it typed something else. Change the reader format in Settings.')
+  let hex = BigInt(s).toString(16).toUpperCase()
+  // 4-byte (classic) or 7-byte (NTAG213) UIDs; anything longer keeps whole bytes.
+  const bytes = hex.length <= 8 ? 4 : hex.length <= 14 ? 7 : Math.ceil(hex.length / 2)
+  hex = hex.padStart(bytes * 2, '0')
+  if (format === 'dec-rev') hex = hex.match(/../g)!.reverse().join('')
+  return normalizeUid(hex)
 }
 
 /** SHA-256 of the UID — the device hash the contracts know the card by. */
@@ -183,25 +204,44 @@ export class Noir {
 
   // ── Writes ────────────────────────────────────────────────────────
 
-  /** Build, simulate, sign as `kp` and wait for a contract call. */
-  async invoke(kp: Keypair, contract: keyof NoirContracts, method: string, args: xdr.ScVal[]): Promise<string> {
-    const account = await this.client.server.getAccount(kp.publicKey())
+  /** Build and simulate a contract call from `source`; the result carries its full fee. */
+  private async prepare(source: string, contract: keyof NoirContracts, method: string, args: xdr.ScVal[]) {
+    const account = await this.client.server.getAccount(source)
     const tx = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: this.client.config.networkPassphrase })
       .addOperation(new Contract(this.client.contracts[contract]).call(method, ...args))
       .setTimeout(300).build()
-    let prepared
     try {
-      prepared = await this.client.server.prepareTransaction(tx)
+      return await this.client.server.prepareTransaction(tx)
     } catch (e) {
       throw parseContractError(contract, method, String((e as Error)?.message ?? e)) ?? e
     }
+  }
+
+  /**
+   * Soroban fees include rent for the entries a call creates, and can be more
+   * than an account holds above its reserve (a first tap costs ~2.3 XLM on
+   * Testnet). Says so plainly instead of txInsufficientBalance.
+   */
+  private async feeShortfall(source: string, feeStroops: string, payer: string): Promise<string | null> {
+    const fee = Number(feeStroops) / 1e7
+    const a = await this.account(source)
+    const have = spendable(a.xlm, a.subentries, 0)
+    if (have >= fee) return null
+    return `${payer} needs about ${fee.toFixed(2)} XLM for this transaction’s network fee but has ${have.toFixed(2)} XLM above its reserve.`
+  }
+
+  /** Build, simulate, sign as `kp` and wait for a contract call. */
+  async invoke(kp: Keypair, contract: keyof NoirContracts, method: string, args: xdr.ScVal[], payer = 'Your wallet'): Promise<string> {
+    const prepared = await this.prepare(kp.publicKey(), contract, method, args)
+    const lacking = await this.feeShortfall(kp.publicKey(), prepared.fee, payer)
+    if (lacking) throw new Error(lacking)
     prepared.sign(kp)
     return this.client.submit(prepared.toXDR())
   }
 
-  private op(kp: Keypair, op: NoirOperation) {
+  private op(kp: Keypair, op: NoirOperation, payer?: string) {
     const { contract, method, args } = toCall(kp.publicKey(), op)
-    return this.invoke(kp, contract, method, args)
+    return this.invoke(kp, contract, method, args, payer)
   }
 
   private async requireMine(deviceHash: string, wallet: string) {
@@ -274,6 +314,96 @@ export class Noir {
   topUpAgent(wallet: Keypair, agent: string, xlm: number) {
     this.requireTestnet()
     return this.pay(wallet, agent, xlm)
+  }
+
+  // ── Tap to pay (payment_escrow.authorize → claim) ─────────────────
+
+  /** XLM waiting in payment_escrow for `merchant` to claim. */
+  async pendingClaims(merchant: string): Promise<number> {
+    this.requireTestnet()
+    return fromStroops(await this.client.getPendingBalance(merchant))
+  }
+
+  /**
+   * Why a tap for `xlm` from this card's escrow would be refused, checked
+   * before anything is signed: the contract's own check_payment, the escrow
+   * balance, and the agent account that pays the network fee.
+   */
+  async tapCheck(deviceHash: string, agent: string, xlm: number): Promise<string | null> {
+    const check = await this.client.checkPayment({ deviceHash, agent, asset: this.xlm, amount: toStroops(xlm) })
+    if (!check.ok) {
+      switch (check.reason) {
+        case 'no_agent': return 'This card has no agent authorized to pay. Finish linking it first.'
+        case 'wrong_agent': return 'This card’s policy names a different agent.'
+        case 'wrong_asset': return 'This card’s agent may only spend another asset.'
+        case 'invalid_amount': return 'Enter an amount greater than zero.'
+        case 'over_limit': {
+          const p = await this.policy(deviceHash)
+          return `Over this card’s limit of ${p ? fromStroops(p.maxAmount) : '?'} XLM per tap.`
+        }
+        case 'expired': return 'This card’s agent policy has expired. Edit the policy to renew it.'
+        case 'insufficient_escrow':
+          return `The card’s escrow only holds ${fromStroops(await this.client.getEscrowBalance(deviceHash))} XLM. Add funds to the card first.`
+      }
+    }
+    if (!(await this.account(agent)).exists) {
+      return `The card’s agent account isn’t open yet. Top up the agent (${AGENT_TOPUP_XLM} XLM is a good start): it pays the network fee for each tap.`
+    }
+    // Simulate the tap itself: its fee depends on what it writes.
+    const { contract, method, args } = toCall(agent, this.authorizeOp(deviceHash, Keypair.random().publicKey(), xlm))
+    const prepared = await this.prepare(agent, contract, method, args)
+    const lacking = await this.feeShortfall(agent, prepared.fee, 'The card’s agent')
+    return lacking && `${lacking} Top up the agent.`
+  }
+
+  private authorizeOp(deviceHash: string, merchant: string, xlm: number): NoirOperation {
+    return { kind: 'authorize', deviceHash, merchant, asset: this.xlm, amount: toStroops(xlm), nonce: BigInt(Date.now()) }
+  }
+
+  /**
+   * The tap itself: the card's agent signs payment_escrow.authorize, moving
+   * `xlm` from the card's escrow to a pending payment for `merchant`, within
+   * the policy agent_registry enforces. The nonce only has to increase per
+   * (card, agent); milliseconds since epoch do.
+   */
+  async authorize(agentKp: Keypair, deviceHash: string, merchant: string, xlm: number): Promise<string> {
+    this.requireTestnet()
+    if (!isAddress(merchant)) throw new Error('That is not a Stellar address (G…).')
+    const refused = await this.tapCheck(deviceHash, agentKp.publicKey(), xlm)
+    if (refused) throw new Error(refused)
+    return this.op(agentKp, this.authorizeOp(deviceHash, merchant, xlm), 'The card’s agent')
+  }
+
+  /** The merchant collects every pending XLM payment into its wallet. */
+  async claim(merchant: Keypair): Promise<{ hash: string; xlm: number }> {
+    this.requireTestnet()
+    const xlm = await this.pendingClaims(merchant.publicKey())
+    if (xlm <= 0) throw new Error('Nothing is waiting to be claimed.')
+    return { hash: await this.op(merchant, { kind: 'claim', token: this.xlm }), xlm }
+  }
+
+  /**
+   * Charge one of this wallet's own cards, the Noir app's POS "Receive":
+   * authorize from its escrow to this wallet, then claim, so the XLM lands.
+   */
+  async charge(wallet: Keypair, agentKp: Keypair, deviceHash: string, xlm: number) {
+    const own = await this.requireMine(deviceHash, wallet.publicKey())
+    if (!own.active) throw new Error('This card was revoked and can’t pay.')
+    const authorizeHash = await this.authorize(agentKp, deviceHash, wallet.publicKey(), xlm)
+    const { hash: claimHash } = await this.claim(wallet)
+    return { authorizeHash, claimHash }
+  }
+
+  /**
+   * Who a tapped card pays when you *send* to it (frontend/src/lib/cardTap.ts):
+   * someone else's card pays its owner; your own card pays its agent account.
+   */
+  async cardRecipient(deviceHash: string, wallet: string): Promise<{ address: string; mine: boolean }> {
+    const own = await this.ownership(deviceHash, wallet)
+    if (own.status === 'free') throw new Error('This card isn’t linked to a Noir account, so there’s no one to pay.')
+    if (!own.active) throw new Error('This card was revoked.')
+    if (own.status === 'mine') return { address: (await this.policy(deviceHash))?.agent ?? own.agent, mine: true }
+    return { address: own.owner, mine: false }
   }
 
   /**
@@ -441,4 +571,24 @@ export function toActivity(op: HorizonOp, me: string): ActivityItem {
     default:
       return { ...base, direction: 'self', title: op.type.replace(/_/g, ' '), amount: op.amount ? Number(op.amount) : null, asset: 'XLM', counterparty: null }
   }
+}
+
+// ── Payment requests that watch for the payment (components/flow/PaymentRequestQr.tsx) ──
+
+export interface PaymentRecord {
+  id: string; type: string; transaction_hash: string
+  to?: string; from?: string; amount?: string; asset_type?: string
+  account?: string; funder?: string; starting_balance?: string
+}
+
+/** The first XLM payment to `me` among `records` that covers `want` (0 = any amount). */
+export function matchIncoming(records: PaymentRecord[], me: string, want: number): { hash: string; from: string; amount: number } | null {
+  for (const r of records) {
+    const hit = r.type === 'payment' && r.to === me && r.from !== me && r.asset_type === 'native'
+      ? { amount: Number(r.amount), from: r.from! }
+      : r.type === 'create_account' && r.account === me ? { amount: Number(r.starting_balance), from: r.funder! } : null
+    // Small tolerance for float formatting; a short payment doesn't settle the request.
+    if (hit && (!want || hit.amount + 1e-7 >= want)) return { hash: r.transaction_hash, ...hit }
+  }
+  return null
 }

@@ -28,9 +28,13 @@ interface Stored {
   /** Agent indexes of unlinked cards, never handed out again. */
   retiredAgents?: number[]
   autoLockMin?: number
+  /** Incoming-payment notifications (needs the optional notifications permission). */
+  notify?: boolean
+  /** Newest Horizon payment id already notified about, per address+network. */
+  notifyCursor?: Record<string, string>
 }
 
-const KEYS: (keyof Stored)[] = ['vault', 'address', 'network', 'origins', 'cardLabels', 'retiredAgents', 'autoLockMin']
+const KEYS: (keyof Stored)[] = ['vault', 'address', 'network', 'origins', 'cardLabels', 'retiredAgents', 'autoLockMin', 'notify', 'notifyCursor']
 const local = {
   get: async (): Promise<Stored> => (await chrome.storage.local.get(KEYS)) as Stored,
   set: (v: Partial<Stored>) => chrome.storage.local.set(v),
@@ -81,6 +85,56 @@ chrome.alarms.onAlarm.addListener(async (a) => {
 async function networkInfo() {
   return NETWORKS[(await local.get()).network ?? 'TESTNET']
 }
+
+// ── Notifications ───────────────────────────────────────────────────
+
+const canNotify = () => chrome.permissions.contains({ permissions: ['notifications'] }).catch(() => false)
+
+/** Popup or a Noir window is open: the user sees the result there already. */
+async function someoneWatching(): Promise<boolean> {
+  try {
+    const open = await chrome.runtime.getContexts?.({ contextTypes: [chrome.runtime.ContextType.POPUP, chrome.runtime.ContextType.TAB] })
+    return !!open?.length
+  } catch { return false }
+}
+
+async function notify(title: string, message: string) {
+  if (!(await local.get()).notify || !(await canNotify())) return
+  chrome.notifications.create({ type: 'basic', iconUrl: chrome.runtime.getURL('icons/128.png'), title, message, priority: 1 })
+}
+
+async function notifyIfAway(title: string, message: string) {
+  if (!(await someoneWatching())) await notify(title, message)
+}
+
+/**
+ * Notify about payments that arrived since the last look, like the app's
+ * paymentNotifier. `prime` only records where we are (no backlog alerts).
+ */
+async function checkIncoming(prime = false) {
+  const s = await local.get()
+  if (!s.notify || !s.address) return
+  const net = NETWORKS[s.network ?? 'TESTNET']
+  const key = `${net.id}:${s.address}`
+  const res = await fetch(`${net.horizonUrl}/accounts/${s.address}/payments?order=desc&limit=10`).catch(() => null)
+  if (!res?.ok) return
+  const records = ((await res.json()) as { _embedded: { records: { id: string; type: string; to?: string; from?: string; account?: string; funder?: string; amount?: string; starting_balance?: string; asset_type?: string; asset_code?: string }[] } })._embedded.records
+  const cursor = s.notifyCursor?.[key]
+  if (records[0]) await local.set({ notifyCursor: { ...s.notifyCursor, [key]: records[0].id } })
+  if (prime || !cursor) return
+  for (const r of records) {
+    if (BigInt(r.id) <= BigInt(cursor)) break
+    const incoming = r.type === 'create_account' ? r.account === s.address : r.to === s.address && r.from !== s.address
+    if (!incoming) continue
+    const amount = r.amount ?? r.starting_balance ?? '?'
+    const asset = r.asset_type === 'native' || r.type === 'create_account' ? 'XLM' : r.asset_code ?? ''
+    const from = r.from ?? r.funder ?? ''
+    await notify(`Received ${Number(amount).toLocaleString(undefined, { maximumFractionDigits: 7 })} ${asset}`, `From ${from.slice(0, 6)}…${from.slice(-6)} on ${net.id === 'PUBLIC' ? 'Mainnet' : 'Testnet'}`)
+  }
+}
+
+chrome.alarms.create('incoming', { periodInMinutes: 1 })
+chrome.alarms.onAlarm.addListener((a) => { if (a.name === 'incoming') void checkIncoming() })
 
 // ── Approvals ───────────────────────────────────────────────────────
 
@@ -237,10 +291,12 @@ async function job<T extends { hash?: string; message: string }>(label: string, 
   try {
     const r = await fn()
     await chrome.storage.session.set({ job: { label, startedAt: Date.now(), done: { ok: true, message: r.message, hash: r.hash } } satisfies Job })
+    void notifyIfAway(label, r.message)
     return r
   } catch (e) {
     const message = String((e as Error)?.message ?? e)
     await chrome.storage.session.set({ job: { label, startedAt: Date.now(), done: { ok: false, message } } satisfies Job })
+    void notifyIfAway(`${label} failed`, message)
     throw e
   }
 }
@@ -253,6 +309,15 @@ async function agentKeyFor(seed: Uint8Array, agent: string): Promise<{ index: nu
     if (kp.publicKey() === agent) return { index: i, kp }
   }
   return null
+}
+
+/** This wallet's key for a card's agent, or a sentence saying why it can't sign here. */
+async function cardAgent(n: Noir, kp: Keypair, seed: Uint8Array, deviceHash: string) {
+  const c = await n.card(deviceHash, kp.publicKey())
+  if (!c.agent) throw new Error('This card has no agent. Finish linking it first.')
+  const key = await agentKeyFor(seed, c.agent)
+  if (!key) throw new Error('This card’s agent key isn’t from this recovery phrase, so it can’t pay from here.')
+  return key.kp
 }
 
 async function handleWrite(msg: UiMessage): Promise<unknown> {
@@ -315,6 +380,36 @@ async function handleWrite(msg: UiMessage): Promise<unknown> {
         return { ...r, message: back > 0 ? `Card unlinked. ${xlm(back)} came back to your wallet.` : 'Card unlinked.' }
       })
     }
+    case 'charge': {
+      const { kp, seed } = await keys()
+      const n = await noir()
+      const agentKp = await cardAgent(n, kp, seed, msg.deviceHash)
+      return job(`Charge ${xlm(msg.amount)}`, async () => {
+        const r = await n.charge(kp, agentKp, msg.deviceHash, msg.amount)
+        return { ...r, hash: r.claimHash, message: `${xlm(msg.amount)} came out of the card’s escrow into your wallet.` }
+      })
+    }
+    case 'payWithCard': {
+      const { kp, seed } = await keys()
+      const n = await noir()
+      const own = await n.ownership(msg.deviceHash, kp.publicKey())
+      if (own.status !== 'mine') throw new Error('Only your own cards can pay from this wallet.')
+      if (!own.active) throw new Error('This card was revoked and can’t pay.')
+      if (msg.merchant.trim() === kp.publicKey()) throw new Error('That is this wallet’s own address. Use Charge to pay yourself from a card.')
+      const agentKp = await cardAgent(n, kp, seed, msg.deviceHash)
+      return job(`Pay ${xlm(msg.amount)} by card`, async () => ({
+        hash: await n.authorize(agentKp, msg.deviceHash, msg.merchant.trim(), msg.amount),
+        message: `${xlm(msg.amount)} is reserved for the merchant in Noir’s escrow. It reaches them when they claim it.`,
+      }))
+    }
+    case 'claim': {
+      const { kp } = await keys()
+      const n = await noir()
+      return job('Claim card payments', async () => {
+        const r = await n.claim(kp)
+        return { ...r, message: `Claimed ${xlm(r.xlm)} from card payments.` }
+      })
+    }
     default:
       throw new Error('Unknown request.')
   }
@@ -332,6 +427,7 @@ async function handleUi(msg: UiMessage): Promise<unknown> {
         hasWallet: !!s.vault, unlocked: !!(await secretKey()), address: s.address ?? null,
         network: net.id, origins: Object.keys(s.origins ?? {}),
         cardLabels: s.cardLabels ?? {}, autoLockMin: s.autoLockMin ?? AUTO_LOCK_MIN, job: last ?? null,
+        notify: !!s.notify && (await canNotify()),
       }
     }
     case 'create': {
@@ -383,6 +479,12 @@ async function handleUi(msg: UiMessage): Promise<unknown> {
       if (!mnemonic) throw new Error('Wrong password.')
       return { secret: (await deriveFromSeed(await seedOf(mnemonic), [44, 148, 0])).secret() }
     }
+    case 'setNotify':
+      // The popup asked Chrome for the permission first; this only records the choice.
+      if (msg.on && !(await canNotify())) throw new Error('Chrome didn’t allow notifications.')
+      await local.set({ notify: msg.on })
+      if (msg.on) await checkIncoming(true)
+      return { ok: true }
     case 'setAutoLock':
       if (!AUTO_LOCK_CHOICES.includes(msg.minutes)) throw new Error('Pick one of the listed times.')
       await local.set({ autoLockMin: msg.minutes })

@@ -13,6 +13,7 @@ export interface State {
   cardLabels: Record<string, string>
   autoLockMin: number
   job: Job | null
+  notify: boolean
 }
 
 /** The service worker's view of the wallet, refreshed on every navigation that needs it. */
@@ -23,7 +24,14 @@ export async function refresh(): Promise<State> {
 }
 
 export const root = document.getElementById('app')!
-export const mount = (...nodes: HTMLElement[]) => root.replaceChildren(...nodes)
+
+// Scanners and watchers a screen started; stopped as soon as another screen mounts.
+const cleanups: (() => void)[] = []
+export const onLeave = (fn: () => void) => { cleanups.push(fn) }
+export function mount(...nodes: HTMLElement[]) {
+  for (const fn of cleanups.splice(0)) { try { fn() } catch { /* already stopped */ } }
+  root.replaceChildren(...nodes)
+}
 
 export const btn = (label: string, cls: string, onclick: (e: Event) => void, extra: Record<string, string> = {}) =>
   h('button', { class: `btn ${cls}`, type: 'button', onclick, ...extra }, label) as HTMLButtonElement
@@ -34,8 +42,8 @@ export const spacer = () => h('div', { style: 'flex:1' })
 export const xlm = (n: number, digits = 7) => `${n.toLocaleString(undefined, { maximumFractionDigits: digits })} XLM`
 export const when = (d: Date | string) => new Date(d).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 
-export type Tab = 'wallet' | 'cards' | 'agents' | 'activity' | 'settings'
-const TABS: [Tab, string][] = [['wallet', 'Wallet'], ['cards', 'Cards'], ['agents', 'Agents'], ['activity', 'Activity'], ['settings', 'Settings']]
+export type Tab = 'wallet' | 'pay' | 'cards' | 'agents' | 'activity' | 'settings'
+const TABS: [Tab, string][] = [['wallet', 'Wallet'], ['pay', 'Pay'], ['cards', 'Cards'], ['agents', 'Agents'], ['activity', 'Activity'], ['settings', 'Settings']]
 
 /** Set by popup.ts: opens a tab's first screen. */
 export const nav = { tab: (_t: Tab): void => {} }
@@ -111,7 +119,7 @@ export function confirmStep(opts: { title: string; body: (Node | string)[]; conf
  * shows the outcome. The write keeps going if the popup closes; the Wallet
  * tab shows how it ended next time.
  */
-export async function run(opts: { label: string; steps?: string[]; msg: UiMessage; done: () => void; explorer: string }) {
+export async function run(opts: { label: string; steps?: string[]; msg: UiMessage; done: () => void; explorer: string; receipt?: (r: { hash?: string; [k: string]: unknown }) => Receipt }) {
   const steps = opts.steps ?? ['Signing with your wallet', 'Waiting for Stellar to confirm']
   page({
     body: [
@@ -122,8 +130,9 @@ export async function run(opts: { label: string; steps?: string[]; msg: UiMessag
     ],
   })
   try {
-    const r = await send<{ hash?: string; message: string }>(opts.msg)
-    result({ ok: true, message: r.message, hash: r.hash, explorer: opts.explorer, done: opts.done })
+    const r = await send<{ hash?: string; message: string; [k: string]: unknown }>(opts.msg)
+    if (opts.receipt) receipt({ ...opts.receipt(r), message: r.message }, opts.explorer, opts.done)
+    else result({ ok: true, message: r.message, hash: r.hash, explorer: opts.explorer, done: opts.done })
   } catch (e) {
     result({ ok: false, message: (e as Error).message, explorer: opts.explorer, done: opts.done })
   }
@@ -140,6 +149,52 @@ export function result(r: { ok: boolean; message: string; hash?: string; explore
       r.ok ? null : h('p', { class: 'small muted center' }, 'Each step is checked before it runs, so trying again is safe.'),
     ],
     foot: [btn(r.ok ? 'Done' : 'Back', 'gold', r.done)],
+  })
+}
+
+/** What a receipt shows (frontend/src/screens/ReceiptScreen.tsx). */
+export interface Receipt {
+  title: string
+  amount: number
+  direction: 'in' | 'out'
+  status: 'confirmed' | 'pending'
+  counterpartyLabel?: string
+  counterparty?: string
+  note?: string
+  message?: string
+  /** Transactions, labelled, e.g. [['Authorize', hash], ['Claim', hash]]. */
+  txs?: [string, string][]
+  at?: Date
+}
+
+export function receipt(r: Receipt, explorer: string, done: () => void) {
+  const at = r.at ?? new Date()
+  const text = [
+    `Noir receipt: ${r.title}`,
+    `${r.direction === 'in' ? '+' : '−'}${r.amount} XLM (${r.status})`,
+    r.counterparty ? `${r.counterpartyLabel ?? 'Account'}: ${r.counterparty}` : '',
+    r.note ?? '',
+    when(at),
+    ...(r.txs ?? []).map(([k, v]) => `${k}: ${v}`),
+  ].filter(Boolean).join('\n')
+  page({
+    body: [
+      h('div', { style: 'height:12px' }),
+      h('div', { class: 'badge ok', 'aria-hidden': 'true' }, '✓'),
+      h('p', { class: 'kicker center' }, r.title),
+      h('div', { class: `balance center amt ${r.direction}` }, `${r.direction === 'in' ? '+' : '−'}${r.amount.toLocaleString(undefined, { maximumFractionDigits: 7 })}`, h('small', {}, 'XLM')),
+      h('div', { class: 'center' }, pill(r.status === 'confirmed' ? 'Confirmed' : 'Waiting for the merchant to claim', r.status === 'confirmed' ? 'ok' : 'warn')),
+      r.message ? h('p', { class: 'center muted', role: 'status' }, r.message) : null,
+      kv([
+        r.counterparty ? [r.counterpartyLabel ?? 'Account', r.counterparty, true] : null,
+        r.note ? ['Note', r.note] : null,
+        ['When', when(at)],
+        ...(r.txs ?? []).map(([k, v]): [string, string, boolean] => [k, v, true]),
+      ]),
+      h('div', { class: 'row' }, copyBtn(text, 'Copy receipt'),
+        ...(r.txs ?? []).slice(-1).map(([, v]) => explorerLink(explorer, `tx/${v}`, 'Explorer'))),
+    ],
+    foot: [btn('Done', 'gold', done)],
   })
 }
 

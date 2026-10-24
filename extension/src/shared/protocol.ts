@@ -68,6 +68,10 @@ export type UiMessage =
   | { type: 'fundEscrow' | 'withdrawEscrow' | 'topUpAgent'; deviceHash: string; amount: number }
   | { type: 'setPolicy'; deviceHash: string; maxXlm: number; expiryDays: number }
   | { type: 'unlinkCard'; deviceHash: string }
+  | { type: 'charge'; deviceHash: string; amount: number }
+  | { type: 'payWithCard'; deviceHash: string; merchant: string; amount: number }
+  | { type: 'claim' }
+  | { type: 'setNotify'; on: boolean }
 
 /** A wallet write the service worker is running or just finished (popup can close meanwhile). */
 export interface Job { label: string; startedAt: number; done?: { ok: boolean; message: string; hash?: string } }
