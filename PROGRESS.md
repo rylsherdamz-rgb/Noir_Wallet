@@ -162,15 +162,16 @@ Reject (all verified by contract tests):
 
 ## Deployed Contract IDs
 
-### Testnet (redeployed 2026-10-07 — clean state; WASM hashes in deploy-evidence/deploy-testnet-20261007T050558Z.md)
+### Testnet (redeployed 2026-10-24 — Week 4 security fixes, clean state; WASM hashes in deploy-evidence/deploy-testnet-20261024T131024Z.md)
 Admin / deployer: `GA33JXYPD5H3KVYEFDS6DPAHPASEN7QUHSTJ5XU6BG4TUONKXIUB4RDP` (identity `deployer`)
-Full evidence (tx links, init args): `deploy-evidence/deploy-testnet-20261007T050558Z.md`
+Full evidence (tx links, init args): `deploy-evidence/deploy-testnet-20261024T131024Z.md`
+Live security matrix against these IDs: `deploy-evidence/week4-security-matrix-20261024T131458Z.md` — **PASS**
 
 | Contract | ID | WASM SHA-256 |
 |----------|----|--------------|
-| device_registry | `CB4DPMGOA374JIB2ZVD4AHW5GJKQUYNOFGRYNOJ75EFH2KCJSMHOWIRA` | `a252a4070120af7222bed4dfcb220ca51c290071f2c286a2f58f7259f367bea2` |
-| agent_registry | `CBTDMJVCFQDIVWZBKAKZ2FQ3UEJNAAUFYCTJ3E4ON2MYXPLPSIXQ25JZ` | `b0da4885fd635a6b3d76250c9423424c84c409a2e617b76946ffd2af90c7a22b` |
-| payment_escrow | `CA5S4S7QGHJHJWVJBYL3CXZXZTNGKXMNZVDAEQNN7NUXFP4D7BYK7HIX` | `3861809c9dfbcc4bf9d9941cc76ebeafb4a7d37453e15074826093d12a2941ed` |
+| device_registry | `CAC4KOLHDLDYDWBOKXNKRN5KVHO56PLOIFXDLTBUWGVN6GVDEB7FQHU5` | `f2c758eb82b5844b333363b5fd793104106dcafa3f570a5c89d59b4bff580d55` |
+| agent_registry | `CCMZDSPTLX7IIJWCYEUM5DJUHOSOYSTHGK777S2TXZWEMC5ZZGPJ3EBV` | `064024177246a27709854cc1da45b79be363cd99b84f0d2e74b1b841579c84ab` |
+| payment_escrow | `CC7EAW5FNJEDBS7THM5IT6XIOHO4AOYMLXT3KSZ3HWUIKEACTW7E5BFS` | `e430f8ab443103b75a0821612f8fc91d1e7491ac49b2f1e7ddd7698a8073a0a2` |
 
 > Admin changed from `noir-deployer` (`GCDAAT6G…`) to `deployer` (`GA33JXYP…`) in this redeploy. README and `frontend/.env.example` still list the 2026-10-01 IDs.
 

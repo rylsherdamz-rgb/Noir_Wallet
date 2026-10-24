@@ -109,7 +109,7 @@ try {
     networkId: hash(Buffer.from(Networks.TESTNET)), nonce: xdr.Int64.fromString('1'), signatureExpirationLedger: 100,
     invocation: new xdr.SorobanAuthorizedInvocation({
       function: xdr.SorobanAuthorizedFunction.sorobanAuthorizedFunctionTypeContractFn(new xdr.InvokeContractArgs({
-        contractAddress: new Address('CA5S4S7QGHJHJWVJBYL3CXZXZTNGKXMNZVDAEQNN7NUXFP4D7BYK7HIX').toScAddress(),
+        contractAddress: new Address('CC7EAW5FNJEDBS7THM5IT6XIOHO4AOYMLXT3KSZ3HWUIKEACTW7E5BFS').toScAddress(),
         functionName: 'authorize', args: [nativeToScVal(5n, { type: 'i128' })],
       })),
       subInvocations: [],

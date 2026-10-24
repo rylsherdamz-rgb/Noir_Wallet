@@ -44,7 +44,7 @@ describe('vault', () => {
 
 describe('signing', () => {
   const kp = Keypair.random()
-  const contract = 'CA5S4S7QGHJHJWVJBYL3CXZXZTNGKXMNZVDAEQNN7NUXFP4D7BYK7HIX'
+  const contract = 'CC7EAW5FNJEDBS7THM5IT6XIOHO4AOYMLXT3KSZ3HWUIKEACTW7E5BFS'
 
   const tx = () => new TransactionBuilder(new Account(kp.publicKey(), '1'), { fee: '100', networkPassphrase: Networks.TESTNET })
     .addOperation(Operation.payment({ destination: Keypair.random().publicKey(), asset: Asset.native(), amount: '12.5' }))
