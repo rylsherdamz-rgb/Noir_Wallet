@@ -172,6 +172,10 @@ EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT=$ESCROW_ID
 \`\`\`
 EOF
 ok "Evidence written: $EVIDENCE_FILE"
+# In GitHub Actions, hand the exact evidence path to later steps.
+if [ -n "${GITHUB_OUTPUT:-}" ]; then
+  echo "evidence=${EVIDENCE_FILE#"$REPO_ROOT"/}" >> "$GITHUB_OUTPUT"
+fi
 
 # ---- 7. Optional: patch frontend/.env --------------------------------------
 if [ "$UPDATE_ENV" = "1" ]; then
