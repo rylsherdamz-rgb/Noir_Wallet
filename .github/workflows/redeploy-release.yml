@@ -1,0 +1,307 @@
+# Redeploy the Soroban contracts to Testnet, build the Android APK against the
+# new contract IDs, and attach it to a GitHub release.
+#
+# Run it by hand: Actions → "Redeploy contracts + release APK" → Run workflow.
+#
+# What it does:
+#   1. deploy  — checks out `base_branch` (instaward-development by default),
+#                tests the contracts, runs scripts/redeploy-contracts.sh
+#                (build → deploy → initialize → evidence file), then
+#                scripts/propagate-contract-ids.sh (checked before the deploy)
+#                swaps the old IDs and WASM
+#                hashes for the new ones, and opens a PR into `base_branch` with
+#                only those files + the new deploy-evidence file.
+#   2. release — builds the `preview` profile APK on EAS from that PR's branch
+#                (so the APK talks to the new contracts) and uploads Noir.apk and
+#                the evidence file to the release.
+#
+# One-time setup (Settings → Secrets and variables → Actions):
+#   STELLAR_DEPLOYER_SECRET  secret key (S…) of the funded Testnet deployer/admin
+#   EXPO_TOKEN               expo.dev → Account settings → Access tokens
+#   RELEASE_PR_TOKEN         (optional) fine-grained PAT with contents + pull
+#                            requests write. A PR opened with the default
+#                            GITHUB_TOKEN does not trigger CI, so the required
+#                            `test` check never reports on it; a PAT avoids that.
+# Without RELEASE_PR_TOKEN, enable Settings → Actions → General → "Allow GitHub
+# Actions to create and approve pull requests", then close and reopen the ID PR
+# to start its CI. If the PR cannot be opened, the branch is still pushed.
+#
+# Every redeploy mints brand-new contract IDs (clean slate, not an upgrade).
+name: Redeploy contracts + release APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      redeploy:
+        description: 'Redeploy the contracts first (off = only rebuild the APK from base_branch)'
+        type: boolean
+        default: true
+      base_branch:
+        description: 'Branch to redeploy from and open the ID PR into (or to build the APK from when redeploy is off)'
+        type: choice
+        options: [instaward-development]   # CLAUDE.md: changes land on instaward-development first
+        default: instaward-development
+      release_tag:
+        description: 'Release to attach Noir.apk to (created as a pre-release if it does not exist)'
+        type: string
+        default: Beta-Test
+
+concurrency:
+  group: redeploy-release
+  cancel-in-progress: false
+
+env:
+  STELLAR_CLI_VERSION: '28.0.0'
+
+jobs:
+  deploy:
+    name: Redeploy contracts to Testnet
+    if: inputs.redeploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      branch: ${{ steps.push.outputs.branch }}
+      evidence: ${{ steps.redeploy.outputs.evidence }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          # Must match backend/rust-toolchain.toml (see contracts.yml).
+          toolchain: '1.98.1'
+          targets: wasm32v1-none
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            backend/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('backend/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      # ImageOS (e.g. ubuntu24) changes when ubuntu-latest moves to a new image,
+      # whose system libraries the cached binary may not link against.
+      - name: Runner image
+        id: image
+        run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Stellar CLI
+        id: stellar-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/stellar
+          key: ${{ runner.os }}-${{ steps.image.outputs.os }}-stellar-cli-${{ env.STELLAR_CLI_VERSION }}
+
+      - name: Install Stellar CLI
+        if: steps.stellar-cache.outputs.cache-hit != 'true'
+        run: |
+          # stellar-cli links libudev + libdbus (hardware-wallet / keyring support).
+          sudo apt-get update -q
+          sudo apt-get install -y -q libudev-dev libdbus-1-dev pkg-config
+          cargo install --locked stellar-cli --version "$STELLAR_CLI_VERSION"
+
+      # Everything that can fail after the deploy is checked first, so a bad
+      # base branch or eas.json never leaves fresh contracts nobody points at.
+      - name: Preflight
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ inputs.base_branch }}
+          HAS_EXPO_TOKEN: ${{ secrets.EXPO_TOKEN != '' }}
+        run: |
+          [ "$HAS_EXPO_TOKEN" = true ] || { echo "::error::EXPO_TOKEN is not set — the APK build would fail after the deploy"; exit 1; }
+          grep -q GITHUB_OUTPUT scripts/redeploy-contracts.sh \
+            || { echo "::error::$BASE's redeploy-contracts.sh predates this workflow"; exit 1; }
+          ./scripts/propagate-contract-ids.sh --check
+          # A leftover redeploy branch (PR open, or never opened) means eas.json here
+          # may already be stale. Merge it, then delete the branch, before redeploying.
+          LEFT=$(git ls-remote --heads origin 'redeploy/testnet-*' | awk '{print $2}' | sed 's|refs/heads/||' | xargs)
+          [ -z "$LEFT" ] || { echo "::error::Redeploy branch(es) still on origin: $LEFT — merge into $BASE and delete them first"; exit 1; }
+
+      # Never deploy contracts whose tests fail. payment_escrow contractimport!s
+      # the other two WASMs, so they are built first.
+      - name: Test contracts
+        working-directory: backend
+        run: |
+          cargo build --release --target wasm32v1-none -p agent-registry -p device-registry
+          cargo build --release --target wasm32v1-none -p payment-escrow
+          HOST=$(rustc -vV | awk '/host/{print $2}')
+          cargo test -p device-registry -p agent-registry -p payment-escrow --target "$HOST"
+
+      - name: Load deployer identity
+        env:
+          STELLAR_DEPLOYER_SECRET: ${{ secrets.STELLAR_DEPLOYER_SECRET }}
+        run: |
+          [ -n "$STELLAR_DEPLOYER_SECRET" ] || { echo "::error::STELLAR_DEPLOYER_SECRET is not set"; exit 1; }
+          mkdir -p ~/.config/stellar/identity
+          umask 077
+          printf 'secret_key = "%s"\n' "$STELLAR_DEPLOYER_SECRET" > ~/.config/stellar/identity/deployer.toml
+          echo "Deployer: $(stellar keys address deployer)"
+
+      - name: Redeploy + initialize
+        id: redeploy
+        run: |
+          NETWORK=testnet DEPLOYER=deployer ./scripts/redeploy-contracts.sh
+          cat "$(grep -m1 '^evidence=' "$GITHUB_OUTPUT" | cut -d= -f2)" >> "$GITHUB_STEP_SUMMARY"
+
+      # Keep the record of what went on-chain even if a later step fails.
+      - name: Save deploy evidence
+        if: always() && steps.redeploy.outputs.evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-evidence
+          path: ${{ steps.redeploy.outputs.evidence }}
+
+      # The script validates every old/new ID and hash before it edits anything.
+      - name: Propagate new IDs and hashes across the repo
+        id: propagate
+        env:
+          EVIDENCE: ${{ steps.redeploy.outputs.evidence }}
+        run: |
+          ./scripts/propagate-contract-ids.sh "$EVIDENCE" > "$RUNNER_TEMP/changed.txt"
+          cat "$RUNNER_TEMP/changed.txt"
+
+      - name: Push ID branch and open PR
+        id: push
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PR_TOKEN || github.token }}
+          BASE: ${{ inputs.base_branch }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVIDENCE: ${{ steps.redeploy.outputs.evidence }}
+          NEW_DEVICE: ${{ steps.redeploy.outputs.device }}
+          NEW_AGENT: ${{ steps.redeploy.outputs.agent }}
+          NEW_ESCROW: ${{ steps.redeploy.outputs.escrow }}
+        run: |
+          BRANCH="redeploy/testnet-$(basename "$EVIDENCE" .md | sed 's/^deploy-testnet-//')"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898333+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          # Only the propagated files + the evidence file. cargo build/test can
+          # touch Cargo.lock and test snapshots; those stay out of this commit.
+          xargs -a "$RUNNER_TEMP/changed.txt" -d '\n' git add --
+          git add -- "$EVIDENCE"
+          git commit -F - <<MSG
+          chore(contracts): redeploy to Testnet and propagate new contract IDs
+
+          Redeployed by the redeploy-release workflow ($RUN_URL).
+          Evidence: $EVIDENCE
+
+          device_registry: $NEW_DEVICE
+          agent_registry: $NEW_AGENT
+          payment_escrow: $NEW_ESCROW
+
+          Co-Authored-By: Johnrick Rabara <jrabara101@gmail.com>
+          Co-Authored-By: Jefferson Tuparan <jeffersontuparanst@gmail.com>
+          MSG
+          git push -u origin "$BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          {
+            echo "Automated Testnet redeploy ([workflow run]($RUN_URL))."
+            echo
+            echo "| Contract | ID |"
+            echo "|---|---|"
+            echo "| device_registry | \`$NEW_DEVICE\` |"
+            echo "| agent_registry | \`$NEW_AGENT\` |"
+            echo "| payment_escrow | \`$NEW_ESCROW\` |"
+            echo
+            echo "Evidence: \`$EVIDENCE\`. The APK built from this branch is attached to the \`$RELEASE_TAG\` release."
+            echo
+            echo "Only IDs and WASM hashes were swapped. Before merging, check the prose around them by hand:"
+            echo "- deploy dates and \"see deploy-evidence/…\" pointers (README, PROGRESS, CLAUDE.md, docs/)"
+            echo "- \`docs/walkthrough.md\` and \`docs/evidence-package.md\` still describe the previous deploy on purpose; add this deploy to them"
+            echo "- the expected hashes in \`.github/workflows/contracts.yml\` (workflow files are not touched)"
+          } > "$RUNNER_TEMP/pr.md"
+          gh pr create --base "$BASE" --head "$BRANCH" \
+            --title "chore(contracts): redeploy to Testnet and propagate new contract IDs" \
+            --body-file "$RUNNER_TEMP/pr.md" \
+            || echo "::warning::Could not open the PR (see the setup notes at the top of this workflow). Branch $BRANCH is pushed."
+
+  release:
+    name: Build APK and attach to release
+    needs: deploy
+    # Runs after a successful redeploy, or alone when redeploy is off.
+    if: always() && (needs.deploy.result == 'success' || needs.deploy.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # release create/edit/upload
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.deploy.outputs.branch || inputs.base_branch }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.4
+          cache: yarn
+          cache-dependency-path: frontend/yarn.lock
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: 20.x   # eas.json requires >= 20.5.0
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: yarn install --frozen-lockfile
+
+      # The `preview` profile builds an APK; contract IDs come from eas.json `base`.
+      # After a redeploy this is the not-yet-merged ID branch on purpose: the
+      # APK has to point at the new contracts, which only that branch knows.
+      - name: Build APK on EAS
+        working-directory: frontend
+        run: |
+          # Output goes outside the project so EAS never archives it.
+          eas build --platform android --profile preview --non-interactive --wait --json > "$RUNNER_TEMP/build.json"
+          URL=$(jq -r '.[0].artifacts.buildUrl' "$RUNNER_TEMP/build.json")
+          [ -n "$URL" ] && [ "$URL" != "null" ] || { echo "::error::EAS returned no APK URL"; cat "$RUNNER_TEMP/build.json"; exit 1; }
+          curl -fsSL "$URL" -o "$RUNNER_TEMP/Noir.apk"
+          sha256sum "$RUNNER_TEMP/Noir.apk"
+
+      # An existing release keeps its tag and its own notes; the block between
+      # the noir-apk-build markers is rewritten on every run so the notes always
+      # say which commit and contracts the attached APK was built from.
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVIDENCE: ${{ needs.deploy.outputs.evidence }}
+        run: |
+          SHA=$(git rev-parse HEAD)
+          eas_id() { jq -r ".build.base.env.$1" frontend/eas.json; }
+          {
+            echo "<!-- noir-apk-build -->"
+            echo "**Noir.apk** built from [\`${SHA:0:7}\`](https://github.com/$REPO/commit/$SHA) by [this workflow run]($RUN_URL)."
+            echo
+            echo "| Contract (Testnet) | ID |"
+            echo "|---|---|"
+            echo "| device_registry | \`$(eas_id EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT)\` |"
+            echo "| agent_registry | \`$(eas_id EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT)\` |"
+            echo "| payment_escrow | \`$(eas_id EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT)\` |"
+            echo "<!-- /noir-apk-build -->"
+          } > "$RUNNER_TEMP/build-block.md"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release view "$TAG" --json body -q .body > "$RUNNER_TEMP/old-notes.md"
+            python3 - "$RUNNER_TEMP/old-notes.md" "$RUNNER_TEMP/build-block.md" > "$RUNNER_TEMP/notes.md" <<'PY'
+          import re, sys
+          old, block = (open(p).read() for p in sys.argv[1:3])
+          pat = re.compile(r"<!-- noir-apk-build -->.*?<!-- /noir-apk-build -->\n?", re.S)
+          print(pat.sub(lambda _: block, old) if pat.search(old) else old.rstrip() + "\n\n" + block, end="")
+          PY
+            gh release edit "$TAG" --notes-file "$RUNNER_TEMP/notes.md"
+          else
+            gh release create "$TAG" --prerelease --target "$SHA" --title "$TAG" \
+              --notes-file "$RUNNER_TEMP/build-block.md"
+          fi
+          FILES=("$RUNNER_TEMP/Noir.apk")
+          [ -n "$EVIDENCE" ] && FILES+=("$EVIDENCE")
+          gh release upload "$TAG" "${FILES[@]}" --clobber
+          echo "Uploaded to https://github.com/$REPO/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"
