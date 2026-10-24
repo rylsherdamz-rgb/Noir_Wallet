@@ -29,7 +29,7 @@ NETWORK=testnet DEPLOYER=myid ./scripts/redeploy-contracts.sh
 | 1. Build | `agent_registry` + `device_registry` WASM, then `payment_escrow` |
 | 2. Hash | SHA-256 of each `.wasm`, for the evidence file |
 | 3. Deploy | `stellar contract deploy` for each WASM |
-| 4. Initialize | `device_registry.initialize(admin)` → `agent_registry.initialize(admin)` → `payment_escrow.initialize(admin, agent_registry_id, device_registry_id)` |
+| 4. Initialize | `device_registry.initialize(admin)` → `agent_registry.initialize(admin, device_registry_id)` → `payment_escrow.initialize(admin, agent_registry_id, device_registry_id)` |
 | 5. Evidence | Writes `deploy-evidence/deploy-<network>-<UTC timestamp>.md` with IDs, hashes, Stellar Expert links and a ready-to-paste `.env` block |
 | 6. Env (optional) | With `UPDATE_ENV=1`, rewrites the three `EXPO_PUBLIC_*_CONTRACT` lines in `frontend/.env` |
 
@@ -58,12 +58,12 @@ ADMIN=$(stellar keys address deployer)
 
 ```bash
 stellar contract invoke --id $DEVICE --source deployer --network testnet -- initialize --admin $ADMIN
-stellar contract invoke --id $AGENT  --source deployer --network testnet -- initialize --admin $ADMIN
+stellar contract invoke --id $AGENT  --source deployer --network testnet -- initialize --admin $ADMIN --device_registry_id $DEVICE
 stellar contract invoke --id $ESCROW --source deployer --network testnet -- \
   initialize --admin $ADMIN --agent_registry_id $AGENT --device_registry_id $DEVICE
 ```
 
-`payment_escrow` must receive **both** registry IDs. It reads policies from `agent_registry` and owners from `device_registry`. Each `initialize` can run only once (`AlreadyInitialized = 1`).
+`agent_registry` must receive the `device_registry` ID (it checks device ownership there before accepting or revoking a policy). `payment_escrow` must receive **both** registry IDs. It reads policies from `agent_registry` and owners from `device_registry`. Each `initialize` can run only once (`AlreadyInitialized = 1`).
 
 ### 4. Smoke test
 

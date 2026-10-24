@@ -65,17 +65,32 @@ This maps every weekly deliverable to its status. Measure every commit against t
 **Expected output:** Complete x402 flow validated; automated tests passing; positive/negative security validation; developer docs.
 
 - [x] Developer docs (2026-10-17), indexed in `docs/README.md`: installation, deployment, NFC hardware, smart contract reference, API reference, automated test documentation, walkthrough
-- [x] Automated tests passing: 45 contract, 306 app, 18 SDK, 18 REST gateway (2026-10-17)
+- [x] Automated tests passing: 45 contract, 306 app, 18 SDK, 18 REST gateway (2026-10-17); 60 contract after the Week 4 fixes (2026-10-21)
 - [x] Positive/negative security matrix covered by contract tests (mapped in `docs/testing.md`)
 - [ ] **To do:** wire the tap screens to `payment_escrow.authorize` (today taps pay from the agent wallet via `x402.payWithAgent`)
 - [ ] **To do:** merchant `claim` in the app (`pending_balance` + claim action)
 - [ ] **To do:** button for the escrow deposit screen (`/agent-fund/<id>?mode=escrow`)
-- [ ] **To do:** live Testnet run of `authorize` + `claim` and of the reject cases, with tx evidence
-- [ ] **To do:** redeploy so the `fund_escrow` `DeviceNotRegistered` check is live; propagate new IDs
+- [ ] **To do:** live Testnet run of `authorize` + `claim` and of the reject cases, with tx evidence — runner written in Week 4 (`npm run test:security-matrix`), waiting on the redeploy
+- [ ] **To do:** redeploy so the `fund_escrow` check and the Week 4 security fixes are live; propagate new IDs
 - [ ] **To do:** physical NTAG213 on-device test
 
-### Week 4 — Final testing + MIT release + evidence package  ⬜ NOT STARTED
+### Week 4 — Final testing + MIT release + evidence package  🟡 IN PROGRESS
 **Expected output:** Public MIT repo; published Contract IDs + WASM hashes + Stellar Expert tx links; install/deploy guides; demo video; evidence package.
+
+Evidence index: [`docs/evidence-package.md`](docs/evidence-package.md).
+
+- [x] Final contract audit + bug fixes (2026-10-21) — cross-asset escrow drain, agent hijack via unchecked `revoke_agent`/`register_agent`, revoked device still payable, unclaimed payments expiring; regression test for each ([`docs/contracts.md#week-4-security-fixes`](docs/contracts.md#week-4-security-fixes)). 60 contract tests.
+- [x] `redeploy-contracts.sh` fixed (clean-checkout build order, new `agent_registry.initialize` arg)
+- [x] SDK + gateway CI (`sdk.yml`)
+- [x] All suites run and captured — `deploy-evidence/test-results-20261021T034015Z.txt` (60 / 306 / 18 / 18, 0 failed)
+- [x] Live security-matrix runner — `sdk/agent-sdk` `npm run test:security-matrix` (approved workflow + 12 reject cases, writes tx evidence)
+- [x] Public repo under MIT (GitHub detects `MIT`), community docs, install + deploy guides, architecture diagrams
+- [x] Demo video shot list — `docs/demo-video-script.md`
+- [x] Demo video published — [https://x.com/Noirx402/status/2109282993588334632](https://x.com/Noirx402/status/2109282993588334632) (2026-10-11), linked from the README and the evidence package
+- [x] Week 2 evidence captures merged — `docs/Evidence/week2-evidence/` (from `docs/week2-screens`)
+- [ ] **To do (needs Testnet):** redeploy the fixed contracts, run the security matrix against the new IDs, propagate IDs, re-run `npm run test:testnet`
+- [ ] **To do (needs a phone):** re-shoot the demo video on the redeployed contracts; physical NTAG213 test
+- [ ] Tag the final release and submit the evidence package
 
 ---
 
@@ -86,7 +101,8 @@ Workflows live in `.github/workflows/`. Both now run on the Instaward branches (
 | Workflow | Scope | Status |
 |----------|-------|--------|
 | `contracts.yml` | Builds all three contracts to `wasm32v1-none`, runs the 41 contract tests on the host target, then prints a WASM SHA-256 reproducibility report (informational) | ✅ Passing |
-| `frontend.yml` | `tsc --noEmit` + Vitest (226 tests) on Node 22 | ✅ Passing |
+| `frontend.yml` | `tsc --noEmit` + Vitest (306 tests) on Node 22 | ✅ Passing |
+| `sdk.yml` | Agent SDK + REST gateway: typecheck, tests, build (added 2026-10-21) | ⏳ first run on the Week 4 PR |
 
 **Contract tests in CI: passing.** Run [`37019373910`](https://github.com/rylsherdamz-rgb/Noir_Wallet/actions/runs/37019373910) executed 17 + 8 + 16 = 41 tests, 0 failures. This satisfies the SOW metric "automated contract tests passing in CI".
 
@@ -123,6 +139,12 @@ Reject (all verified by contract tests):
 - [x] Replayed payment request rejected (`test_replayed_nonce_rejected`)
 - [x] Sweep rejected while agent still active (`test_sweep_rejected_while_agent_active`)
 - [x] On revoke, escrow funds swept back to owner (`test_sweep_on_revoke_returns_all_funds_to_owner`)
+- [x] Revoked device rejected by `authorize` (`test_revoked_device_rejected`) — Week 4
+- [x] Invalid recipient (escrow itself) rejected (`test_escrow_as_merchant_rejected`) — Week 4
+- [x] Stranger cannot revoke/replace an agent (`test_agent_hijack_rejected`, `test_revoke_by_stranger_rejected`) — Week 4
+- [x] Cross-asset withdrawal rejected (`test_cross_asset_defund_rejected`, `test_cross_asset_sweep_rejected`) — Week 4
+- [x] Unclaimed payments do not expire (`test_late_claim_still_pays`) — Week 4
+- [ ] Live Testnet run of all of the above (`npm run test:security-matrix`) — after redeploy
 
 ---
 
@@ -167,6 +189,19 @@ Admin `GCDAAT6G6BUANDLY432YEAFY2MHUDP4PVEQ6ODMKWMUL6THLDY4GY2KD` · evidence `de
 Redeploy script: `scripts/redeploy-contracts.sh` (build → hash → deploy → initialize → write evidence).
 
 ---
+
+## Session Log — 2026-10-21 (Week 4: audit, fixes, evidence package)
+
+- **Contract audit found four exploitable bugs on the live code** (each reproduced by a failing test first):
+  - cross-asset drain — fund own device with a self-issued token, `defund_escrow` the same amount in XLM;
+  - agent hijack — `revoke_agent` / `register_agent` had no ownership check, so a stranger could install their own agent and `authorize` the owner's escrow away;
+  - revoked device still payable via a leftover agent policy;
+  - pending payments in temporary storage expired unclaimed with funds already debited.
+  Fixed in source, 60 contract tests. **Breaking:** `agent_registry.initialize(admin, device_registry_id)`. Needs a redeploy.
+- `redeploy-contracts.sh`: two-step build (one combined build fails on a clean checkout), new init arg.
+- SDK + gateway CI added; live security-matrix runner in `sdk/agent-sdk`.
+- Evidence index `docs/evidence-package.md`, demo shot list `docs/demo-video-script.md`.
+- Not done here: the build environment had no route to Stellar Testnet and no phone, so the redeploy, the live matrix run and the video are left to the maintainer (steps in the evidence package).
 
 ## Session Log — 2026-10-09 (Week 1–2 gaps)
 
