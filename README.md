@@ -9,7 +9,7 @@ Tap any NFC tag, RFID sticker, or wearable to pay — no app opens, no confirmat
 
 [![Stellar](https://img.shields.io/badge/Stellar-testnet-blue?logo=stellar&logoColor=white)](https://stellar.expert/explorer/testnet)
 [![Soroban](https://img.shields.io/badge/Soroban-3%20contracts-blueviolet)](backend/contracts/)
-[![Tests](https://img.shields.io/badge/tests-45%20passing-brightgreen)](#run-tests)
+[![Tests](https://img.shields.io/badge/tests-60%20contract%20%7C%20306%20app-brightgreen)](#run-tests)
 [![React Native](https://img.shields.io/badge/React%20Native-Expo%2057-61DAFB?logo=expo&logoColor=white)](frontend/)
 [![Rust](https://img.shields.io/badge/Rust-nightly-orange?logo=rust&logoColor=white)](backend/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](frontend/)
@@ -39,7 +39,7 @@ Tap any NFC tag, RFID sticker, or wearable to pay — no app opens, no confirmat
   Your browser does not support the video tag.
 </video>
 
-<em>▶ Demo — tap-to-pay with the x402 protocol, per-device agent wallets, and the full mobile app. [Original X post](https://x.com/ChichiCode0/status/2083815952635093215)</em>
+<em>▶ Demo — tap-to-pay with the x402 protocol, per-device agent wallets, and the full mobile app. [Watch on X](https://x.com/Noirx402/status/2109282993588334632)</em>
 
 <video src="assets/noir-demo.mp4" width="100%" controls style="max-width:960px;border-radius:16px;border:1px solid #3A3A3A;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
   Your browser does not support the video tag.
@@ -137,6 +137,9 @@ Mobile App / POS Terminal
 > **About redeployment:** each `./scripts/redeploy-contracts.sh` run deploys **fresh contract instances**, so every deploy produces **new contract IDs** — a redeploy is a clean slate, not an in-place upgrade (prior on-chain state on the old instances is abandoned). The script writes the authoritative IDs, WASM hashes, and init args to a timestamped evidence file in [`deploy-evidence/`](deploy-evidence/), and when run with `UPDATE_ENV=1` it also patches `frontend/.env`. The IDs above are from the latest run ([`deploy-evidence/deploy-testnet-20261007T050558Z.md`](deploy-evidence/deploy-testnet-20261007T050558Z.md)); on-chain evidence screenshots are in [`docs/Evidence/`](docs/Evidence/README.md).
 
 > Full deployment evidence (admin, init args, WASM hashes): [`deploy-evidence/`](deploy-evidence/).
+
+> [!WARNING]
+> The contract source is ahead of these deployments. The Week 4 security fixes (2026-10-21) are not on Testnet yet; redeploy before relying on the IDs above. See [`docs/contracts.md`](docs/contracts.md#week-4-security-fixes) and the [Week 4 evidence package](docs/evidence-package.md).
 
 **Mainnet Contract IDs** (deployed 2026-07-18):
 

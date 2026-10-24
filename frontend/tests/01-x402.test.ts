@@ -971,6 +971,9 @@ describe('contract error messages', () => {
     expect(describeContractError('agent_registry', e4)).toMatch(/policy/i)
     expect(describeContractError('device_registry', e4)).toMatch(/already registered/i)
     expect(describeContractError('payment_escrow', new Error('Error(Contract, #7)'))).toMatch(/revoke/i)
+    expect(describeContractError('agent_registry', new Error('Error(Contract, #5)'))).toMatch(/owner/i)
+    expect(describeContractError('payment_escrow', new Error('Error(Contract, #8)'))).toMatch(/not registered/i)
+    expect(describeContractError('payment_escrow', new Error('Error(Contract, #9)'))).toMatch(/asset/i)
   })
 
   it('never leaks raw RPC text for unknown failures', async () => {

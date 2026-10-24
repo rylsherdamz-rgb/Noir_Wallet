@@ -54,7 +54,7 @@ device's full escrow balance to owner.
 Build order matters: `agent_registry` + `device_registry` WASM before `payment_escrow`
 (it `contractimport!`s them). See `Noir/_Redeploy Contracts.md` for the redeploy runbook.
 
-## Current state (as of 2026-10-09)
+## Current state (as of 2026-10-21)
 
 - **Deployed Testnet Contract IDs** (current — matches `frontend/.env`):
   - device_registry: `CB4DPMGOA374JIB2ZVD4AHW5GJKQUYNOFGRYNOJ75EFH2KCJSMHOWIRA`
@@ -69,10 +69,16 @@ Build order matters: `agent_registry` + `device_registry` WASM before `payment_e
     `landing/lib/site.ts`, `sdk/agent-sdk/src/networks.ts`,
     PROGRESS.md). `scripts/redeploy-contracts.sh UPDATE_ENV=1` auto-patches `frontend/.env`
     only — the docs above are manual.
-- Contract tests: 45 passing, 0 failed (`cargo test` from `backend/`). `payment_escrow.fund_escrow`
-  now rejects unregistered devices (`DeviceNotRegistered = 8`, commit `5fb7fe6`) — **not yet
-  redeployed**; the live Testnet contracts still accept it (the app guards it client-side).
-- Frontend: `tsc --noEmit` clean, Vitest 285/285 passing (as of 2026-10-09).
+- Contract tests: 60 passing, 0 failed (`cargo test` from `backend/`, 10 + 21 + 29).
+  **Week 4 security fixes (2026-10-21) are in source but NOT redeployed** — the live Testnet
+  contracts still have: cross-asset escrow drain, agent hijack (no ownership check on
+  `register_agent`/`revoke_agent`), revoked device still payable, expiring pending payments,
+  and `fund_escrow` accepting unregistered devices. **Breaking:** `agent_registry.initialize(admin,
+  device_registry_id)`. Details: `docs/contracts.md#week-4-security-fixes`.
+- Live security matrix: `cd sdk/agent-sdk && npm run test:security-matrix` (override IDs with
+  `NOIR_DEVICE_REGISTRY`/`NOIR_AGENT_REGISTRY`/`NOIR_PAYMENT_ESCROW`). Not yet run.
+- Frontend: `tsc --noEmit` clean, Vitest 306/306 passing (as of 2026-10-21). SDK 18, gateway 18
+  (gateway needs `npm run setup` first — it depends on the built SDK).
   `npm run test:testnet` (opt-in, live Testnet) runs the Week 2 path through the app's own
   `x402` code and writes tx evidence to `deploy-evidence/week2-testnet-flow-*.md` — passing.
 - App lock: wallet password is the default unlock; phone unlock is an opt-in toggle
@@ -81,7 +87,7 @@ Build order matters: `agent_registry` + `device_registry` WASM before `payment_e
   (`base` profile) because `frontend/.env` is gitignored — update them there too on
   redeploy. Secrets go in `eas env`, never in eas.json. `app.json` blocks unused
   permissions and sets `allowBackup: false`; keep it that way.
-- CI: `contracts.yml` and `frontend.yml` both green on Instaward branches. WASM hash
+- CI: `contracts.yml` and `frontend.yml` both green on Instaward branches; `sdk.yml` added 2026-10-21. WASM hash
   cross-machine check is informational only (soroban embeds the build host's absolute
   path in the binary, so hashes legitimately differ CI vs local — not a bug).
 
@@ -95,8 +101,8 @@ Build order matters: `agent_registry` + `device_registry` WASM before `payment_e
 
 ### Open items (don't re-derive these — just pick up here)
 
-- Redeploy contracts so the `fund_escrow` registration check is live (new IDs → propagate
-  everywhere, see redeploy note above), then re-run `npm run test:testnet`.
+- **Week 4 next steps** are in `docs/evidence-package.md#5-remaining-steps-maintainer-needs-testnet-access-and-a-phone`:
+  redeploy → run security matrix on new IDs → propagate IDs → `npm run test:testnet` → demo video → tag release.
 - Week 1–2 Testnet/evidence gaps closed 2026-10-09 (deploy tx hashes, wallet create/import
   screenshots in `docs/Evidence/wallet/`, Week 2 live run). The Android emulator image does
   not trust `*.stellar.org`'s Sectigo chain — use Node or hardware for anything networked.
