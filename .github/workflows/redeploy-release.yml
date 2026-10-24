@@ -86,12 +86,18 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('backend/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
+      # ImageOS (e.g. ubuntu24) changes when ubuntu-latest moves to a new image,
+      # whose system libraries the cached binary may not link against.
+      - name: Runner image
+        id: image
+        run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
+
       - name: Cache Stellar CLI
         id: stellar-cache
         uses: actions/cache@v4
         with:
           path: ~/.cargo/bin/stellar
-          key: ${{ runner.os }}-stellar-cli-${{ env.STELLAR_CLI_VERSION }}
+          key: ${{ runner.os }}-${{ steps.image.outputs.os }}-stellar-cli-${{ env.STELLAR_CLI_VERSION }}
 
       - name: Install Stellar CLI
         if: steps.stellar-cache.outputs.cache-hit != 'true'
@@ -107,7 +113,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           BASE: ${{ inputs.base_branch }}
+          HAS_EXPO_TOKEN: ${{ secrets.EXPO_TOKEN != '' }}
         run: |
+          [ "$HAS_EXPO_TOKEN" = true ] || { echo "::error::EXPO_TOKEN is not set — the APK build would fail after the deploy"; exit 1; }
           grep -q GITHUB_OUTPUT scripts/redeploy-contracts.sh \
             || { echo "::error::$BASE's redeploy-contracts.sh predates this workflow"; exit 1; }
           ./scripts/propagate-contract-ids.sh --check

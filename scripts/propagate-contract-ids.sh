@@ -85,7 +85,7 @@ done
 
 # One sed call over all matching files. The expressions still run in order on
 # each line, but no new value can equal another contract's old ID or hash.
-mapfile -t CHANGED < <(git grep -lF "${PATTERNS[@]}" -- . \
+mapfile -t CHANGED < <(git -c core.quotePath=false grep -lF "${PATTERNS[@]}" -- . \
   ':!deploy-evidence/' ':!.github/' ':!docs/walkthrough.md' \
   ':!docs/evidence-package.md' ':!Noir/Session - *' || true)
 [ "${#CHANGED[@]}" -gt 0 ] && sed -i "${SED[@]}" "${CHANGED[@]}"
