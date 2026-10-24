@@ -16,7 +16,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:testnet": "NOIR_TESTNET=1 vitest run tests/testnet.test.ts",
-    "test:security-matrix": "NOIR_TESTNET=1 vitest run tests/security-matrix.testnet.test.ts --testTimeout=180000 --hookTimeout=120000"
+    "test:security-matrix": "vitest run tests/security-matrix.testnet.test.ts --testTimeout=180000 --hookTimeout=120000"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "^16.0.1"

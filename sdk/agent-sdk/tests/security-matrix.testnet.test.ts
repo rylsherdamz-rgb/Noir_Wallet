@@ -26,16 +26,13 @@ import {
   NoirAgentClient, NoirContractError, TESTNET, keypairSigner, deviceHashScVal, parseContractError,
   type NoirContracts, type NoirOperation,
 } from '../src/index.js'
+import { securityMatrixContracts } from './security-matrix-support.js'
 
 const EXPLORER = 'https://stellar.expert/explorer/testnet'
 const XLM = 10_000_000n
-const LIVE = process.env.NOIR_TESTNET === '1'
-
-const contracts: NoirContracts = {
-  deviceRegistry: process.env.NOIR_DEVICE_REGISTRY ?? TESTNET.contracts.deviceRegistry,
-  agentRegistry: process.env.NOIR_AGENT_REGISTRY ?? TESTNET.contracts.agentRegistry,
-  paymentEscrow: process.env.NOIR_PAYMENT_ESCROW ?? TESTNET.contracts.paymentEscrow,
-}
+const configuredContracts = securityMatrixContracts(process.env)
+const LIVE = configuredContracts !== null
+const contracts: NoirContracts = configuredContracts ?? TESTNET.contracts
 const noir = new NoirAgentClient({ network: { ...TESTNET, contracts } })
 const passphrase = noir.config.networkPassphrase
 const NATIVE = Asset.native().contractId(passphrase)
