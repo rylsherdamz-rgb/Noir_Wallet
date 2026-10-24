@@ -76,11 +76,18 @@ jobs:
       agent: ${{ steps.redeploy.outputs.agent }}
       escrow: ${{ steps.redeploy.outputs.escrow }}
       branch: ${{ steps.names.outputs.branch }}
+      sha: ${{ steps.sha.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.base_branch }}
           persist-credentials: false
+
+      # Every later job checks out this exact commit, so a push to base_branch
+      # mid-run can't mix different source into the matrix, ID PR or APK.
+      - name: Record source commit
+        id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -137,8 +144,7 @@ jobs:
           # A leftover redeploy branch means eas.json here may be stale (ID PR not
           # merged yet) or an unaccepted deploy hasn't been reviewed (…-rejected).
           # Merge or review it, then delete the branch, before redeploying.
-          LEFT=$(git ls-remote --heads "https://x-access-token:$GH_TOKEN@github.com/$REPO.git" 'redeploy/testnet-*' \
-                   | awk '{print $2}' | sed 's|refs/heads/||' | xargs)
+          LEFT=$(gh api "repos/$REPO/git/matching-refs/heads/redeploy/testnet-" -q '.[].ref' | sed 's|refs/heads/||' | xargs)
           [ -z "$LEFT" ] || { echo "::error::Redeploy branch(es) still on origin: $LEFT — merge (ID PR) or review (-rejected) and delete them first"; exit 1; }
 
       # Never deploy contracts whose tests fail. payment_escrow contractimport!s
@@ -202,14 +208,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.base_branch }}
+          ref: ${{ needs.deploy.outputs.sha }}
           persist-credentials: false
 
+      # No dependency cache: this job's npm code must not be able to write
+      # anything that a later run restores.
       - uses: actions/setup-node@v4
         with:
           node-version: 22.23.4
-          cache: npm
-          cache-dependency-path: sdk/agent-sdk/package-lock.json
 
       - name: Install security matrix
         working-directory: sdk/agent-sdk
@@ -256,7 +262,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.base_branch }}
+          ref: ${{ needs.deploy.outputs.sha }}
           persist-credentials: false
 
       - uses: actions/download-artifact@v4
@@ -366,10 +372,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.base_branch }}
+          ref: ${{ needs.deploy.outputs.sha || inputs.base_branch }}
           persist-credentials: false
 
+      # Best effort: if the upload never happened, the commit below still
+      # records the IDs from the deploy job's outputs.
       - uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: deploy-evidence
           path: deploy-evidence
@@ -389,13 +398,23 @@ jobs:
           BRANCH: ${{ needs.deploy.outputs.branch }}-rejected
           EVIDENCE: ${{ needs.deploy.outputs.evidence }}
           MATRIX: ${{ needs.matrix.outputs.report }}
-          DEPLOY_RESULT: ${{ needs.deploy.result }}
           MATRIX_RESULT: ${{ needs.matrix.result }}
+          DEVICE: ${{ needs.deploy.outputs.device }}
+          AGENT: ${{ needs.deploy.outputs.agent }}
+          ESCROW: ${{ needs.deploy.outputs.escrow }}
         run: |
-          if [ "$DEPLOY_RESULT" != success ]; then WHY="were only partly deployed: the deploy step failed"
-          elif [ "$MATRIX_RESULT" = success ]; then WHY="passed the security matrix, but propagating their IDs failed"
-          elif [ "$MATRIX_RESULT" = failure ]; then WHY="did not pass the security-matrix gate"
-          else WHY="were not tested: the run stopped before the security matrix finished"
+          case "$EVIDENCE" in
+            *.partial.md) WHY="were only partly deployed: redeploy-contracts.sh failed" ;;
+            *) case "$MATRIX_RESULT" in
+                 success) WHY="passed the security matrix, but propagating their IDs failed" ;;
+                 failure) WHY="did not pass the security-matrix gate" ;;
+                 *)       WHY="were not tested: the run stopped before the security matrix finished" ;;
+               esac ;;
+          esac
+          if [ ! -f "$EVIDENCE" ]; then
+            mkdir -p "$(dirname "$EVIDENCE")"
+            printf '# Evidence artifact missing (%s)\n\n- device_registry: %s\n- agent_registry: %s\n- payment_escrow: %s\n' \
+              "$RUN_URL" "${DEVICE:-unknown}" "${AGENT:-unknown}" "${ESCROW:-unknown}" > "$EVIDENCE"
           fi
           [ -f "${MATRIX:-/nonexistent}" ] || MATRIX=""
           git config user.name "github-actions[bot]"
