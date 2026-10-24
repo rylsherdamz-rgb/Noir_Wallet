@@ -1,6 +1,26 @@
 import { StrKey } from '@stellar/stellar-sdk'
 import type { NoirContracts } from '../src/networks.js'
 
+export interface MatrixRow { id: string; case: string; expected: string; result: string; hash?: string }
+export interface MatrixRunState { setupComplete: boolean; completed: boolean; failedTests: readonly string[] }
+
+const REQUIRED_MATRIX_CASES = [
+  'P1', 'P2', 'P3', 'P4', 'P5', 'P6',
+  'N1', 'N2', 'N3', 'N4', 'N5', 'N6', 'N7a', 'N7b', 'N8', 'N9', 'N10', 'N11a', 'N11b', 'N12',
+]
+
+export function matrixRunStatus(rows: readonly MatrixRow[], state: MatrixRunState): 'PASS' | 'FAIL' | 'INCOMPLETE' {
+  if (state.failedTests.length || rows.some((row) => row.result.startsWith('❌'))) return 'FAIL'
+  if (!state.setupComplete || !state.completed) return 'INCOMPLETE'
+  if (REQUIRED_MATRIX_CASES.some((id) => rows.filter((row) => row.id === id).length !== 1)) return 'INCOMPLETE'
+  for (const row of rows) {
+    const expected = row.expected === 'accepted' ? '✅ accepted' : `✅ refused: ${row.expected}`
+    if (row.result !== expected) return 'INCOMPLETE'
+    if (row.expected === 'accepted' && !/^[a-f0-9]{64}$/i.test(row.hash ?? '')) return 'INCOMPLETE'
+  }
+  return 'PASS'
+}
+
 // Immutable pre-fix deployment: deploy-evidence/deploy-testnet-20261007T050558Z.md.
 const PRE_FIX_TESTNET_IDS = new Set([
   'CB4DPMGOA374JIB2ZVD4AHW5GJKQUYNOFGRYNOJ75EFH2KCJSMHOWIRA',
