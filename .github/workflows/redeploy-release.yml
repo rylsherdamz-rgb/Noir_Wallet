@@ -1,0 +1,213 @@
+# Redeploy the Soroban contracts to Testnet, build the Android APK against the
+# new contract IDs, and attach it to a GitHub release.
+#
+# Run it by hand: Actions → "Redeploy contracts + release APK" → Run workflow.
+#
+# What it does:
+#   1. deploy  — tests the contracts, runs scripts/redeploy-contracts.sh
+#                (build → deploy → initialize → evidence file), replaces the old
+#                contract IDs with the new ones across the repo, and opens a PR
+#                with the ID changes + the new deploy-evidence file.
+#   2. release — builds the `preview` profile APK on EAS from that PR's branch
+#                (so the APK talks to the new contracts) and uploads Noir.apk and
+#                the evidence file to the release.
+#
+# One-time setup (Settings → Secrets and variables → Actions):
+#   STELLAR_DEPLOYER_SECRET  secret key (S…) of the funded Testnet deployer/admin
+#   EXPO_TOKEN               expo.dev → Account settings → Access tokens
+# and, for the ID PR, Settings → Actions → General → "Allow GitHub Actions to
+# create and approve pull requests". Without it the branch is still pushed.
+#
+# Every redeploy mints brand-new contract IDs (clean slate, not an upgrade).
+name: Redeploy contracts + release APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      redeploy:
+        description: 'Redeploy the contracts first (off = only rebuild the APK from the selected branch)'
+        type: boolean
+        default: true
+      release_tag:
+        description: 'Release to attach Noir.apk to (created as a pre-release if it does not exist)'
+        type: string
+        default: Beta-Test
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: redeploy-release
+  cancel-in-progress: false
+
+env:
+  STELLAR_CLI_VERSION: '28.0.0'
+
+jobs:
+  deploy:
+    name: Redeploy contracts to Testnet
+    if: inputs.redeploy
+    runs-on: ubuntu-latest
+    outputs:
+      branch: ${{ steps.push.outputs.branch }}
+      evidence: ${{ steps.ids.outputs.evidence }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          # Must match backend/rust-toolchain.toml (see contracts.yml).
+          toolchain: '1.98.1'
+          targets: wasm32v1-none
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            backend/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('backend/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Cache Stellar CLI
+        id: stellar-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/stellar
+          key: ${{ runner.os }}-stellar-cli-${{ env.STELLAR_CLI_VERSION }}
+
+      - name: Install Stellar CLI
+        if: steps.stellar-cache.outputs.cache-hit != 'true'
+        run: cargo install --locked stellar-cli --version "$STELLAR_CLI_VERSION"
+
+      # Never deploy contracts whose tests fail. payment_escrow contractimport!s
+      # the other two WASMs, so they are built first.
+      - name: Test contracts
+        working-directory: backend
+        run: |
+          cargo build --release --target wasm32v1-none -p agent-registry -p device-registry
+          cargo build --release --target wasm32v1-none -p payment-escrow
+          HOST=$(rustc -vV | awk '/host/{print $2}')
+          cargo test -p device-registry -p agent-registry -p payment-escrow --target "$HOST"
+
+      - name: Load deployer identity
+        env:
+          STELLAR_DEPLOYER_SECRET: ${{ secrets.STELLAR_DEPLOYER_SECRET }}
+        run: |
+          [ -n "$STELLAR_DEPLOYER_SECRET" ] || { echo "::error::STELLAR_DEPLOYER_SECRET is not set"; exit 1; }
+          mkdir -p ~/.config/stellar/identity
+          umask 077
+          printf 'secret_key = "%s"\n' "$STELLAR_DEPLOYER_SECRET" > ~/.config/stellar/identity/deployer.toml
+          echo "Deployer: $(stellar keys address deployer)"
+
+      - name: Redeploy + initialize
+        run: NETWORK=testnet DEPLOYER=deployer ./scripts/redeploy-contracts.sh
+
+      - name: Read new contract IDs
+        id: ids
+        run: |
+          EVIDENCE=$(ls -t deploy-evidence/deploy-testnet-*.md | head -1)
+          get() { grep -m1 "^$1=" "$EVIDENCE" | cut -d= -f2; }
+          {
+            echo "evidence=$EVIDENCE"
+            echo "device=$(get EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT)"
+            echo "agent=$(get EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT)"
+            echo "escrow=$(get EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT)"
+          } >> "$GITHUB_OUTPUT"
+          cat "$EVIDENCE" >> "$GITHUB_STEP_SUMMARY"
+
+      # The old IDs are whatever the EAS build currently points at. Historical
+      # files in deploy-evidence/ keep their old IDs — they are a record.
+      - name: Propagate new IDs across the repo
+        env:
+          NEW_DEVICE: ${{ steps.ids.outputs.device }}
+          NEW_AGENT: ${{ steps.ids.outputs.agent }}
+          NEW_ESCROW: ${{ steps.ids.outputs.escrow }}
+        run: |
+          OLD_DEVICE=$(jq -r '.build.base.env.EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT' frontend/eas.json)
+          OLD_AGENT=$(jq -r '.build.base.env.EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT' frontend/eas.json)
+          OLD_ESCROW=$(jq -r '.build.base.env.EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT' frontend/eas.json)
+          for pair in "$OLD_DEVICE:$NEW_DEVICE" "$OLD_AGENT:$NEW_AGENT" "$OLD_ESCROW:$NEW_ESCROW"; do
+            old=${pair%%:*}; new=${pair##*:}
+            { git grep -l "$old" -- . ':!deploy-evidence/' || true; } | xargs -r sed -i "s/$old/$new/g"
+          done
+          git status --short
+
+      - name: Push ID branch and open PR
+        id: push
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVIDENCE: ${{ steps.ids.outputs.evidence }}
+          NEW_DEVICE: ${{ steps.ids.outputs.device }}
+          NEW_AGENT: ${{ steps.ids.outputs.agent }}
+          NEW_ESCROW: ${{ steps.ids.outputs.escrow }}
+        run: |
+          BRANCH="redeploy/testnet-$(basename "$EVIDENCE" .md | sed 's/^deploy-testnet-//')"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898333+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add -A
+          git commit -m "chore(contracts): redeploy to Testnet and propagate new contract IDs" \
+            -m "Redeployed by the redeploy-release workflow (run ${{ github.run_id }}). Evidence: $EVIDENCE." \
+            -m "device_registry: $NEW_DEVICE" -m "agent_registry: $NEW_AGENT" -m "payment_escrow: $NEW_ESCROW"
+          git push -u origin "$BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          gh pr create --base "${{ github.ref_name }}" --head "$BRANCH" \
+            --title "chore(contracts): redeploy to Testnet and propagate new contract IDs" \
+            --body "$(printf 'Automated redeploy (workflow run %s).\n\n| Contract | ID |\n|---|---|\n| device_registry | `%s` |\n| agent_registry | `%s` |\n| payment_escrow | `%s` |\n\nEvidence: `%s`. The APK built from this branch is attached to the `%s` release.' \
+              "${{ github.run_id }}" "$NEW_DEVICE" "$NEW_AGENT" "$NEW_ESCROW" "$EVIDENCE" "${{ inputs.release_tag }}")" \
+            || echo "::warning::Could not open the PR (enable 'Allow GitHub Actions to create pull requests'). Branch $BRANCH is pushed."
+
+  release:
+    name: Build APK and attach to release
+    needs: deploy
+    # Runs after a successful redeploy, or alone when redeploy is off.
+    if: always() && (needs.deploy.result == 'success' || needs.deploy.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.deploy.outputs.branch || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.4
+          cache: yarn
+          cache-dependency-path: frontend/yarn.lock
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: yarn install --frozen-lockfile
+
+      # The `preview` profile builds an APK; contract IDs come from eas.json `base`.
+      - name: Build APK on EAS
+        working-directory: frontend
+        run: |
+          eas build --platform android --profile preview --non-interactive --wait --json > build.json
+          URL=$(jq -r '.[0].artifacts.buildUrl' build.json)
+          [ -n "$URL" ] && [ "$URL" != "null" ] || { echo "::error::EAS returned no APK URL"; cat build.json; exit 1; }
+          curl -fsSL "$URL" -o "$RUNNER_TEMP/Noir.apk"
+          sha256sum "$RUNNER_TEMP/Noir.apk"
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+          EVIDENCE: ${{ needs.deploy.outputs.evidence }}
+        run: |
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --prerelease --target "$(git rev-parse HEAD)" \
+              --title "$TAG" --notes "Noir Android APK (Stellar Testnet). Built by workflow run ${{ github.run_id }}."
+          fi
+          FILES=("$RUNNER_TEMP/Noir.apk")
+          [ -n "$EVIDENCE" ] && FILES+=("$EVIDENCE")
+          gh release upload "$TAG" "${FILES[@]}" --clobber
+          echo "Uploaded to https://github.com/${{ github.repository }}/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"

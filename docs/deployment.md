@@ -33,6 +33,19 @@ NETWORK=testnet DEPLOYER=myid ./scripts/redeploy-contracts.sh
 | 5. Evidence | Writes `deploy-evidence/deploy-<network>-<UTC timestamp>.md` with IDs, hashes, Stellar Expert links and a ready-to-paste `.env` block |
 | 6. Env (optional) | With `UPDATE_ENV=1`, rewrites the three `EXPO_PUBLIC_*_CONTRACT` lines in `frontend/.env` |
 
+### From GitHub Actions (redeploy + APK release)
+
+[`redeploy-release.yml`](../.github/workflows/redeploy-release.yml) does the whole release from the Actions tab (**Redeploy contracts + release APK → Run workflow**):
+
+1. Runs the contract tests, then `scripts/redeploy-contracts.sh` on Testnet.
+2. Replaces the old contract IDs with the new ones across the repo (everything except the historical files in `deploy-evidence/`), and opens a PR with those changes and the new evidence file.
+3. Builds the `preview` APK on EAS from that PR's branch, so the APK uses the new contracts.
+4. Uploads `Noir.apk` and the evidence file to the release (`Beta-Test` by default; it is created as a pre-release if missing). An existing `Noir.apk` is replaced.
+
+Turn off the `redeploy` input to only rebuild the APK from the selected branch.
+
+One-time setup: add the repository secrets `STELLAR_DEPLOYER_SECRET` (secret key of the funded deployer/admin) and `EXPO_TOKEN` (expo.dev access token). To let the workflow open the ID PR, enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**. Without that setting the branch is still pushed.
+
 ## Option B — manual
 
 ### 1. Build
