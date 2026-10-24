@@ -103,8 +103,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             backend/target
+          # Exact key only (no restore-keys prefix): this job later holds the
+          # deployer key, so it never restores a cache another job wrote.
           key: ${{ runner.os }}-cargo-${{ hashFiles('backend/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
 
       # ImageOS (e.g. ubuntu24) changes when ubuntu-latest moves to a new image,
       # whose system libraries the cached binary may not link against.
@@ -234,10 +235,13 @@ jobs:
           RC=$?
           set -e
           mapfile -t NEW < <(git -C ../.. ls-files --others --exclude-standard 'deploy-evidence/week4-security-matrix-*.md')
-          if [ "${#NEW[@]}" -eq 1 ]; then
-            echo "report=${NEW[0]}" >> "$GITHUB_OUTPUT"
-            cat "../../${NEW[0]}" >> "$GITHUB_STEP_SUMMARY"
+          REPORT=""
+          if [ "${#NEW[@]}" -eq 1 ] && [[ "${NEW[0]}" =~ ^deploy-evidence/week4-security-matrix-[0-9A-Z]+\.md$ ]]; then
+            REPORT="${NEW[0]}"
+            cat "../../$REPORT" >> "$GITHUB_STEP_SUMMARY"
           fi
+          # Written last, so it overrides anything the npm code appended.
+          echo "report=$REPORT" >> "$GITHUB_OUTPUT"
           [ "$RC" -eq 0 ] || { echo "::error::Security matrix failed (exit $RC) — IDs not propagated, no APK built"; exit 1; }
           [ "${#NEW[@]}" -eq 1 ] || { echo "::error::Expected one new matrix report, found ${#NEW[@]}"; exit 1; }
           ../../scripts/check-matrix-report.sh "../../${NEW[0]}" \
@@ -259,6 +263,7 @@ jobs:
       pull-requests: write
     outputs:
       branch: ${{ steps.push.outputs.branch }}
+      sha: ${{ steps.push.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -270,10 +275,21 @@ jobs:
           name: deploy-evidence
           path: deploy-evidence
 
+      # The report comes from the job that ran npm code: download it on its own
+      # so it can't overwrite the deploy evidence, and accept one file only.
       - uses: actions/download-artifact@v4
         with:
           name: matrix-report
-          path: deploy-evidence
+          path: ${{ runner.temp }}/matrix-report
+
+      - name: Take matrix report
+        env:
+          MATRIX: ${{ needs.matrix.outputs.report }}
+        run: |
+          mapfile -t FILES < <(find "$RUNNER_TEMP/matrix-report" -type f)
+          [ "${#FILES[@]}" -eq 1 ] && [ "$(basename "${FILES[0]}")" = "$(basename "$MATRIX")" ] \
+            || { echo "::error::matrix-report artifact must hold exactly $MATRIX"; exit 1; }
+          mv "${FILES[0]}" "$MATRIX"
 
       # Don't take the matrix job's word for it: re-check the report, and that
       # the evidence file names the same IDs, with this job's own checkout.
@@ -335,7 +351,7 @@ jobs:
           Co-Authored-By: Jefferson Tuparan <jeffersontuparanst@gmail.com>
           MSG
           git push "https://x-access-token:$GH_TOKEN@github.com/$REPO.git" "$BRANCH"
-          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          printf 'branch=%s\nsha=%s\n' "$BRANCH" "$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           {
             echo "Automated Testnet redeploy ([workflow run]($RUN_URL))."
             echo
@@ -388,7 +404,7 @@ jobs:
         continue-on-error: true
         with:
           name: matrix-report
-          path: deploy-evidence
+          path: ${{ runner.temp }}/matrix-report
 
       - name: Push rejected-deploy branch
         env:
@@ -416,7 +432,12 @@ jobs:
             printf '# Evidence artifact missing (%s)\n\n- device_registry: %s\n- agent_registry: %s\n- payment_escrow: %s\n' \
               "$RUN_URL" "${DEVICE:-unknown}" "${AGENT:-unknown}" "${ESCROW:-unknown}" > "$EVIDENCE"
           fi
-          [ -f "${MATRIX:-/nonexistent}" ] || MATRIX=""
+          SRC="$RUNNER_TEMP/matrix-report/$(basename "${MATRIX:-none}")"
+          if [ -n "$MATRIX" ] && [ -f "$SRC" ] && [ "$(find "$RUNNER_TEMP/matrix-report" -type f | wc -l)" -eq 1 ]; then
+            mv "$SRC" "$MATRIX"
+          else
+            MATRIX=""
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898333+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
@@ -442,14 +463,15 @@ jobs:
     name: Build APK and attach to release
     needs: [deploy, propagate]
     # After an accepted redeploy, or alone when redeploy is off.
-    if: always() && (needs.propagate.result == 'success' || !inputs.redeploy)
+    # !cancelled(): cancelling the run must stop an APK publish.
+    if: ${{ !cancelled() && (needs.propagate.result == 'success' || !inputs.redeploy) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write   # release create/edit/upload
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.propagate.outputs.branch || inputs.base_branch }}
+          ref: ${{ needs.propagate.outputs.sha || inputs.base_branch }}
           persist-credentials: false   # gh uses GH_TOKEN; yarn code runs below
 
       # Same acceptance rule for both paths (fresh redeploy or `redeploy: false`):
@@ -543,6 +565,12 @@ jobs:
             gh release create "$TAG" --prerelease --target "$SHA" --title "$TAG" \
               --notes-file "$RUNNER_TEMP/build-block.md"
           fi
+          # Old reports and evidence describe contracts this APK no longer uses.
+          gh release view "$TAG" --json assets -q '.assets[].name' \
+            | { grep -E '^(week4-security-matrix|deploy-testnet)-' || true; } \
+            | while read -r a; do gh release delete-asset "$TAG" "$a" -y; done
+          # Without a redeploy, attach the committed evidence for these IDs.
+          [ -n "$EVIDENCE" ] || EVIDENCE=$(grep -lx "EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT=$DEVICE_ID" deploy-evidence/deploy-*.md | head -1 || true)
           FILES=("$RUNNER_TEMP/Noir.apk" "$MATRIX")
           [ -n "$EVIDENCE" ] && [ -f "$EVIDENCE" ] && FILES+=("$EVIDENCE")
           gh release upload "$TAG" "${FILES[@]}" --clobber
