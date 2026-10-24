@@ -20,7 +20,7 @@ const FAQ = [
   },
   {
     q: 'Can other apps accept Noir payments?',
-    a: 'Yes. The TypeScript SDK (@noir-wallet/agent-sdk) and the self-hostable REST API with API keys let any app read card policies, check a payment, run tap-to-pay, and receive signed webhooks.',
+    a: 'Yes. The TypeScript SDK (@noirx402/agent-sdk) and the self-hostable REST API with API keys let any app read card policies, check a payment, run tap-to-pay, and receive signed webhooks.',
   },
   {
     q: 'Is Noir on mainnet?',
@@ -29,7 +29,7 @@ const FAQ = [
 ]
 
 const SDK_SNIPPET = `
-import { NoirAgentClient } from '@noir-wallet/agent-sdk'
+import { NoirAgentClient } from '@noirx402/agent-sdk'
 
 const noir = new NoirAgentClient() // Stellar Testnet
 

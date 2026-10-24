@@ -1,4 +1,4 @@
-# @noir-wallet/agent-sdk
+# @noirx402/agent-sdk
 
 Use Noir agent policies from any app. Noir links an NFC card to a constrained
 payment **agent** on Stellar: the wallet owner sets which key may spend, which
@@ -10,16 +10,16 @@ signed webhooks.
 Everything lives in Noir's three Soroban contracts, so the SDK needs no Noir
 server or API key. Works in Node 22.23.4+ (or 24.22.1+), the browser and React Native (no `Buffer`).
 Apps that can't run JavaScript, or want API keys and rate limits in front of
-Noir, can use the REST gateway in [`sdk/noir-api`](../noir-api).
+Noir, can use the REST gateway in [`sdk/noir-api`](https://github.com/rylsherdamz-rgb/Noir_Wallet/tree/main/sdk/noir-api).
 
 ```bash
-npm install @noir-wallet/agent-sdk @stellar/stellar-sdk
+npm install @noirx402/agent-sdk @stellar/stellar-sdk
 ```
 
 ## Quick start: accept a Noir tap in a dApp
 
 ```ts
-import { NoirAgentClient, noirExtensionSigner, walletSigner, toStroops, fromStroops } from '@noir-wallet/agent-sdk'
+import { NoirAgentClient, noirExtensionSigner, walletSigner, toStroops, fromStroops } from '@noirx402/agent-sdk'
 
 const noir = new NoirAgentClient()
 
@@ -45,7 +45,7 @@ await noir.claim({ merchant, token: asset })
 ## Read a policy and check a payment
 
 ```ts
-import { NoirAgentClient } from '@noir-wallet/agent-sdk'
+import { NoirAgentClient } from '@noirx402/agent-sdk'
 
 const noir = new NoirAgentClient() // Testnet by default
 
@@ -79,7 +79,7 @@ Stellar Wallets Kit shape, so a connected browser wallet works as-is and the
 secret key never reaches this SDK. On a server, use `keypairSigner(secret)`.
 
 ```ts
-import { keypairSigner } from '@noir-wallet/agent-sdk'
+import { keypairSigner } from '@noirx402/agent-sdk'
 
 // The agent key spends from the device's escrow, within its policy.
 const { hash } = await noir.authorizePayment({
@@ -143,7 +143,7 @@ const lastDay = await noir.pastEvents(latestLedger - 17_000) // RPC keeps ~7 day
 Run a relay that POSTs each event to your endpoint, signed with HMAC-SHA256:
 
 ```ts
-import { startWebhookRelay } from '@noir-wallet/agent-sdk'
+import { startWebhookRelay } from '@noirx402/agent-sdk'
 
 startWebhookRelay(noir, { url: 'https://your.app/noir-hook', secret, deviceHash })
 ```
@@ -153,15 +153,15 @@ an `X-Noir-Signature: t=<unix>,v1=<hex>` header. Verify it against the **raw**
 body before trusting anything:
 
 ```ts
-import { verifyWebhookSignature } from '@noir-wallet/agent-sdk'
+import { verifyWebhookSignature } from '@noirx402/agent-sdk'
 
 if (!(await verifyWebhookSignature(secret, rawBody, req.headers['x-noir-signature']))) return 401
 ```
 
 Deliveries older than 5 minutes are rejected (replay protection). Delivery is
 at-least-once with retries on network errors, 429 and 5xx, so dedupe on
-`event.id`. Ready-to-run examples: `examples/webhook-relay.ts`,
-`examples/webhook-receiver.ts`, `examples/check-and-pay.ts`.
+`event.id`. Ready-to-run examples in [`examples/`](https://github.com/rylsherdamz-rgb/Noir_Wallet/tree/main/sdk/agent-sdk/examples): `webhook-relay.ts`,
+`webhook-receiver.ts`, `check-and-pay.ts`.
 
 ## Networks
 

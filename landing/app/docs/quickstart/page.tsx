@@ -10,10 +10,10 @@ export default function Quickstart() {
     <DocPage slug="quickstart">
       <h2 id="sdk">Option A — the SDK</h2>
       <p>Install it next to the Stellar SDK:</p>
-      <CodeBlock lang="bash" code="npm install @noir-wallet/agent-sdk @stellar/stellar-sdk" />
+      <CodeBlock lang="bash" code="npm install @noirx402/agent-sdk @stellar/stellar-sdk" />
       <p>Read a card’s policy and ask the contract whether a payment would go through. Reads need no account and no key.</p>
       <CodeBlock title="check.ts" lang="ts" code={`
-import { NoirAgentClient } from '@noir-wallet/agent-sdk'
+import { NoirAgentClient } from '@noirx402/agent-sdk'
 
 const noir = new NoirAgentClient() // Noir's Testnet contracts are built in
 
