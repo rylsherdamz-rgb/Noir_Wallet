@@ -16,6 +16,8 @@ How to run every test suite, what each one covers, and which test proves each SO
 
 Full output of this run: [`deploy-evidence/test-results-20261021T034015Z.txt`](../deploy-evidence/test-results-20261021T034015Z.txt). CI runs the contract, app and SDK suites on every push and PR (`contracts.yml`, `frontend.yml`, `sdk.yml`).
 
+The [2026-10-24 source-verification record](../deploy-evidence/issue24-source-verification-20261024T075044Z.md) covers the guarded matrix runner and current offline checks. No redeployment, live suite, or active contract-ID change is part of that work; [issue #24](https://github.com/rylsherdamz-rgb/Noir_Wallet/issues/24) remains open pending live acceptance.
+
 ## Running the tests
 
 ```bash
@@ -183,7 +185,11 @@ Related: [Contract reference](contracts.md) · [Walkthrough](walkthrough.md)
 
 ## Live security matrix
 
-`npm run test:security-matrix` in `sdk/agent-sdk/` ([`tests/security-matrix.testnet.test.ts`](../sdk/agent-sdk/tests/security-matrix.testnet.test.ts)) runs the approved payment workflow and every reject case against the deployed contracts, with fresh Friendbot accounts. It writes `deploy-evidence/week4-security-matrix-<timestamp>.md`: a transaction link for each accepted step and the contract error for each refusal. Refusals happen at simulation, so they have no transaction hash.
+`npm run test:security-matrix` in `sdk/agent-sdk/` ([`tests/security-matrix.testnet.test.ts`](../sdk/agent-sdk/tests/security-matrix.testnet.test.ts)) explicitly opts into the live suite on Windows and POSIX through `npm_lifecycle_event=test:security-matrix`. Direct Vitest invocation can opt in with `NOIR_TESTNET=1`. Ordinary `npm test` keeps live suites skipped when `NOIR_TESTNET` is absent or `0`.
+
+An enabled matrix requires all three explicit variables: `NOIR_DEVICE_REGISTRY`, `NOIR_AGENT_REGISTRY`, and `NOIR_PAYMENT_ESCROW`. It rejects missing/empty values, invalid contract encoding or checksum, duplicate IDs, and any of the three vulnerable [2026-10-07 contract IDs](../deploy-evidence/deploy-testnet-20261007T050558Z.md), even when explicitly supplied under another role. Validation runs before Friendbot funding or RPC requests. Valid IDs alone do not prove that the reviewed fixed WASM is deployed; the release owner must verify artifacts and initialization first.
+
+With approved targets, the suite uses fresh Friendbot accounts and writes `deploy-evidence/week4-security-matrix-<timestamp>.md`: transaction links for accepted steps and contract errors for simulation refusals, which have no accepted transaction hash. Reports are classified `PASS`, `FAIL`, or `INCOMPLETE`. Acceptance requires `PASS` **and** a paired Vitest exit code of 0, completed setup and final verification, no failed assertions, and all 20 required outcomes exactly once: `P1`–`P6`, `N1`–`N6`, `N7a`, `N7b`, `N8`–`N10`, `N11a`, `N11b`, `N12`. Setup rows do not replace outcomes. Every row must match its expected green result; accepted steps need a valid transaction hash. A failed balance assertion makes the report `FAIL` even if its transaction row is green. Missing/duplicate outcomes or unfinished verification cannot produce `PASS`; preflight/setup failure produces no successful live report.
 
 | # | Case | Expected |
 |---|------|----------|
@@ -196,19 +202,60 @@ Related: [Contract reference](contracts.md) · [Walkthrough](walkthrough.md)
 | N4 | non-policy asset | `AgentNotAuthorized` |
 | N5 | escrow contract as merchant | `InvalidRecipient` |
 | N6 | replayed nonce | `DuplicateAuth` |
-| N7 | stranger revokes the agent / registers their own | `NotOwner` |
+| N7a–N7b | stranger revokes the agent / registers their own | `NotOwner` |
 | N8 | junk-token deposit withdrawn as XLM | `InvalidAsset` |
 | N9 | authorize after `expires_at` | `AgentNotAuthorized` |
 | N10 | revoked agent | `AgentNotAuthorized` |
-| N11 | revoked device (agent policy still on file), and funding it | `DeviceNotRegistered` |
+| N11a–N11b | revoked device (agent policy still on file), and funding it | `DeviceNotRegistered` |
 | N12 | duplicate device registration | `AlreadyRegistered` |
 
-To check a fresh deploy before its IDs are propagated:
+### Offline expected-failure preflight
 
-```bash
-cd sdk/agent-sdk && npm ci
-NOIR_DEVICE_REGISTRY=C... NOIR_AGENT_REGISTRY=C... NOIR_PAYMENT_ESCROW=C... npm run test:security-matrix
+Use Node `22.23.4` from the repository's `.nvmrc` for these checks; the file does not switch an already running shell.
+
+From `sdk/agent-sdk/`, clear the targets and run the named command. This check is safe during source verification: it must exit nonzero with `Set NOIR_DEVICE_REGISTRY to a valid explicit contract ID.` before any live request, without creating a matrix report. An exit code of 0 is a failure of this preflight check.
+
+```powershell
+Remove-Item Env:NOIR_DEVICE_REGISTRY, Env:NOIR_AGENT_REGISTRY, Env:NOIR_PAYMENT_ESCROW -ErrorAction SilentlyContinue
+npm.cmd run test:security-matrix
+# Expected: nonzero $LASTEXITCODE and the missing-target error.
 ```
 
-Against the 2026-10-07 deploy, N1, N5, N7, N8 and N11 are expected to fail (❌ in the evidence file): those are the bugs the Week 4 fixes close.
+```bash
+(
+  unset NOIR_DEVICE_REGISTRY NOIR_AGENT_REGISTRY NOIR_PAYMENT_ESCROW
+  npm run test:security-matrix
+)
+# Expected: nonzero exit code and the missing-target error.
+```
+
+Do not supply synthetic IDs to the live runner for offline verification. Target-validation and report-classification tests run offline in `tests/security-matrix-support.test.ts`.
+
+From the repository root, `bash scripts/tests/propagate-contract-ids.sh` checks ID propagation in a synthetic temporary Git repository. It requires Bash, Git, jq, and standard Unix tools, and also runs in SDK CI. Active references must update while the matrix's immutable pre-fix IDs and historical deployment records stay unchanged; it never propagates IDs in the real checkout.
+
+### Deferred: release owner only
+
+After an approved fixed deployment and artifact/initialization verification, run the matrix **before propagating its new IDs**. From `sdk/agent-sdk/`, enter the actual IDs from that deployment's evidence record:
+
+```powershell
+$env:NOIR_DEVICE_REGISTRY = Read-Host 'Approved new device_registry contract ID'
+$env:NOIR_AGENT_REGISTRY = Read-Host 'Approved new agent_registry contract ID'
+$env:NOIR_PAYMENT_ESCROW = Read-Host 'Approved new payment_escrow contract ID'
+npm.cmd run test:security-matrix
+```
+
+```bash
+printf 'Approved new device_registry contract ID: '
+read -r NOIR_DEVICE_REGISTRY
+printf 'Approved new agent_registry contract ID: '
+read -r NOIR_AGENT_REGISTRY
+printf 'Approved new payment_escrow contract ID: '
+read -r NOIR_PAYMENT_ESCROW
+export NOIR_DEVICE_REGISTRY NOIR_AGENT_REGISTRY NOIR_PAYMENT_ESCROW
+npm run test:security-matrix
+```
+
+The SDK matrix does **not** load `frontend/.env`. The frontend live suite separately loads its `EXPO_PUBLIC_*` configuration; EAS builds additionally use the committed build-profile values in `frontend/eas.json`. Follow the [deferred handoff](deployment.md#deferred-issue-24-release-handoff) before updating them or publishing an APK. Optional gateway credentials are unnecessary for source verification.
+
+The matrix covers the listed outcomes; it does not provide an elapsed-TTL live demonstration of late claims or every amount variant. Retain the contract regression evidence for those fixes. No phone or tag is needed for SDK tests; a real Android NFC phone, NTAG213, and native build are needed later for physical acceptance. Escrow `authorize` and merchant `claim` are exercised through the SDK; they are not fully wired app features.
 

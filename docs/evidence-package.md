@@ -1,6 +1,6 @@
 # Instaward Evidence Package — Week 4
 
-The final evidence index for the Stellar Community Fund Instaward: every Week 4 expected output, where its proof lives, and what is still open. Status is as of **2026-10-23**. The rule for this page: an item is ✅ only if the linked artifact exists and can be checked by a reviewer today.
+The final evidence index for the Stellar Community Fund Instaward: every Week 4 expected output, where its proof lives, and what is still open. Status is as of **2026-10-24**. The rule for this page: an item is ✅ only if the linked artifact exists and can be checked by a reviewer today.
 
 **Repository:** [github.com/rylsherdamz-rgb/Noir_Wallet](https://github.com/rylsherdamz-rgb/Noir_Wallet) — public, [MIT](../LICENSE) (GitHub detects the license as `MIT`).
 
@@ -13,7 +13,7 @@ The final evidence index for the Stellar Community Fund Instaward: every Week 4 
 | Deployment scripts + docs | ✅ | [`scripts/redeploy-contracts.sh`](../scripts/redeploy-contracts.sh), [deployment.md](deployment.md), [installation.md](installation.md) |
 | Published Contract IDs + WASM hashes + tx links | 🟡 | 2026-10-07 deploy published ([record](../deploy-evidence/deploy-testnet-20261007T050558Z.md)); **runs pre-fix code — redeploy pending** |
 | Architecture diagrams | ✅ | [architecture.md](architecture.md) |
-| Automated test results + CI | ✅ | [`test-results-20261021T034015Z.txt`](../deploy-evidence/test-results-20261021T034015Z.txt), [CI runs](#3-ci-build-results) |
+| Automated test results + CI | ✅ offline · ⏳ live acceptance | [2026-10-24 source verification](../deploy-evidence/issue24-source-verification-20261024T075044Z.md), [historical 2026-10-21 run](../deploy-evidence/test-results-20261021T034015Z.txt), [CI runs](#3-ci-build-results) |
 | Positive- and negative-path validation | ✅ contract tests · ⏳ live Testnet | [Security matrix](#2-positive-and-negative-path-validation) |
 | Transaction evidence | 🟡 | Week 1 deploy + Week 2 flow live; `authorize`/`claim` + reject cases live run pending ([runner ready](testing.md#live-security-matrix)) |
 | Screenshots | ✅ | [`docs/Evidence/wallet/`](Evidence/wallet/), [`docs/Evidence/`](Evidence/README.md) |
@@ -34,6 +34,8 @@ A Week 4 review of the three contracts found four exploitable bugs on the code t
 Also fixed: `redeploy-contracts.sh` built all three contracts in one cargo call, which fails on a clean checkout (escrow imports the other two WASMs). The SDK and gateway had tests but no CI; `sdk.yml` now runs them.
 
 **Breaking change:** `agent_registry.initialize(admin, device_registry_id)`. The fixes reach Testnet only with a redeploy, which mints new contract IDs.
+
+[PR #22](https://github.com/rylsherdamz-rgb/Noir_Wallet/pull/22) (contract fixes) and [PR #25](https://github.com/rylsherdamz-rgb/Noir_Wallet/pull/25) (runtime/dependency security updates) are merged into development. The [2026-10-24 source-verification record](../deploy-evidence/issue24-source-verification-20261024T075044Z.md) records the reviewed source, offline checks, and artifact hashes. This phase does not redeploy, run live suites, or change active IDs; [#24](https://github.com/rylsherdamz-rgb/Noir_Wallet/issues/24) remains open.
 
 ## 2. Positive- and negative-path validation
 
@@ -61,10 +63,12 @@ Every SOW case, with the contract test that proves it (CI, every push) and the l
 | Workflow | What it gates | Latest |
 |----------|---------------|--------|
 | [`contracts.yml`](../.github/workflows/contracts.yml) | WASM build + 60 contract tests | green on Instaward branches (see [PROGRESS.md → CI Status](../PROGRESS.md#ci-status)) |
-| [`frontend.yml`](../.github/workflows/frontend.yml) | `tsc` + 306 Vitest tests | [run 39405833152](https://github.com/rylsherdamz-rgb/Noir_Wallet/actions/runs/39405833152) ✅ (main, 2026-10-20) |
-| [`sdk.yml`](../.github/workflows/sdk.yml) | SDK + gateway typecheck, tests, build | new in Week 4; first run on the PR carrying it |
+| [`frontend.yml`](../.github/workflows/frontend.yml) | App typecheck + unit tests | Historical [run 39405833152](https://github.com/rylsherdamz-rgb/Noir_Wallet/actions/runs/39405833152) ✅ (main, 2026-10-20; 306 tests) |
+| [`sdk.yml`](../.github/workflows/sdk.yml) | SDK + gateway typecheck, tests, build | Merged with #22; current verification and CI links are in the [source record](../deploy-evidence/issue24-source-verification-20261024T075044Z.md) |
 
 Local run, all suites, 2026-10-21: [`deploy-evidence/test-results-20261021T034015Z.txt`](../deploy-evidence/test-results-20261021T034015Z.txt) — 60 contract, 306 app, 18 SDK, 18 gateway, 0 failures.
+
+2026-10-24 offline source checks: 60 contract tests, 70 SDK tests passed with 19 live tests skipped, and 18 gateway tests passed. Exact commits, commands, build hashes, and remaining check status are recorded in [source verification; not deployment evidence](../deploy-evidence/issue24-source-verification-20261024T075044Z.md). These results do not establish live acceptance of a new deployment.
 
 ## 4. Contract IDs, WASM hashes and transactions
 
@@ -73,16 +77,17 @@ Local run, all suites, 2026-10-21: [`deploy-evidence/test-results-20261021T03401
 | [`deploy-testnet-20261007T050558Z.md`](../deploy-evidence/deploy-testnet-20261007T050558Z.md) | Current Testnet IDs, WASM SHA-256, create + initialize tx links (pre-fix code) |
 | [`week2-testnet-flow-20261009T044804Z.md`](../deploy-evidence/week2-testnet-flow-20261009T044804Z.md) | Live register → agent → fund → withdraw → unlink, through the app's code |
 | [`WEEK1-EVIDENCE.md`](../deploy-evidence/WEEK1-EVIDENCE.md) | Week 1 index |
+| [2026-10-24 source verification](../deploy-evidence/issue24-source-verification-20261024T075044Z.md) | Offline source checks and built artifacts; **not deployment evidence** |
 | [`docs/Evidence/week2-evidence/`](Evidence/week2-evidence/) | Week 2 captures: beta release, PR #13, the three contracts and the agent top-up tx on Stellar Expert |
 | `week4-security-matrix-<ts>.md` | ⏳ written by `npm run test:security-matrix` after the redeploy |
 
-## 5. Remaining steps (maintainer, needs Testnet access and a phone)
+## 5. Remaining steps (deferred release owner)
 
-These could not be done from the build environment used for Week 4 (no route to Stellar Testnet, no Android device). In order:
+Deployment is explicitly deferred in the current source-verification phase. Follow the [release handoff](deployment.md#deferred-issue-24-release-handoff) in order; a phone and NTAG213 are needed later for physical acceptance, not for the SDK matrix:
 
 1. **Redeploy** with the fixed contracts: `./scripts/redeploy-contracts.sh` (writes a new `deploy-evidence/deploy-testnet-*.md` with IDs, hashes and init args).
-2. **Run the live matrix against the new IDs**, before propagating them:
-   `cd sdk/agent-sdk && NOIR_DEVICE_REGISTRY=… NOIR_AGENT_REGISTRY=… NOIR_PAYMENT_ESCROW=… npm run test:security-matrix` — every row must be ✅.
+2. **Run the live matrix against the approved new IDs**, before propagating them, using the [release-owner commands](testing.md#deferred-release-owner-only). Require the complete 20-outcome `PASS` report and Vitest exit code 0; valid IDs or green transaction rows alone are insufficient.
 3. **Propagate the IDs** everywhere listed in [deployment.md](deployment.md#propagate-new-ids-through-the-docs) (README, `frontend/.env*`, `frontend/eas.json`, `sdk/agent-sdk/src/networks.ts`, `landing/lib/site.ts`, docs, Obsidian notes), then re-run `cd frontend && npm run test:testnet`.
-4. **Re-shoot the demo video** on a real Android phone with an NTAG213 against the redeployed contracts — [shot list](demo-video-script.md). The published [demo on X](https://x.com/Noirx402/status/2109282993588334632) (2026-10-11) stays linked until then.
-5. Fill the ⏳ rows above with the new evidence files, tag a release, and submit.
+4. **Build/install and verify the new app**, publish the accepted APK and tester notice retiring the old IDs. Recreate device links as needed; new contracts do not migrate old state.
+5. **Re-shoot the demo video** on a real Android phone with an NTAG213 against the redeployed contracts — [shot list](demo-video-script.md). The published [demo on X](https://x.com/Noirx402/status/2109282993588334632) (2026-10-11) stays linked until then. Label SDK `authorize`/merchant `claim` evidence accurately; those are not fully wired app features.
+6. Fill the ⏳ rows above with actual evidence. Keep #24 open until its deployment/live/build requirements are met; broader demo, release tagging and submission remain with [#23](https://github.com/rylsherdamz-rgb/Noir_Wallet/issues/23).
