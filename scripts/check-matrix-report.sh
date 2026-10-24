@@ -21,6 +21,9 @@ die() { printf '✗ %s\n' "$*" >&2; exit 1; }
 # matrixRunStatus() only prints PASS for a complete, all-green 20-outcome run.
 grep -qx '\*\*Status: PASS\*\*' "$REPORT" || die "$REPORT: status is not PASS"
 
+# The Contract table must hold exactly these three rows, each once.
+ROWS="$(grep -cE '^\| (deviceRegistry|agentRegistry|paymentEscrow) \|' "$REPORT" || true)"
+[ "$ROWS" = 3 ] || die "$REPORT: expected 3 contract rows, found $ROWS"
 for pair in "deviceRegistry:$DEVICE" "agentRegistry:$AGENT" "paymentEscrow:$ESCROW"; do
   name="${pair%%:*}" id="${pair#*:}"
   grep -qF "| $name | [\`$id\`]" "$REPORT" || die "$REPORT: not run against $name $id"

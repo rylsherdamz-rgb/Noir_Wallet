@@ -174,6 +174,15 @@ jobs:
           NETWORK=testnet DEPLOYER=deployer ./scripts/redeploy-contracts.sh
           cat "$(grep -m1 '^evidence=' "$GITHUB_OUTPUT" | cut -d= -f2)" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Name redeploy branches
+        id: names
+        if: always() && steps.redeploy.outputs.evidence
+        env:
+          EVIDENCE: ${{ steps.redeploy.outputs.evidence }}
+        run: |
+          # Must match the Preflight glob redeploy/testnet-*.
+          echo "branch=redeploy/testnet-$(basename "$EVIDENCE" .md | sed 's/^deploy-testnet-//')" >> "$GITHUB_OUTPUT"
+
       # The admin key isn't needed past this point; don't leave it on disk
       # while npm/Vitest code runs.
       - name: Remove deployer key
@@ -207,6 +216,10 @@ jobs:
           ../../scripts/check-matrix-report.sh "../../${NEW[0]}" \
             "$NOIR_DEVICE_REGISTRY" "$NOIR_AGENT_REGISTRY" "$NOIR_PAYMENT_ESCROW" \
             || { echo "::error::Security matrix report does not accept these contracts: ${NEW[0]}"; exit 1; }
+          # npm/Vitest code just ran in this tree: the later steps run tracked
+          # scripts with a write token, so nothing tracked may have changed.
+          git -C ../.. diff --quiet HEAD -- scripts .github sdk/agent-sdk/src \
+            || { echo "::error::Tracked scripts changed during the matrix run — refusing to continue"; git -C ../.. diff --stat HEAD; exit 1; }
 
       # Keep the record of what went on-chain (and how it tested) even if a
       # later step fails.
@@ -218,40 +231,6 @@ jobs:
           path: |
             ${{ steps.redeploy.outputs.evidence }}
             ${{ steps.matrix.outputs.report }}
-
-      # A rejected (or half-finished) deploy is still live on Testnet. Record it
-      # in git, not only in an expiring artifact; the branch name matches the
-      # Preflight check, so the next run is blocked until someone reviews it.
-      - name: Record rejected deploy
-        if: failure() && steps.redeploy.outputs.evidence
-        env:
-          TOKEN: ${{ secrets.RELEASE_PR_TOKEN || github.token }}
-          REPO: ${{ github.repository }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          EVIDENCE: ${{ steps.redeploy.outputs.evidence }}
-          MATRIX: ${{ steps.matrix.outputs.report }}
-        run: |
-          BRANCH="redeploy/testnet-$(basename "$EVIDENCE" .md | sed 's/^deploy-testnet-//')-rejected"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898333+github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
-          git add -- "$EVIDENCE" ${MATRIX:+"$MATRIX"}
-          git commit -F - <<MSG
-          chore(contracts): record rejected Testnet deploy (not accepted)
-
-          These contracts were deployed by the redeploy-release workflow
-          ($RUN_URL) but did not pass the security-matrix gate. Their IDs were
-          not propagated and no APK was built. Do not merge; delete this branch
-          once the failure is understood, then re-run the workflow.
-
-          Evidence: $EVIDENCE
-          Security matrix: ${MATRIX:-no report}
-
-          Co-Authored-By: Johnrick Rabara <jrabara101@gmail.com>
-          Co-Authored-By: Jefferson Tuparan <jeffersontuparanst@gmail.com>
-          MSG
-          git push "https://x-access-token:$TOKEN@github.com/$REPO.git" "$BRANCH"
-          echo "::error::Deploy rejected — evidence pushed to $BRANCH"
 
       # The script validates every old/new ID and hash before it edits anything.
       - name: Propagate new IDs and hashes across the repo
@@ -277,7 +256,7 @@ jobs:
           NEW_AGENT: ${{ steps.redeploy.outputs.agent }}
           NEW_ESCROW: ${{ steps.redeploy.outputs.escrow }}
         run: |
-          BRANCH="redeploy/testnet-$(basename "$EVIDENCE" .md | sed 's/^deploy-testnet-//')"
+          BRANCH="${{ steps.names.outputs.branch }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898333+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
@@ -324,6 +303,48 @@ jobs:
             --body-file "$RUNNER_TEMP/pr.md" \
             || echo "::warning::Could not open the PR (see the setup notes at the top of this workflow). Branch $BRANCH is pushed."
 
+      # A deploy that went on-chain but didn't finish here (matrix rejected it,
+      # a later step failed, or the run was cancelled) is still live on Testnet.
+      # Record it in git, not only in an expiring artifact. The branch matches
+      # the Preflight glob, so the next run is blocked until someone reviews it.
+      - name: Record unfinished deploy
+        if: (failure() || cancelled()) && steps.redeploy.outputs.evidence && !steps.push.outputs.branch
+        env:
+          TOKEN: ${{ secrets.RELEASE_PR_TOKEN || github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          BRANCH: ${{ steps.names.outputs.branch }}-rejected
+          EVIDENCE: ${{ steps.redeploy.outputs.evidence }}
+          MATRIX: ${{ steps.matrix.outputs.report }}
+          MATRIX_OUTCOME: ${{ steps.matrix.outcome }}
+        run: |
+          case "$MATRIX_OUTCOME" in
+            success) WHY="passed the security matrix, but a later step of the run failed" ;;
+            failure) WHY="did not pass the security-matrix gate" ;;
+            *)       WHY="were not tested: the run stopped before the security matrix finished" ;;
+          esac
+          git config user.name "github-actions[bot]"
+          git config user.email "41898333+github-actions[bot]@users.noreply.github.com"
+          git checkout -q -B "$BRANCH" HEAD
+          git reset -q   # unstage anything a failed later step staged
+          git add -- "$EVIDENCE" ${MATRIX:+"$MATRIX"}
+          git commit -F - <<MSG
+          chore(contracts): record unfinished Testnet deploy (not accepted)
+
+          These contracts were deployed by the redeploy-release workflow
+          ($RUN_URL) and $WHY. Their IDs were not propagated and no APK was
+          built. Do not merge; delete this branch once the cause is understood,
+          then re-run the workflow.
+
+          Evidence: $EVIDENCE
+          Security matrix: ${MATRIX:-no report}
+
+          Co-Authored-By: Johnrick Rabara <jrabara101@gmail.com>
+          Co-Authored-By: Jefferson Tuparan <jeffersontuparanst@gmail.com>
+          MSG
+          git push "https://x-access-token:$TOKEN@github.com/$REPO.git" "$BRANCH"
+          echo "::error::Deploy not accepted ($WHY) — evidence pushed to $BRANCH"
+
   release:
     name: Build APK and attach to release
     needs: deploy
@@ -336,15 +357,21 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.deploy.outputs.branch || inputs.base_branch }}
+          persist-credentials: false   # gh uses GH_TOKEN; yarn code runs below
 
       # Same acceptance rule for both paths (fresh redeploy or `redeploy: false`):
       # the IDs this APK will talk to must have a committed PASS matrix report.
+      # Hand-run reports count too; they must come from a run whose Vitest
+      # command exited 0 (docs/testing.md), which the report can't prove.
       - name: Require accepted contracts
+        id: ids
         run: |
           eas_id() { jq -r ".build.base.env.$1" frontend/eas.json; }
           IDS=("$(eas_id EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT)" "$(eas_id EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT)" "$(eas_id EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT)")
+          printf 'device=%s\nagent=%s\nescrow=%s\n' "${IDS[@]}" >> "$GITHUB_OUTPUT"
           for r in deploy-evidence/week4-security-matrix-*.md; do
-            [ -f "$r" ] && ./scripts/check-matrix-report.sh "$r" "${IDS[@]}" 2>/dev/null && exit 0
+            [ -f "$r" ] || continue
+            ./scripts/check-matrix-report.sh "$r" "${IDS[@]}" && exit 0
           done
           echo "::error::No PASS security-matrix report for eas.json's contracts (${IDS[*]}) — refusing to publish an APK against unaccepted contracts"
           exit 1
@@ -362,7 +389,8 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        run: yarn install --frozen-lockfile
+        # Only needed so eas-cli can read the app config; the build runs on EAS.
+        run: yarn install --frozen-lockfile --ignore-scripts
 
       # The `preview` profile builds an APK; contract IDs come from eas.json `base`.
       # After a redeploy this is the not-yet-merged ID branch on purpose: the
@@ -388,18 +416,20 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           EVIDENCE: ${{ needs.deploy.outputs.evidence }}
           MATRIX: ${{ needs.deploy.outputs.matrix }}
+          DEVICE_ID: ${{ steps.ids.outputs.device }}
+          AGENT_ID: ${{ steps.ids.outputs.agent }}
+          ESCROW_ID: ${{ steps.ids.outputs.escrow }}
         run: |
           SHA=$(git rev-parse HEAD)
-          eas_id() { jq -r ".build.base.env.$1" frontend/eas.json; }
           {
             echo "<!-- noir-apk-build -->"
             echo "**Noir.apk** built from [\`${SHA:0:7}\`](https://github.com/$REPO/commit/$SHA) by [this workflow run]($RUN_URL)."
             echo
             echo "| Contract (Testnet) | ID |"
             echo "|---|---|"
-            echo "| device_registry | \`$(eas_id EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT)\` |"
-            echo "| agent_registry | \`$(eas_id EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT)\` |"
-            echo "| payment_escrow | \`$(eas_id EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT)\` |"
+            echo "| device_registry | \`$DEVICE_ID\` |"
+            echo "| agent_registry | \`$AGENT_ID\` |"
+            echo "| payment_escrow | \`$ESCROW_ID\` |"
             echo "<!-- /noir-apk-build -->"
           } > "$RUNNER_TEMP/build-block.md"
           if gh release view "$TAG" >/dev/null 2>&1; then
