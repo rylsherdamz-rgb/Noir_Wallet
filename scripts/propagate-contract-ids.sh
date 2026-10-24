@@ -20,6 +20,7 @@
 # links from live runs) and the Noir/Session - *.md logs. .github/ is skipped
 # too: the default GITHUB_TOKEN cannot push workflow changes (contracts.yml's
 # expected hashes are updated by hand).
+# Security-matrix history stays immutable so pre-fix contracts remain blocked.
 #
 set -euo pipefail
 
@@ -87,7 +88,9 @@ done
 # each line, but no new value can equal another contract's old ID or hash.
 mapfile -t CHANGED < <(git -c core.quotePath=false grep -lF "${PATTERNS[@]}" -- . \
   ':!deploy-evidence/' ':!.github/' ':!docs/walkthrough.md' \
-  ':!docs/evidence-package.md' ':!Noir/Session - *' || true)
+  ':!docs/evidence-package.md' ':!Noir/Session - *' \
+  ':!sdk/agent-sdk/tests/security-matrix-support.ts' \
+  ':!sdk/agent-sdk/tests/security-matrix-support.test.ts' || true)
 [ "${#CHANGED[@]}" -gt 0 ] && sed -i "${SED[@]}" "${CHANGED[@]}"
 
 [ "${#CHANGED[@]}" -gt 0 ] || die "no files referenced the previous deploy"

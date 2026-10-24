@@ -5,10 +5,14 @@ on:
     branches: [main, instaward, instaward-staging, instaward-development]
     paths:
       - 'sdk/**'
+      - 'scripts/propagate-contract-ids.sh'
+      - 'scripts/tests/propagate-contract-ids.sh'
       - '.github/workflows/sdk.yml'
   pull_request:
     paths:
       - 'sdk/**'
+      - 'scripts/propagate-contract-ids.sh'
+      - 'scripts/tests/propagate-contract-ids.sh'
       - '.github/workflows/sdk.yml'
 
 jobs:
@@ -17,6 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Preserve contract deployment history
+        run: bash scripts/tests/propagate-contract-ids.sh
 
       - uses: actions/setup-node@v4
         with:
