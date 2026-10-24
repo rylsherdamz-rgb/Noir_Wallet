@@ -45,10 +45,6 @@ on:
         type: string
         default: Beta-Test
 
-permissions:
-  contents: write
-  pull-requests: write
-
 concurrency:
   group: redeploy-release
   cancel-in-progress: false
@@ -61,6 +57,9 @@ jobs:
     name: Redeploy contracts to Testnet
     if: inputs.redeploy
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     outputs:
       branch: ${{ steps.push.outputs.branch }}
       evidence: ${{ steps.redeploy.outputs.evidence }}
@@ -104,10 +103,17 @@ jobs:
       # Everything that can fail after the deploy is checked first, so a bad
       # base branch or eas.json never leaves fresh contracts nobody points at.
       - name: Preflight
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ inputs.base_branch }}
         run: |
           grep -q GITHUB_OUTPUT scripts/redeploy-contracts.sh \
-            || { echo "::error::$GITHUB_REF_NAME's redeploy-contracts.sh predates this workflow"; exit 1; }
+            || { echo "::error::$BASE's redeploy-contracts.sh predates this workflow"; exit 1; }
           ./scripts/propagate-contract-ids.sh --check
+          # An unmerged ID PR means eas.json here is already stale: merge or close it first.
+          OPEN=$(gh pr list --base "$BASE" --state open --json headRefName \
+                   -q '[.[] | select(.headRefName | startswith("redeploy/testnet-"))] | map(.headRefName) | join(" ")')
+          [ -z "$OPEN" ] || { echo "::error::Unmerged redeploy PR(s) into $BASE: $OPEN"; exit 1; }
 
       # Never deploy contracts whose tests fail. payment_escrow contractimport!s
       # the other two WASMs, so they are built first.
@@ -214,6 +220,8 @@ jobs:
     # Runs after a successful redeploy, or alone when redeploy is off.
     if: always() && (needs.deploy.result == 'success' || needs.deploy.result == 'skipped')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # release create/edit/upload
     steps:
       - uses: actions/checkout@v4
         with:
@@ -256,16 +264,16 @@ jobs:
           EVIDENCE: ${{ needs.deploy.outputs.evidence }}
         run: |
           SHA=$(git rev-parse HEAD)
-          id() { jq -r ".build.base.env.$1" frontend/eas.json; }
+          eas_id() { jq -r ".build.base.env.$1" frontend/eas.json; }
           {
             echo "<!-- noir-apk-build -->"
             echo "**Noir.apk** built from [\`${SHA:0:7}\`](https://github.com/$REPO/commit/$SHA) by [this workflow run]($RUN_URL)."
             echo
             echo "| Contract (Testnet) | ID |"
             echo "|---|---|"
-            echo "| device_registry | \`$(id EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT)\` |"
-            echo "| agent_registry | \`$(id EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT)\` |"
-            echo "| payment_escrow | \`$(id EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT)\` |"
+            echo "| device_registry | \`$(eas_id EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT)\` |"
+            echo "| agent_registry | \`$(eas_id EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT)\` |"
+            echo "| payment_escrow | \`$(eas_id EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT)\` |"
             echo "<!-- /noir-apk-build -->"
           } > "$RUNNER_TEMP/build-block.md"
           if gh release view "$TAG" >/dev/null 2>&1; then

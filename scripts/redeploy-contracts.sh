@@ -98,6 +98,22 @@ deploy() {
     --network "$NETWORK"
 }
 
+# If anything fails after the first deploy, record which contracts went
+# on-chain so they are not lost (they are live but may be uninitialized).
+DEVICE_REGISTRY_ID="" AGENT_REGISTRY_ID="" ESCROW_ID=""
+on_exit() {
+  local rc=$?
+  [ "$rc" -ne 0 ] && [ -n "$DEVICE_REGISTRY_ID$AGENT_REGISTRY_ID$ESCROW_ID" ] || return 0
+  local partial="$EVIDENCE_DIR/deploy-$NETWORK-$TS.partial.md"
+  mkdir -p "$EVIDENCE_DIR"
+  printf '# PARTIAL deploy (%s, exit %s) — not usable, redeploy from scratch\n\n- device_registry: %s\n- agent_registry: %s\n- payment_escrow: %s\n' \
+    "$TS" "$rc" "${DEVICE_REGISTRY_ID:-not deployed}" "${AGENT_REGISTRY_ID:-not deployed}" "${ESCROW_ID:-not deployed}" > "$partial"
+  printf '✗ partial deploy recorded in %s\n' "$partial" >&2
+  [ -n "${GITHUB_OUTPUT:-}" ] && echo "evidence=${partial#"$REPO_ROOT"/}" >> "$GITHUB_OUTPUT"
+  return 0
+}
+trap on_exit EXIT
+
 DEVICE_REGISTRY_ID="$(deploy device_registry "$DEVICE_WASM")"
 AGENT_REGISTRY_ID="$(deploy agent_registry "$AGENT_WASM")"
 ESCROW_ID="$(deploy payment_escrow "$ESCROW_WASM")"

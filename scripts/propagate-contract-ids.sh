@@ -56,36 +56,39 @@ for k in "${KEYS[@]}"; do
 done
 
 # The previous deploy's evidence file is the one that lists its device ID.
-OLD_EVIDENCE="$(grep -l "^${KEYS[0]}=${OLD_IDS[0]}$" deploy-evidence/deploy-*.md | { [ -n "$NEW_EVIDENCE" ] && grep -vxF "$NEW_EVIDENCE" || cat; } | head -1 || true)"
-[ -n "$OLD_EVIDENCE" ] || die "no deploy-evidence file lists the current IDs from frontend/eas.json"
+# Exactly one may match — two would leave it ambiguous which hashes are live.
+mapfile -t MATCHES < <(grep -l "^${KEYS[0]}=${OLD_IDS[0]}$" deploy-evidence/deploy-*.md \
+                         | grep -vxF "${NEW_EVIDENCE:-/}" || true)
+[ "${#MATCHES[@]}" -gt 0 ] || die "no deploy-evidence file lists the current IDs from frontend/eas.json"
+[ "${#MATCHES[@]}" -eq 1 ] || die "several deploy-evidence files list the current IDs: ${MATCHES[*]}"
+OLD_EVIDENCE="${MATCHES[0]}"
+OLD_HASHES=()
 for w in "${WASMS[@]}"; do
-  is_hash "$(wasm_hash "$OLD_EVIDENCE" "$w")" || die "$OLD_EVIDENCE: no SHA-256 for $w.wasm"
+  h="$(wasm_hash "$OLD_EVIDENCE" "$w")"
+  is_hash "$h" || die "$OLD_EVIDENCE: no SHA-256 for $w.wasm"
+  OLD_HASHES+=("$h")
 done
 if [ "$CHECK" = 1 ]; then
   echo "ok: previous deploy is $OLD_EVIDENCE (${OLD_IDS[*]})"
   exit 0
 fi
 
-FROM=() TO=()
+SED=() PATTERNS=()
 for i in 0 1 2; do
-  FROM+=("${OLD_IDS[$i]}") TO+=("${NEW_IDS[$i]}")
-  old="$(wasm_hash "$OLD_EVIDENCE" "${WASMS[$i]}")"
+  old="${OLD_HASHES[$i]}"
   new="$(wasm_hash "$NEW_EVIDENCE" "${WASMS[$i]}")"
-  is_hash "$old" || die "$OLD_EVIDENCE: no SHA-256 for ${WASMS[$i]}.wasm"
   is_hash "$new" || die "$NEW_EVIDENCE: no SHA-256 for ${WASMS[$i]}.wasm"
   # Docs show hashes in full and shortened as first8…last6.
-  FROM+=("$old" "${old:0:8}…${old: -6}") TO+=("$new" "${new:0:8}…${new: -6}")
+  for pair in "${OLD_IDS[$i]}|${NEW_IDS[$i]}" "$old|$new" "${old:0:8}…${old: -6}|${new:0:8}…${new: -6}"; do
+    SED+=(-e "s|$pair|g") PATTERNS+=(-e "${pair%%|*}")
+  done
 done
 
-CHANGED=()
-for i in "${!FROM[@]}"; do
-  while IFS= read -r f; do
-    sed -i "s|${FROM[$i]}|${TO[$i]}|g" "$f"
-    CHANGED+=("$f")
-  done < <(git grep -lF "${FROM[$i]}" -- . \
-             ':!deploy-evidence/' ':!.github/' ':!docs/walkthrough.md' \
-             ':!docs/evidence-package.md' ':!Noir/Session - *' || true)
-done
+# One sed pass per file, so a replaced value is never matched again.
+mapfile -t CHANGED < <(git grep -lF "${PATTERNS[@]}" -- . \
+  ':!deploy-evidence/' ':!.github/' ':!docs/walkthrough.md' \
+  ':!docs/evidence-package.md' ':!Noir/Session - *' || true)
+[ "${#CHANGED[@]}" -gt 0 ] && sed -i "${SED[@]}" "${CHANGED[@]}"
 
 [ "${#CHANGED[@]}" -gt 0 ] || die "no files referenced the previous deploy"
-printf '%s\n' "${CHANGED[@]}" | sort -u
+printf '%s\n' "${CHANGED[@]}"
