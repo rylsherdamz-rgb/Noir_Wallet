@@ -100,14 +100,15 @@ deploy() {
 
 # If anything fails after the first deploy, record which contracts went
 # on-chain so they are not lost (they are live but may be uninitialized).
-DEVICE_REGISTRY_ID="" AGENT_REGISTRY_ID="" ESCROW_ID=""
+DEVICE_REGISTRY_ID="" AGENT_REGISTRY_ID="" ESCROW_ID="" INITIALIZED=""
 on_exit() {
   local rc=$?
   [ "$rc" -ne 0 ] && [ -n "$DEVICE_REGISTRY_ID$AGENT_REGISTRY_ID$ESCROW_ID" ] || return 0
   local partial="$EVIDENCE_DIR/deploy-$NETWORK-$TS.partial.md"
   mkdir -p "$EVIDENCE_DIR"
-  printf '# PARTIAL deploy (%s, exit %s) — not usable, redeploy from scratch\n\n- device_registry: %s\n- agent_registry: %s\n- payment_escrow: %s\n' \
-    "$TS" "$rc" "${DEVICE_REGISTRY_ID:-not deployed}" "${AGENT_REGISTRY_ID:-not deployed}" "${ESCROW_ID:-not deployed}" > "$partial"
+  printf '# PARTIAL deploy (%s, exit %s) — not usable, redeploy from scratch\n\n- admin: %s\n- device_registry: %s\n- agent_registry: %s\n- payment_escrow: %s\n- initialized: %s\n- WASM SHA-256: device %s, agent %s, escrow %s\n' \
+    "$TS" "$rc" "$ADMIN_ADDR" "${DEVICE_REGISTRY_ID:-not deployed}" "${AGENT_REGISTRY_ID:-not deployed}" \
+    "${ESCROW_ID:-not deployed}" "${INITIALIZED:-none}" "$DEVICE_HASH" "$AGENT_HASH" "$ESCROW_HASH" > "$partial"
   printf '✗ partial deploy recorded in %s\n' "$partial" >&2
   [ -n "${GITHUB_OUTPUT:-}" ] && echo "evidence=${partial#"$REPO_ROOT"/}" >> "$GITHUB_OUTPUT"
   return 0
@@ -126,10 +127,12 @@ ok "payment_escrow  = $ESCROW_ID"
 info "Initializing device_registry…"
 stellar contract invoke --id "$DEVICE_REGISTRY_ID" --source "$DEPLOYER" --network "$NETWORK" -- \
   initialize --admin "$ADMIN_ADDR"
+INITIALIZED="device_registry"
 
 info "Initializing agent_registry (admin + device_registry_id)…"
 stellar contract invoke --id "$AGENT_REGISTRY_ID" --source "$DEPLOYER" --network "$NETWORK" -- \
   initialize --admin "$ADMIN_ADDR" --device_registry_id "$DEVICE_REGISTRY_ID"
+INITIALIZED="$INITIALIZED agent_registry"
 
 info "Initializing payment_escrow (admin + agent_registry_id + device_registry_id)…"
 stellar contract invoke --id "$ESCROW_ID" --source "$DEPLOYER" --network "$NETWORK" -- \
@@ -137,6 +140,7 @@ stellar contract invoke --id "$ESCROW_ID" --source "$DEPLOYER" --network "$NETWO
     --admin "$ADMIN_ADDR" \
     --agent_registry_id "$AGENT_REGISTRY_ID" \
     --device_registry_id "$DEVICE_REGISTRY_ID"
+INITIALIZED="$INITIALIZED payment_escrow"
 
 ok "All three contracts initialized."
 
@@ -188,6 +192,7 @@ EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT=$ESCROW_ID
 \`\`\`
 EOF
 ok "Evidence written: $EVIDENCE_FILE"
+trap - EXIT   # the full evidence file exists now; no partial record needed
 # In GitHub Actions, hand the evidence path and the new IDs to later steps.
 if [ -n "${GITHUB_OUTPUT:-}" ]; then
   {

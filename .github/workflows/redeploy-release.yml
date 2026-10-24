@@ -38,7 +38,8 @@ on:
         default: true
       base_branch:
         description: 'Branch to redeploy from and open the ID PR into (or to build the APK from when redeploy is off)'
-        type: string
+        type: choice
+        options: [instaward-development]   # CLAUDE.md: changes land on instaward-development first
         default: instaward-development
       release_tag:
         description: 'Release to attach Noir.apk to (created as a pre-release if it does not exist)'
@@ -110,10 +111,10 @@ jobs:
           grep -q GITHUB_OUTPUT scripts/redeploy-contracts.sh \
             || { echo "::error::$BASE's redeploy-contracts.sh predates this workflow"; exit 1; }
           ./scripts/propagate-contract-ids.sh --check
-          # An unmerged ID PR means eas.json here is already stale: merge or close it first.
-          OPEN=$(gh pr list --base "$BASE" --state open --json headRefName \
-                   -q '[.[] | select(.headRefName | startswith("redeploy/testnet-"))] | map(.headRefName) | join(" ")')
-          [ -z "$OPEN" ] || { echo "::error::Unmerged redeploy PR(s) into $BASE: $OPEN"; exit 1; }
+          # A leftover redeploy branch (PR open, or never opened) means eas.json here
+          # may already be stale. Merge it, then delete the branch, before redeploying.
+          LEFT=$(git ls-remote --heads origin 'redeploy/testnet-*' | awk '{print $2}' | sed 's|refs/heads/||' | xargs)
+          [ -z "$LEFT" ] || { echo "::error::Redeploy branch(es) still on origin: $LEFT — merge into $BASE and delete them first"; exit 1; }
 
       # Never deploy contracts whose tests fail. payment_escrow contractimport!s
       # the other two WASMs, so they are built first.
@@ -243,12 +244,15 @@ jobs:
         run: yarn install --frozen-lockfile
 
       # The `preview` profile builds an APK; contract IDs come from eas.json `base`.
+      # After a redeploy this is the not-yet-merged ID branch on purpose: the
+      # APK has to point at the new contracts, which only that branch knows.
       - name: Build APK on EAS
         working-directory: frontend
         run: |
-          eas build --platform android --profile preview --non-interactive --wait --json > build.json
-          URL=$(jq -r '.[0].artifacts.buildUrl' build.json)
-          [ -n "$URL" ] && [ "$URL" != "null" ] || { echo "::error::EAS returned no APK URL"; cat build.json; exit 1; }
+          # Output goes outside the project so EAS never archives it.
+          eas build --platform android --profile preview --non-interactive --wait --json > "$RUNNER_TEMP/build.json"
+          URL=$(jq -r '.[0].artifacts.buildUrl' "$RUNNER_TEMP/build.json")
+          [ -n "$URL" ] && [ "$URL" != "null" ] || { echo "::error::EAS returned no APK URL"; cat "$RUNNER_TEMP/build.json"; exit 1; }
           curl -fsSL "$URL" -o "$RUNNER_TEMP/Noir.apk"
           sha256sum "$RUNNER_TEMP/Noir.apk"
 

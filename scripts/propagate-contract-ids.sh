@@ -57,8 +57,7 @@ done
 
 # The previous deploy's evidence file is the one that lists its device ID.
 # Exactly one may match — two would leave it ambiguous which hashes are live.
-mapfile -t MATCHES < <(grep -l "^${KEYS[0]}=${OLD_IDS[0]}$" deploy-evidence/deploy-*.md \
-                         | grep -vxF "${NEW_EVIDENCE:-/}" || true)
+mapfile -t MATCHES < <(grep -l "^${KEYS[0]}=${OLD_IDS[0]}$" deploy-evidence/deploy-*.md || true)
 [ "${#MATCHES[@]}" -gt 0 ] || die "no deploy-evidence file lists the current IDs from frontend/eas.json"
 [ "${#MATCHES[@]}" -eq 1 ] || die "several deploy-evidence files list the current IDs: ${MATCHES[*]}"
 OLD_EVIDENCE="${MATCHES[0]}"
@@ -84,7 +83,8 @@ for i in 0 1 2; do
   done
 done
 
-# One sed pass per file, so a replaced value is never matched again.
+# One sed call over all matching files. The expressions still run in order on
+# each line, but no new value can equal another contract's old ID or hash.
 mapfile -t CHANGED < <(git grep -lF "${PATTERNS[@]}" -- . \
   ':!deploy-evidence/' ':!.github/' ':!docs/walkthrough.md' \
   ':!docs/evidence-package.md' ':!Noir/Session - *' || true)
