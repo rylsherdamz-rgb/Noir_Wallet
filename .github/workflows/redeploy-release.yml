@@ -10,12 +10,15 @@
 #                SDK security matrix against the NEW IDs (must report PASS, all
 #                20 outcomes — the issue #24 acceptance gate), then
 #                scripts/propagate-contract-ids.sh (checked before the deploy)
-#                swaps the old IDs and WASM
-#                hashes for the new ones, and opens a PR into `base_branch` with
-#                only those files + the new deploy-evidence file.
-#   2. release — builds the `preview` profile APK on EAS from that PR's branch
-#                (so the APK talks to the new contracts) and uploads Noir.apk and
-#                the evidence file to the release.
+#                swaps the old IDs and WASM hashes for the new ones, and opens a
+#                PR into `base_branch` with only those files, the deploy
+#                evidence and the matrix report. A failed gate pushes a
+#                `redeploy/testnet-<ts>-rejected` branch with the evidence, which
+#                blocks the next run until someone reviews it.
+#   2. release — refuses to build unless the checked-out eas.json IDs have a
+#                committed PASS matrix report (so `redeploy: false` can't ship an
+#                unaccepted APK either), then builds the `preview` APK on EAS and
+#                uploads Noir.apk, the deploy evidence and the matrix report.
 #
 # One-time setup (Settings → Secrets and variables → Actions):
 #   STELLAR_DEPLOYER_SECRET  secret key (S…) of the funded Testnet deployer/admin
@@ -71,6 +74,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.base_branch }}
+          # npm/Vitest code runs in this job; no repo token in .git/config.
+          # The push steps authenticate explicitly.
+          persist-credentials: false
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -120,13 +126,14 @@ jobs:
 
       - name: Install security matrix
         working-directory: sdk/agent-sdk
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       # Everything that can fail after the deploy is checked first, so a bad
       # base branch or eas.json never leaves fresh contracts nobody points at.
       - name: Preflight
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
           BASE: ${{ inputs.base_branch }}
           HAS_EXPO_TOKEN: ${{ secrets.EXPO_TOKEN != '' }}
         run: |
@@ -134,10 +141,12 @@ jobs:
           grep -q GITHUB_OUTPUT scripts/redeploy-contracts.sh \
             || { echo "::error::$BASE's redeploy-contracts.sh predates this workflow"; exit 1; }
           ./scripts/propagate-contract-ids.sh --check
-          # A leftover redeploy branch (PR open, or never opened) means eas.json here
-          # may already be stale. Merge it, then delete the branch, before redeploying.
-          LEFT=$(git ls-remote --heads origin 'redeploy/testnet-*' | awk '{print $2}' | sed 's|refs/heads/||' | xargs)
-          [ -z "$LEFT" ] || { echo "::error::Redeploy branch(es) still on origin: $LEFT — merge into $BASE and delete them first"; exit 1; }
+          # A leftover redeploy branch means eas.json here may be stale (ID PR not
+          # merged yet) or a rejected deploy hasn't been reviewed (…-rejected).
+          # Merge or review it, then delete the branch, before redeploying.
+          LEFT=$(git ls-remote --heads "https://x-access-token:$GH_TOKEN@github.com/$REPO.git" 'redeploy/testnet-*' \
+                   | awk '{print $2}' | sed 's|refs/heads/||' | xargs)
+          [ -z "$LEFT" ] || { echo "::error::Redeploy branch(es) still on origin: $LEFT — merge (ID PR) or review (-rejected) and delete them first"; exit 1; }
 
       # Never deploy contracts whose tests fail. payment_escrow contractimport!s
       # the other two WASMs, so they are built first.
@@ -165,6 +174,12 @@ jobs:
           NETWORK=testnet DEPLOYER=deployer ./scripts/redeploy-contracts.sh
           cat "$(grep -m1 '^evidence=' "$GITHUB_OUTPUT" | cut -d= -f2)" >> "$GITHUB_STEP_SUMMARY"
 
+      # The admin key isn't needed past this point; don't leave it on disk
+      # while npm/Vitest code runs.
+      - name: Remove deployer key
+        if: always()
+        run: rm -f ~/.config/stellar/identity/deployer.toml
+
       # Acceptance gate (deployment.md → issue #24 handoff, step 3): the new
       # contracts must pass the full live matrix BEFORE their IDs are
       # propagated or an APK is built against them. A failure stops the run
@@ -181,15 +196,17 @@ jobs:
           npm run test:security-matrix
           RC=$?
           set -e
-          REPORT=$(git -C ../.. ls-files --others --exclude-standard 'deploy-evidence/week4-security-matrix-*.md' | head -1)
-          if [ -n "$REPORT" ]; then
-            echo "report=$REPORT" >> "$GITHUB_OUTPUT"
-            cat "../../$REPORT" >> "$GITHUB_STEP_SUMMARY"
+          mapfile -t NEW < <(git -C ../.. ls-files --others --exclude-standard 'deploy-evidence/week4-security-matrix-*.md')
+          if [ "${#NEW[@]}" -eq 1 ]; then
+            echo "report=${NEW[0]}" >> "$GITHUB_OUTPUT"
+            cat "../../${NEW[0]}" >> "$GITHUB_STEP_SUMMARY"
           fi
           [ "$RC" -eq 0 ] || { echo "::error::Security matrix failed (exit $RC) — IDs not propagated, no APK built"; exit 1; }
-          [ -n "$REPORT" ] || { echo "::error::Security matrix wrote no report"; exit 1; }
-          grep -q '^\*\*Status: PASS\*\*' "../../$REPORT" \
-            || { echo "::error::Security matrix report is not PASS: $REPORT"; exit 1; }
+          [ "${#NEW[@]}" -eq 1 ] || { echo "::error::Expected one new matrix report, found ${#NEW[@]}"; exit 1; }
+          # PASS, and run against exactly the three IDs just deployed.
+          ../../scripts/check-matrix-report.sh "../../${NEW[0]}" \
+            "$NOIR_DEVICE_REGISTRY" "$NOIR_AGENT_REGISTRY" "$NOIR_PAYMENT_ESCROW" \
+            || { echo "::error::Security matrix report does not accept these contracts: ${NEW[0]}"; exit 1; }
 
       # Keep the record of what went on-chain (and how it tested) even if a
       # later step fails.
@@ -201,6 +218,40 @@ jobs:
           path: |
             ${{ steps.redeploy.outputs.evidence }}
             ${{ steps.matrix.outputs.report }}
+
+      # A rejected (or half-finished) deploy is still live on Testnet. Record it
+      # in git, not only in an expiring artifact; the branch name matches the
+      # Preflight check, so the next run is blocked until someone reviews it.
+      - name: Record rejected deploy
+        if: failure() && steps.redeploy.outputs.evidence
+        env:
+          TOKEN: ${{ secrets.RELEASE_PR_TOKEN || github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVIDENCE: ${{ steps.redeploy.outputs.evidence }}
+          MATRIX: ${{ steps.matrix.outputs.report }}
+        run: |
+          BRANCH="redeploy/testnet-$(basename "$EVIDENCE" .md | sed 's/^deploy-testnet-//')-rejected"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898333+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add -- "$EVIDENCE" ${MATRIX:+"$MATRIX"}
+          git commit -F - <<MSG
+          chore(contracts): record rejected Testnet deploy (not accepted)
+
+          These contracts were deployed by the redeploy-release workflow
+          ($RUN_URL) but did not pass the security-matrix gate. Their IDs were
+          not propagated and no APK was built. Do not merge; delete this branch
+          once the failure is understood, then re-run the workflow.
+
+          Evidence: $EVIDENCE
+          Security matrix: ${MATRIX:-no report}
+
+          Co-Authored-By: Johnrick Rabara <jrabara101@gmail.com>
+          Co-Authored-By: Jefferson Tuparan <jeffersontuparanst@gmail.com>
+          MSG
+          git push "https://x-access-token:$TOKEN@github.com/$REPO.git" "$BRANCH"
+          echo "::error::Deploy rejected — evidence pushed to $BRANCH"
 
       # The script validates every old/new ID and hash before it edits anything.
       - name: Propagate new IDs and hashes across the repo
@@ -215,6 +266,8 @@ jobs:
         id: push
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PR_TOKEN || github.token }}
+          TOKEN: ${{ secrets.RELEASE_PR_TOKEN || github.token }}
+          REPO: ${{ github.repository }}
           BASE: ${{ inputs.base_branch }}
           RELEASE_TAG: ${{ inputs.release_tag }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -228,7 +281,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898333+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
-          # Only the propagated files + the evidence file. cargo build/test can
+          # Only the propagated files, the evidence file and the matrix report. cargo build/test can
           # touch Cargo.lock and test snapshots; those stay out of this commit.
           xargs -a "$RUNNER_TEMP/changed.txt" -d '\n' git add --
           git add -- "$EVIDENCE" "$MATRIX"
@@ -246,7 +299,7 @@ jobs:
           Co-Authored-By: Johnrick Rabara <jrabara101@gmail.com>
           Co-Authored-By: Jefferson Tuparan <jeffersontuparanst@gmail.com>
           MSG
-          git push -u origin "$BRANCH"
+          git push "https://x-access-token:$TOKEN@github.com/$REPO.git" "$BRANCH"
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
           {
             echo "Automated Testnet redeploy ([workflow run]($RUN_URL))."
@@ -283,6 +336,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.deploy.outputs.branch || inputs.base_branch }}
+
+      # Same acceptance rule for both paths (fresh redeploy or `redeploy: false`):
+      # the IDs this APK will talk to must have a committed PASS matrix report.
+      - name: Require accepted contracts
+        run: |
+          eas_id() { jq -r ".build.base.env.$1" frontend/eas.json; }
+          IDS=("$(eas_id EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT)" "$(eas_id EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT)" "$(eas_id EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT)")
+          for r in deploy-evidence/week4-security-matrix-*.md; do
+            [ -f "$r" ] && ./scripts/check-matrix-report.sh "$r" "${IDS[@]}" 2>/dev/null && exit 0
+          done
+          echo "::error::No PASS security-matrix report for eas.json's contracts (${IDS[*]}) — refusing to publish an APK against unaccepted contracts"
+          exit 1
 
       - uses: actions/setup-node@v4
         with:

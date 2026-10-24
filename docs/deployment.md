@@ -38,13 +38,15 @@ NETWORK=testnet DEPLOYER=myid ./scripts/redeploy-contracts.sh
 [`redeploy-release.yml`](../.github/workflows/redeploy-release.yml) does the whole release from the Actions tab (**Redeploy contracts + release APK → Run workflow**):
 
 1. Checks out `base_branch` (default `instaward-development`) and runs the preflight checks: the previous deploy must resolve (`propagate-contract-ids.sh --check`), and no `redeploy/testnet-*` branch may be left on origin (merge the last ID PR, then delete its branch). It then runs the contract tests and `scripts/redeploy-contracts.sh` on Testnet. The evidence file is saved as a run artifact, so it survives a later failure. If the script fails partway, it writes a `.partial.md` record of the contracts that did go on-chain.
-2. **Acceptance gate:** runs the [guarded security matrix](testing.md#deferred-release-owner-only) against the three new IDs. It requires Vitest exit code 0 and a report with `**Status: PASS**`, which needs all 20 outcomes exactly once. If the gate fails, the run stops: no IDs are propagated, no PR is opened and no APK is built. The report is still saved as a run artifact.
+2. **Acceptance gate:** removes the deployer key from the runner, then runs the [guarded security matrix](testing.md#deferred-release-owner-only) against the three new IDs. It requires Vitest exit code 0 and a report that says `**Status: PASS**` (all 20 outcomes exactly once) and lists exactly the three IDs just deployed ([`scripts/check-matrix-report.sh`](../scripts/check-matrix-report.sh)). If the gate fails, the run stops: no IDs are propagated, no PR is opened and no APK is built. The deploy evidence and the report are pushed to a `redeploy/testnet-<timestamp>-rejected` branch, because those contracts are live on Testnet. Preflight then blocks the next run until that branch is reviewed and deleted.
 3. [`scripts/propagate-contract-ids.sh`](../scripts/propagate-contract-ids.sh) replaces the previous deploy's contract IDs and WASM hashes with the new ones. It reads the previous deploy from `frontend/eas.json` and checks every value before editing. Records of past runs are left alone: `deploy-evidence/`, `docs/walkthrough.md`, `docs/evidence-package.md` and the `Noir/Session - *` logs. `.github/` is skipped too, because the workflow token cannot push workflow changes, so update the expected hashes in `contracts.yml` by hand.
 4. Commits only those files plus the new evidence file and the matrix report, pushes a `redeploy/testnet-<timestamp>` branch and opens a PR into `base_branch`. The PR lists the prose that still needs a hand edit, such as deploy dates and evidence pointers.
-5. Builds the `preview` APK on EAS from that branch, so the APK uses the new contracts.
+5. Checks that the IDs in `frontend/eas.json` have a committed `PASS` matrix report, then builds the `preview` APK on EAS from that branch, so the APK uses the new contracts.
 6. Uploads `Noir.apk`, the evidence file and the matrix report to the release (`Beta-Test` by default; it is created as a pre-release if missing), replacing an existing `Noir.apk`. A marked block in the release notes is rewritten with the commit and contract IDs of the APK. The rest of the notes is kept.
 
-Turn off the `redeploy` input to only rebuild the APK from `base_branch`.
+Turn off the `redeploy` input to only rebuild the APK from `base_branch`. The same acceptance check applies there: the build is refused unless `deploy-evidence/` holds a `PASS` report for the contract IDs in `frontend/eas.json`.
+
+A rejected run can't be retried on the same contracts. A re-run redeploys from scratch, and the rejected contracts stay recorded on their branch.
 
 One-time setup: add the repository secrets `STELLAR_DEPLOYER_SECRET` (secret key of the funded deployer/admin) and `EXPO_TOKEN` (expo.dev access token). Also add `RELEASE_PR_TOKEN`, a fine-grained PAT with contents and pull-requests write. A PR opened with the default `GITHUB_TOKEN` does not start CI, so the required `test` check never reports on it. Without the PAT, enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**, then close and reopen the ID PR to start its CI.
 
@@ -136,7 +138,15 @@ Reference deploy currently in use: [`deploy-evidence/deploy-testnet-20261007T050
 
 As of 2026-10-24, the [source-verification work](../deploy-evidence/issue24-source-verification-20261024T075044Z.md) performs **no redeployment, initialization, live tests, or active ID changes**. The October 7 reference deployment runs pre-fix code. [Issue #24](https://github.com/rylsherdamz-rgb/Noir_Wallet/issues/24) stays open until the release owner completes this handoff. Deployment/build automation does not replace live acceptance before APK publication.
 
-The combined Actions workflow above now runs the guarded security matrix between the deploy and the ID propagation, and stops unless it reports `PASS` (step 2 above). That automates steps 2–5 below in order. The approval, verification and evidence-linking steps are still manual.
+The combined Actions workflow above runs the guarded security matrix between the deploy and the ID propagation, and stops unless it reports `PASS` for the new IDs (step 2 above). It automates the deploy, the matrix, the ID swap and the APK build in that order. These steps below stay manual:
+
+- approving the source commit (1)
+- verifying the deployed artifacts against the build (2)
+- the hand pass on the ID PR, rebuilding the SDK/gateway and the frontend live Testnet flow (4)
+- checking the installed APK's target and the tester notice (5)
+- linking the evidence (6)
+
+The workflow uploads the APK to the release as soon as the matrix passes. Treat that upload as a beta candidate until the manual parts of steps 4–5 are done.
 
 1. Approve the exact source commit and deployment window. Decide how testers will retire the old contracts and balances. A new deployment is a clean slate: it does not migrate device links, policies, pending payments, or escrow balances. Preserve the old deployment records.
 2. Build and deploy the reviewed artifacts with the pinned toolchain. Record source SHA, toolchain/build host, public admin address, new IDs, actual deployed WASM hashes, and explorer links for **each create and initialize transaction**. Verify deployed artifacts against that build, accounting for the build-path limitation above; syntax-valid IDs are insufficient. Initialize `device_registry(admin)`, then `agent_registry(admin, device_registry_id)`, then `payment_escrow(admin, agent_registry_id, device_registry_id)` and verify those registry references. The changed agent-registry signature requires the device-registry argument.
