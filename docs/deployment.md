@@ -37,13 +37,13 @@ NETWORK=testnet DEPLOYER=myid ./scripts/redeploy-contracts.sh
 
 [`redeploy-release.yml`](../.github/workflows/redeploy-release.yml) does the whole release from the Actions tab (**Redeploy contracts + release APK → Run workflow**):
 
-1. Checks out `base_branch` (default `instaward-development`), runs the contract tests, then `scripts/redeploy-contracts.sh` on Testnet.
-2. [`scripts/propagate-contract-ids.sh`](../scripts/propagate-contract-ids.sh) replaces the previous deploy's contract IDs and WASM hashes with the new ones. It reads the previous deploy from `frontend/eas.json` and checks every value before editing. Records of past runs are left alone: `deploy-evidence/`, `docs/Evidence/`, `docs/walkthrough.md`, `docs/evidence-package.md` and the `Noir/Session - *` logs.
+1. Checks out `base_branch` (default `instaward-development`) and runs the contract tests. Then it checks that the previous deploy can be resolved (`propagate-contract-ids.sh --check`) and runs `scripts/redeploy-contracts.sh` on Testnet. The evidence file is also saved as a run artifact, so it survives a later failure.
+2. [`scripts/propagate-contract-ids.sh`](../scripts/propagate-contract-ids.sh) replaces the previous deploy's contract IDs and WASM hashes with the new ones. It reads the previous deploy from `frontend/eas.json` and checks every value before editing. Records of past runs are left alone: `deploy-evidence/`, `docs/walkthrough.md`, `docs/evidence-package.md` and the `Noir/Session - *` logs. `.github/` is skipped too, because the workflow token cannot push workflow changes, so update the expected hashes in `contracts.yml` by hand.
 3. Commits only those files plus the new evidence file, pushes a `redeploy/testnet-<timestamp>` branch and opens a PR into `base_branch`. The PR lists the prose that still needs a hand edit, such as deploy dates and evidence pointers.
 4. Builds the `preview` APK on EAS from that branch, so the APK uses the new contracts.
 5. Uploads `Noir.apk` and the evidence file to the release (`Beta-Test` by default; it is created as a pre-release if missing), replacing an existing `Noir.apk`. A marked block in the release notes is rewritten with the commit and contract IDs of the APK. The rest of the notes is kept.
 
-Turn off the `redeploy` input to only rebuild the APK from the selected branch.
+Turn off the `redeploy` input to only rebuild the APK from `base_branch`.
 
 One-time setup: add the repository secrets `STELLAR_DEPLOYER_SECRET` (secret key of the funded deployer/admin) and `EXPO_TOKEN` (expo.dev access token). Also add `RELEASE_PR_TOKEN`, a fine-grained PAT with contents and pull-requests write. A PR opened with the default `GITHUB_TOKEN` does not start CI, so the required `test` check never reports on it. Without the PAT, enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**, then close and reopen the ID PR to start its CI.
 

@@ -7,7 +7,8 @@
 #   1. deploy  — checks out `base_branch` (instaward-development by default),
 #                tests the contracts, runs scripts/redeploy-contracts.sh
 #                (build → deploy → initialize → evidence file), then
-#                scripts/propagate-contract-ids.sh swaps the old IDs and WASM
+#                scripts/propagate-contract-ids.sh (checked before the deploy)
+#                swaps the old IDs and WASM
 #                hashes for the new ones, and opens a PR into `base_branch` with
 #                only those files + the new deploy-evidence file.
 #   2. release — builds the `preview` profile APK on EAS from that PR's branch
@@ -32,11 +33,11 @@ on:
   workflow_dispatch:
     inputs:
       redeploy:
-        description: 'Redeploy the contracts first (off = only rebuild the APK from the selected branch)'
+        description: 'Redeploy the contracts first (off = only rebuild the APK from base_branch)'
         type: boolean
         default: true
       base_branch:
-        description: 'Branch to redeploy from and open the ID PR into'
+        description: 'Branch to redeploy from and open the ID PR into (or to build the APK from when redeploy is off)'
         type: string
         default: instaward-development
       release_tag:
@@ -62,7 +63,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       branch: ${{ steps.push.outputs.branch }}
-      evidence: ${{ steps.ids.outputs.evidence }}
+      evidence: ${{ steps.redeploy.outputs.evidence }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -94,7 +95,19 @@ jobs:
 
       - name: Install Stellar CLI
         if: steps.stellar-cache.outputs.cache-hit != 'true'
-        run: cargo install --locked stellar-cli --version "$STELLAR_CLI_VERSION"
+        run: |
+          # stellar-cli links libudev + libdbus (hardware-wallet / keyring support).
+          sudo apt-get update -q
+          sudo apt-get install -y -q libudev-dev libdbus-1-dev pkg-config
+          cargo install --locked stellar-cli --version "$STELLAR_CLI_VERSION"
+
+      # Everything that can fail after the deploy is checked first, so a bad
+      # base branch or eas.json never leaves fresh contracts nobody points at.
+      - name: Preflight
+        run: |
+          grep -q GITHUB_OUTPUT scripts/redeploy-contracts.sh \
+            || { echo "::error::$GITHUB_REF_NAME's redeploy-contracts.sh predates this workflow"; exit 1; }
+          ./scripts/propagate-contract-ids.sh --check
 
       # Never deploy contracts whose tests fail. payment_escrow contractimport!s
       # the other two WASMs, so they are built first.
@@ -118,28 +131,23 @@ jobs:
 
       - name: Redeploy + initialize
         id: redeploy
-        run: NETWORK=testnet DEPLOYER=deployer ./scripts/redeploy-contracts.sh
-
-      - name: Read new contract IDs
-        id: ids
-        env:
-          EVIDENCE: ${{ steps.redeploy.outputs.evidence }}
         run: |
-          [ -f "$EVIDENCE" ] || { echo "::error::redeploy-contracts.sh reported no evidence file"; exit 1; }
-          get() { grep -m1 "^$1=" "$EVIDENCE" | cut -d= -f2; }
-          {
-            echo "evidence=$EVIDENCE"
-            echo "device=$(get EXPO_PUBLIC_DEVICE_REGISTRY_CONTRACT)"
-            echo "agent=$(get EXPO_PUBLIC_AGENT_REGISTRY_CONTRACT)"
-            echo "escrow=$(get EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT)"
-          } >> "$GITHUB_OUTPUT"
-          cat "$EVIDENCE" >> "$GITHUB_STEP_SUMMARY"
+          NETWORK=testnet DEPLOYER=deployer ./scripts/redeploy-contracts.sh
+          cat "$(grep -m1 '^evidence=' "$GITHUB_OUTPUT" | cut -d= -f2)" >> "$GITHUB_STEP_SUMMARY"
+
+      # Keep the record of what went on-chain even if a later step fails.
+      - name: Save deploy evidence
+        if: always() && steps.redeploy.outputs.evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-evidence
+          path: ${{ steps.redeploy.outputs.evidence }}
 
       # The script validates every old/new ID and hash before it edits anything.
       - name: Propagate new IDs and hashes across the repo
         id: propagate
         env:
-          EVIDENCE: ${{ steps.ids.outputs.evidence }}
+          EVIDENCE: ${{ steps.redeploy.outputs.evidence }}
         run: |
           ./scripts/propagate-contract-ids.sh "$EVIDENCE" > "$RUNNER_TEMP/changed.txt"
           cat "$RUNNER_TEMP/changed.txt"
@@ -151,10 +159,10 @@ jobs:
           BASE: ${{ inputs.base_branch }}
           RELEASE_TAG: ${{ inputs.release_tag }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          EVIDENCE: ${{ steps.ids.outputs.evidence }}
-          NEW_DEVICE: ${{ steps.ids.outputs.device }}
-          NEW_AGENT: ${{ steps.ids.outputs.agent }}
-          NEW_ESCROW: ${{ steps.ids.outputs.escrow }}
+          EVIDENCE: ${{ steps.redeploy.outputs.evidence }}
+          NEW_DEVICE: ${{ steps.redeploy.outputs.device }}
+          NEW_AGENT: ${{ steps.redeploy.outputs.agent }}
+          NEW_ESCROW: ${{ steps.redeploy.outputs.escrow }}
         run: |
           BRANCH="redeploy/testnet-$(basename "$EVIDENCE" .md | sed 's/^deploy-testnet-//')"
           git config user.name "github-actions[bot]"
@@ -192,8 +200,8 @@ jobs:
             echo
             echo "Only IDs and WASM hashes were swapped. Before merging, check the prose around them by hand:"
             echo "- deploy dates and \"see deploy-evidence/…\" pointers (README, PROGRESS, CLAUDE.md, docs/)"
-            echo "- \`docs/Evidence/README.md\`, \`docs/walkthrough.md\` and \`docs/evidence-package.md\` still describe the previous deploy on purpose; add this deploy to them"
-            echo "- the expected hashes in \`.github/workflows/contracts.yml\`"
+            echo "- \`docs/walkthrough.md\` and \`docs/evidence-package.md\` still describe the previous deploy on purpose; add this deploy to them"
+            echo "- the expected hashes in \`.github/workflows/contracts.yml\` (workflow files are not touched)"
           } > "$RUNNER_TEMP/pr.md"
           gh pr create --base "$BASE" --head "$BRANCH" \
             --title "chore(contracts): redeploy to Testnet and propagate new contract IDs" \
@@ -209,7 +217,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.deploy.outputs.branch || github.ref }}
+          ref: ${{ needs.deploy.outputs.branch || inputs.base_branch }}
 
       - uses: actions/setup-node@v4
         with:
@@ -219,7 +227,7 @@ jobs:
 
       - uses: expo/expo-github-action@v8
         with:
-          eas-version: latest
+          eas-version: 20.x   # eas.json requires >= 20.5.0
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies

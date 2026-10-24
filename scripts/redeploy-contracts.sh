@@ -172,9 +172,14 @@ EXPO_PUBLIC_PAYMENT_ESCROW_CONTRACT=$ESCROW_ID
 \`\`\`
 EOF
 ok "Evidence written: $EVIDENCE_FILE"
-# In GitHub Actions, hand the exact evidence path to later steps.
+# In GitHub Actions, hand the evidence path and the new IDs to later steps.
 if [ -n "${GITHUB_OUTPUT:-}" ]; then
-  echo "evidence=${EVIDENCE_FILE#"$REPO_ROOT"/}" >> "$GITHUB_OUTPUT"
+  {
+    echo "evidence=${EVIDENCE_FILE#"$REPO_ROOT"/}"
+    echo "device=$DEVICE_REGISTRY_ID"
+    echo "agent=$AGENT_REGISTRY_ID"
+    echo "escrow=$ESCROW_ID"
+  } >> "$GITHUB_OUTPUT"
 fi
 
 # ---- 7. Optional: patch frontend/.env --------------------------------------

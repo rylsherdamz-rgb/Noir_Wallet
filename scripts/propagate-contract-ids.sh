@@ -9,21 +9,28 @@
 #
 # Usage:
 #   ./scripts/propagate-contract-ids.sh deploy-evidence/deploy-testnet-<ts>.md
+#   ./scripts/propagate-contract-ids.sh --check   # validate the previous deploy only
+#
+# Run --check BEFORE deploying: if the previous deploy can't be resolved, the
+# post-deploy run would fail too, leaving fresh contracts nobody points at.
 #
 # The previous deploy is the one frontend/eas.json points at (the EAS build
 # reads its contract IDs from there). Records of past runs keep their old
-# values: deploy-evidence/, docs/Evidence/ (captures taken against the old
-# contracts), docs/walkthrough.md + docs/evidence-package.md (tx links from
-# live runs) and the Noir/Session - *.md logs.
+# values: deploy-evidence/, docs/walkthrough.md + docs/evidence-package.md (tx
+# links from live runs) and the Noir/Session - *.md logs. .github/ is skipped
+# too: the default GITHUB_TOKEN cannot push workflow changes (contracts.yml's
+# expected hashes are updated by hand).
 #
 set -euo pipefail
 
-NEW_EVIDENCE="${1:?usage: $0 <new deploy-evidence file>}"
+NEW_EVIDENCE="${1:?usage: $0 <new deploy-evidence file> | --check}"
+CHECK=0
+[ "$NEW_EVIDENCE" = "--check" ] && CHECK=1 NEW_EVIDENCE=""
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
 die() { printf '✗ %s\n' "$*" >&2; exit 1; }
-[ -f "$NEW_EVIDENCE" ] || die "evidence file not found: $NEW_EVIDENCE"
+[ "$CHECK" = 1 ] || [ -f "$NEW_EVIDENCE" ] || die "evidence file not found: $NEW_EVIDENCE"
 
 is_id()   { [[ "$1" =~ ^C[A-Z2-7]{55}$ ]]; }
 is_hash() { [[ "$1" =~ ^[0-9a-f]{64}$ ]]; }
@@ -39,16 +46,25 @@ WASMS=(device_registry agent_registry payment_escrow)
 OLD_IDS=() NEW_IDS=()
 for k in "${KEYS[@]}"; do
   old="$(jq -r ".build.base.env.$k // empty" frontend/eas.json)"
-  new="$(env_id "$NEW_EVIDENCE" "$k")"
   is_id "$old" || die "frontend/eas.json: $k is not a contract ID: '$old'"
+  OLD_IDS+=("$old")
+  [ "$CHECK" = 1 ] && continue
+  new="$(env_id "$NEW_EVIDENCE" "$k")"
   is_id "$new" || die "$NEW_EVIDENCE: $k is not a contract ID: '$new'"
   [ "$old" != "$new" ] || die "$k is unchanged ($new) — nothing to propagate"
-  OLD_IDS+=("$old") NEW_IDS+=("$new")
+  NEW_IDS+=("$new")
 done
 
 # The previous deploy's evidence file is the one that lists its device ID.
-OLD_EVIDENCE="$(grep -l "^${KEYS[0]}=${OLD_IDS[0]}$" deploy-evidence/deploy-*.md | grep -vF "$NEW_EVIDENCE" | head -1 || true)"
+OLD_EVIDENCE="$(grep -l "^${KEYS[0]}=${OLD_IDS[0]}$" deploy-evidence/deploy-*.md | { [ -n "$NEW_EVIDENCE" ] && grep -vxF "$NEW_EVIDENCE" || cat; } | head -1 || true)"
 [ -n "$OLD_EVIDENCE" ] || die "no deploy-evidence file lists the current IDs from frontend/eas.json"
+for w in "${WASMS[@]}"; do
+  is_hash "$(wasm_hash "$OLD_EVIDENCE" "$w")" || die "$OLD_EVIDENCE: no SHA-256 for $w.wasm"
+done
+if [ "$CHECK" = 1 ]; then
+  echo "ok: previous deploy is $OLD_EVIDENCE (${OLD_IDS[*]})"
+  exit 0
+fi
 
 FROM=() TO=()
 for i in 0 1 2; do
@@ -67,7 +83,7 @@ for i in "${!FROM[@]}"; do
     sed -i "s|${FROM[$i]}|${TO[$i]}|g" "$f"
     CHANGED+=("$f")
   done < <(git grep -lF "${FROM[$i]}" -- . \
-             ':!deploy-evidence/' ':!docs/Evidence/' ':!docs/walkthrough.md' \
+             ':!deploy-evidence/' ':!.github/' ':!docs/walkthrough.md' \
              ':!docs/evidence-package.md' ':!Noir/Session - *' || true)
 done
 
