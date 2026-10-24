@@ -27,7 +27,7 @@ export default function Sdk() {
   return (
     <DocPage slug="sdk">
       <CodeBlock lang="bash" code="npm install @noir-wallet/agent-sdk @stellar/stellar-sdk" />
-      <p>Works in Node 20+, browsers and React Native. Secret keys never pass through the SDK unless you choose <code>keypairSigner</code> on a server.</p>
+      <p>Works in Node 22.23.4+ (or 24.22.1+), browsers and React Native. Secret keys never pass through the SDK unless you choose <code>keypairSigner</code> on a server.</p>
 
       <h2 id="client">Create a client</h2>
       <CodeBlock lang="ts" code={`

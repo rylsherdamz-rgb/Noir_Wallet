@@ -175,7 +175,7 @@ Steps: create and import a wallet → Friendbot → simulated NTAG213 UID → `r
 | Workflow | Runs on | Steps |
 |----------|---------|-------|
 | [`contracts.yml`](../.github/workflows/contracts.yml) | push/PR to `main`, `instaward*` | Pinned Rust `1.98.1` + `wasm32v1-none` → build dependency WASM → build escrow → `cargo test` → WASM hash report (informational) |
-| [`frontend.yml`](../.github/workflows/frontend.yml) | push/PR to `main`, `instaward*` | Node 22 → `yarn install --frozen-lockfile` → `tsc --noEmit` → `yarn test` |
+| [`frontend.yml`](../.github/workflows/frontend.yml) | push/PR to `main`, `instaward*` | Node 22.23.4 → `yarn install --frozen-lockfile` → `tsc --noEmit` → `yarn test` |
 
 Run history: [GitHub Actions](https://github.com/rylsherdamz-rgb/Noir_Wallet/actions).
 
