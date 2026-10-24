@@ -6,7 +6,9 @@
 # What it does:
 #   1. deploy  — checks out `base_branch` (instaward-development by default),
 #                tests the contracts, runs scripts/redeploy-contracts.sh
-#                (build → deploy → initialize → evidence file), then
+#                (build → deploy → initialize → evidence file), runs the guarded
+#                SDK security matrix against the NEW IDs (must report PASS, all
+#                20 outcomes — the issue #24 acceptance gate), then
 #                scripts/propagate-contract-ids.sh (checked before the deploy)
 #                swaps the old IDs and WASM
 #                hashes for the new ones, and opens a PR into `base_branch` with
@@ -64,6 +66,7 @@ jobs:
     outputs:
       branch: ${{ steps.push.outputs.branch }}
       evidence: ${{ steps.redeploy.outputs.evidence }}
+      matrix: ${{ steps.matrix.outputs.report }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -106,6 +109,18 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y -q libudev-dev libdbus-1-dev pkg-config
           cargo install --locked stellar-cli --version "$STELLAR_CLI_VERSION"
+
+      # The security matrix runs after the deploy; install it first so a broken
+      # install can't fail the run with fresh contracts already on-chain.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.4
+          cache: npm
+          cache-dependency-path: sdk/agent-sdk/package-lock.json
+
+      - name: Install security matrix
+        working-directory: sdk/agent-sdk
+        run: npm ci
 
       # Everything that can fail after the deploy is checked first, so a bad
       # base branch or eas.json never leaves fresh contracts nobody points at.
@@ -150,13 +165,42 @@ jobs:
           NETWORK=testnet DEPLOYER=deployer ./scripts/redeploy-contracts.sh
           cat "$(grep -m1 '^evidence=' "$GITHUB_OUTPUT" | cut -d= -f2)" >> "$GITHUB_STEP_SUMMARY"
 
-      # Keep the record of what went on-chain even if a later step fails.
+      # Acceptance gate (deployment.md → issue #24 handoff, step 3): the new
+      # contracts must pass the full live matrix BEFORE their IDs are
+      # propagated or an APK is built against them. A failure stops the run
+      # here; the contracts stay unpublished and the report is kept below.
+      - name: Security matrix gate (new contracts)
+        id: matrix
+        working-directory: sdk/agent-sdk
+        env:
+          NOIR_DEVICE_REGISTRY: ${{ steps.redeploy.outputs.device }}
+          NOIR_AGENT_REGISTRY: ${{ steps.redeploy.outputs.agent }}
+          NOIR_PAYMENT_ESCROW: ${{ steps.redeploy.outputs.escrow }}
+        run: |
+          set +e
+          npm run test:security-matrix
+          RC=$?
+          set -e
+          REPORT=$(git -C ../.. ls-files --others --exclude-standard 'deploy-evidence/week4-security-matrix-*.md' | head -1)
+          if [ -n "$REPORT" ]; then
+            echo "report=$REPORT" >> "$GITHUB_OUTPUT"
+            cat "../../$REPORT" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          [ "$RC" -eq 0 ] || { echo "::error::Security matrix failed (exit $RC) — IDs not propagated, no APK built"; exit 1; }
+          [ -n "$REPORT" ] || { echo "::error::Security matrix wrote no report"; exit 1; }
+          grep -q '^\*\*Status: PASS\*\*' "../../$REPORT" \
+            || { echo "::error::Security matrix report is not PASS: $REPORT"; exit 1; }
+
+      # Keep the record of what went on-chain (and how it tested) even if a
+      # later step fails.
       - name: Save deploy evidence
-        if: always() && steps.redeploy.outputs.evidence
+        if: always() && (steps.redeploy.outputs.evidence || steps.matrix.outputs.report)
         uses: actions/upload-artifact@v4
         with:
           name: deploy-evidence
-          path: ${{ steps.redeploy.outputs.evidence }}
+          path: |
+            ${{ steps.redeploy.outputs.evidence }}
+            ${{ steps.matrix.outputs.report }}
 
       # The script validates every old/new ID and hash before it edits anything.
       - name: Propagate new IDs and hashes across the repo
@@ -175,6 +219,7 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           EVIDENCE: ${{ steps.redeploy.outputs.evidence }}
+          MATRIX: ${{ steps.matrix.outputs.report }}
           NEW_DEVICE: ${{ steps.redeploy.outputs.device }}
           NEW_AGENT: ${{ steps.redeploy.outputs.agent }}
           NEW_ESCROW: ${{ steps.redeploy.outputs.escrow }}
@@ -186,12 +231,13 @@ jobs:
           # Only the propagated files + the evidence file. cargo build/test can
           # touch Cargo.lock and test snapshots; those stay out of this commit.
           xargs -a "$RUNNER_TEMP/changed.txt" -d '\n' git add --
-          git add -- "$EVIDENCE"
+          git add -- "$EVIDENCE" "$MATRIX"
           git commit -F - <<MSG
           chore(contracts): redeploy to Testnet and propagate new contract IDs
 
           Redeployed by the redeploy-release workflow ($RUN_URL).
           Evidence: $EVIDENCE
+          Security matrix: $MATRIX (PASS)
 
           device_registry: $NEW_DEVICE
           agent_registry: $NEW_AGENT
@@ -210,6 +256,8 @@ jobs:
             echo "| device_registry | \`$NEW_DEVICE\` |"
             echo "| agent_registry | \`$NEW_AGENT\` |"
             echo "| payment_escrow | \`$NEW_ESCROW\` |"
+            echo
+            echo "Security matrix: \`$MATRIX\` — **PASS** (all 20 outcomes) against these IDs."
             echo
             echo "Evidence: \`$EVIDENCE\`. The APK built from this branch is attached to the \`$RELEASE_TAG\` release."
             echo
@@ -274,6 +322,7 @@ jobs:
           REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           EVIDENCE: ${{ needs.deploy.outputs.evidence }}
+          MATRIX: ${{ needs.deploy.outputs.matrix }}
         run: |
           SHA=$(git rev-parse HEAD)
           eas_id() { jq -r ".build.base.env.$1" frontend/eas.json; }
@@ -303,5 +352,6 @@ jobs:
           fi
           FILES=("$RUNNER_TEMP/Noir.apk")
           [ -n "$EVIDENCE" ] && FILES+=("$EVIDENCE")
+          [ -n "$MATRIX" ] && FILES+=("$MATRIX")
           gh release upload "$TAG" "${FILES[@]}" --clobber
           echo "Uploaded to https://github.com/$REPO/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"
