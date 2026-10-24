@@ -6,6 +6,7 @@ Recorded 2026-10-24. This record covers local source checks and the guarded secu
 
 - Development base and contract source tested: `12db11f0c37e21a53a4e2b2ddd7f7611ce660ffb` (includes merged #22 and #25).
 - Runner code tested: `7f82ec81e725debcf339f34db6a1c4e0d7ee0167` (target guard commit `07832f6`, evidence-status commit `7f82ec8`). Later documentation-only commits record these results; they do not change the contract artifacts below.
+- Final readiness code revision: `8abec32b5824dd14f874c83199e7944d18726399`, including a narrow propagation compatibility fix after integrating development `e786b41` (merged #27). Rust and app source remain unchanged; the new deployment workflow was not run or modified by this readiness work.
 - Node: `v22.23.4`, from an official portable archive previously verified against its SHA-256 manifest. The machine's older default Node was not used for these checks.
 - SDK/gateway: Vitest `4.1.11`, existing lockfile dependencies; no dependency was added.
 - Frontend: Yarn `1.22.22`, `yarn install --frozen-lockfile`; no lockfile changed.
@@ -23,6 +24,7 @@ Commands below ran in their named directory using the patched Node runtime or pi
 | `backend` | `cargo build --locked --release --target wasm32v1-none -p payment-escrow` | Escrow WASM built after dependencies | 0 |
 | `backend` | `cargo test --locked -p device-registry -p agent-registry -p payment-escrow --target x86_64-pc-windows-msvc` | 60 passed: 10 device, 21 agent, 29 escrow | 0 |
 | repository | `bash -n scripts/redeploy-contracts.sh` | Syntax valid; script was not executed | 0 |
+| repository | `bash scripts/tests/propagate-contract-ids.sh` | Synthetic repository's active references update; immutable test/deployment history stays unchanged | 0 |
 | `sdk/agent-sdk` | `npm run typecheck` | Clean | 0 |
 | `sdk/agent-sdk` | `vitest run tests/security-matrix-support.test.ts` | 52 offline tests passed | 0 |
 | `sdk/agent-sdk` | `npm test` | 70 passed; all 19 live tests skipped | 0 |
@@ -46,6 +48,10 @@ Contract tests rewrote platform-dependent snapshots. Their generated differences
 - With all three target variables absent, `npm.cmd run test:security-matrix` on the default Windows shell exited **1 as expected**, reporting `Set NOIR_DEVICE_REGISTRY to a valid explicit contract ID.` before test setup. No live evidence file was created.
 - The same named-command preflight using Git Bash as npm's script shell also exited **1 as expected** for the same configuration error, without creating live evidence.
 - These expected failures prove the preflight guard, **not** the live security matrix. They are not counted as successful Testnet runs.
+
+The newly merged #27 propagator initially rewrote both test-only historical ID arrays to the new IDs. The synthetic-repository regression reproduced that failure (exit 1) before two exact path exclusions were added. The real script then passed the same check (exit 0), updating neighboring SDK references and full/short hashes while preserving the immutable arrays and dated history. The self-check is included in the existing SDK CI job, with triggers for both propagation scripts. It does not invoke a deployer or change real network configuration.
+
+For the local shell check, portable jq `1.8.1` was obtained from the official jqlang release and verified against its published SHA-256 `23cb60a1354eed6bcc8d9b9735e8c7b388cd1fdcb75726b93bc299ef22dd9334`. It is a temporary verification tool, not a new project dependency.
 
 The runner requires all 20 P/N outcome rows exactly once, successful setup/final verification, no failed tests, matching expected results, and valid hashes for accepted steps before reporting `PASS`. Live acceptance additionally requires Vitest exit 0 and verification that the supplied contracts contain the reviewed WASM. An address checksum and a green row list cannot establish that identity.
 

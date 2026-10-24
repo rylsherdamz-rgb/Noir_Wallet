@@ -211,6 +211,8 @@ With approved targets, the suite uses fresh Friendbot accounts and writes `deplo
 
 ### Offline expected-failure preflight
 
+Use Node `22.23.4` from the repository's `.nvmrc` for these checks; the file does not switch an already running shell.
+
 From `sdk/agent-sdk/`, clear the targets and run the named command. This check is safe during source verification: it must exit nonzero with `Set NOIR_DEVICE_REGISTRY to a valid explicit contract ID.` before any live request, without creating a matrix report. An exit code of 0 is a failure of this preflight check.
 
 ```powershell
@@ -228,6 +230,8 @@ npm.cmd run test:security-matrix
 ```
 
 Do not supply synthetic IDs to the live runner for offline verification. Target-validation and report-classification tests run offline in `tests/security-matrix-support.test.ts`.
+
+From the repository root, `bash scripts/tests/propagate-contract-ids.sh` checks ID propagation in a synthetic temporary Git repository. It requires Bash, Git, jq, and standard Unix tools, and also runs in SDK CI. Active references must update while the matrix's immutable pre-fix IDs and historical deployment records stay unchanged; it never propagates IDs in the real checkout.
 
 ### Deferred: release owner only
 
