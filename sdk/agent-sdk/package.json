@@ -10,7 +10,7 @@
     ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
   },
   "files": ["dist", "README.md"],
-  "engines": { "node": ">=20" },
+  "engines": { "node": "^22.23.4 || ^24.22.1 || >=26.12.1" },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
