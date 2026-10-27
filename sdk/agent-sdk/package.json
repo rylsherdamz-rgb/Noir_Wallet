@@ -1,6 +1,6 @@
 {
   "name": "@noirx402/agent-sdk",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Read and use Noir agent policies (device registry, agent registry, payment escrow) on Stellar from any app.",
   "keywords": [
     "stellar",
@@ -29,13 +29,26 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js", "default": "./dist/index.js" },
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "README.md", "LICENSE", "CHANGELOG.md"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
   "sideEffects": false,
-  "engines": { "node": "^22.23.4 || ^24.22.1 || >=26.12.1" },
-  "publishConfig": { "access": "public" },
+  "engines": {
+    "node": "^22.23.4 || ^24.22.1 || >=26.12.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "build": "npm run clean && tsc -p tsconfig.build.json",

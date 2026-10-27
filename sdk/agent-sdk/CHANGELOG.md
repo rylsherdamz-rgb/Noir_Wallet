@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.0
+
+Targets the Week 4 contracts redeployed to Testnet on 2026-10-24. **Upgrade from 0.2.0:**
+0.2.0 points `TESTNET` at the retired pre-fix contracts.
+
+- `TESTNET` contract IDs updated to the 2026-10-24 deployment (`device_registry` `CAC4…QHU5`,
+  `agent_registry` `CCMZ…EBV`, `payment_escrow` `CC7E…BFS`).
+- Contract errors named for the Week 4 fixes: `NotOwner` (agent_registry), `DeviceNotRegistered`,
+  `InvalidAsset`, `InvalidRecipient`, `InvalidAmount` (payment_escrow).
+- New operations `registerDevice`, `revokeDevice` and `sweepOnRevoke`, so the whole card lifecycle runs
+  through `execute`.
+- `unlinkDevice({ owner, deviceHash })` removes a device in the only order that never strands escrow.
+- `getEscrowToken(deviceHash)` and `getDeviceAgent(deviceHash)` reads.
+- Node 22.23.4+ / 24.22.1+ (was documented as 20+).
+
 ## 0.2.0
 
 First release on npm as `@noirx402/agent-sdk`.

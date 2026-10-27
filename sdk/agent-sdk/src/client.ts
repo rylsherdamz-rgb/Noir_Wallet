@@ -50,23 +50,34 @@ export interface WatchOptions {
  * Every write a Noir integration can make. The acting account (the one that
  * signs) is implied: the agent for `authorize`, the merchant for `claim`, the
  * device owner for the rest.
+ *
+ * Never send `revokeDevice` while the device still has escrow: the escrow
+ * resolves its owner through device_registry, so the funds would be stranded.
+ * `NoirAgentClient.unlinkDevice` runs the safe order for you.
  */
 export type NoirOperation =
+  | { kind: 'registerDevice'; deviceHash: string; agent: string }
+  | { kind: 'revokeDevice'; deviceHash: string }
   | { kind: 'authorize'; deviceHash: string; merchant: string; asset: string; amount: bigint; nonce: bigint }
   | { kind: 'claim'; token: string }
   | { kind: 'registerAgent'; deviceHash: string; agent: string; asset: string; maxAmount: bigint; expiresAt?: Date | null }
   | { kind: 'revokeAgent'; deviceHash: string }
   | { kind: 'fundEscrow'; deviceHash: string; token: string; amount: bigint }
   | { kind: 'defundEscrow'; deviceHash: string; token: string; amount: bigint }
+  | { kind: 'sweepOnRevoke'; deviceHash: string; token: string; agent: string }
 
 export type NoirOperationKind = NoirOperation['kind']
 
 const OP_CONTRACT: Record<NoirOperationKind, keyof NoirContracts> = {
+  registerDevice: 'deviceRegistry', revokeDevice: 'deviceRegistry',
   authorize: 'paymentEscrow', claim: 'paymentEscrow', fundEscrow: 'paymentEscrow', defundEscrow: 'paymentEscrow',
+  sweepOnRevoke: 'paymentEscrow',
   registerAgent: 'agentRegistry', revokeAgent: 'agentRegistry',
 }
 const OP_METHOD: Record<NoirOperationKind, string> = {
+  registerDevice: 'register', revokeDevice: 'revoke',
   authorize: 'authorize', claim: 'claim', fundEscrow: 'fund_escrow', defundEscrow: 'defund_escrow',
+  sweepOnRevoke: 'sweep_on_revoke',
   registerAgent: 'register_agent', revokeAgent: 'revoke_agent',
 }
 
@@ -76,6 +87,12 @@ export function toCall(source: string, op: NoirOperation): { contract: keyof Noi
   const i128 = (n: bigint) => nativeToScVal(n, { type: 'i128' })
   const args = ((): xdr.ScVal[] => {
     switch (op.kind) {
+      case 'registerDevice':
+        return [a(source), deviceHashScVal(op.deviceHash), a(op.agent)]
+      case 'revokeDevice':
+        return [a(source), deviceHashScVal(op.deviceHash)]
+      case 'sweepOnRevoke':
+        return [a(op.token), deviceHashScVal(op.deviceHash), a(op.agent)]
       case 'authorize':
         return [a(source), deviceHashScVal(op.deviceHash), a(op.merchant), a(op.asset), i128(op.amount), nativeToScVal(op.nonce, { type: 'u64' })]
       case 'claim':
@@ -156,6 +173,13 @@ export class NoirAgentClient {
     return BigInt(scValToNative(val!))
   }
 
+  /** Token the device's escrow is bound to (set by its first fund), or null before any funding. */
+  async getEscrowToken(deviceHash: string): Promise<string | null> {
+    const val = await this.read('paymentEscrow', 'escrow_token', [deviceHashScVal(deviceHash)])
+    const token = val ? scValToNative(val) : null
+    return token == null ? null : String(token)
+  }
+
   /** What a merchant can claim right now (smallest unit). */
   async getPendingBalance(merchant: string): Promise<bigint> {
     const val = await this.read('paymentEscrow', 'pending_balance', [new Address(merchant).toScVal()])
@@ -204,6 +228,40 @@ export class NoirAgentClient {
   /** Merchant collects every pending payment in `token`. */
   async claim(p: { merchant: NoirSigner; token: string }): Promise<{ hash: string }> {
     return this.execute(p.merchant, { kind: 'claim', token: p.token })
+  }
+
+  /**
+   * Removes a device without stranding its escrow: revoke_agent (the sweep
+   * refuses while an agent is live) → sweep_on_revoke (whole balance back to
+   * the owner) → device revoke (after which the owner can't be resolved).
+   * Each step is decided by a read, so a retry after a failure resumes.
+   * `owner` must be the device's current owner.
+   */
+  async unlinkDevice(p: { owner: NoirSigner; deviceHash: string }): Promise<{ hashes: string[]; escrowReturned: bigint }> {
+    const { owner, deviceHash } = p
+    const [current, policy, escrow, token] = await Promise.all([
+      this.getDeviceOwner(deviceHash), this.getPolicy(deviceHash),
+      this.getEscrowBalance(deviceHash), this.getEscrowToken(deviceHash),
+    ])
+    if (current && current !== owner.publicKey) throw new Error('unlinkDevice: the device belongs to another wallet')
+    if (!current && escrow > 0n) throw new Error('unlinkDevice: escrow remains but the device is no longer registered')
+
+    const hashes: string[] = []
+    if (policy) hashes.push((await this.execute(owner, { kind: 'revokeAgent', deviceHash })).hash)
+    if (escrow > 0n && token) {
+      // sweep_on_revoke takes the agent that was revoked; fall back to the device record's agent.
+      const agent = policy?.agent ?? (await this.getDeviceAgent(deviceHash))
+      if (!agent) throw new Error('unlinkDevice: cannot resolve the device agent to sweep')
+      hashes.push((await this.execute(owner, { kind: 'sweepOnRevoke', deviceHash, token, agent })).hash)
+    }
+    if (current) hashes.push((await this.execute(owner, { kind: 'revokeDevice', deviceHash })).hash)
+    return { hashes, escrowReturned: escrow }
+  }
+
+  /** The agent recorded for the device in device_registry, or null when the device is not registered. */
+  async getDeviceAgent(deviceHash: string): Promise<string | null> {
+    const val = await this.read('deviceRegistry', 'get_agent', [deviceHashScVal(deviceHash)], ['DeviceNotFound'])
+    return val ? String(scValToNative(val)) : null
   }
 
   /**

@@ -278,7 +278,7 @@ export class Noir {
       if (await this.policy(p.deviceHash)) return { deviceHash: p.deviceHash, agent, alreadyLinked: true }
     } else {
       agent = (await this.allocateAgent(p.seed, pub, p.retired)).kp.publicKey()
-      await this.invoke(p.wallet, 'deviceRegistry', 'register', [new Address(pub).toScVal(), deviceHashScVal(p.deviceHash), new Address(agent).toScVal()])
+      await this.op(p.wallet, { kind: 'registerDevice', deviceHash: p.deviceHash, agent })
     }
     await this.op(p.wallet, { kind: 'registerAgent', deviceHash: p.deviceHash, agent, asset: this.xlm, ...policy })
     return { deviceHash: p.deviceHash, agent, alreadyLinked: false }
@@ -421,11 +421,9 @@ export class Noir {
     if (policy) await this.op(wallet, { kind: 'revokeAgent', deviceHash })
     if (escrow > 0n) {
       if (own.status !== 'mine') throw new Error('Escrow remains but the card is no longer registered.')
-      await this.invoke(wallet, 'paymentEscrow', 'sweep_on_revoke', [
-        new Address(this.xlm).toScVal(), deviceHashScVal(deviceHash), new Address(policy?.agent ?? own.agent).toScVal(),
-      ])
+      await this.op(wallet, { kind: 'sweepOnRevoke', deviceHash, token: this.xlm, agent: policy?.agent ?? own.agent })
     }
-    if (own.status === 'mine') await this.invoke(wallet, 'deviceRegistry', 'revoke', [new Address(pub).toScVal(), deviceHashScVal(deviceHash)])
+    if (own.status === 'mine') await this.op(wallet, { kind: 'revokeDevice', deviceHash })
 
     let agentSwept = 0
     if (agentKp) {

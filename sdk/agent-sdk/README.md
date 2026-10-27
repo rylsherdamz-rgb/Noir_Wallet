@@ -66,6 +66,8 @@ disagree with what `authorize` will enforce.
 | `getDeviceOwner(deviceHash)` | owner wallet address, or `null` |
 | `listDevices(wallet)` | device hashes registered to a wallet |
 | `getEscrowBalance(deviceHash)` | escrowed amount (`bigint`, smallest unit) |
+| `getEscrowToken(deviceHash)` | token the escrow is bound to, or `null` before the first fund |
+| `getDeviceAgent(deviceHash)` | agent recorded in `device_registry`, or `null` |
 | `getPendingBalance(merchant)` | what the merchant can claim |
 | `checkPayment({...})` | `{ ok }` or `{ ok: false, reason }` |
 
@@ -92,14 +94,20 @@ await noir.claim({ merchant: walletKitSigner, token: asset })
 ```
 
 Refusals throw `NoirContractError` with the contract's own error name
-(`AgentNotAuthorized`, `InsufficientBalance`, `DuplicateAuth`, `NothingToClaim`, …).
+(`AgentNotAuthorized`, `InsufficientBalance`, `DuplicateAuth`, `NothingToClaim`,
+`InvalidAsset`, `DeviceNotRegistered`, `NotOwner`, …).
 
 ## Every other operation
 
 `execute(signer, op)` runs any Noir write; the signer is the acting account
 (the agent for `authorize`, the merchant for `claim`, the device owner for the rest).
 
+The full card lifecycle, in call order:
+
 ```ts
+// 1. Link the tag to the wallet with its agent key.
+await noir.execute(ownerWallet, { kind: 'registerDevice', deviceHash, agent })
+// 2. Give the agent a constrained policy.
 await noir.execute(ownerWallet, {
   kind: 'registerAgent', deviceHash, agent, asset,
   maxAmount: 50_000_000n, expiresAt: new Date('2027-01-01'),
@@ -107,6 +115,18 @@ await noir.execute(ownerWallet, {
 await noir.execute(ownerWallet, { kind: 'fundEscrow', deviceHash, token: asset, amount: 100_000_000n })
 await noir.execute(ownerWallet, { kind: 'defundEscrow', deviceHash, token: asset, amount: 20_000_000n })
 await noir.execute(ownerWallet, { kind: 'revokeAgent', deviceHash })
+```
+
+An escrow is bound to the token it was first funded with; any other token is
+refused with `InvalidAsset`.
+
+**Unlinking a card.** Never send `revokeDevice` while the escrow holds funds:
+the escrow finds its owner through `device_registry`, so the funds would be
+stranded. `unlinkDevice` runs the safe order (revoke agent → `sweepOnRevoke`
+returns the whole escrow → revoke device) and resumes if a step failed:
+
+```ts
+const { escrowReturned } = await noir.unlinkDevice({ owner: ownerWallet, deviceHash })
 ```
 
 To sign somewhere else (a hardware key, another service), split it in two:

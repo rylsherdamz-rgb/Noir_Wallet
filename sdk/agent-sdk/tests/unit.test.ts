@@ -165,6 +165,22 @@ describe('toCall', () => {
     const forever = toCall(owner, { kind: 'registerAgent', deviceHash: HASH, agent, asset, maxAmount: 0n })
     expect(native(forever.args[5])).toBe(0n)
   })
+
+  it('covers the device lifecycle: register, sweep, revoke', () => {
+    const reg = toCall(owner, { kind: 'registerDevice', deviceHash: HASH, agent })
+    expect([reg.contract, reg.method]).toEqual(['deviceRegistry', 'register'])
+    const [who, device, regAgent] = reg.args.map(native)
+    expect([who, toHex(device as Uint8Array), regAgent]).toEqual([owner, HASH, agent])
+
+    const sweep = toCall(owner, { kind: 'sweepOnRevoke', deviceHash: HASH, token: asset, agent })
+    expect([sweep.contract, sweep.method]).toEqual(['paymentEscrow', 'sweep_on_revoke'])
+    const [token, sweepDevice, sweepAgent] = sweep.args.map(native)
+    expect([token, toHex(sweepDevice as Uint8Array), sweepAgent]).toEqual([asset, HASH, agent])
+
+    const revoke = toCall(owner, { kind: 'revokeDevice', deviceHash: HASH })
+    expect([revoke.contract, revoke.method]).toEqual(['deviceRegistry', 'revoke'])
+    expect(revoke.args.map(native)[0]).toBe(owner)
+  })
 })
 
 describe('hex helpers', () => {
