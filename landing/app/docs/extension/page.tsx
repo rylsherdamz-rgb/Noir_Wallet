@@ -82,7 +82,7 @@ const { signedTxXdr } = await noir.signTransaction(tx.toXDR(), { networkPassphra
 
       <h2 id="with-sdk">With the Noir SDK</h2>
       <CodeBlock lang="ts" code={`
-import { NoirAgentClient, noirExtensionSigner } from '@noir-wallet/agent-sdk'
+import { NoirAgentClient, noirExtensionSigner } from '@noirx402/agent-sdk'
 
 const merchant = await noirExtensionSigner()
 await new NoirAgentClient().claim({ merchant, token: asset })

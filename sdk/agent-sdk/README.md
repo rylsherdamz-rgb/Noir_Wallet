@@ -1,4 +1,4 @@
-# @noir-wallet/agent-sdk
+# @noirx402/agent-sdk
 
 Use Noir agent policies from any app. Noir links an NFC card to a constrained
 payment **agent** on Stellar: the wallet owner sets which key may spend, which
@@ -10,16 +10,16 @@ signed webhooks.
 Everything lives in Noir's three Soroban contracts, so the SDK needs no Noir
 server or API key. Works in Node 22.23.4+ (or 24.22.1+), the browser and React Native (no `Buffer`).
 Apps that can't run JavaScript, or want API keys and rate limits in front of
-Noir, can use the REST gateway in [`sdk/noir-api`](../noir-api).
+Noir, can use the REST gateway in [`sdk/noir-api`](https://github.com/rylsherdamz-rgb/Noir_Wallet/tree/main/sdk/noir-api).
 
 ```bash
-npm install @noir-wallet/agent-sdk @stellar/stellar-sdk
+npm install @noirx402/agent-sdk @stellar/stellar-sdk
 ```
 
 ## Quick start: accept a Noir tap in a dApp
 
 ```ts
-import { NoirAgentClient, noirExtensionSigner, walletSigner, toStroops, fromStroops } from '@noir-wallet/agent-sdk'
+import { NoirAgentClient, noirExtensionSigner, walletSigner, toStroops, fromStroops } from '@noirx402/agent-sdk'
 
 const noir = new NoirAgentClient()
 
@@ -45,7 +45,7 @@ await noir.claim({ merchant, token: asset })
 ## Read a policy and check a payment
 
 ```ts
-import { NoirAgentClient } from '@noir-wallet/agent-sdk'
+import { NoirAgentClient } from '@noirx402/agent-sdk'
 
 const noir = new NoirAgentClient() // Testnet by default
 
@@ -66,6 +66,8 @@ disagree with what `authorize` will enforce.
 | `getDeviceOwner(deviceHash)` | owner wallet address, or `null` |
 | `listDevices(wallet)` | device hashes registered to a wallet |
 | `getEscrowBalance(deviceHash)` | escrowed amount (`bigint`, smallest unit) |
+| `getEscrowToken(deviceHash)` | token the escrow is bound to, or `null` before the first fund |
+| `getDeviceAgent(deviceHash)` | agent recorded in `device_registry`, or `null` |
 | `getPendingBalance(merchant)` | what the merchant can claim |
 | `checkPayment({...})` | `{ ok }` or `{ ok: false, reason }` |
 
@@ -79,7 +81,7 @@ Stellar Wallets Kit shape, so a connected browser wallet works as-is and the
 secret key never reaches this SDK. On a server, use `keypairSigner(secret)`.
 
 ```ts
-import { keypairSigner } from '@noir-wallet/agent-sdk'
+import { keypairSigner } from '@noirx402/agent-sdk'
 
 // The agent key spends from the device's escrow, within its policy.
 const { hash } = await noir.authorizePayment({
@@ -92,14 +94,20 @@ await noir.claim({ merchant: walletKitSigner, token: asset })
 ```
 
 Refusals throw `NoirContractError` with the contract's own error name
-(`AgentNotAuthorized`, `InsufficientBalance`, `DuplicateAuth`, `NothingToClaim`, …).
+(`AgentNotAuthorized`, `InsufficientBalance`, `DuplicateAuth`, `NothingToClaim`,
+`InvalidAsset`, `DeviceNotRegistered`, `NotOwner`, …).
 
 ## Every other operation
 
 `execute(signer, op)` runs any Noir write; the signer is the acting account
 (the agent for `authorize`, the merchant for `claim`, the device owner for the rest).
 
+The full card lifecycle, in call order:
+
 ```ts
+// 1. Link the tag to the wallet with its agent key.
+await noir.execute(ownerWallet, { kind: 'registerDevice', deviceHash, agent })
+// 2. Give the agent a constrained policy.
 await noir.execute(ownerWallet, {
   kind: 'registerAgent', deviceHash, agent, asset,
   maxAmount: 50_000_000n, expiresAt: new Date('2027-01-01'),
@@ -107,6 +115,18 @@ await noir.execute(ownerWallet, {
 await noir.execute(ownerWallet, { kind: 'fundEscrow', deviceHash, token: asset, amount: 100_000_000n })
 await noir.execute(ownerWallet, { kind: 'defundEscrow', deviceHash, token: asset, amount: 20_000_000n })
 await noir.execute(ownerWallet, { kind: 'revokeAgent', deviceHash })
+```
+
+An escrow is bound to the token it was first funded with; any other token is
+refused with `InvalidAsset`.
+
+**Unlinking a card.** Never send `revokeDevice` while the escrow holds funds:
+the escrow finds its owner through `device_registry`, so the funds would be
+stranded. `unlinkDevice` runs the safe order (revoke agent → `sweepOnRevoke`
+returns the whole escrow → revoke device) and resumes if a step failed:
+
+```ts
+const { escrowReturned } = await noir.unlinkDevice({ owner: ownerWallet, deviceHash })
 ```
 
 To sign somewhere else (a hardware key, another service), split it in two:
@@ -143,7 +163,7 @@ const lastDay = await noir.pastEvents(latestLedger - 17_000) // RPC keeps ~7 day
 Run a relay that POSTs each event to your endpoint, signed with HMAC-SHA256:
 
 ```ts
-import { startWebhookRelay } from '@noir-wallet/agent-sdk'
+import { startWebhookRelay } from '@noirx402/agent-sdk'
 
 startWebhookRelay(noir, { url: 'https://your.app/noir-hook', secret, deviceHash })
 ```
@@ -153,15 +173,15 @@ an `X-Noir-Signature: t=<unix>,v1=<hex>` header. Verify it against the **raw**
 body before trusting anything:
 
 ```ts
-import { verifyWebhookSignature } from '@noir-wallet/agent-sdk'
+import { verifyWebhookSignature } from '@noirx402/agent-sdk'
 
 if (!(await verifyWebhookSignature(secret, rawBody, req.headers['x-noir-signature']))) return 401
 ```
 
 Deliveries older than 5 minutes are rejected (replay protection). Delivery is
 at-least-once with retries on network errors, 429 and 5xx, so dedupe on
-`event.id`. Ready-to-run examples: `examples/webhook-relay.ts`,
-`examples/webhook-receiver.ts`, `examples/check-and-pay.ts`.
+`event.id`. Ready-to-run examples in [`examples/`](https://github.com/rylsherdamz-rgb/Noir_Wallet/tree/main/sdk/agent-sdk/examples): `webhook-relay.ts`,
+`webhook-receiver.ts`, `check-and-pay.ts`.
 
 ## Networks
 

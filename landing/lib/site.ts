@@ -33,17 +33,17 @@ export const BETA_POST_ON_X = 'https://x.com/Noirx402/status/2109813001289380199
 export const CONTRACTS = [
   {
     name: 'device_registry',
-    id: 'CB4DPMGOA374JIB2ZVD4AHW5GJKQUYNOFGRYNOJ75EFH2KCJSMHOWIRA',
+    id: 'CAC4KOLHDLDYDWBOKXNKRN5KVHO56PLOIFXDLTBUWGVN6GVDEB7FQHU5',
     role: 'Binds the SHA-256 hash of an NFC tag to the wallet that owns it.',
   },
   {
     name: 'agent_registry',
-    id: 'CBTDMJVCFQDIVWZBKAKZ2FQ3UEJNAAUFYCTJ3E4ON2MYXPLPSIXQ25JZ',
+    id: 'CCMZDSPTLX7IIJWCYEUM5DJUHOSOYSTHGK777S2TXZWEMC5ZZGPJ3EBV',
     role: 'Stores each device’s agent policy: which key may spend, which asset, how much per payment, until when.',
   },
   {
     name: 'payment_escrow',
-    id: 'CA5S4S7QGHJHJWVJBYL3CXZXZTNGKXMNZVDAEQNN7NUXFP4D7BYK7HIX',
+    id: 'CC7EAW5FNJEDBS7THM5IT6XIOHO4AOYMLXT3KSZ3HWUIKEACTW7E5BFS',
     role: 'Holds each device’s pre-funded balance; authorizes taps within policy and lets merchants claim in batch.',
   },
 ] as const
